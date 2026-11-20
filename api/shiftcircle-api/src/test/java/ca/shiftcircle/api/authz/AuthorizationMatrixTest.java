@@ -211,6 +211,32 @@ class AuthorizationMatrixTest {
   }
 
   @Test
+  void rulesAdminCells() throws Exception {
+    assertThat(send("GET", "/api/v1/rule-sets", null, tokens.get("m.ellis")).statusCode())
+        .as("a supervisor may read rule versions")
+        .isEqualTo(200);
+    assertThat(send("GET", "/api/v1/rule-sets", null, tokens.get("t.nakamura")).statusCode())
+        .isEqualTo(403);
+    assertThat(send("GET", "/api/v1/rule-sets", null, null).statusCode()).isEqualTo(401);
+
+    String draft = "{\"basedOn\":1,\"reason\":\"matrix cell\"}";
+    assertThat(send("POST", "/api/v1/rule-sets/drafts", draft, tokens.get("m.ellis")).statusCode())
+        .as("a supervisor cannot edit rule drafts")
+        .isEqualTo(403);
+    assertThat(send("POST", "/api/v1/rule-sets/drafts", draft, tokens.get("p.singh")).statusCode())
+        .as("an approver cannot edit drafts")
+        .isEqualTo(403);
+    assertThat(send("POST", "/api/v1/rule-sets/1/approve", null, tokens.get("a.reviewer"))
+            .statusCode())
+        .as("an auditor cannot approve")
+        .isEqualTo(403);
+    assertThat(send("POST", "/api/v1/rule-sets/1/publish", null, tokens.get("a.reviewer"))
+            .statusCode())
+        .as("an auditor cannot publish")
+        .isEqualTo(403);
+  }
+
+  @Test
   void overtimeAndOwnScheduleCells() throws Exception {
     String openShifts = "/api/v1/open-shifts?from=2026-11-01&to=2026-11-30";
     assertThat(send("GET", openShifts, null, tokens.get("m.ellis")).statusCode()).isEqualTo(200);

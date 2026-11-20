@@ -203,6 +203,12 @@ path (`POST /assignments`), so S-04 and the audit event still hold.
 | POST | `/rule-sets/{version}/submit` | Submit a successfully built draft for approval | RULES_ADMIN |
 | POST | `/rule-sets/{version}/approve` · `/reject` | Second-person decision (`approved_by ≠ created_by`) | RULES_APPROVER |
 | POST | `/rule-sets/{version}/publish` | Hot-swap the live rule base at the effective date | RULES_APPROVER |
+
+**The build is the evidence, and it goes stale if the rows move.** `build` stores a fingerprint of
+the exact rows it validated, compiled and ran; saving rows again clears the report and the
+fingerprint, and `submit`/`publish` refuse an older build with `409`. At boot the live rule base is
+the published version's rows from PostgreSQL, not a code constant, so a restart keeps the published
+rules. The dry run reports counts per rule, unit and old→new outcome, never names (ADR-017).
 | GET | `/rule-sets/{version}/tables/{code}/export` | `.xlsx` Drools decision table | RULES_ADMIN, RULES_APPROVER |
 | POST | `/rule-sets/{version}/tables/{code}/import` | multipart `.xlsx` into a draft (then build as usual) | RULES_ADMIN |
 
