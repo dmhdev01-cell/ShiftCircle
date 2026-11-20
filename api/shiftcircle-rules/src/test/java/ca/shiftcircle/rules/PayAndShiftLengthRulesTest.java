@@ -109,6 +109,21 @@ class PayAndShiftLengthRulesTest {
     assertThat(evaluate(fact)).isEmpty();
   }
 
+  @Test
+  void aDisabledPayRowFailsLoudlyInsteadOfFallingBackToDefaults() {
+    var withoutMinimum =
+        new ca.shiftcircle.rules.model.RuleSet(
+            "v1",
+            RuleRowsV1.ruleSet().rows().stream()
+                .filter(row -> !row.code().equals("P-04"))
+                .toList());
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+            () -> classifier.policyFrom(withoutMinimum))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("P-04");
+  }
+
   // L-01 / S-03: shift lengths and unit eligibility -------------------------------------------
 
   @Test

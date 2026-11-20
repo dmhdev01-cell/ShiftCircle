@@ -2,6 +2,7 @@ package ca.shiftcircle.rules.pay;
 
 import ca.shiftcircle.rules.model.RuleRow;
 import ca.shiftcircle.rules.model.RuleSet;
+import java.util.Map;
 
 /**
  * Classifies hours for payroll (P-01, P-01b, P-04).
@@ -12,38 +13,33 @@ import ca.shiftcircle.rules.model.RuleSet;
  */
 public final class PayClassifier {
 
-  /** Reads the policy from the rule set, falling back to the v1 defaults when a row is disabled. */
+  /**
+   * Reads the policy from the rule set. All three pay rows must be present and enabled: silently
+   * falling back to built-in defaults would pay people under a rule set that is not the published
+   * one (review F7), so a missing row fails loudly.
+   */
   public PayPolicy policyFrom(RuleSet ruleSet) {
-    PayPolicy policy = PayPolicy.DEFAULT;
-    for (RuleRow row : ruleSet.enabledRows()) {
-      switch (row.code()) {
-        case "P-01" ->
-            policy =
-                new PayPolicy(
-                    row.text("thresholdWindow"),
-                    row.number("thresholdHours"),
-                    policy.overtimeRate(),
-                    policy.ignoreUnderMinutes());
-        case "P-01b" ->
-            policy =
-                new PayPolicy(
-                    policy.thresholdWindow(),
-                    policy.thresholdHours(),
-                    row.number("otRate"),
-                    policy.ignoreUnderMinutes());
-        case "P-04" ->
-            policy =
-                new PayPolicy(
-                    policy.thresholdWindow(),
-                    policy.thresholdHours(),
-                    policy.overtimeRate(),
-                    row.number("ignoreUnderMinutes"));
-        default -> {
-          // other tables contribute no pay policy
-        }
-      }
+    Map<String, RuleRow> rows = new java.util.HashMap<>();
+    ruleSet.enabledRows().forEach(row -> rows.put(row.code(), row));
+
+    RuleRow threshold = require(rows, "P-01");
+    RuleRow rate = require(rows, "P-01b");
+    RuleRow minimum = require(rows, "P-04");
+
+    return new PayPolicy(
+        threshold.text("thresholdWindow"),
+        threshold.number("thresholdHours"),
+        rate.number("otRate"),
+        minimum.number("ignoreUnderMinutes"));
+  }
+
+  private static RuleRow require(Map<String, RuleRow> rows, String code) {
+    RuleRow row = rows.get(code);
+    if (row == null) {
+      throw new IllegalStateException(
+          "Pay policy is incomplete: rule row " + code + " is missing or disabled");
     }
-    return policy;
+    return row;
   }
 
   /** Classifies one officer's period hours under the given policy. */
