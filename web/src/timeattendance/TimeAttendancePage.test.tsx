@@ -39,6 +39,18 @@ describe('Time and attendance', () => {
     expect(screen.getByText('3 shifts with no actual recorded')).toBeInTheDocument();
   });
 
+  it('takes a missing-actual line to its cell and opens the actual panel', async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    await screen.findByText('Tara Nakamura');
+    await user.click(
+      screen.getByRole('button', { name: /Marc Desjardins · 2026-11-16 07:00/ }),
+    );
+
+    expect(await screen.findByRole('heading', { name: /Record actual/ })).toBeInTheDocument();
+  });
+
   it('will not lock the period while a shift has no actual', async () => {
     renderScreen();
 

@@ -3,6 +3,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import Drawer from '@mui/material/Drawer';
 import Typography from '@mui/material/Typography';
 
 import { api, ApiError } from '../api/client';
@@ -146,6 +147,24 @@ export function TimeAttendancePage() {
   const shortExtensions = visible.filter(
     (entry) => (entry.unpaidExtensionMinutes ?? 0) > 0 && (entry.unpaidExtensionMinutes ?? 0) < 30,
   );
+
+  /** Take the supervisor from a missing-actual line to that cell. */
+  const locateMissing = (assignmentId: string) => {
+    const entry = visible.find((item) => item.assignmentId === assignmentId);
+    if (entry) {
+      setPicked(entry);
+      setSaved(null);
+    }
+    const cell = document.querySelector<HTMLElement>(
+      `[data-assignment-id="${assignmentId}"]`,
+    );
+    if (!cell) return;
+    if (typeof cell.scrollIntoView === 'function') {
+      cell.scrollIntoView({ block: 'center', inline: 'center' });
+    }
+    const target = cell.querySelector<HTMLElement>('button') ?? cell;
+    target.focus?.();
+  };
 
   const recordActual = async (input: RecordActualInput) => {
     if (!picked) return;
@@ -357,35 +376,128 @@ export function TimeAttendancePage() {
             {`${missingShifts.length} shift${missingShifts.length === 1 ? '' : 's'} with no actual recorded`}
           </Typography>
           <Box component="ul" sx={{ m: 0, pl: 4, fontSize: 13 }}>
-            {missingShifts.map((entry) => (
-              <li key={entry.assignmentId}>
-                {entry.employeeName} · {entry.start.slice(0, 10)} {entry.start.slice(11, 16)}
-              </li>
-            ))}
+            {missingShifts.map((entry) => {
+              const known = visible.some((item) => item.assignmentId === entry.assignmentId);
+              return (
+                <li key={entry.assignmentId}>
+                  {known ? (
+                    <Box
+                      component="button"
+                      type="button"
+                      onClick={() => locateMissing(entry.assignmentId)}
+                      sx={{
+                        p: 0,
+                        border: 0,
+                        background: 'transparent',
+                        font: 'inherit',
+                        color: 'inherit',
+                        textDecoration: 'underline',
+                        cursor: 'pointer',
+                        minHeight: 24,
+                      }}
+                    >
+                      {entry.employeeName} · {entry.start.slice(0, 10)} {entry.start.slice(11, 16)}
+                    </Box>
+                  ) : (
+                    <>
+                      {entry.employeeName} · {entry.start.slice(0, 10)} {entry.start.slice(11, 16)}
+                    </>
+                  )}
+                </li>
+              );
+            })}
           </Box>
         </Box>
       ) : null}
 
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'flex-start' }}>
-        <Box sx={{ flex: '999 1 640px', minWidth: 0 }}>
-          {entriesState.kind === 'loading' ? (
-            <Typography sx={{ fontSize: 14, color: colour.text.secondary }} role="status">
-              Loading the time entries…
-            </Typography>
+      <Box
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 3,
+        }}
+      >
+        <Box sx={{ flex: '1 1 320px', fontSize: 13, color: colour.text.secondary }}>
+          {locked
+            ? 'This pay period is locked, so the actuals are read-only. Unlock it with a reason to make changes.'
+            : 'Pick a past shift in the grid to record what actually happened.'}
+        </Box>
+        <Box
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: 3,
+            backgroundColor: colour.bg.surface,
+            border: `1px solid ${colour.border.default}`,
+            borderRadius: '10px',
+            p: 2.5,
+          }}
+        >
+          {locked ? (
+            <>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Button variant="contained" color="primary" onClick={() => void exportPayroll()}>
+                  Payroll export (CSV)
+                </Button>
+                {period?.lastExport ? (
+                  <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
+                    Last export {period.lastExport.at} · hash {period.lastExport.fileHash}
+                  </Box>
+                ) : null}
+              </Box>
+              <Button variant="outlined" color="primary" onClick={() => setUnlockOpen(true)}>
+                Unlock…
+              </Button>
+            </>
           ) : (
-            <TimeGrid
-              rows={rows}
-              days={days}
-              locked={locked ?? false}
-              onPick={(entry) => {
-                setPicked(entry);
-                setSaved(null);
-              }}
-            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Button
+                variant="contained"
+                color="primary"
+                disabled={needingActuals.length > 0}
+                onClick={() => setLockOpen(true)}
+              >
+                Lock pay period
+              </Button>
+              {needingActuals.length > 0 ? (
+                <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
+                  Record {needingActuals.length} missing actual
+                  {needingActuals.length === 1 ? '' : 's'} first
+                </Box>
+              ) : null}
+            </Box>
           )}
         </Box>
+      </Box>
 
-        <Box sx={{ flex: '1 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {entriesState.kind === 'loading' ? (
+        <Typography sx={{ fontSize: 14, color: colour.text.secondary }} role="status">
+          Loading the time entries…
+        </Typography>
+      ) : (
+        <TimeGrid
+          rows={rows}
+          days={days}
+          locked={locked ?? false}
+          onPick={(entry) => {
+            setPicked(entry);
+            setSaved(null);
+          }}
+        />
+      )}
+
+      <Drawer
+        anchor="right"
+        open={picked !== null}
+        onClose={() => {
+          setPicked(null);
+          setSaved(null);
+        }}
+      >
+        <Box sx={{ width: { xs: '100vw', sm: 420 }, p: 3 }}>
           {picked ? (
             <RecordActualPanel
               entry={picked}
@@ -396,70 +508,9 @@ export function TimeAttendancePage() {
                 setSaved(null);
               }}
             />
-          ) : (
-            <Card>
-              <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Typography sx={{ fontWeight: 600, fontSize: 15 }}>Record actual</Typography>
-                <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
-                  {locked
-                    ? 'This pay period is locked, so the actuals are read-only. Unlock it with a reason to make changes.'
-                    : 'Pick a past shift in the grid to record what actually happened.'}
-                </Typography>
-              </CardContent>
-            </Card>
-          )}
-
-          <Box
-            sx={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              gap: 3,
-              backgroundColor: colour.bg.surface,
-              border: `1px solid ${colour.border.default}`,
-              borderRadius: '10px',
-              p: 4,
-            }}
-          >
-            {locked ? (
-              <>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <Button variant="contained" color="primary" onClick={() => void exportPayroll()}>
-                    Payroll export (CSV)
-                  </Button>
-                  {period?.lastExport ? (
-                    <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
-                      Last export {period.lastExport.at} · hash {period.lastExport.fileHash}
-                    </Box>
-                  ) : null}
-                </Box>
-                <Button variant="outlined" color="primary" onClick={() => setUnlockOpen(true)}>
-                  Unlock…
-                </Button>
-              </>
-            ) : (
-              <>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    disabled={needingActuals.length > 0}
-                    onClick={() => setLockOpen(true)}
-                  >
-                    Lock pay period
-                  </Button>
-                  {needingActuals.length > 0 ? (
-                    <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
-                      Record {needingActuals.length} missing actual
-                      {needingActuals.length === 1 ? '' : 's'} first
-                    </Box>
-                  ) : null}
-                </Box>
-              </>
-            )}
-          </Box>
+          ) : null}
         </Box>
-      </Box>
+      </Drawer>
 
       {period ? (
         <LockPeriodDialog
