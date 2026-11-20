@@ -52,7 +52,12 @@ export function ShiftActionsDialog({
     .filter((result) => result.outcome === 'WARN')
     .map((result) => result.ruleCode);
   const blocking = (blocked ?? []).filter((result) => result.outcome === 'BLOCK');
-  const canOverride = blocking.some((result) => result.overridePolicy === 'EMERGENCY');
+  // The api refuses an override unless every blocking rule allows one, so the
+  // screen must not offer an override the api would reject (docs/07 §3).
+  const canOverride =
+    blocking.length > 0 && blocking.every((result) => result.overridePolicy === 'EMERGENCY');
+  // Warnings are only acknowledged when nothing blocks the move.
+  const canAcknowledge = blocking.length === 0 && warnCodes.length > 0;
 
   const finish = () => {
     onChanged();
@@ -283,7 +288,7 @@ export function ShiftActionsDialog({
                   Emergency override…
                 </Button>
               </Box>
-            ) : warnCodes.length > 0 ? (
+            ) : canAcknowledge ? (
               <Box>
                 <Button
                   variant="outlined"
