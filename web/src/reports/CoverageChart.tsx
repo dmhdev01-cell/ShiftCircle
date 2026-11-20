@@ -9,6 +9,21 @@ interface CoverageChartProps {
 }
 
 /**
+ * The ticks a linear axis shows: the bottom, 100 % (the required line), the top
+ * and, when there is room, a midpoint in each half. `top` is the distance from
+ * the top of the plot as a percentage, so a tick and a bar of the same value sit
+ * on the same line.
+ */
+export function axisTicks(from: number, to: number): { value: number; top: number }[] {
+  const span = to - from;
+  const values = [from, 100, ...(span >= 12 ? [Math.round((from + 100) / 2), Math.round((100 + to) / 2)] : []), to];
+  return [...new Set(values)]
+    .filter((value) => value >= from && value <= to)
+    .sort((left, right) => left - right)
+    .map((value) => ({ value, top: ((to - value) / span) * 100 }));
+}
+
+/**
  * The coverage chart (docs/ui/README.md §5.5): the share of required
  * staff-hours that were scheduled and that were actually worked, by week.
  *
@@ -75,9 +90,7 @@ export function CoverageChart({ report }: CoverageChartProps) {
           aria-hidden="true"
           className="num"
           sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
+            position: 'relative',
             height: 200,
             fontSize: 11,
             color: colour.text.secondary,
@@ -85,8 +98,15 @@ export function CoverageChart({ report }: CoverageChartProps) {
             minWidth: 40,
           }}
         >
-          {[axisTo, 100, 98, 96, axisFrom].map((tick) => (
-            <span key={tick}>{tick}%</span>
+          {/* The labels sit where their value is: an axis from 94 to 116 puts
+              100 % near the bottom, and saying 100 % anywhere else is a lie. */}
+          {axisTicks(axisFrom, axisTo).map((tick) => (
+            <span
+              key={tick.value}
+              style={{ position: 'absolute', right: 0, top: `${tick.top}%`, transform: 'translateY(-50%)' }}
+            >
+              {tick.value}%
+            </span>
           ))}
         </Box>
 
