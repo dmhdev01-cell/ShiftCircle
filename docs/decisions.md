@@ -103,3 +103,9 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Pilot:** a migration-owner role and an application role with `INSERT, SELECT` only on `audit_event`; audit retention per the records schedule. Recorded in `08-deployment.md` §9.
 **Supersedes:** the earlier wording in `06-data-model.md` and `09-access-control.md` that the application role had `INSERT, SELECT` only.
 
+## ADR-019 — S-04 (overtime authorization) is enforced by the workflow, not a decision table
+**Status:** Accepted (2026-11-20, lead's decision)
+**Decision:** S-04 has no rule table and no `RequiresAuthorization` template. `EXTRA` shifts and overtime offers can be created or confirmed only by a `SUPERVISOR` (`POST /assignments`, `POST /open-shifts/{id}/offers|assign`, `POST /offers/{id}/confirm`, `POST /proposals/{id}/decision`), and each writes an `audit_event` with actor and time. An employee accepting an offer doesn't create the assignment; the supervisor's confirmation does.
+**Why:** "who may authorize" is a permission, already enforced by role and scope checks (`09-access-control.md` §3) and proven by the authorization tests; a configurable table would let an admin switch off a safeguard (HANDOFF guardrail 3).
+**Consequences:** `05-union-rules.md` §2E and §4 updated; S-04 is tested by the authorization tests (an `EMPLOYEE` creating or confirming an `EXTRA` shift gets `403`) and by checking the audit event, not by the rule boundary matrix.
+

@@ -69,7 +69,7 @@ Severity: **Block** = can't be saved (override only where marked) · **Warn** = 
 | S-01 | Schedules **posted at least 28 days** before they start | 28 d | Warn | **CX** |
 | S-02 | No more than **1 change of an officer's regular shift per cycle** without their consent (a change and a return count as one) | 1 | Warn | **CX** |
 | S-03 | 12- and 16-hour patterns allowed only on units flagged as having a **local agreement** | per unit | Block | **PSGE** |
-| S-04 | Overtime must be **authorized** by a supervisor, recorded with name and time | — | Block (system-enforced) | **PSGE** (written authorization) |
+| S-04 | Overtime must be **authorized** by a supervisor, recorded with name and time | — | Block (**workflow-enforced**, not a decision table, ADR-019): `EXTRA` shifts and overtime offers are created or confirmed only by a `SUPERVISOR`, and each writes an audit event with actor and time | **PSGE** (written authorization) |
 
 ### F. Overtime allocation
 
@@ -93,7 +93,7 @@ To keep the build realistic, the prototype implements a core set and documents t
 
 | Implement (Must) | Document only (future) |
 |---|---|
-| U-01, U-02, U-03, U-05, U-08, U-09, U-10, U-11, U-12, U-14, U-15 · P-01, P-01b, P-04 · S-03, S-04 · O-01, O-02, O-03 · L-01 | U-04, U-06, U-07, U-13 · P-02, P-03, P-05, P-06 · S-01, S-02 · O-04 · L-02 |
+| U-01, U-02, U-03, U-04, U-05, U-08, U-09, U-10, U-11, U-12, U-14, U-15 · P-01, P-01b, P-04 · S-03, S-04 (workflow, ADR-019) · O-01, O-02, O-03 · L-01 | U-06, U-07, U-13 · P-02, P-03, P-05, P-06 · S-01, S-02 · O-04 · L-02 |
 
 ## 4. How these map onto the engine
 
@@ -109,7 +109,7 @@ The rules are grouped into Drools decision tables (see `04-rules-engine.md` §5)
 | `MinConsecutiveDaysOff` | U-12 |
 | `HoursThresholdStatus` | U-15 |
 | `PayClassification` (ordered bands: first N h at rate A, then rate B; minimums) | P-01 to P-06 |
-| `RequiresAuthorization` | S-04 |
+| *(none: workflow-enforced, ADR-019)* | S-04: only a `SUPERVISOR` can create or confirm `EXTRA` shifts and overtime offers (API role check), and every one writes an audit event with actor and time. No rule table. |
 | `RankingPolicy` + eligibility filter | O-01 to O-04 |
 | `AllowedShiftLengths` | L-01 |
 
