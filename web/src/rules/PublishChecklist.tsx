@@ -18,16 +18,24 @@ interface PublishChecklistProps {
   status: RuleSetStatus;
   /** True when the draft has been built and can be submitted. */
   canSubmit: boolean;
-  onBuilt: (report: BuildReport) => void;
-  onSubmitted: (version: RuleSetVersion) => void;
+  /** True when the table has edits that the api does not have yet. */
+  hasUnsavedEdits: boolean;
+  /** Save those edits; returns true when it saved something. */
+  onSaveEdits: () => Promise<boolean>;
+  onBuilt: (report: BuildReport, savedEdits: boolean) => void;
+  onSubmitted: (version: RuleSetVersion, savedEdits: boolean) => void;
   onApproved: (version: RuleSetVersion) => void;
   onPublished: (version: RuleSetVersion) => void;
 }
 
 /**
- * The publish checklist (docs/ui/README.md §5.4). The person who edits a
- * change cannot publish it: a second approver reviews the before-and-after and
- * the impact.
+ * The publish checklist (docs/ui/README.md §5.4). Only a rules admin edits,
+ * builds and submits; only a rules approver approves and publishes
+ * (docs/09-access-control.md §2). The person who edited a change cannot
+ * publish it: a second approver reviews the before-and-after and the impact.
+ *
+ * Build and Submit save unsaved table edits first, so a screen can never send
+ * values the person did not just look at.
  */
 export function PublishChecklist({
   report,
@@ -36,6 +44,8 @@ export function PublishChecklist({
   role,
   status,
   canSubmit,
+  hasUnsavedEdits,
+  onSaveEdits,
   onBuilt,
   onSubmitted,
   onApproved,
@@ -44,10 +54,10 @@ export function PublishChecklist({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  // Only a rules approver can approve, and only a submitted draft can be
-  // approved; only an approved version can be published.
-  const canApprove = role === 'RULES_APPROVER' && status === 'SUBMITTED';
-  const canPublish = role === 'RULES_APPROVER' && status === 'APPROVED';
+  const canEdit = role === 'RULES_ADMIN';
+  // A rules approver can decide, but never on their own draft.
+  const canApprove = role === 'RULES_APPROVER' && status === 'SUBMITTED' && !isAuthor;
+  const canPublish = role === 'RULES_APPROVER' && status === 'APPROVED' && !isAuthor;
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -59,6 +69,21 @@ export function PublishChecklist({
     } finally {
       setBusy(false);
     }
+  };
+
+  const build = async () => {
+    const saved = hasUnsavedEdits ? await onSaveEdits() : false;
+    onBuilt(await api.buildRuleSet(version), saved);
+  };
+
+  const submit = async () => {
+    const saved = hasUnsavedEdits ? await onSaveEdits() : false;
+    if (saved) {
+      // The report on screen described the old values, so build again before
+      // the draft goes to the approver.
+      onBuilt(await api.buildRuleSet(version), saved);
+    }
+    onSubmitted(await api.submitRuleSet(version), saved);
   };
 
   return (
@@ -79,8 +104,9 @@ export function PublishChecklist({
 
       {report ? null : (
         <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
-          Build the draft to see the checklist: the values are checked, the rules compile, the test
-          scenarios run, and the dry run shows what would change on the published roster.
+          {canEdit
+            ? 'Build the draft to see the checklist: the values are checked, the rules compile, the test scenarios run, and the dry run shows what would change on the published roster.'
+            : 'The build report appears here once a rules admin builds the draft.'}
         </Box>
       )}
 
@@ -138,6 +164,22 @@ export function PublishChecklist({
         </Box>
       ) : null}
 
+      {hasUnsavedEdits ? (
+        <Box
+          role="status"
+          sx={{
+            p: '10px 12px',
+            borderRadius: '8px',
+            backgroundColor: colour.status.warn.bg,
+            color: colour.status.warn.text,
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          You have unsaved edits. Build and Submit save them first.
+        </Box>
+      ) : null}
+
       {message ? (
         <Box
           role="status"
@@ -155,29 +197,23 @@ export function PublishChecklist({
       ) : null}
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-        <Button
-          variant="outlined"
-          color="primary"
-          disabled={busy}
-          onClick={() =>
-            void run(async () => {
-              onBuilt(await api.buildRuleSet(version));
-            })
-          }
-        >
-          Build and check
-        </Button>
+        {canEdit ? (
+          <Button
+            variant="outlined"
+            color="primary"
+            disabled={busy}
+            onClick={() => void run(build)}
+          >
+            Build and check
+          </Button>
+        ) : null}
 
-        {canSubmit ? (
+        {canEdit && canSubmit ? (
           <Button
             variant="contained"
             color="primary"
             disabled={busy}
-            onClick={() =>
-              void run(async () => {
-                onSubmitted(await api.submitRuleSet(version));
-              })
-            }
+            onClick={() => void run(submit)}
           >
             Submit for approval
           </Button>
@@ -206,7 +242,7 @@ export function PublishChecklist({
 
         {canPublish ? (
           <Button
-            variant="outlined"
+            variant="contained"
             color="primary"
             disabled={busy}
             onClick={() =>
@@ -222,8 +258,8 @@ export function PublishChecklist({
       </Box>
 
       <Typography component="span" sx={{ fontSize: 12, color: colour.text.secondary, lineHeight: 1.45 }}>
-        The person who edits a change cannot publish it. A second approver reviews the
-        before-and-after and the impact.
+        A rules admin edits, builds and submits a draft. A rules approver reviews the
+        before-and-after and the impact; the person who edited a change cannot approve it.
       </Typography>
     </Box>
   );

@@ -4,7 +4,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 
 import { api } from '../api/client';
-import type { BuildReport, RuleSetVersion, RuleTable } from '../api/types';
+import type { BuildReport, RuleSetVersion, RuleTable, RuleTableRow } from '../api/types';
 import { StatusPill } from '../components/StatusPill';
 import { useRole } from '../shell/nav';
 import { colour } from '../theme/tokens';
@@ -37,11 +37,13 @@ const TABLE_NAMES: Record<string, string> = {
  * Rules admin (docs/ui/README.md §5.4). One row of the grid is one rule, and
  * the wording under it updates as the values change.
  *
- * The person who edits a change cannot approve it: a second approver reviews
- * the before-and-after and the impact (HANDOFF.md §5.3).
+ * Only a rules admin edits and builds a draft; only a rules approver approves
+ * and publishes (docs/09-access-control.md §2). The person who edited a
+ * change cannot approve it: a second approver reviews the before-and-after and
+ * the impact (HANDOFF.md §5.3).
  */
 export function RulesPage() {
-  const { role } = useRole();
+  const { role, userName } = useRole();
   const navigate = useNavigate();
   const params = useParams();
   const [versions, setVersions] = useState<RuleSetVersion[] | null>(null);
@@ -53,6 +55,14 @@ export function RulesPage() {
   const code =
     params.table && TABLE_CODES.includes(params.table) ? params.table : TABLE_CODES[0];
   const [table, setTable] = useState<RuleTable | null>(null);
+  // The edits belong to the table and version they were made in, so a new
+  // table starts from the api's rows again.
+  const [edits, setEdits] = useState<{
+    key: string;
+    rows: RuleTableRow[];
+    edited: Record<string, boolean>;
+  } | null>(null);
+  const [saving, setSaving] = useState(false);
   const [report, setReport] = useState<BuildReport | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -61,14 +71,24 @@ export function RulesPage() {
     void api.getRuleSets().then((sets) => {
       if (!active) return;
       setVersions(sets);
+      const wanted = params.version ? Number(params.version) : Number.NaN;
+      // The reviewer lands on /rules without a version: show the version that
+      // is waiting for a decision, then an unsubmitted draft, then the live
+      // version (docs/ui/build-notes.md §2.1).
       const first =
-        sets.find((entry) => entry.status === 'DRAFT') ?? sets.find((entry) => entry.live) ?? null;
+        sets.find((entry) => entry.version === wanted) ??
+        sets.find((entry) => entry.status === 'SUBMITTED') ??
+        sets.find((entry) => entry.status === 'DRAFT') ??
+        sets.find((entry) => entry.live) ??
+        null;
       setDraft(first);
       setSelectedVersion(first?.version ?? null);
     });
     return () => {
       active = false;
     };
+    // The version in the route is read once, when the screen opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -96,8 +116,46 @@ export function RulesPage() {
   const live = versions.find((entry) => entry.live);
   // Keep showing the version that was picked, whatever its status is now.
   const shown = versions.find((entry) => entry.version === selectedVersion) ?? draft;
-  // The person who created the draft cannot approve it.
-  const isAuthor = draft.createdBy === role.user;
+  const tableKey = table ? `${draft.version}:${table.code}:${table.rows.length}:${table.changed}` : '';
+  const rows = table && edits?.key === tableKey ? edits.rows : (table?.rows ?? []);
+  const edited = table && edits?.key === tableKey ? edits.edited : {};
+  const dirty = Object.keys(edited).length > 0;
+  const canEdit = role.id === 'RULES_ADMIN' && draft.status === 'DRAFT';
+  // The person who created the draft cannot approve it, even with the
+  // approver role as well.
+  const isAuthor = draft.createdBy === userName;
+
+  const update = (ruleCode: string, patch: Partial<RuleTableRow>) => {
+    if (!table) return;
+    setEdits({
+      key: tableKey,
+      rows: rows.map((row) => (row.ruleCode === ruleCode ? { ...row, ...patch } : row)),
+      edited: { ...edited, [ruleCode]: true },
+    });
+  };
+
+  /** Save any unsaved table edits. Returns true when it actually saved. */
+  const saveEdits = async (): Promise<boolean> => {
+    if (!table || !dirty) return false;
+    setSaving(true);
+    try {
+      const saved = await api.saveRuleRows(draft.version, table.code, rows);
+      setTable(saved);
+      setEdits(null);
+      setMessage('The unsaved edits were saved.');
+      return true;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveDraft = async () => {
+    try {
+      await saveEdits();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'The draft could not be saved.');
+    }
+  };
 
   return (
     <>
@@ -203,12 +261,12 @@ export function RulesPage() {
           {table ? (
             <DecisionTable
               table={table}
-              version={draft.version}
-              readOnly={draft.status !== 'DRAFT'}
-              onSaved={(saved) => {
-                setTable(saved);
-                setMessage('The draft is saved.');
-              }}
+              readOnly={!canEdit}
+              rows={rows}
+              edited={edited}
+              saving={saving}
+              onUpdate={update}
+              onSave={() => void saveDraft()}
             />
           ) : null}
         </Box>
@@ -223,22 +281,40 @@ export function RulesPage() {
             role={role.id}
             status={draft.status}
             canSubmit={report !== null && draft.status === 'DRAFT'}
-            onBuilt={(built) => {
+            hasUnsavedEdits={dirty}
+            onSaveEdits={saveEdits}
+            onBuilt={(built, savedEdits) => {
               setReport(built);
-              setMessage('The draft was built and the test scenarios ran.');
+              setMessage(
+                savedEdits
+                  ? 'The unsaved edits were saved, then the draft was built and the test scenarios ran.'
+                  : 'The draft was built and the test scenarios ran.',
+              );
             }}
-            onSubmitted={(submitted) => {
+            onSubmitted={(submitted, savedEdits) => {
               setDraft(submitted);
-              setMessage('The draft is submitted for approval. A second approver has to review it.');
+              setMessage(
+                savedEdits
+                  ? 'The unsaved edits were saved, the draft was rebuilt, and it is submitted for approval. A second approver has to review it.'
+                  : 'The draft is submitted for approval. A second approver has to review it.',
+              );
             }}
             onApproved={(approved) => {
               setDraft(approved);
+              setVersions((current) =>
+                (current ?? []).map((entry) =>
+                  entry.version === approved.version ? approved : entry,
+                ),
+              );
               setMessage('The version is approved. It can be published.');
             }}
             onPublished={(published) => {
               setDraft(published);
               setVersions((current) =>
-                (current ?? []).map((entry) => ({ ...entry, live: entry.version === published.version })),
+                (current ?? []).map((entry) => ({
+                  ...entry,
+                  live: entry.version === published.version,
+                })),
               );
               setMessage(`Version ${published.version} is live from ${published.publishedAt}.`);
             }}

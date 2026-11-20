@@ -4,7 +4,6 @@ import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
 import Typography from '@mui/material/Typography';
 
-import { api } from '../api/client';
 import type { RuleTable, RuleTableRow } from '../api/types';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
@@ -19,57 +18,36 @@ const SHIFT_KINDS = ['Any shift', '12 h 00–12', '12 h 12–24', '16 h shift', 
 
 interface DecisionTableProps {
   table: RuleTable;
-  /** The draft being edited. */
-  version: number;
-  /** True when the person editing is the one who created the draft. */
+  /** True when the person editing is not a rules admin, or the draft is not editable. */
   readOnly: boolean;
-  onSaved: (table: RuleTable) => void;
+  /** The rows, with any unsaved edits applied. */
+  rows: RuleTableRow[];
+  /** The rules with unsaved edits. */
+  edited: Record<string, boolean>;
+  saving: boolean;
+  onUpdate: (ruleCode: string, patch: Partial<RuleTableRow>) => void;
+  onSave: () => void;
 }
 
 /**
  * The decision-table grid (docs/ui/README.md §5.4). One row is one rule, and
  * the wording under the table updates as the values change.
+ *
+ * The rows and the edit marks live in the screen, because Build and Submit
+ * have to save the same unsaved edits the person sees.
  */
-export function DecisionTable({ table, version, readOnly, onSaved }: DecisionTableProps) {
-  const [selectedCode, setSelectedCode] = useState(table.rows[0]?.ruleCode ?? '');
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-
-  // The edits belong to the table they were made in, so a new table starts
-  // from the api's rows again.
-  const key = `${table.code}:${table.rows.length}:${table.changed}`;
-  const [edits, setEdits] = useState<{
-    key: string;
-    rows: RuleTableRow[];
-    edited: Record<string, boolean>;
-  } | null>(null);
-
-  const rows = edits && edits.key === key ? edits.rows : table.rows;
-  const edited = edits && edits.key === key ? edits.edited : {};
-
+export function DecisionTable({
+  table,
+  readOnly,
+  rows,
+  edited,
+  saving,
+  onUpdate,
+  onSave,
+}: DecisionTableProps) {
+  const [selectedCode, setSelectedCode] = useState(rows[0]?.ruleCode ?? '');
   const selected = rows.find((row) => row.ruleCode === selectedCode) ?? rows[0];
-
-  const update = (ruleCode: string, patch: Partial<RuleTableRow>) => {
-    setEdits({
-      key,
-      rows: rows.map((row) => (row.ruleCode === ruleCode ? { ...row, ...patch } : row)),
-      edited: { ...edited, [ruleCode]: true },
-    });
-  };
-
-  const save = async () => {
-    setSaving(true);
-    setMessage(null);
-    try {
-      const saved = await api.saveRuleRows(version, table.code, rows);
-      onSaved(saved);
-      setMessage('The draft is saved.');
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'The draft could not be saved.');
-    } finally {
-      setSaving(false);
-    }
-  };
+  const update = onUpdate;
 
   return (
     <Box
@@ -311,15 +289,9 @@ export function DecisionTable({ table, version, readOnly, onSaved }: DecisionTab
         table are maintained by the development team and cannot be edited here.
       </Typography>
 
-      {message ? (
-        <Box role="status" sx={{ fontSize: 13, color: colour.text.secondary }}>
-          {message}
-        </Box>
-      ) : null}
-
       {readOnly ? null : (
         <Box>
-          <Button variant="outlined" color="primary" onClick={() => void save()} disabled={saving}>
+          <Button variant="outlined" color="primary" onClick={onSave} disabled={saving}>
             Save the draft
           </Button>
         </Box>
