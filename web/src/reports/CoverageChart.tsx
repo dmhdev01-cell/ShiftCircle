@@ -23,7 +23,7 @@ export function CoverageChart({ report }: CoverageChartProps) {
 
   const actuals = weeks
     .map((week) => week.actualPercent)
-    .filter((value): value is number => value !== undefined);
+    .filter((value): value is number => value !== undefined && value !== null);
 
   const summary =
     actuals.length > 0
@@ -132,7 +132,7 @@ export function CoverageChart({ report }: CoverageChartProps) {
                     borderRadius: '3px 3px 0 0',
                   }}
                 />
-                {week.actualPercent !== undefined ? (
+                {week.actualPercent !== undefined && week.actualPercent !== null ? (
                   <Box
                     title={`Actual ${week.actualPercent}%`}
                     sx={{
@@ -201,7 +201,7 @@ export function CoverageChart({ report }: CoverageChartProps) {
                   className="num"
                   style={{ padding: '6px 8px', borderBottom: `1px solid ${colour.border.default}` }}
                 >
-                  {week.actualPercent !== undefined ? `${week.actualPercent.toFixed(1)}%` : '—'}
+                  {week.actualPercent !== undefined && week.actualPercent !== null ? `${week.actualPercent.toFixed(1)}%` : '—'}
                 </td>
                 <td style={{ padding: '6px 8px', borderBottom: `1px solid ${colour.border.default}` }}>
                   {week.planned ? 'Planned only' : 'Actual'}

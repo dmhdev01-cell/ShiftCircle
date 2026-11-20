@@ -31,6 +31,8 @@ interface CandidateTableProps {
   /** The officers the supervisor ticked. */
   selected: string[];
   onToggle: (employeeId: string) => void;
+  /** A filled or cancelled shift takes no offers. */
+  offersClosed?: boolean;
 }
 
 /**
@@ -38,7 +40,12 @@ interface CandidateTableProps {
  * the api - the overtime-ranking rule table - and officers who would break a
  * Block rule are skipped without losing their place.
  */
-export function CandidateTable({ candidates, selected, onToggle }: CandidateTableProps) {
+export function CandidateTable({
+  candidates,
+  selected,
+  onToggle,
+  offersClosed = false,
+}: CandidateTableProps) {
   return (
     <Box sx={{ overflowX: 'auto' }}>
       <table
@@ -73,11 +80,16 @@ export function CandidateTable({ candidates, selected, onToggle }: CandidateTabl
         </thead>
         <tbody>
           {candidates.map((candidate, index) => {
-            // Only a rule that failed or warned is worth naming; a passing
-            // rule code would say nothing.
-            const ruleCode = candidate.ruleResults?.find(
-              (result) => result.outcome === 'BLOCK' || result.outcome === 'WARN',
-            )?.ruleCode;
+            // Every rule that failed or warned is worth naming; a passing
+            // rule code would say nothing. One officer can break more than one
+            // rule, and the pill must not hide the second blocker.
+            const ruleCodes = Array.from(
+              new Set(
+                (candidate.ruleResults ?? [])
+                  .filter((result) => result.outcome === 'BLOCK' || result.outcome === 'WARN')
+                  .map((result) => result.ruleCode),
+              ),
+            );
             const offerable = canBeOffered(candidate);
             return (
               <tr key={candidate.employeeId}>
@@ -117,7 +129,7 @@ export function CandidateTable({ candidates, selected, onToggle }: CandidateTabl
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
                     <StatusPill tone={TONE[candidate.eligibility as Eligibility]}>
                       {LABEL[candidate.eligibility as Eligibility]}
-                      {ruleCode ? ` · ${ruleCode}` : ''}
+                      {ruleCodes.length > 0 ? ` · ${ruleCodes.join(', ')}` : ''}
                     </StatusPill>
                     {candidate.reason ? (
                       <Typography
@@ -130,7 +142,11 @@ export function CandidateTable({ candidates, selected, onToggle }: CandidateTabl
                   </Box>
                 </td>
                 <td style={{ padding: 10, borderBottom: `1px solid ${colour.border.default}` }}>
-                  {offerable ? (
+                  {offersClosed ? (
+                    <Typography component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
+                      Offers closed
+                    </Typography>
+                  ) : offerable ? (
                     <Box
                       component="label"
                       sx={{

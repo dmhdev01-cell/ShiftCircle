@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
+import { api } from '../api/client';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
@@ -24,7 +25,8 @@ describe('Reports', () => {
   it('shows the coverage chart with its summary and the figures', async () => {
     renderReports();
 
-    expect(await screen.findByRole('heading', { name: 'Reports' })).toBeInTheDocument();
+    // The heading is drawn while the charts load; the chart below is the wait.
+    await screen.findByRole('heading', { name: 'Reports' });
 
     const chart = await screen.findByRole('img', { name: /Weekly coverage/ });
     expect(chart).toHaveAttribute(
@@ -87,5 +89,29 @@ describe('Reports', () => {
     await user.click(screen.getByRole('button', { name: 'Export CSV' }));
 
     expect(await screen.findByText(/The export coverage-by-week.csv is downloaded/)).toBeInTheDocument();
+  });
+});
+
+describe('the coverage report against the real api shape', () => {
+  it('reads a planned week with a null actual percentage', async () => {
+    // The api sends null for a week that has not happened yet. The fixtures
+    // leave the field out, so only the api's shape catches this.
+    vi.spyOn(api, 'getCoverageReport').mockResolvedValue({
+      weeks: [
+        { label: '9 – 15 Nov', scheduledPercent: 98.6, actualPercent: 97.4, planned: false },
+        { label: '16 – 22 Nov', scheduledPercent: 101.2, actualPercent: null, planned: true },
+      ],
+      axisFrom: 94,
+      axisTo: 102,
+      requiredHours: 3904,
+      scheduledHours: 3908,
+    });
+
+    renderReports();
+
+    await screen.findByRole('heading', { name: 'Reports' });
+    const table = await screen.findByRole('table');
+    expect(within(table).getByText('16 – 22 Nov')).toBeInTheDocument();
+    expect(within(table).getByText('—')).toBeInTheDocument();
   });
 });

@@ -51,6 +51,7 @@ const shifts: DayCell[] = days.map((date) => {
               endAt: `${date}T23:00:00-06:00`,
               kind: 'ROSTERED' as const,
               worked: date < '2026-11-19',
+              version: 0,
             },
           ],
   };

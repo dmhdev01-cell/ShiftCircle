@@ -70,8 +70,7 @@ export const WARNINGS_NEED_ACKNOWLEDGEMENT =
 export type RuleCheckChange = {
   /**
    * ASSIGN is a rostered shift; EXTRA is one picked up beyond the roster
-   * (docs/07 §3). The api has no move or cancel endpoint yet, so the screens
-   * do not send one.
+   * (docs/07 §3). PATCH /assignments/{id} uses the same change shape.
    */
   type: 'ASSIGN' | 'EXTRA';
   employeeId: string;
@@ -140,6 +139,8 @@ export interface ShiftItem {
   offer?: boolean;
   /** Proposed but blocked by a rule. */
   proposed?: boolean;
+  /** The row version for If-Match; the api sends it with every SHIFT item. */
+  version: number;
 }
 
 export interface AbsenceItem {
@@ -181,16 +182,25 @@ export interface SchedulePayload {
   warnings: number;
   /** Emergency overrides recorded in the pay period on the board. */
   overridesThisPeriod: number;
-  /** Whether the period is published, and how many changes are not. */
+  /**
+   * Whether the period is published, and how many of its shifts changed after
+   * the publication. The count is null when the period is not published:
+   * there is nothing to compare against yet.
+   */
   publishedState: {
     published: boolean;
-    unpublishedChanges: number;
+    unpublishedChanges: number | null;
   };
-  /** The pay period the board shows. Not in the contract yet. */
+  /**
+   * The roster week the board shows, with the id the publish endpoint takes
+   * (POST /schedule-periods/{id}/publish). Null when the board's range is not
+   * inside a period.
+   */
   period?: {
     id: string;
     label: string;
-  };
+    status: 'DRAFT' | 'PUBLISHED';
+  } | null;
 }
 
 export interface ScheduleQuery {
@@ -199,9 +209,20 @@ export interface ScheduleQuery {
   to?: string;
 }
 
+/**
+ * The api's answer to POST /schedule-periods/{id}/publish (docs/07 §4.2).
+ * Publishing is one-way: a second publish answers 409.
+ */
+export interface PublishedPeriod {
+  id: string;
+  status: string;
+  /** When the period was published. */
+  publishedAt: string;
+}
+
 // --- Overtime (docs/07-api-spec.md §4.3) ---
 
-export type OpenShiftStatus = 'OPEN' | 'OFFERS_SENT' | 'FILLED';
+export type OpenShiftStatus = 'OPEN' | 'OFFERS_SENT' | 'FILLED' | 'CANCELLED';
 
 export interface OpenShift {
   id: string;
@@ -412,7 +433,11 @@ export interface CoverageWeek {
   /** The share of required staff-hours that were scheduled, as a percentage. */
   scheduledPercent: number;
   /** The share that were actually worked. Absent for a planned week. */
-  actualPercent?: number;
+  /**
+   * The share that was actually worked. The api sends null for a planned
+   * week, so the screen has to treat null and absent the same way.
+   */
+  actualPercent?: number | null;
   /** True for a week that has not happened yet. */
   planned: boolean;
 }
@@ -558,6 +583,46 @@ export interface Unit {
   allows_16h: boolean;
 }
 
+// --- Audit log (docs/07-api-spec.md §4.8) ---
+
+export interface AuditActor {
+  username: string;
+  displayName: string;
+}
+
+/** One audit event, read only. The API keysets on the descending id. */
+export interface AuditEvent {
+  id: number;
+  /** ISO instant. */
+  occurredAt: string;
+  actor: AuditActor | null;
+  action: string;
+  entityType: string | null;
+  entityId: string | null;
+  before: unknown;
+  after: unknown;
+  ruleSetVersionId?: string | null;
+  overrideId?: string | null;
+  correlationId?: string | null;
+}
+
+export interface AuditPage {
+  items: AuditEvent[];
+  /** Pass back as beforeId for the next page; null on the last page. */
+  nextBeforeId: number | null;
+}
+
+export interface AuditQuery {
+  actor?: string;
+  action?: string;
+  entityType?: string;
+  entityId?: string;
+  from?: string;
+  to?: string;
+  beforeId?: number;
+  limit?: number;
+}
+
 // --- Mock sign-in (docs/09-access-control.md §4) ---
 
 /** Exactly what the api sends for a demo user (AuthController's describe()). */
@@ -589,6 +654,17 @@ export interface SaveRequest {
   override?: { reason: string };
 }
 
+/** The api's answer to PATCH or DELETE /assignments/{id}. */
+export interface AssignmentChangeResult {
+  id: string;
+  status: string;
+  version: number;
+  outcome?: RuleOutcome;
+  ruleSetVersion?: number;
+  overridable?: boolean;
+  ruleResults?: RuleResult[];
+}
+
 export interface SaveOutcome {
   /** The assignment that was created, moved or cancelled. */
   assignmentId?: string;
@@ -606,6 +682,26 @@ export interface ShiftCircleApi {
   previewRuleCheck(request: RuleCheckRequest): Promise<RuleCheckOutcome>;
   saveChange(request: SaveRequest): Promise<SaveOutcome>;
 
+  /**
+   * POST /schedule-periods/{id}/publish: a supervisor publishes their unit's
+   * roster week. One way: a second publish answers 409.
+   */
+  publishSchedulePeriod(periodId: string): Promise<PublishedPeriod>;
+
+  /** PATCH /assignments/{id}; the version goes in If-Match. */
+  moveAssignment(
+    assignmentId: string,
+    version: number,
+    request: SaveRequest,
+  ): Promise<AssignmentChangeResult>;
+
+  /** DELETE /assignments/{id} with a reason; the version goes in If-Match. */
+  cancelAssignment(
+    assignmentId: string,
+    version: number,
+    reason: string,
+  ): Promise<AssignmentChangeResult>;
+
   // Overtime.
   getOpenShifts(query: OpenShiftQuery): Promise<OpenShift[]>;
   getOpenShiftCandidates(openShiftId: string): Promise<OpenShiftCandidates>;
@@ -621,6 +717,9 @@ export interface ShiftCircleApi {
 
   // Reference data.
   getUnits(): Promise<Unit[]>;
+
+  // Audit log.
+  getAuditEvents(query: AuditQuery): Promise<AuditPage>;
 
   // Mock sign-in.
   getDemoUsers(): Promise<DemoUser[]>;

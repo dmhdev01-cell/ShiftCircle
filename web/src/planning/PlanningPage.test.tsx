@@ -1,11 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
-import { api } from '../api/client';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
@@ -34,6 +33,17 @@ describe('the planning board', () => {
         'Not an official Government of Saskatchewan service · fictional, synthetic data only',
       ),
     ).toBeInTheDocument();
+  });
+
+  it('keeps the rule explanation behind the Rules help button', async () => {
+    const user = userEvent.setup();
+    renderBoard();
+
+    await screen.findByText('Coverage gaps');
+    expect(screen.queryByText(/Pick an empty cell to propose a shift/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Rules help' }));
+    expect(screen.getByText(/Pick an empty cell to propose a shift/)).toBeInTheDocument();
   });
 
   it('counts the coverage gaps from the hourly coverage (ADR-017)', async () => {
@@ -88,7 +98,7 @@ describe('the planning board', () => {
     await user.click(chip);
 
     expect(await screen.findByRole('heading', { name: /Assign Nia Thompson/ })).toBeInTheDocument();
-    expect(await screen.findByText('Blocked: 2 rules fail')).toBeInTheDocument();
+    expect(await screen.findByText('Blocked: 3 rules fail')).toBeInTheDocument();
     expect(screen.getByText(/U-01 · Minimum rest/)).toBeInTheDocument();
     // "Find eligible officer" carries the slot, so the overtime board can open
     // the matching open shift instead of whichever is first.
@@ -108,6 +118,29 @@ describe('the planning board', () => {
     ).toBeInTheDocument();
   });
 
+  it('returns focus to the chip when the verdict is closed', async () => {
+    const user = userEvent.setup();
+    renderBoard();
+
+    const chip = await screen.findByRole('button', { name: /! D proposed for Nia Thompson/ });
+    await user.click(chip);
+    await user.click(await screen.findByRole('button', { name: 'Close' }));
+
+    await waitFor(() => expect(chip).toHaveFocus());
+  });
+
+  it('returns focus to the chip when Escape closes the verdict', async () => {
+    const user = userEvent.setup();
+    renderBoard();
+
+    const chip = await screen.findByRole('button', { name: /! D proposed for Nia Thompson/ });
+    await user.click(chip);
+    await screen.findByRole('region', { name: 'Rule check' });
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => expect(chip).toHaveFocus());
+  });
+
   it('offers a skip link straight to the roster', async () => {
     renderBoard();
 
@@ -116,35 +149,32 @@ describe('the planning board', () => {
     expect(document.getElementById('roster')).not.toBeNull();
   });
 
-  it('B2: an emergency override acknowledges the warnings with it', async () => {
+  it('B2: a Block with an ACKNOWLEDGE policy offers no override', async () => {
     const user = userEvent.setup();
-    const saveChange = vi.spyOn(api, 'saveChange');
     renderBoard();
 
-    // PC-01 blocks on U-01 and U-05 and also warns on U-14.
     await user.click(await screen.findByRole('button', { name: /! D proposed for Nia Thompson/ }));
-    expect(await screen.findByText('Blocked: 2 rules fail')).toBeInTheDocument();
+    expect(await screen.findByText('Blocked: 3 rules fail')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Emergency override…' }));
-    expect(
-      await screen.findByText(/The warnings are acknowledged with the override: U-14/),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Emergency override…' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Acknowledge/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Assign shift' })).not.toBeInTheDocument();
+  });
 
-    await user.type(
-      screen.getByLabelText('Why is this override needed?'),
-      'Unit B is short and no eligible officer is left tonight',
-    );
-    await user.click(screen.getByRole('button', { name: 'Emergency override' }));
+  it('offers the supervisor the publish action for the roster week', async () => {
+    renderBoard();
 
-    expect(await screen.findByText('Saved')).toBeInTheDocument();
-    // The api refuses an override with an unacknowledged warning, so the save
-    // must carry U-14 as well as the reason (the fixture now enforces this).
-    expect(saveChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        override: { reason: 'Unit B is short and no eligible officer is left tonight' },
-        acknowledgeWarnings: ['U-14'],
-      }),
-    );
-    saveChange.mockRestore();
+    expect(await screen.findByText('Not published')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Publish period' })).toBeEnabled();
+  });
+
+  it('does not offer an auditor the publish action', async () => {
+    const user = userEvent.setup();
+    renderBoard();
+    await screen.findByText('Coverage gaps');
+
+    await user.selectOptions(screen.getByLabelText('Mock sign-in: choose a role'), 'AUDITOR');
+
+    expect(screen.queryByRole('button', { name: 'Publish period' })).not.toBeInTheDocument();
   });
 });

@@ -45,6 +45,7 @@ describe('AppShell', () => {
       'Wall display',
       'Employee view',
       'Time & attendance',
+      'Audit log',
       'About & version',
     ]) {
       expect(within(nav).getByRole('link', { name: label })).toBeInTheDocument();
@@ -79,11 +80,53 @@ describe('AppShell', () => {
 
     const nav = screen.getByRole('navigation', { name: 'Main' });
     expect(within(nav).getByRole('link', { name: 'My schedule' })).toBeInTheDocument();
-    expect(within(nav).getByRole('link', { name: 'Propose shifts' })).toBeInTheDocument();
+    expect(within(nav).queryByRole('link', { name: 'Propose shifts' })).not.toBeInTheDocument();
     expect(within(nav).queryByRole('link', { name: 'Overtime' })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole('link', { name: 'Audit log' })).not.toBeInTheDocument();
     // The switch acts as the demo employee in the api's user list.
     expect(screen.getByText('Employee · T. Nakamura')).toBeInTheDocument();
   });
+
+  it('gives an auditor the read-only audit log', async () => {
+    const user = userEvent.setup();
+    renderShell('/planning');
+
+    await user.selectOptions(screen.getByLabelText('Mock sign-in: choose a role'), 'AUDITOR');
+
+    const nav = screen.getByRole('navigation', { name: 'Main' });
+    expect(within(nav).getByRole('link', { name: 'Audit log' })).toBeInTheDocument();
+    expect(within(nav).queryByRole('link', { name: 'Planning board' })).toBeInTheDocument();
+  });
+
+  it('links only built screens in every role nav', async () => {
+    const user = userEvent.setup();
+    renderShell('/planning');
+    const placeholders = [
+      'Propose shifts',
+      'My hours',
+      'Proposals inbox',
+      'Rule version review',
+      'Shift types',
+      'Supervisor view',
+    ];
+
+    for (const role of ['SUPERVISOR', 'EMPLOYEE', 'RULES_ADMIN', 'RULES_APPROVER', 'AUDITOR']) {
+      await user.selectOptions(screen.getByLabelText('Mock sign-in: choose a role'), role);
+      const nav = screen.getByRole('navigation', { name: 'Main' });
+      for (const label of placeholders) {
+        expect(within(nav).queryByRole('link', { name: label })).not.toBeInTheDocument();
+      }
+    }
+  });
+
+  it.each(['/me/propose', '/me/hours', '/proposals', '/rules/7/review'])(
+    'keeps the planned screen at %s reachable, with the not-built page',
+    async (path) => {
+      renderShell(path);
+
+      expect(await screen.findByText('Not built yet')).toBeInTheDocument();
+    },
+  );
 
   it('shows no role chip on the sign-in screen (build notes 2.1)', () => {
     renderShell('/login');

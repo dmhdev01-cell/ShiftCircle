@@ -19,7 +19,12 @@ describe('the fixture api', () => {
     const schedule = await api.getSchedule({ unitId: 'unit-b' });
 
     expect(schedule.unit.name).toBe('Unit B · Living unit');
-    expect(schedule.publishedState).toEqual({ published: true, unpublishedChanges: 3 });
+    expect(schedule.publishedState).toEqual({ published: false, unpublishedChanges: null });
+    expect(schedule.period).toEqual({
+      id: 'period-2026-11-16',
+      label: '16 – 22 Nov 2026',
+      status: 'DRAFT',
+    });
     expect(schedule.overridesThisPeriod).toBe(1);
     expect(schedule.days).toHaveLength(7);
     expect(schedule.coverage).toHaveLength(21);
@@ -69,7 +74,9 @@ describe('the fixture api', () => {
 
     expect(outcome.outcome).toBe('BLOCK');
     expect(outcome.ruleSetVersion).toBe(7);
-    expect(outcome.overridable).toBe(true);
+    // U-14 is a Block with an ACKNOWLEDGE policy, so the change is not
+    // overridable; this matches the real api's PC-01 answer.
+    expect(outcome.overridable).toBe(false);
     expect(outcome.ruleResults.map((result) => result.ruleCode)).toEqual(['U-01', 'U-05', 'U-14']);
     expect(outcome.ruleResults[0].evidence?.[0].label).toBe('Fri 20 P12 12:00–24:00');
   });
@@ -90,30 +97,23 @@ describe('the fixture api', () => {
     }
   });
 
-  it('accepts the same save with an emergency override and the warnings acknowledged', async () => {
-    // The api's override path still requires the Warn results to be
-    // acknowledged (AssignmentService), so the save carries both.
-    const outcome = await api.saveChange({
-      change: { type: 'ASSIGN', ...pc01 },
-      override: { reason: 'Lockdown, no relief available' },
-      acknowledgeWarnings: ['U-14'],
-    });
-
-    expect(outcome.ruleOutcome.outcome).toBe('PASS');
-    expect(outcome.assignmentId).toBeTruthy();
-    expect(outcome.ruleOutcome.ruleResults[0].outcome).toBe('INFO');
-  });
-
-  it('refuses an override that leaves the warnings unacknowledged', async () => {
+  it('refuses an override on a Block whose policy is ACKNOWLEDGE', async () => {
     try {
       await api.saveChange({
         change: { type: 'ASSIGN', ...pc01 },
         override: { reason: 'Lockdown, no relief available' },
+        acknowledgeWarnings: ['U-14'],
       });
       throw new Error('the save should have been refused');
     } catch (error) {
       const apiError = error as ApiError;
-      expect(apiError.needsAcknowledgement).toBe(true);
+      expect(apiError.status).toBe(422);
+      expect(apiError.blockedByRules).toBe(true);
+      expect(apiError.problem?.ruleResults?.map((result) => result.ruleCode)).toEqual([
+        'U-01',
+        'U-05',
+        'U-14',
+      ]);
     }
   });
 

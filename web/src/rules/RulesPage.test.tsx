@@ -184,7 +184,9 @@ describe('Rules admin', () => {
 
     // The rules admin signs in, raises U-03, builds and submits.
     await signInAs(user, 'L. Fraser');
-    expect(await screen.findByRole('heading', { name: 'Rules' })).toBeInTheDocument();
+    // The page draws this heading while it loads and again when it is ready, so
+    // wait on the content below instead of on the node this find returns.
+    await screen.findByRole('heading', { name: 'Rules' });
     await screen.findByRole('heading', { name: 'Rest between shifts' });
 
     const u03 = screen.getByLabelText('Minimum hours off for U-03');
@@ -205,7 +207,7 @@ describe('Rules admin', () => {
     // The approver signs in and lands on the Rules screen, not "Page not
     // found" (R1). The submitted version is the one on screen.
     await signInAs(user, 'P. Singh');
-    expect(await screen.findByRole('heading', { name: 'Rules' })).toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'Rules' });
     expect(screen.queryByText('Page not found')).not.toBeInTheDocument();
     expect(await screen.findByText('Submitted')).toBeInTheDocument();
     expect(
@@ -291,6 +293,14 @@ describe('Rules admin', () => {
 
     expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument();
+  });
+
+  it('names the real live and draft versions when the route shows the live version', async () => {
+    renderRules('/rules/7/rest-between-shifts');
+
+    expect(await screen.findByText('Live v7 · draft v8')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Before draft v8 goes live' })).toBeInTheDocument();
+    expect(screen.queryByText('Before draft v7 goes live')).not.toBeInTheDocument();
   });
 
   it('shows the version history', async () => {

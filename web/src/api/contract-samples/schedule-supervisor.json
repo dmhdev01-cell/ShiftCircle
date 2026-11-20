@@ -1,0 +1,2250 @@
+{
+  "unit": {
+    "id": "11111111-1111-1111-1111-000000000001",
+    "name": "Unit A \u00b7 Living unit"
+  },
+  "from": "2026-11-16",
+  "to": "2026-11-22",
+  "days": [
+    "2026-11-16",
+    "2026-11-17",
+    "2026-11-18",
+    "2026-11-19",
+    "2026-11-20",
+    "2026-11-21",
+    "2026-11-22"
+  ],
+  "asOf": "2026-11-19",
+  "coverage": [
+    {
+      "block": "DAY",
+      "date": "2026-11-16",
+      "required": 5,
+      "scheduled": {
+        "lowestHourly": 4,
+        "shortHours": [
+          {
+            "from": "07:00",
+            "to": "12:00",
+            "count": 4
+          }
+        ],
+        "maxHourly": 5
+      },
+      "actual": {
+        "lowestHourly": 4,
+        "shortHours": [
+          {
+            "from": "07:00",
+            "to": "12:00",
+            "count": 4
+          }
+        ],
+        "maxHourly": 5
+      },
+      "covered": false
+    },
+    {
+      "block": "EVENING",
+      "date": "2026-11-16",
+      "required": 5,
+      "scheduled": {
+        "lowestHourly": 5,
+        "shortHours": [],
+        "maxHourly": 6
+      },
+      "actual": {
+        "lowestHourly": 5,
+        "shortHours": [],
+        "maxHourly": 6
+      },
+      "covered": true
+    },
+    {
+      "block": "NIGHT",
+      "date": "2026-11-16",
+      "required": 4,
+      "scheduled": {
+        "lowestHourly": 1,
+        "shortHours": [
+          {
+            "from": "00:00",
+            "to": "07:00",
+            "count": 1
+          }
+        ],
+        "maxHourly": 6
+      },
+      "actual": {
+        "lowestHourly": 1,
+        "shortHours": [
+          {
+            "from": "00:00",
+            "to": "07:00",
+            "count": 1
+          }
+        ],
+        "maxHourly": 6
+      },
+      "covered": false
+    },
+    {
+      "block": "DAY",
+      "date": "2026-11-17",
+      "required": 5,
+      "scheduled": {
+        "lowestHourly": 4,
+        "shortHours": [
+          {
+            "from": "07:00",
+            "to": "12:00",
+            "count": 4
+          }
+        ],
+        "maxHourly": 5
+      },
+      "actual": {
+        "lowestHourly": 4,
+        "shortHours": [
+          {
+            "from": "07:00",
+            "to": "12:00",
+            "count": 4
+          }
+        ],
+        "maxHourly": 5
+      },
+      "covered": false
+    },
+    {
+      "block": "EVENING",
+      "date": "2026-11-17",
+      "required": 5,
+      "scheduled": {
+        "lowestHourly": 5,
+        "shortHours": [],
+        "maxHourly": 6
+      },
+      "actual": {
+        "lowestHourly": 5,
+        "shortHours": [],
+        "maxHourly": 6
+      },
+      "covered": true
+    },
+    {
+      "block": "NIGHT",
+      "date": "2026-11-17",
+      "required": 4,
+      "scheduled": {
+        "lowestHourly": 1,
+        "shortHours": [
+          {
+            "from": "00:00",
+            "to": "07:00",
+            "count": 1
+          }
+        ],
+        "maxHourly": 6
+      },
+      "actual": {
+        "lowestHourly": 1,
+        "shortHours": [
+          {
+            "from": "00:00",
+            "to": "07:00",
+            "count": 1
+          }
+        ],
+        "maxHourly": 6
+      },
+      "covered": false
+    },
+    {
+      "block": "DAY",
+      "date": "2026-11-18",
+      "required": 5,
+      "scheduled": {
+        "lowestHourly": 4,
+        "shortHours": [
+          {
+            "from": "07:00",
+            "to": "12:00",
+            "count": 4
+          }
+        ],
+        "maxHourly": 5
+      },
+      "actual": {
+        "lowestHourly": 4,
+        "shortHours": [
+          {
+            "from": "07:00",
+            "to": "12:00",
+            "count": 4
+          }
+        ],
+        "maxHourly": 5
+      },
+      "covered": false
+    },
+    {
+      "block": "EVENING",
+      "date": "2026-11-18",
+      "required": 5,
+      "scheduled": {
+        "lowestHourly": 5,
+        "shortHours": [],
+        "maxHourly": 6
+      },
+      "actual": {
+        "lowestHourly": 5,
+        "shortHours": [],
+        "maxHourly": 6
+      },
+      "covered": true
+    },
+    {
+      "block": "NIGHT",
+      "date": "2026-11-18",
+      "required": 4,
+      "scheduled": {
+        "lowestHourly": 1,
+        "shortHours": [
+          {
+            "from": "00:00",
+            "to": "07:00",
+            "count": 1
+          }
+        ],
+        "maxHourly": 6
+      },
+      "actual": {
+        "lowestHourly": 1,
+        "shortHours": [
+          {
+            "from": "00:00",
+            "to": "07:00",
+            "count": 1
+          }
+        ],
+        "maxHourly": 6
+      },
+      "covered": false
+    },
+    {
+      "block": "DAY",
+      "date": "2026-11-19",
+      "required": 5,
+      "scheduled": {
+        "lowestHourly": 4,
+        "shortHours": [
+          {
+            "from": "07:00",
+            "to": "12:00",
+            "count": 4
+          }
+        ],
+        "maxHourly": 5
+      },
+      "actual": {
+        "lowestHourly": 0,
+        "shortHours": [
+          {
+            "from": "07:00",
+            "to": "15:00",
+            "count": 0
+          }
+        ],
+        "maxHourly": 1
+      },
+      "covered": false
+    },
+    {
+      "block": "EVENING",
+      "date": "2026-11-19",
+      "required": 5,
+      "scheduled": {
+        "lowestHourly": 5,
+        "shortHours": [],
+        "maxHourly": 6
+      },
+      "actual": {
+        "lowestHourly": 0,
+        "shortHours": [
+          {
+            "from": "15:00",
+            "to": "23:00",
+            "count": 0
+          }
+        ],
+        "maxHourly": 0
+      },
+      "covered": true
+    },
+    {
+      "block": "NIGHT",
+      "date": "2026-11-19",
+      "required": 4,
+      "scheduled": {
+        "lowestHourly": 1,
+        "shortHours": [
+          {
+            "from": "00:00",
+            "to": "07:00",
+            "count": 1
+          }
+        ],
+        "maxHourly": 6
+      },
+      "actual": {
+        "lowestHourly": 0,
+        "shortHours": [
+          {
+            "from": "23:00",
+            "to": "07:00",
+            "count": 0
+          }
+        ],
+        "maxHourly": 1
+      },
+      "covered": false
+    },
+    {
+      "block": "DAY",
+      "date": "2026-11-20",
+      "required": 5,
+      "scheduled": {
+        "lowestHourly": 4,
+        "shortHours": [
+          {
+            "from": "07:00",
+            "to": "12:00",
+            "count": 4
+          }
+        ],
+        "maxHourly": 5
+      },
+      "actual": null,
+      "covered": false
+    },
+    {
+      "block": "EVENING",
+      "date": "2026-11-20",
+      "required": 5,
+      "scheduled": {
+        "lowestHourly": 6,
+        "shortHours": [],
+        "maxHourly": 7
+      },
+      "actual": null,
+      "covered": true
+    },
+    {
+      "block": "NIGHT",
+      "date": "2026-11-20",
+      "required": 4,
+      "scheduled": {
+        "lowestHourly": 1,
+        "shortHours": [
+          {
+            "from": "00:00",
+            "to": "07:00",
+            "count": 1
+          }
+        ],
+        "maxHourly": 6
+      },
+      "actual": null,
+      "covered": false
+    },
+    {
+      "block": "DAY",
+      "date": "2026-11-21",
+      "required": 5,
+      "scheduled": {
+        "lowestHourly": 4,
+        "shortHours": [
+          {
+            "from": "07:00",
+            "to": "12:00",
+            "count": 4
+          }
+        ],
+        "maxHourly": 5
+      },
+      "actual": null,
+      "covered": false
+    },
+    {
+      "block": "EVENING",
+      "date": "2026-11-21",
+      "required": 5,
+      "scheduled": {
+        "lowestHourly": 5,
+        "shortHours": [],
+        "maxHourly": 6
+      },
+      "actual": null,
+      "covered": true
+    },
+    {
+      "block": "NIGHT",
+      "date": "2026-11-21",
+      "required": 4,
+      "scheduled": {
+        "lowestHourly": 1,
+        "shortHours": [
+          {
+            "from": "00:00",
+            "to": "07:00",
+            "count": 1
+          }
+        ],
+        "maxHourly": 6
+      },
+      "actual": null,
+      "covered": false
+    },
+    {
+      "block": "DAY",
+      "date": "2026-11-22",
+      "required": 5,
+      "scheduled": {
+        "lowestHourly": 4,
+        "shortHours": [
+          {
+            "from": "07:00",
+            "to": "12:00",
+            "count": 4
+          }
+        ],
+        "maxHourly": 5
+      },
+      "actual": null,
+      "covered": false
+    },
+    {
+      "block": "EVENING",
+      "date": "2026-11-22",
+      "required": 5,
+      "scheduled": {
+        "lowestHourly": 4,
+        "shortHours": [
+          {
+            "from": "15:00",
+            "to": "20:00",
+            "count": 4
+          }
+        ],
+        "maxHourly": 5
+      },
+      "actual": null,
+      "covered": false
+    },
+    {
+      "block": "NIGHT",
+      "date": "2026-11-22",
+      "required": 4,
+      "scheduled": {
+        "lowestHourly": 1,
+        "shortHours": [
+          {
+            "from": "00:00",
+            "to": "07:00",
+            "count": 1
+          }
+        ],
+        "maxHourly": 6
+      },
+      "actual": null,
+      "covered": false
+    }
+  ],
+  "officers": [
+    {
+      "employeeId": "ae0a5423-9542-33a5-9694-e3d1e9e860e2",
+      "name": "Willa Keller",
+      "rotation": "",
+      "qualifications": [],
+      "payPeriodHours": 72.0,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "APPROACHING",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "5f8ddacc-8978-3dae-8bb7-7bff1631330c",
+              "shiftTemplate": "A12",
+              "startAt": "2026-11-16T00:00-06:00",
+              "endAt": "2026-11-16T12:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-17",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "ecaddd6c-7ce0-307b-bae1-8a23b5f6756c",
+              "shiftTemplate": "L16",
+              "startAt": "2026-11-17T20:00-06:00",
+              "endAt": "2026-11-18T12:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-18",
+          "items": []
+        },
+        {
+          "date": "2026-11-19",
+          "items": []
+        },
+        {
+          "date": "2026-11-20",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "42ab5d5c-3172-3b6a-930d-5e8b25388823",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-20T07:00-06:00",
+              "endAt": "2026-11-20T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-21",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "3e2d7abf-73bb-3b1d-baa3-5e0b281299b7",
+              "shiftTemplate": "P12",
+              "startAt": "2026-11-21T12:00-06:00",
+              "endAt": "2026-11-22T00:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-22",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "ae12565f-efbb-30c4-8be8-4dd6b7bdc80d",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-22T23:00-06:00",
+              "endAt": "2026-11-23T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "employeeId": "1f61573e-5ba6-3d1e-a965-f5ec6ec6146c",
+      "name": "Leah Pelletier",
+      "rotation": "",
+      "qualifications": [
+        "ESCORT",
+        "FIRST_AID"
+      ],
+      "payPeriodHours": 67.18,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "UNDER",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "2363f17a-381e-3a9f-be66-cc80bf7c2de9",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-16T07:00-06:00",
+              "endAt": "2026-11-16T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-17",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "38f3afb1-00a5-3dc7-98a8-22ddb94af558",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-17T15:00-06:00",
+              "endAt": "2026-11-17T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-18",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "deb8b025-77d6-3f29-83be-03423a589d1f",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-18T15:00-06:00",
+              "endAt": "2026-11-18T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-19",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "e7955d3d-eaa3-3a73-91d5-2337378b1937",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-19T15:00-06:00",
+              "endAt": "2026-11-19T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-20",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "99bd973f-0231-397c-9ad9-30a47a7f1084",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-20T23:00-06:00",
+              "endAt": "2026-11-21T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-21",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "7ccd5a1f-76ab-32b0-836e-189ce7b8b052",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-21T23:00-06:00",
+              "endAt": "2026-11-22T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-22",
+          "items": []
+        }
+      ]
+    },
+    {
+      "employeeId": "2a97181d-6bbb-3371-8b5c-f51d9613c2ed",
+      "name": "Hana Lindqvist",
+      "rotation": "",
+      "qualifications": [
+        "CONTROL"
+      ],
+      "payPeriodHours": 75.07,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "APPROACHING",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "46cc914d-23b2-3122-9978-f498ac14a59c",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-16T07:00-06:00",
+              "endAt": "2026-11-16T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-17",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "606b01d5-9ed0-3617-b40b-88fb40dab3bf",
+              "shiftTemplate": "P12",
+              "startAt": "2026-11-17T12:00-06:00",
+              "endAt": "2026-11-18T00:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-18",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "3ed251a9-7d6c-352b-8d83-3d487593e9d4",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-18T23:00-06:00",
+              "endAt": "2026-11-19T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-19",
+          "items": []
+        },
+        {
+          "date": "2026-11-20",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "cc17bb34-4f52-393a-90f4-b65648d27901",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-20T07:00-06:00",
+              "endAt": "2026-11-20T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-21",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "e13fa38b-d4d5-37b1-9694-7ef142234e92",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-21T15:00-06:00",
+              "endAt": "2026-11-21T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-22",
+          "items": []
+        }
+      ]
+    },
+    {
+      "employeeId": "774e7fa8-ab5b-3f41-baa4-1f8bcf6eb7a0",
+      "name": "Vera Fontaine",
+      "rotation": "",
+      "qualifications": [],
+      "payPeriodHours": 80.0,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "IN_OVERTIME",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "a49b69cd-9a46-3fc2-a6d7-57aa11634ee3",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-16T07:00-06:00",
+              "endAt": "2026-11-16T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-17",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "6a74ff0b-2ee6-3f64-9aef-e0688fd006c6",
+              "shiftTemplate": "P12",
+              "startAt": "2026-11-17T12:00-06:00",
+              "endAt": "2026-11-18T00:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-18",
+          "items": []
+        },
+        {
+          "date": "2026-11-19",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "9b0a954f-977a-3072-b04c-cc1e56f20acc",
+              "shiftTemplate": "A12",
+              "startAt": "2026-11-19T00:00-06:00",
+              "endAt": "2026-11-19T12:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-20",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "20ea8175-f0e8-362b-87a1-720ae00b6291",
+              "shiftTemplate": "L16",
+              "startAt": "2026-11-20T20:00-06:00",
+              "endAt": "2026-11-21T12:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-21",
+          "items": []
+        },
+        {
+          "date": "2026-11-22",
+          "items": []
+        }
+      ]
+    },
+    {
+      "employeeId": "3c6888e4-0662-3e3d-a7d3-b8c019c34766",
+      "name": "Sana Adeyemi",
+      "rotation": "",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "payPeriodHours": 75.37,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "APPROACHING",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "40ef5135-a799-3276-9cb6-e9b89894b306",
+              "shiftTemplate": "P12",
+              "startAt": "2026-11-16T12:00-06:00",
+              "endAt": "2026-11-17T00:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-17",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "0e53a097-487e-375b-834e-2706184fea53",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-17T23:00-06:00",
+              "endAt": "2026-11-18T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-18",
+          "items": []
+        },
+        {
+          "date": "2026-11-19",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "fa1e2efb-b939-3887-ae83-16ecd3073275",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-19T07:00-06:00",
+              "endAt": "2026-11-19T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-20",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "92216087-b316-3f39-96f4-ace9166741c1",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-20T15:00-06:00",
+              "endAt": "2026-11-20T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-21",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "05714fb2-f6f6-3823-bfa5-368321cc2c2b",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-21T15:00-06:00",
+              "endAt": "2026-11-21T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-22",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "42e1a346-f21f-3721-8081-3f3c04ee6d85",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-22T15:00-06:00",
+              "endAt": "2026-11-22T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "employeeId": "f072eedd-c099-3a10-a03c-8dcb365e7e10",
+      "name": "Ruth Okafor",
+      "rotation": "",
+      "qualifications": [],
+      "payPeriodHours": 72.0,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "APPROACHING",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "99ae10a8-0cb1-3952-b3a2-f748760ff7ea",
+              "shiftTemplate": "P12",
+              "startAt": "2026-11-16T12:00-06:00",
+              "endAt": "2026-11-17T00:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-17",
+          "items": []
+        },
+        {
+          "date": "2026-11-18",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "4e997af7-663d-3fc5-bf75-7ad23529856b",
+              "shiftTemplate": "A12",
+              "startAt": "2026-11-18T00:00-06:00",
+              "endAt": "2026-11-18T12:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-19",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "6b231d10-ed5a-3d04-8712-7d0abcddd221",
+              "shiftTemplate": "L16",
+              "startAt": "2026-11-19T20:00-06:00",
+              "endAt": "2026-11-20T12:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-20",
+          "items": []
+        },
+        {
+          "date": "2026-11-21",
+          "items": []
+        },
+        {
+          "date": "2026-11-22",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "c4e1d25b-6289-3dd6-9226-0f3d5f438c37",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-22T07:00-06:00",
+              "endAt": "2026-11-22T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "employeeId": "07d4b1e6-d3ea-3a22-b584-2c3693f1581b",
+      "name": "Gideon Eriksen",
+      "rotation": "",
+      "qualifications": [
+        "CONTROL",
+        "FIRST_AID"
+      ],
+      "payPeriodHours": 76.0,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "APPROACHING",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "440cad7a-4d4a-38d1-aff5-0e6697463276",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-16T15:00-06:00",
+              "endAt": "2026-11-16T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-17",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "8766b2ca-2ebd-35df-aead-90a1404b3a7a",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-17T23:00-06:00",
+              "endAt": "2026-11-18T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-18",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "ebdf9623-6ea1-307b-8598-dccf05e7edf2",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-18T23:00-06:00",
+              "endAt": "2026-11-19T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-19",
+          "items": []
+        },
+        {
+          "date": "2026-11-20",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "a2fa1c17-74a8-3fcf-a528-3bb98e2ac363",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-20T07:00-06:00",
+              "endAt": "2026-11-20T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-21",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "d68d0f5f-f1a4-32fe-93e6-c253bae5cad0",
+              "shiftTemplate": "P12",
+              "startAt": "2026-11-21T12:00-06:00",
+              "endAt": "2026-11-22T00:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-22",
+          "items": []
+        }
+      ]
+    },
+    {
+      "employeeId": "87175846-d4b1-32f1-8cc9-3ef15c462417",
+      "name": "Bram Nakamura",
+      "rotation": "",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "payPeriodHours": 68.0,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "UNDER",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "53a49d05-6b15-3fa5-8506-8c0a1e5650b9",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-16T15:00-06:00",
+              "endAt": "2026-11-16T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-17",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "fc54ac0f-9c98-3bff-8d54-6334b44e9025",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-17T15:00-06:00",
+              "endAt": "2026-11-17T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-18",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "39e3a1cd-5551-3e55-967d-c6a9de51638b",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-18T23:00-06:00",
+              "endAt": "2026-11-19T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-19",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "1ac406e6-ce29-37ba-be85-c243f71e714e",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-19T23:00-06:00",
+              "endAt": "2026-11-20T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-20",
+          "items": []
+        },
+        {
+          "date": "2026-11-21",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "7a534059-da58-3a0b-960a-4d93060534c9",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-21T07:00-06:00",
+              "endAt": "2026-11-21T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-22",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "b30fd4e0-79d7-322b-bb0d-86831c83e92c",
+              "shiftTemplate": "P12",
+              "startAt": "2026-11-22T12:00-06:00",
+              "endAt": "2026-11-23T00:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "employeeId": "d882d15e-2dc0-3408-9508-b7cba3fb8cfa",
+      "name": "Marc Desjardins",
+      "rotation": "",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "payPeriodHours": 61.57,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "UNDER",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "6c31561e-3951-37d5-a1ca-6655b2647b18",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-16T15:00-06:00",
+              "endAt": "2026-11-16T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-17",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "8627f967-82c1-36a1-927b-0724a52f69ed",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-17T15:00-06:00",
+              "endAt": "2026-11-17T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-18",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "b3a99985-2a44-31cd-b426-5d3409d2b4b0",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-18T15:00-06:00",
+              "endAt": "2026-11-18T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-19",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "11b723e7-960e-3b24-b0c3-a97cbd804bf9",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-19T23:00-06:00",
+              "endAt": "2026-11-20T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-20",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "ab81d981-2cef-3fc4-90d1-b0f13882a6e6",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-20T23:00-06:00",
+              "endAt": "2026-11-21T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-21",
+          "items": []
+        },
+        {
+          "date": "2026-11-22",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "f620107b-d810-305d-8d03-58a88b28badb",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-22T07:00-06:00",
+              "endAt": "2026-11-22T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "employeeId": "e581608b-f30d-38ee-a675-6a62c00f9f0e",
+      "name": "Yusuf Singh",
+      "rotation": "",
+      "qualifications": [
+        "CONTROL"
+      ],
+      "payPeriodHours": 64.0,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "UNDER",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "126de04a-ce9b-31b4-9c3b-c796e6ad33f9",
+              "shiftTemplate": "L16",
+              "startAt": "2026-11-16T20:00-06:00",
+              "endAt": "2026-11-17T12:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-17",
+          "items": []
+        },
+        {
+          "date": "2026-11-18",
+          "items": []
+        },
+        {
+          "date": "2026-11-19",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "2dff6f63-2281-3205-87c5-3c1c44b58548",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-19T07:00-06:00",
+              "endAt": "2026-11-19T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-20",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "488d1173-6639-3695-b715-7366f63027fc",
+              "shiftTemplate": "P12",
+              "startAt": "2026-11-20T12:00-06:00",
+              "endAt": "2026-11-21T00:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-21",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "2ba2587c-147f-37dc-b3c9-b42921bdc763",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-21T23:00-06:00",
+              "endAt": "2026-11-22T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-22",
+          "items": []
+        }
+      ]
+    },
+    {
+      "employeeId": "782f86c9-5f15-3a5b-991c-d130718c6029",
+      "name": "Lars Young",
+      "rotation": "",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "payPeriodHours": 64.0,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "UNDER",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "b7043f29-3d5f-3d84-9f6d-f53cfd3917b8",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-16T23:00-06:00",
+              "endAt": "2026-11-17T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-17",
+          "items": []
+        },
+        {
+          "date": "2026-11-18",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "4385f51b-376a-3428-bc81-1024858f4526",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-18T07:00-06:00",
+              "endAt": "2026-11-18T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-19",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "e02c8542-3928-3fa5-9941-f2400d321b20",
+              "shiftTemplate": "P12",
+              "startAt": "2026-11-19T12:00-06:00",
+              "endAt": "2026-11-20T00:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-20",
+          "items": []
+        },
+        {
+          "date": "2026-11-21",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "d5052464-77e5-3439-812c-fd09f049c2d7",
+              "shiftTemplate": "A12",
+              "startAt": "2026-11-21T00:00-06:00",
+              "endAt": "2026-11-21T12:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-22",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "e88f5493-4ff4-33a8-869f-396f871a6037",
+              "shiftTemplate": "L16",
+              "startAt": "2026-11-22T20:00-06:00",
+              "endAt": "2026-11-23T12:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "employeeId": "1c13564b-57da-3ba6-9a19-39fc9d5f29c8",
+      "name": "Greta Bergeron",
+      "rotation": "",
+      "qualifications": [
+        "ESCORT"
+      ],
+      "payPeriodHours": 64.0,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "UNDER",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "981636a7-d31f-3786-b3ac-fb7c699a8316",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-16T23:00-06:00",
+              "endAt": "2026-11-17T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-17",
+          "items": []
+        },
+        {
+          "date": "2026-11-18",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "ffcabafe-231e-3771-a1d3-5ea62088dade",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-18T07:00-06:00",
+              "endAt": "2026-11-18T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-19",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "ffec8f0b-9343-3f8d-9298-af52677e5c79",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-19T15:00-06:00",
+              "endAt": "2026-11-19T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-20",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "8e8b90bd-da87-3b9c-a97e-413f00b982f9",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-20T15:00-06:00",
+              "endAt": "2026-11-20T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-21",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "ec9b7b54-bc84-339d-ab83-272864b12a87",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-21T15:00-06:00",
+              "endAt": "2026-11-21T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-22",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "39c18f1f-b64c-360d-a56e-415b817e10ed",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-22T23:00-06:00",
+              "endAt": "2026-11-23T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "employeeId": "c3bc9455-1839-3bfc-b865-ebc1aa0c06d3",
+      "name": "Zara Keller",
+      "rotation": "",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "payPeriodHours": 68.0,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "UNDER",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "32d0ea92-2ee1-3dea-b28f-5b5890f8aab7",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-16T23:00-06:00",
+              "endAt": "2026-11-17T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-17",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "0978dec2-79ef-3688-9fee-e68f5bab8eb9",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-17T23:00-06:00",
+              "endAt": "2026-11-18T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-18",
+          "items": []
+        },
+        {
+          "date": "2026-11-19",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "4ae3ff32-ff74-3609-9d8a-05d2c2094f23",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-19T07:00-06:00",
+              "endAt": "2026-11-19T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-20",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "fb734a88-4dea-3215-9076-1f7f1a693f16",
+              "shiftTemplate": "P12",
+              "startAt": "2026-11-20T12:00-06:00",
+              "endAt": "2026-11-21T00:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-21",
+          "items": []
+        },
+        {
+          "date": "2026-11-22",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "d3392b23-86cf-3d2c-94a2-49ebbab023c2",
+              "shiftTemplate": "A12",
+              "startAt": "2026-11-22T00:00-06:00",
+              "endAt": "2026-11-22T12:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "employeeId": "b7c440b1-8005-3db4-be8f-41d25f7c4d09",
+      "name": "Pia Rasmussen",
+      "rotation": "",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "payPeriodHours": 79.38,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "APPROACHING",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": []
+        },
+        {
+          "date": "2026-11-17",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "56e5d2b0-8c61-3028-b73c-38f08a51aa86",
+              "shiftTemplate": "A12",
+              "startAt": "2026-11-17T00:00-06:00",
+              "endAt": "2026-11-17T12:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-18",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "31ceef0b-dd79-37dc-b77e-008db83b5bad",
+              "shiftTemplate": "L16",
+              "startAt": "2026-11-18T20:00-06:00",
+              "endAt": "2026-11-19T12:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-19",
+          "items": []
+        },
+        {
+          "date": "2026-11-20",
+          "items": []
+        },
+        {
+          "date": "2026-11-21",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "4996e826-0057-3f47-aa9a-7ce9503141f1",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-21T07:00-06:00",
+              "endAt": "2026-11-21T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-22",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "3f46a333-2d41-3781-babc-8510af36f259",
+              "shiftTemplate": "P12",
+              "startAt": "2026-11-22T12:00-06:00",
+              "endAt": "2026-11-23T00:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "employeeId": "7b45792d-21f8-3c29-a8d8-6ca17a86c7d0",
+      "name": "Carmen Zola",
+      "rotation": "",
+      "qualifications": [
+        "CONTROL"
+      ],
+      "payPeriodHours": 79.07,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "APPROACHING",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": []
+        },
+        {
+          "date": "2026-11-17",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "6605e81a-1432-32e4-8497-e13ddd6fc514",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-17T07:00-06:00",
+              "endAt": "2026-11-17T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-18",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "5b01a344-ba22-3cb0-8457-886da1b3c3bf",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-18T15:00-06:00",
+              "endAt": "2026-11-18T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-19",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "ba80944b-a36b-3164-addd-e597961b7d1e",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-19T15:00-06:00",
+              "endAt": "2026-11-19T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-20",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "08fb6184-ea6f-378c-ab7b-6a9284adf71c",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-20T15:00-06:00",
+              "endAt": "2026-11-20T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-21",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "7da0da5c-b517-3907-bcfa-458aebd5768d",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-21T23:00-06:00",
+              "endAt": "2026-11-22T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-22",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "8fb5f4d1-889c-39e1-945b-1cd1815e7ef2",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-22T23:00-06:00",
+              "endAt": "2026-11-23T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "employeeId": "70b20a36-04f4-3ac2-bcdc-ebb9048460b6",
+      "name": "Marc Nakamura",
+      "rotation": "",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "payPeriodHours": 68.0,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "UNDER",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": []
+        },
+        {
+          "date": "2026-11-17",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "d48007a5-3235-3b16-acb2-0672cc30fb7b",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-17T07:00-06:00",
+              "endAt": "2026-11-17T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-18",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "e3743db5-a151-3918-a69e-a9e858965822",
+              "shiftTemplate": "P12",
+              "startAt": "2026-11-18T12:00-06:00",
+              "endAt": "2026-11-19T00:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-19",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "f4173769-d935-30ed-8bd6-22a1b6836909",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-19T23:00-06:00",
+              "endAt": "2026-11-20T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-20",
+          "items": []
+        },
+        {
+          "date": "2026-11-21",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "9bfcb385-cee0-33ea-a58b-6211704f74d6",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-21T07:00-06:00",
+              "endAt": "2026-11-21T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-22",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "93d94e8b-9eba-3a45-ace4-b529128a99eb",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-22T15:00-06:00",
+              "endAt": "2026-11-22T23:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "employeeId": "4ad5f431-ac27-3f50-9c5c-f9ca046c12ce",
+      "name": "Isaac Young",
+      "rotation": "",
+      "qualifications": [],
+      "payPeriodHours": 68.0,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "UNDER",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": []
+        },
+        {
+          "date": "2026-11-17",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "b9eeb377-187b-3ffb-b8ff-802541036ec8",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-17T07:00-06:00",
+              "endAt": "2026-11-17T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-18",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "866d0e2b-8dc9-341e-b334-0564c4bc3cd5",
+              "shiftTemplate": "P12",
+              "startAt": "2026-11-18T12:00-06:00",
+              "endAt": "2026-11-19T00:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-19",
+          "items": []
+        },
+        {
+          "date": "2026-11-20",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "b619ea40-a5cd-3e57-ac6f-c89dcd38c84c",
+              "shiftTemplate": "A12",
+              "startAt": "2026-11-20T00:00-06:00",
+              "endAt": "2026-11-20T12:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-21",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "a41efd3d-e8e7-3485-894f-8b03e28908d5",
+              "shiftTemplate": "L16",
+              "startAt": "2026-11-21T20:00-06:00",
+              "endAt": "2026-11-22T12:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-22",
+          "items": []
+        }
+      ]
+    },
+    {
+      "employeeId": "8478bba1-a3fb-39d0-ae48-ef4f47e8c822",
+      "name": "Hana Varga",
+      "rotation": "",
+      "qualifications": [],
+      "payPeriodHours": 72.0,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "APPROACHING",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": []
+        },
+        {
+          "date": "2026-11-17",
+          "items": []
+        },
+        {
+          "date": "2026-11-18",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "94f45b9d-2e56-3713-ad8e-0ba4eece5851",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-18T07:00-06:00",
+              "endAt": "2026-11-18T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": true,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-19",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "a4612765-d0a7-3e66-9755-ca130a481b50",
+              "shiftTemplate": "P12",
+              "startAt": "2026-11-19T12:00-06:00",
+              "endAt": "2026-11-20T00:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-20",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "57c4c0ee-b68d-3563-bdf0-5fc5727553a9",
+              "shiftTemplate": "N8",
+              "startAt": "2026-11-20T23:00-06:00",
+              "endAt": "2026-11-21T07:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-21",
+          "items": []
+        },
+        {
+          "date": "2026-11-22",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "da8efbb1-e5e1-3804-91e8-911df56aa02d",
+              "shiftTemplate": "D8",
+              "startAt": "2026-11-22T07:00-06:00",
+              "endAt": "2026-11-22T15:00-06:00",
+              "kind": "ROSTERED",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "employeeId": "bdb9e495-892e-3ac5-87ac-8fb7094adad0",
+      "name": "Kari Abara",
+      "rotation": "",
+      "qualifications": [
+        "ESCORT",
+        "FIRST_AID"
+      ],
+      "payPeriodHours": 68.0,
+      "payPeriodThreshold": 80.0,
+      "overtimeStatus": "UNDER",
+      "cells": [
+        {
+          "date": "2026-11-16",
+          "items": []
+        },
+        {
+          "date": "2026-11-17",
+          "items": []
+        },
+        {
+          "date": "2026-11-18",
+          "items": []
+        },
+        {
+          "date": "2026-11-19",
+          "items": []
+        },
+        {
+          "date": "2026-11-20",
+          "items": [
+            {
+              "type": "SHIFT",
+              "assignmentId": "92d0e611-0987-3b21-b9cb-6df35db8345f",
+              "shiftTemplate": "E8",
+              "startAt": "2026-11-20T15:00-06:00",
+              "endAt": "2026-11-20T23:00-06:00",
+              "kind": "EXTRA",
+              "worked": false,
+              "version": 0
+            }
+          ]
+        },
+        {
+          "date": "2026-11-21",
+          "items": []
+        },
+        {
+          "date": "2026-11-22",
+          "items": []
+        }
+      ]
+    }
+  ],
+  "warnings": 0,
+  "overridesThisPeriod": 0,
+  "publishedState": {
+    "published": true,
+    "unpublishedChanges": 0
+  },
+  "period": {
+    "id": "84a594a1-2ca5-39a7-b777-9c9dbbade154",
+    "label": "16 \u2013 22 Nov 2026",
+    "status": "PUBLISHED"
+  }
+}

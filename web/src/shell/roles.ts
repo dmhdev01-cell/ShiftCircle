@@ -61,10 +61,10 @@ export const roles: RoleDescriptor[] = [
       { label: 'Overtime', to: '/overtime' },
       { label: 'Reports', to: '/reports/coverage' },
       { label: 'Rules', to: '/rules/7/rest-between-shifts' },
+      { label: 'Audit log', to: '/audit' },
       { label: 'Wall display', to: '/display' },
       { label: 'Employee view', to: '/me/schedule' },
-      { label: 'Time & attendance', to: '/time', muted: true },
-      { label: 'Proposals inbox', to: '/proposals', muted: true },
+      { label: 'Time & attendance', to: '/time' },
     ],
   },
   {
@@ -73,9 +73,6 @@ export const roles: RoleDescriptor[] = [
     user: 'N. Thompson',
     nav: [
       { label: 'My schedule', to: '/me/schedule' },
-      { label: 'Propose shifts', to: '/me/propose', muted: true },
-      { label: 'My hours', to: '/me/hours', muted: true },
-      { label: 'Supervisor view', to: '/planning' },
     ],
   },
   {
@@ -84,8 +81,6 @@ export const roles: RoleDescriptor[] = [
     user: 'L. Fraser',
     nav: [
       { label: 'Rules', to: '/rules' },
-      { label: 'Shift types', to: '/rules/7/shift-types', muted: true },
-      { label: 'Rule version review', to: '/rules/7/review', muted: true },
     ],
   },
   {
@@ -94,7 +89,6 @@ export const roles: RoleDescriptor[] = [
     user: 'P. Singh',
     nav: [
       { label: 'Rules', to: '/rules' },
-      { label: 'Rule version review', to: '/rules/7/review', muted: true },
     ],
   },
   {
@@ -105,6 +99,7 @@ export const roles: RoleDescriptor[] = [
       { label: 'Planning board', to: '/planning' },
       { label: 'Reports', to: '/reports/coverage' },
       { label: 'Rules', to: '/rules' },
+      { label: 'Audit log', to: '/audit' },
       { label: 'Wall display', to: '/display' },
     ],
   },

@@ -1,0 +1,106 @@
+[
+  {
+    "id": "89d4b5f1-9b1d-32f0-aa4d-1940f253241a",
+    "openShift": {
+      "id": "c17319d9-5f16-3a0e-bf45-230015d0c55e",
+      "date": "2026-11-21",
+      "startAt": "2026-11-21T13:00:00Z",
+      "endAt": "2026-11-21T21:00:00Z",
+      "unit": {
+        "id": "11111111-1111-1111-1111-000000000003",
+        "name": "Unit C \u00b7 Living unit"
+      },
+      "shiftTemplate": "D8",
+      "needs": 0,
+      "status": "FILLED",
+      "reason": "Sick call"
+    },
+    "offeredBy": null,
+    "offeredAt": "2026-11-20T07:00-06:00",
+    "eligibility": "ELIGIBLE",
+    "reason": "",
+    "ruleResults": [],
+    "status": "ACCEPTED"
+  },
+  {
+    "id": "71946025-0120-4018-b4ec-8a047de49e08",
+    "openShift": {
+      "id": "63f01792-4b48-397a-81fc-572591abad36",
+      "date": "2026-11-21",
+      "startAt": "2026-11-21T13:00:00Z",
+      "endAt": "2026-11-21T21:00:00Z",
+      "unit": {
+        "id": "11111111-1111-1111-1111-000000000002",
+        "name": "Unit B \u00b7 Living unit"
+      },
+      "shiftTemplate": "D8",
+      "needs": 0,
+      "status": "FILLED",
+      "reason": "Extra coverage"
+    },
+    "offeredBy": "M. Ellis",
+    "offeredAt": "2026-11-20T04:49:23.761342-06:00",
+    "eligibility": "WARN",
+    "reason": "U-12: Fewer than 2 consecutive days off in 7 days.",
+    "ruleResults": [
+      {
+        "ruleCode": "U-12",
+        "ruleTable": "DAYS_OFF",
+        "outcome": "WARN",
+        "message": "Fewer than 2 consecutive days off in 7 days.",
+        "facts": {
+          "unit": "days",
+          "actual": 0.0,
+          "required": 2.0
+        },
+        "evidence": [
+          {
+            "label": "worst 7-day window ending 2026-10-31: longest break 24.00 h counts as 0 days off"
+          }
+        ],
+        "overridePolicy": "ACKNOWLEDGE"
+      },
+      {
+        "ruleCode": "U-14",
+        "ruleTable": "MAX_HOURS",
+        "outcome": "WARN",
+        "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+        "facts": {
+          "unit": "hours",
+          "actual": 60.0,
+          "required": 48.0
+        },
+        "evidence": [
+          {
+            "label": "60.00 h in the 168 h window from Sun 1 Nov 20:00 (6 shifts: 2453d6ad-2747-3f16-9c6f-330ed38b762b, 9f996505-bf2e-37a5-92a5-7b9e0d229376, dad37a5f-e8a6-3712-b77e-99bc3787336f)"
+          }
+        ],
+        "overridePolicy": "ACKNOWLEDGE"
+      }
+    ],
+    "status": "CONFIRMED"
+  },
+  {
+    "id": "e714d486-3290-3787-9ce8-034b1de38af8",
+    "openShift": {
+      "id": "a41f782e-1462-35af-8a5d-f8435dfe29ce",
+      "date": "2026-11-03",
+      "startAt": "2026-11-03T13:00:00Z",
+      "endAt": "2026-11-03T21:00:00Z",
+      "unit": {
+        "id": "11111111-1111-1111-1111-000000000001",
+        "name": "Unit A \u00b7 Living unit"
+      },
+      "shiftTemplate": "D8",
+      "needs": 0,
+      "status": "FILLED",
+      "reason": "Sick call"
+    },
+    "offeredBy": null,
+    "offeredAt": "2026-11-02T07:00-06:00",
+    "eligibility": "ELIGIBLE",
+    "reason": "",
+    "ruleResults": [],
+    "status": "ACCEPTED"
+  }
+]

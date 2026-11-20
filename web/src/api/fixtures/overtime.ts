@@ -44,6 +44,17 @@ export const demoOpenShifts: OpenShift[] = [
     status: 'FILLED',
     reason: 'Sick call',
   },
+  {
+    id: 'os-cancelled',
+    date: '2026-11-24',
+    startAt: '2026-11-24T07:00:00-06:00',
+    endAt: '2026-11-24T15:00:00-06:00',
+    unit: { id: 'unit-b', name: 'Unit B · Living unit' },
+    shiftTemplate: 'D8',
+    needs: 1,
+    status: 'CANCELLED',
+    reason: 'Coverage no longer needed',
+  },
 ];
 
 /**
@@ -68,6 +79,22 @@ export const demoCandidates: Candidate[] = [
     seniorityDate: 'Aug 2019',
     eligibility: 'SKIPPED',
     reason: 'Night shift ends Sat 07:00: no rest. Keeps their place.',
+    ruleResults: [
+      {
+        ruleCode: 'U-01',
+        ruleTable: 'REST',
+        outcome: 'BLOCK',
+        message: 'Less than 8 hours rest in 24 hours (Employment Act minimum).',
+        overridePolicy: 'EMERGENCY',
+      },
+      {
+        ruleCode: 'U-05',
+        ruleTable: 'MAX_HOURS',
+        outcome: 'BLOCK',
+        message: 'More than 16 hours worked in 24 hours (Employment Act limit).',
+        overridePolicy: 'EMERGENCY',
+      },
+    ],
   },
   {
     employeeId: 'emp-sam',
@@ -95,6 +122,22 @@ export const demoCandidates: Candidate[] = [
     seniorityDate: 'Feb 2017',
     eligibility: 'WARN',
     reason: 'U-14: 56 h that week (warns at 48 h)',
+    ruleResults: [
+      {
+        ruleCode: 'U-02',
+        ruleTable: 'REST',
+        outcome: 'PASS',
+        message: 'At least 12 hours rest.',
+        overridePolicy: 'ACKNOWLEDGE',
+      },
+      {
+        ruleCode: 'U-14',
+        ruleTable: 'MAX_HOURS',
+        outcome: 'WARN',
+        message: 'Weekly hours above the 48-hour warning level.',
+        overridePolicy: 'ACKNOWLEDGE',
+      },
+    ],
   },
   {
     employeeId: 'emp-piotr',
@@ -122,6 +165,22 @@ export const demoCandidates: Candidate[] = [
     seniorityDate: 'Jun 2012',
     eligibility: 'SKIPPED',
     reason: 'P12 Fri 12:00–24:00: only 7 hours’ rest before this shift. Keeps their place.',
+    ruleResults: [
+      {
+        ruleCode: 'U-01',
+        ruleTable: 'REST',
+        outcome: 'BLOCK',
+        message: 'Less than 8 hours rest in 24 hours (Employment Act minimum).',
+        overridePolicy: 'EMERGENCY',
+      },
+      {
+        ruleCode: 'U-12',
+        ruleTable: 'DAYS_OFF',
+        outcome: 'WARN',
+        message: 'Fewer than 2 consecutive days off in 7 days.',
+        overridePolicy: 'ACKNOWLEDGE',
+      },
+    ],
   },
 ];
 

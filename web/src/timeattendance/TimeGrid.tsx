@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 
 import type { TimeEntry } from '../api/types';
 import { chipTextFor } from '../api/shiftTemplates';
+import { ScrollShadows } from '../components/ScrollShadows';
 import { colour } from '../theme/tokens';
 
 export interface OfficerTimeRow {
@@ -53,11 +54,13 @@ export function TimeCell({ entry, locked, onPick }: TimeCellProps) {
         component="button"
         type="button"
         disabled={locked}
+        aria-label={`${chip} · needs actual`}
+        title={`${chip} ${clock(entry.startAt)}–${clock(entry.endAt)} · needs actual`}
         onClick={() => onPick?.(entry)}
         sx={{
           display: 'inline-flex',
           flexDirection: 'column',
-          gap: 0.5,
+          gap: 0.25,
           alignItems: 'flex-start',
           padding: 0,
           border: 0,
@@ -72,8 +75,8 @@ export function TimeCell({ entry, locked, onPick }: TimeCellProps) {
           sx={{
             display: 'inline-flex',
             alignItems: 'center',
-            height: 26,
-            px: 2,
+            height: 24,
+            px: 1,
             borderRadius: '6px',
             backgroundColor: colour.status.warn.bg,
             color: colour.status.warn.text,
@@ -82,7 +85,10 @@ export function TimeCell({ entry, locked, onPick }: TimeCellProps) {
             whiteSpace: 'nowrap',
           }}
         >
-          {chip} · needs actual
+          {chip}
+        </Box>
+        <Box component="span" sx={{ fontSize: 10, color: colour.status.warn.text, lineHeight: 1.2 }}>
+          no actual
         </Box>
       </Box>
     );
@@ -96,8 +102,8 @@ export function TimeCell({ entry, locked, onPick }: TimeCellProps) {
         sx={{
           display: 'inline-flex',
           alignItems: 'center',
-          height: 26,
-          px: 2,
+          height: 24,
+          px: 1,
           borderRadius: '6px',
           backgroundColor: entry.absence === 'VACATION' ? '#E3F0E8' : '#FFFFFF',
           color: entry.absence === 'VACATION' ? colour.brand.primary : '#9A3412',
@@ -120,8 +126,8 @@ export function TimeCell({ entry, locked, onPick }: TimeCellProps) {
         sx={{
           display: 'inline-flex',
           alignItems: 'center',
-          height: 26,
-          px: 2,
+          height: 24,
+          px: 1,
           borderRadius: '6px',
           backgroundColor: '#D5E8F3',
           color: colour.brand.link,
@@ -146,8 +152,8 @@ export function TimeCell({ entry, locked, onPick }: TimeCellProps) {
       onClick={() => onPick?.(entry)}
       title={
         adjusted
-          ? `Worked ${clock(entry.actualStart ?? entry.startAt)}–${clock(entry.actualEnd ?? entry.endAt)}`
-          : 'Worked as scheduled'
+          ? `Worked ${clock(entry.actualStart ?? entry.startAt)}–${clock(entry.actualEnd ?? entry.endAt)} (${difference > 0 ? '+' : ''}${difference} h)`
+          : `Worked as scheduled (${clock(entry.startAt)}–${clock(entry.endAt)})`
       }
       sx={{
         display: 'inline-flex',
@@ -167,8 +173,8 @@ export function TimeCell({ entry, locked, onPick }: TimeCellProps) {
         sx={{
           display: 'inline-flex',
           alignItems: 'center',
-          height: 26,
-          px: 2,
+          height: 24,
+          px: 1,
           borderRadius: '6px',
           backgroundColor: '#00558C',
           color: colour.text.onDark,
@@ -178,9 +184,6 @@ export function TimeCell({ entry, locked, onPick }: TimeCellProps) {
         }}
       >
         ✓ {chip}
-        {adjusted
-          ? ` ${clock(entry.actualStart ?? entry.startAt)}–${clock(entry.actualEnd ?? entry.endAt)}`
-          : ''}
       </Box>
       {difference !== 0 ? (
         <Box component="span" sx={{ fontSize: 11, color: colour.text.secondary }}>
@@ -209,31 +212,40 @@ export function TimeGrid({ rows, days, locked, onPick }: TimeGridProps) {
         borderRadius: '10px',
       }}
     >
-      <Box
-        role="region"
-        aria-label="Time entries, scrolls sideways"
-        tabIndex={0}
-        sx={{ overflowX: 'auto' }}
+      <ScrollShadows
+        label="Time entries, scrolls sideways"
+        hint="Scroll sideways for more days."
       >
         <table
           style={{
             width: '100%',
-            minWidth: 1100,
+            minWidth: 900,
             borderCollapse: 'collapse',
+            tableLayout: 'fixed',
             fontSize: 13,
           }}
         >
+          <colgroup>
+            <col style={{ width: '17%' }} />
+            <col style={{ width: '9%' }} />
+            {days.map((date) => (
+              <col key={date} />
+            ))}
+          </colgroup>
           <thead>
             <tr>
               <th
                 style={{
                   textAlign: 'left',
-                  padding: 8,
+                  padding: 4,
                   fontSize: 12,
                   fontWeight: 600,
                   color: colour.text.secondary,
                   backgroundColor: colour.bg.subtle,
-                  minWidth: 190,
+                  position: 'sticky',
+                  left: 0,
+                  zIndex: 2,
+                  boxShadow: 'inset -1px 0 0 #E1E3E6',
                 }}
               >
                 Officer
@@ -241,7 +253,7 @@ export function TimeGrid({ rows, days, locked, onPick }: TimeGridProps) {
               <th
                 style={{
                   textAlign: 'left',
-                  padding: 8,
+                  padding: 4,
                   fontSize: 12,
                   fontWeight: 600,
                   color: colour.text.secondary,
@@ -251,21 +263,38 @@ export function TimeGrid({ rows, days, locked, onPick }: TimeGridProps) {
               >
                 Pay period
               </th>
-              {days.map((date) => (
-                <th
-                  key={date}
-                  style={{
-                    textAlign: 'left',
-                    padding: 8,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: colour.text.secondary,
-                    backgroundColor: colour.bg.subtle,
-                  }}
-                >
-                  {date.slice(8, 10)}
-                </th>
-              ))}
+              {days.map((date, index) => {
+                const weekday = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][
+                  new Date(`${date}T00:00:00Z`).getUTCDay()
+                ];
+                const weekend = weekday === 'Su' || weekday === 'Sa';
+                const showMonth = index === 0 || date.endsWith('-01');
+                const month = new Intl.DateTimeFormat('en-CA', {
+                  month: 'short',
+                  timeZone: 'UTC',
+                }).format(new Date(`${date}T00:00:00Z`));
+                return (
+                  <th
+                    key={date}
+                    style={{
+                      textAlign: 'left',
+                      padding: 4,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: colour.text.secondary,
+                      backgroundColor: weekend ? '#F1F2F4' : colour.bg.subtle,
+                    }}
+                  >
+                    {weekday} {date.slice(8, 10)}
+                    {showMonth ? (
+                      <>
+                        <br />
+                        <span style={{ fontWeight: 500 }}>{month}</span>
+                      </>
+                    ) : null}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -273,16 +302,21 @@ export function TimeGrid({ rows, days, locked, onPick }: TimeGridProps) {
               <tr key={row.employeeId}>
                 <td
                   style={{
-                    padding: 8,
+                    padding: 4,
                     borderBottom: `1px solid ${colour.border.default}`,
                     fontWeight: 600,
+                    position: 'sticky',
+                    left: 0,
+                    zIndex: 1,
+                    backgroundColor: colour.bg.surface,
+                    boxShadow: 'inset -1px 0 0 #E1E3E6',
                   }}
                 >
                   {row.name}
                 </td>
                 <td
                   style={{
-                    padding: 8,
+                    padding: 4,
                     borderBottom: `1px solid ${colour.border.default}`,
                     whiteSpace: 'nowrap',
                   }}
@@ -300,10 +334,19 @@ export function TimeGrid({ rows, days, locked, onPick }: TimeGridProps) {
                 </td>
                 {days.map((date) => {
                   const cell = row.cells.find((entry) => entry.date === date);
+                  const weekday = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][
+                    new Date(`${date}T00:00:00Z`).getUTCDay()
+                  ];
+                  const weekend = weekday === 'Su' || weekday === 'Sa';
                   return (
                     <td
                       key={date}
-                      style={{ padding: 8, borderBottom: `1px solid ${colour.border.default}` }}
+                      data-assignment-id={cell?.entry?.assignmentId}
+                      style={{
+                        padding: 4,
+                        borderBottom: `1px solid ${colour.border.default}`,
+                        backgroundColor: weekend ? '#F7F8FA' : undefined,
+                      }}
                     >
                       <TimeCell entry={cell?.entry} locked={locked} onPick={onPick} />
                     </td>
@@ -313,7 +356,7 @@ export function TimeGrid({ rows, days, locked, onPick }: TimeGridProps) {
             ))}
           </tbody>
         </table>
-      </Box>
+      </ScrollShadows>
     </Box>
   );
 }

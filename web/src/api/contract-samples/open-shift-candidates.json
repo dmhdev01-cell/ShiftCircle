@@ -1,0 +1,1809 @@
+{
+  "openShift": {
+    "id": "9697b85f-b5ee-3b81-937f-61238f618a91",
+    "date": "2026-10-01",
+    "startAt": "2026-10-01T13:00:00Z",
+    "endAt": "2026-10-01T21:00:00Z",
+    "unit": {
+      "id": "11111111-1111-1111-1111-000000000002",
+      "name": "Unit B \u00b7 Living unit"
+    },
+    "shiftTemplate": "D8",
+    "needs": 0,
+    "status": "FILLED",
+    "reason": "Sick call"
+  },
+  "candidates": [
+    {
+      "employeeId": "7b45792d-21f8-3c29-a8d8-6ca17a86c7d0",
+      "name": "Carmen Zola",
+      "qualifications": [
+        "CONTROL"
+      ],
+      "overtimeHoursThisQuarter": 0.0,
+      "seniorityDate": "Dec 2021",
+      "eligibility": "SKIPPED",
+      "reason": "U-01: Less than 8 hours rest in 24 hours (Employment Act minimum).",
+      "ruleResults": [
+        {
+          "ruleCode": "U-01",
+          "ruleTable": "REST",
+          "outcome": "BLOCK",
+          "message": "Less than 8 hours rest in 24 hours (Employment Act minimum).",
+          "facts": {
+            "unit": "hours",
+            "required": 8.0,
+            "actual": 5.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift 9c33eaf9-6b4b-326d-8074-48f32fa27f55 starts Thu 1 Oct 20:00 (5.00 h rest)"
+            }
+          ],
+          "overridePolicy": "EMERGENCY"
+        },
+        {
+          "ruleCode": "U-05",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "BLOCK",
+          "message": "More than 16 hours worked in 24 hours (Employment Act limit).",
+          "facts": {
+            "unit": "hours",
+            "required": 16.0,
+            "actual": 19.0
+          },
+          "evidence": [
+            {
+              "label": "19.00 h in the 24 h window from Thu 1 Oct 07:00 (2 shifts: proposed, 9c33eaf9-6b4b-326d-8074-48f32fa27f55)"
+            }
+          ],
+          "overridePolicy": "EMERGENCY"
+        },
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-14: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 5.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift 9c33eaf9-6b4b-326d-8074-48f32fa27f55 starts Thu 1 Oct 20:00 (5.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 52.0
+          },
+          "evidence": [
+            {
+              "label": "52.00 h in the 168 h window from Thu 1 Oct 07:00 (4 shifts: proposed, 9c33eaf9-6b4b-326d-8074-48f32fa27f55, 6a609c97-9824-35a4-b2e4-80acec7a45be)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "503fcc07-e4af-3f75-b00e-748334757b45",
+      "name": "Nia Thompson",
+      "qualifications": [
+        "CONTROL",
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 12.0,
+      "seniorityDate": "Jul 2015",
+      "eligibility": "UNAVAILABLE",
+      "reason": "Already scheduled for an overlapping shift",
+      "ruleResults": []
+    },
+    {
+      "employeeId": "4002f546-0740-3503-8d71-4ee9131dfb91",
+      "name": "Tara Nakamura",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 16.0,
+      "seniorityDate": "May 2008",
+      "eligibility": "UNAVAILABLE",
+      "reason": "Already scheduled for an overlapping shift",
+      "ruleResults": []
+    },
+    {
+      "employeeId": "c3bc9455-1839-3bfc-b865-ebc1aa0c06d3",
+      "name": "Zara Keller",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 24.0,
+      "seniorityDate": "Sep 2019",
+      "eligibility": "WARN",
+      "reason": "U-12: Fewer than 2 consecutive days off in 7 days.",
+      "ruleResults": [
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-07: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 52.0
+          },
+          "evidence": [
+            {
+              "label": "52.00 h in the 168 h window from Thu 1 Oct 07:00 (6 shifts: proposed, 486b769e-ed24-39c6-9cc8-b01c40201ece, 8dcda2dc-d1a2-384e-ae72-0539de287df4)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "59cc8a99-2c38-30df-9720-ef52e7d6f55e",
+      "name": "Jolene Desjardins",
+      "qualifications": [
+        "CONTROL"
+      ],
+      "overtimeHoursThisQuarter": 28.0,
+      "seniorityDate": "Jun 2007",
+      "eligibility": "UNAVAILABLE",
+      "reason": "Already scheduled for an overlapping shift",
+      "ruleResults": []
+    },
+    {
+      "employeeId": "8478bba1-a3fb-39d0-ae48-ef4f47e8c822",
+      "name": "Hana Varga",
+      "qualifications": [],
+      "overtimeHoursThisQuarter": 28.0,
+      "seniorityDate": "May 2013",
+      "eligibility": "UNAVAILABLE",
+      "reason": "Already scheduled for an overlapping shift",
+      "ruleResults": []
+    },
+    {
+      "employeeId": "ed052782-3bec-303b-8742-cd13ce9b6b78",
+      "name": "Aiden Bergeron",
+      "qualifications": [
+        "CONTROL",
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 28.0,
+      "seniorityDate": "May 2023",
+      "eligibility": "UNAVAILABLE",
+      "reason": "Already scheduled for an overlapping shift",
+      "ruleResults": []
+    },
+    {
+      "employeeId": "f072eedd-c099-3a10-a03c-8dcb365e7e10",
+      "name": "Ruth Okafor",
+      "qualifications": [],
+      "overtimeHoursThisQuarter": 28.7,
+      "seniorityDate": "Nov 2021",
+      "eligibility": "UNAVAILABLE",
+      "reason": "Already scheduled for an overlapping shift",
+      "ruleResults": []
+    },
+    {
+      "employeeId": "3c48a69d-becc-379b-903d-6c48b0746ffc",
+      "name": "Lena Rasmussen",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 32.0,
+      "seniorityDate": "Jun 2011",
+      "eligibility": "WARN",
+      "reason": "U-12: Fewer than 2 consecutive days off in 7 days.",
+      "ruleResults": [
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 1.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-07: longest break 27.00 h counts as 1 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 8.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift efc60793-065c-3ef0-addd-4806eea374ff starts Thu 1 Oct 23:00 (8.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 56.0
+          },
+          "evidence": [
+            {
+              "label": "56.00 h in the 168 h window from Thu 1 Oct 07:00 (6 shifts: proposed, efc60793-065c-3ef0-addd-4806eea374ff, 7e2b2f43-3923-335e-8a86-c225f0fd5ac9)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "ae0a5423-9542-33a5-9694-e3d1e9e860e2",
+      "name": "Willa Keller",
+      "qualifications": [],
+      "overtimeHoursThisQuarter": 32.0,
+      "seniorityDate": "Jul 2013",
+      "eligibility": "WARN",
+      "reason": "U-12: Fewer than 2 consecutive days off in 7 days.",
+      "ruleResults": [
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-08: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 8.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift 77437af6-f9fb-3a53-988a-df82d5a10442 starts Thu 1 Oct 23:00 (8.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 56.0
+          },
+          "evidence": [
+            {
+              "label": "56.00 h in the 168 h window from Tue 6 Oct 23:00 (5 shifts: 7325ac0f-b10c-3210-8670-d5d395551133, 4e596f75-3a23-3d24-9a72-9a8ffd01bd0a, ec886edb-d07f-3831-ba9a-c9bc072ebf10)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "1f5f4348-2d5a-33c8-9c22-9b9051cae145",
+      "name": "Farah Girard",
+      "qualifications": [
+        "ESCORT"
+      ],
+      "overtimeHoursThisQuarter": 35.2,
+      "seniorityDate": "Sep 2012",
+      "eligibility": "WARN",
+      "reason": "U-12: Fewer than 2 consecutive days off in 7 days.",
+      "ruleResults": [
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-08: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 8.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift b78dcdd6-1686-31b2-b291-f3c121fc8439 starts Thu 1 Oct 23:00 (8.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 52.0
+          },
+          "evidence": [
+            {
+              "label": "52.00 h in the 168 h window from Thu 1 Oct 07:00 (6 shifts: proposed, b78dcdd6-1686-31b2-b291-f3c121fc8439, 81e91bb6-4293-31d5-8afd-1052c0722c4f)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "bbec8040-a5f3-3237-83b1-94778b240fee",
+      "name": "Tara Upton",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 36.0,
+      "seniorityDate": "Nov 2008",
+      "eligibility": "SKIPPED",
+      "reason": "U-01: Less than 8 hours rest in 24 hours (Employment Act minimum).",
+      "ruleResults": [
+        {
+          "ruleCode": "U-01",
+          "ruleTable": "REST",
+          "outcome": "BLOCK",
+          "message": "Less than 8 hours rest in 24 hours (Employment Act minimum).",
+          "facts": {
+            "unit": "hours",
+            "required": 8.0,
+            "actual": 5.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift dc38d4d8-5759-3825-8539-7ad690182327 starts Thu 1 Oct 20:00 (5.00 h rest)"
+            }
+          ],
+          "overridePolicy": "EMERGENCY"
+        },
+        {
+          "ruleCode": "U-05",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "BLOCK",
+          "message": "More than 16 hours worked in 24 hours (Employment Act limit).",
+          "facts": {
+            "unit": "hours",
+            "required": 16.0,
+            "actual": 19.0
+          },
+          "evidence": [
+            {
+              "label": "19.00 h in the 24 h window from Thu 1 Oct 07:00 (2 shifts: proposed, dc38d4d8-5759-3825-8539-7ad690182327)"
+            }
+          ],
+          "overridePolicy": "EMERGENCY"
+        },
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-13: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 5.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift dc38d4d8-5759-3825-8539-7ad690182327 starts Thu 1 Oct 20:00 (5.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 8.0
+          },
+          "evidence": [
+            {
+              "label": "E8 (275968d3-3493-31f7-acaa-6057570c5a9f) ends Wed 7 Oct 23:00, next shift 75b3a426-8e93-3cea-a361-8df1015e58d1 starts Thu 8 Oct 07:00 (8.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 60.0
+          },
+          "evidence": [
+            {
+              "label": "60.00 h in the 168 h window from Thu 1 Oct 07:00 (5 shifts: proposed, dc38d4d8-5759-3825-8539-7ad690182327, 3540462b-186a-3e2e-be5c-ade4d1c01320)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "3c6888e4-0662-3e3d-a7d3-b8c019c34766",
+      "name": "Sana Adeyemi",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 36.0,
+      "seniorityDate": "Aug 2012",
+      "eligibility": "WARN",
+      "reason": "U-12: Fewer than 2 consecutive days off in 7 days.",
+      "ruleResults": [
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 1.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-06: longest break 31.00 h counts as 1 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 59.0
+          },
+          "evidence": [
+            {
+              "label": "59.00 h in the 168 h window from Thu 1 Oct 07:00 (6 shifts: proposed, 957a0b1e-57b8-34a9-9f38-ab2e24e4fc80, 43ddd44a-36fe-3322-bba4-85ea07bb5d86)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "87175846-d4b1-32f1-8cc9-3ef15c462417",
+      "name": "Bram Nakamura",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 36.0,
+      "seniorityDate": "Nov 2017",
+      "eligibility": "SKIPPED",
+      "reason": "U-01: Less than 8 hours rest in 24 hours (Employment Act minimum).",
+      "ruleResults": [
+        {
+          "ruleCode": "U-01",
+          "ruleTable": "REST",
+          "outcome": "BLOCK",
+          "message": "Less than 8 hours rest in 24 hours (Employment Act minimum).",
+          "facts": {
+            "unit": "hours",
+            "required": 8.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift 66ae28a1-dc28-34ba-b572-94f4bb9d4d3e starts Thu 1 Oct 15:00 (0.00 h rest)"
+            }
+          ],
+          "overridePolicy": "EMERGENCY"
+        },
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-07: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift 66ae28a1-dc28-34ba-b572-94f4bb9d4d3e starts Thu 1 Oct 15:00 (0.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 60.0
+          },
+          "evidence": [
+            {
+              "label": "60.00 h in the 168 h window from Thu 1 Oct 07:00 (7 shifts: proposed, 66ae28a1-dc28-34ba-b572-94f4bb9d4d3e, 0257e7c4-ce98-3821-b5e6-cd53feed4228)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "0714ea55-cb81-3eac-b3de-59ecc98ac61a",
+      "name": "Gideon Dubois",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 36.0,
+      "seniorityDate": "Feb 2020",
+      "eligibility": "SKIPPED",
+      "reason": "U-01: Less than 8 hours rest in 24 hours (Employment Act minimum).",
+      "ruleResults": [
+        {
+          "ruleCode": "U-01",
+          "ruleTable": "REST",
+          "outcome": "BLOCK",
+          "message": "Less than 8 hours rest in 24 hours (Employment Act minimum).",
+          "facts": {
+            "unit": "hours",
+            "required": 8.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift d0dd671e-7eb8-3f3a-a640-40587691b45e starts Thu 1 Oct 15:00 (0.00 h rest)"
+            }
+          ],
+          "overridePolicy": "EMERGENCY"
+        },
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 1.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-06: longest break 43.00 h counts as 1 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift d0dd671e-7eb8-3f3a-a640-40587691b45e starts Thu 1 Oct 15:00 (0.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 59.0
+          },
+          "evidence": [
+            {
+              "label": "59.00 h in the 168 h window from Thu 1 Oct 07:00 (6 shifts: proposed, d0dd671e-7eb8-3f3a-a640-40587691b45e, 4d60a1ff-56b3-387a-bdb9-32c8d0ec934b)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "07d4b1e6-d3ea-3a22-b584-2c3693f1581b",
+      "name": "Gideon Eriksen",
+      "qualifications": [
+        "CONTROL",
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 36.0,
+      "seniorityDate": "Jul 2021",
+      "eligibility": "WARN",
+      "reason": "U-12: Fewer than 2 consecutive days off in 7 days.",
+      "ruleResults": [
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-08: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 8.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift bd1c8b7b-2b0f-3f5f-8a78-d23b43f01076 starts Thu 1 Oct 23:00 (8.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 52.0
+          },
+          "evidence": [
+            {
+              "label": "52.00 h in the 168 h window from Thu 1 Oct 07:00 (6 shifts: proposed, bd1c8b7b-2b0f-3f5f-8a78-d23b43f01076, f65d6028-0966-326e-b09e-4d35ed7c02d3)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "1c13564b-57da-3ba6-9a19-39fc9d5f29c8",
+      "name": "Greta Bergeron",
+      "qualifications": [
+        "ESCORT"
+      ],
+      "overtimeHoursThisQuarter": 36.0,
+      "seniorityDate": "Jun 2023",
+      "eligibility": "UNAVAILABLE",
+      "reason": "Already scheduled for an overlapping shift",
+      "ruleResults": []
+    },
+    {
+      "employeeId": "b7c440b1-8005-3db4-be8f-41d25f7c4d09",
+      "name": "Pia Rasmussen",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 39.33,
+      "seniorityDate": "Oct 2011",
+      "eligibility": "UNAVAILABLE",
+      "reason": "Already scheduled for an overlapping shift",
+      "ruleResults": []
+    },
+    {
+      "employeeId": "bdb9e495-892e-3ac5-87ac-8fb7094adad0",
+      "name": "Kari Abara",
+      "qualifications": [
+        "ESCORT",
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 40.0,
+      "seniorityDate": "Jul 2015",
+      "eligibility": "UNAVAILABLE",
+      "reason": "Already scheduled for an overlapping shift",
+      "ruleResults": []
+    },
+    {
+      "employeeId": "e581608b-f30d-38ee-a675-6a62c00f9f0e",
+      "name": "Yusuf Singh",
+      "qualifications": [
+        "CONTROL"
+      ],
+      "overtimeHoursThisQuarter": 40.0,
+      "seniorityDate": "Sep 2017",
+      "eligibility": "WARN",
+      "reason": "U-12: Fewer than 2 consecutive days off in 7 days.",
+      "ruleResults": [
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-07: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 56.0
+          },
+          "evidence": [
+            {
+              "label": "56.00 h in the 168 h window from Fri 2 Oct 07:00 (6 shifts: 9b19d21c-053d-3db5-99a3-3002f5c354f9, 9d26d0f2-7e7a-30e0-9529-f201c18c7453, 23a95d77-a1be-3316-9991-dcfdda628bb8)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "2a97181d-6bbb-3371-8b5c-f51d9613c2ed",
+      "name": "Hana Lindqvist",
+      "qualifications": [
+        "CONTROL"
+      ],
+      "overtimeHoursThisQuarter": 40.0,
+      "seniorityDate": "Jul 2022",
+      "eligibility": "WARN",
+      "reason": "U-12: Fewer than 2 consecutive days off in 7 days.",
+      "ruleResults": [
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 1.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-07: longest break 27.00 h counts as 1 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 8.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift 7b364f58-ac73-3ac7-999c-8025ff40358a starts Thu 1 Oct 23:00 (8.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 56.0
+          },
+          "evidence": [
+            {
+              "label": "56.00 h in the 168 h window from Thu 1 Oct 07:00 (6 shifts: proposed, 7b364f58-ac73-3ac7-999c-8025ff40358a, e01788ef-5974-3732-bd1b-1d457c8209c3)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "411e3973-0aef-3a41-8846-35eefaf2c78f",
+      "name": "Tara Xu",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 41.38,
+      "seniorityDate": "Jun 2022",
+      "eligibility": "WARN",
+      "reason": "U-12: Fewer than 2 consecutive days off in 7 days.",
+      "ruleResults": [
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-07: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 52.0
+          },
+          "evidence": [
+            {
+              "label": "52.00 h in the 168 h window from Thu 1 Oct 07:00 (6 shifts: proposed, 24394fbb-fcc9-33da-8886-62277a15c7ff, 01150223-ab8f-32a0-a8cd-ade5257925c6)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "782f86c9-5f15-3a5b-991c-d130718c6029",
+      "name": "Lars Young",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 43.02,
+      "seniorityDate": "Jan 2013",
+      "eligibility": "UNAVAILABLE",
+      "reason": "Already scheduled for an overlapping shift",
+      "ruleResults": []
+    },
+    {
+      "employeeId": "70b20a36-04f4-3ac2-bcdc-ebb9048460b6",
+      "name": "Marc Nakamura",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 43.12,
+      "seniorityDate": "Feb 2013",
+      "eligibility": "SKIPPED",
+      "reason": "U-01: Less than 8 hours rest in 24 hours (Employment Act minimum).",
+      "ruleResults": [
+        {
+          "ruleCode": "U-01",
+          "ruleTable": "REST",
+          "outcome": "BLOCK",
+          "message": "Less than 8 hours rest in 24 hours (Employment Act minimum).",
+          "facts": {
+            "unit": "hours",
+            "required": 8.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift cd56e079-c369-348a-bbc6-5559d6234dd9 starts Thu 1 Oct 15:00 (0.00 h rest)"
+            }
+          ],
+          "overridePolicy": "EMERGENCY"
+        },
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 1.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-06: longest break 43.00 h counts as 1 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift cd56e079-c369-348a-bbc6-5559d6234dd9 starts Thu 1 Oct 15:00 (0.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 59.0
+          },
+          "evidence": [
+            {
+              "label": "59.00 h in the 168 h window from Thu 1 Oct 07:00 (6 shifts: proposed, cd56e079-c369-348a-bbc6-5559d6234dd9, 8799cf76-0082-37ed-b382-a285432f76d7)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "4ad5f431-ac27-3f50-9c5c-f9ca046c12ce",
+      "name": "Isaac Young",
+      "qualifications": [],
+      "overtimeHoursThisQuarter": 43.43,
+      "seniorityDate": "Aug 2013",
+      "eligibility": "SKIPPED",
+      "reason": "U-01: Less than 8 hours rest in 24 hours (Employment Act minimum).",
+      "ruleResults": [
+        {
+          "ruleCode": "U-01",
+          "ruleTable": "REST",
+          "outcome": "BLOCK",
+          "message": "Less than 8 hours rest in 24 hours (Employment Act minimum).",
+          "facts": {
+            "unit": "hours",
+            "required": 8.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift 5ef9dec2-f516-34a8-ab92-33d197ed0200 starts Thu 1 Oct 15:00 (0.00 h rest)"
+            }
+          ],
+          "overridePolicy": "EMERGENCY"
+        },
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-07: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift 5ef9dec2-f516-34a8-ab92-33d197ed0200 starts Thu 1 Oct 15:00 (0.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 56.0
+          },
+          "evidence": [
+            {
+              "label": "56.00 h in the 168 h window from Thu 1 Oct 07:00 (7 shifts: proposed, 5ef9dec2-f516-34a8-ab92-33d197ed0200, b4c20a1c-4c90-35b0-ac2e-808d42ec49c8)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "bce300c4-baee-3831-ab19-b642c9a0554e",
+      "name": "Nia Singh",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 44.0,
+      "seniorityDate": "Mar 2011",
+      "eligibility": "WARN",
+      "reason": "U-12: Fewer than 2 consecutive days off in 7 days.",
+      "ruleResults": [
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 1.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-06: longest break 31.00 h counts as 1 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 59.0
+          },
+          "evidence": [
+            {
+              "label": "59.00 h in the 168 h window from Thu 1 Oct 07:00 (6 shifts: proposed, d2337405-6b20-3ad4-b661-89c14e238137, 81eff03b-71f5-3eac-bcf9-6424cfd75c61)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "cf867a3f-f21f-3144-b427-f7ffe0222bf6",
+      "name": "Tara Fontaine",
+      "qualifications": [
+        "CONTROL",
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 44.0,
+      "seniorityDate": "Aug 2012",
+      "eligibility": "WARN",
+      "reason": "U-12: Fewer than 2 consecutive days off in 7 days.",
+      "ruleResults": [
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-14: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 9.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift 8d69fe64-b01c-3052-a9a1-4718027f69bf starts Fri 2 Oct 00:00 (9.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 56.0
+          },
+          "evidence": [
+            {
+              "label": "56.00 h in the 168 h window from Fri 2 Oct 00:00 (5 shifts: 8d69fe64-b01c-3052-a9a1-4718027f69bf, 14aff664-ba78-375c-8a6d-e18fb20e0e55, ad1ebdb6-732e-34e2-92a2-bf8ab1d0223a)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "60fe89f3-d6e2-3df9-a03e-1e0e566c9b9d",
+      "name": "Aiden Kowalczyk",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 44.0,
+      "seniorityDate": "Feb 2014",
+      "eligibility": "SKIPPED",
+      "reason": "U-01: Less than 8 hours rest in 24 hours (Employment Act minimum).",
+      "ruleResults": [
+        {
+          "ruleCode": "U-01",
+          "ruleTable": "REST",
+          "outcome": "BLOCK",
+          "message": "Less than 8 hours rest in 24 hours (Employment Act minimum).",
+          "facts": {
+            "unit": "hours",
+            "required": 8.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift 112520a6-a57e-3450-80cf-ccd950e1a60c starts Thu 1 Oct 15:00 (0.00 h rest)"
+            }
+          ],
+          "overridePolicy": "EMERGENCY"
+        },
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-07: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift 112520a6-a57e-3450-80cf-ccd950e1a60c starts Thu 1 Oct 15:00 (0.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 60.0
+          },
+          "evidence": [
+            {
+              "label": "60.00 h in the 168 h window from Thu 1 Oct 07:00 (7 shifts: proposed, 112520a6-a57e-3450-80cf-ccd950e1a60c, 0b242669-dd06-3540-80ac-d05b77ea47e5)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "76625bc7-4ee6-3353-9047-0132617c4637",
+      "name": "Lars Yilmaz",
+      "qualifications": [
+        "CONTROL",
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 44.0,
+      "seniorityDate": "Jun 2016",
+      "eligibility": "UNAVAILABLE",
+      "reason": "Already scheduled for an overlapping shift",
+      "ruleResults": []
+    },
+    {
+      "employeeId": "16bf0cfa-21ec-3e5f-8b7c-90e4da144d7d",
+      "name": "Owen Dubois",
+      "qualifications": [],
+      "overtimeHoursThisQuarter": 44.0,
+      "seniorityDate": "Sep 2022",
+      "eligibility": "SKIPPED",
+      "reason": "U-01: Less than 8 hours rest in 24 hours (Employment Act minimum).",
+      "ruleResults": [
+        {
+          "ruleCode": "U-01",
+          "ruleTable": "REST",
+          "outcome": "BLOCK",
+          "message": "Less than 8 hours rest in 24 hours (Employment Act minimum).",
+          "facts": {
+            "unit": "hours",
+            "required": 8.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift 739eef44-7d9e-3182-8137-e84f71a6429a starts Thu 1 Oct 15:00 (0.00 h rest)"
+            }
+          ],
+          "overridePolicy": "EMERGENCY"
+        },
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-07: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift 739eef44-7d9e-3182-8137-e84f71a6429a starts Thu 1 Oct 15:00 (0.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 56.0
+          },
+          "evidence": [
+            {
+              "label": "56.00 h in the 168 h window from Thu 1 Oct 07:00 (7 shifts: proposed, 739eef44-7d9e-3182-8137-e84f71a6429a, 494142cb-4a0d-3e73-9627-89dfc2e50089)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "774e7fa8-ab5b-3f41-baa4-1f8bcf6eb7a0",
+      "name": "Vera Fontaine",
+      "qualifications": [],
+      "overtimeHoursThisQuarter": 45.5,
+      "seniorityDate": "Sep 2022",
+      "eligibility": "WARN",
+      "reason": "U-12: Fewer than 2 consecutive days off in 7 days.",
+      "ruleResults": [
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-14: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 9.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift fc6195d8-be4f-30ea-aeeb-f143e8ea60bb starts Fri 2 Oct 00:00 (9.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 56.0
+          },
+          "evidence": [
+            {
+              "label": "56.00 h in the 168 h window from Fri 2 Oct 00:00 (5 shifts: fc6195d8-be4f-30ea-aeeb-f143e8ea60bb, 12254429-2a5d-3865-b4ed-6f32868eb71e, 0d260c2f-d19c-3fff-ab99-ba3c90393d32)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "d882d15e-2dc0-3408-9508-b7cba3fb8cfa",
+      "name": "Marc Desjardins",
+      "qualifications": [
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 48.0,
+      "seniorityDate": "Jun 2007",
+      "eligibility": "UNAVAILABLE",
+      "reason": "Already scheduled for an overlapping shift",
+      "ruleResults": []
+    },
+    {
+      "employeeId": "591a76b3-03e8-351d-a96d-ef2a9b0ff380",
+      "name": "Greta Iqbal",
+      "qualifications": [
+        "ESCORT",
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 48.0,
+      "seniorityDate": "Sep 2009",
+      "eligibility": "WARN",
+      "reason": "U-12: Fewer than 2 consecutive days off in 7 days.",
+      "ruleResults": [
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-08: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 8.0
+          },
+          "evidence": [
+            {
+              "label": "D8 (proposed) ends Thu 1 Oct 15:00, next shift b8852583-63a1-3f08-8a79-5ad91f6e5622 starts Thu 1 Oct 23:00 (8.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-02",
+          "ruleTable": "REST",
+          "outcome": "WARN",
+          "message": "Less than the 12-hour rest target between shifts.",
+          "facts": {
+            "unit": "hours",
+            "required": 12.0,
+            "actual": 8.0
+          },
+          "evidence": [
+            {
+              "label": "E8 (a1ca4599-be36-3e33-8d02-15ee466df724) ends Wed 14 Oct 23:00, next shift f2748965-bba5-3794-9a6a-35ba2bdf528c starts Thu 15 Oct 07:00 (8.00 h rest)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 56.0
+          },
+          "evidence": [
+            {
+              "label": "56.00 h in the 168 h window from Tue 6 Oct 23:00 (5 shifts: 2a6a2f95-fa64-3de0-b791-4b9c73725e74, 3f08740a-e39e-3bf8-874f-f33fc7afb6c0, d6374e6f-c316-3de2-83a8-3725bbbe0145)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "c526b199-e906-33d8-91aa-40739b5a3388",
+      "name": "Zeke Bouchard",
+      "qualifications": [
+        "CONTROL",
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 48.0,
+      "seniorityDate": "Mar 2010",
+      "eligibility": "WARN",
+      "reason": "U-12: Fewer than 2 consecutive days off in 7 days.",
+      "ruleResults": [
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-07: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 56.0
+          },
+          "evidence": [
+            {
+              "label": "56.00 h in the 168 h window from Fri 2 Oct 07:00 (6 shifts: 360221d1-a25a-3c1e-86c8-20a01ff93b5f, 319394ba-351b-353d-ab2d-c2b95d672bd4, 48a5e77e-c4ce-3634-81f6-882497b9ede4)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "1f61573e-5ba6-3d1e-a965-f5ec6ec6146c",
+      "name": "Leah Pelletier",
+      "qualifications": [
+        "ESCORT",
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 48.0,
+      "seniorityDate": "May 2016",
+      "eligibility": "SKIPPED",
+      "reason": "U-08: More than 7 consecutive work days.",
+      "ruleResults": [
+        {
+          "ruleCode": "U-08",
+          "ruleTable": "CONSECUTIVE",
+          "outcome": "BLOCK",
+          "message": "More than 7 consecutive work days.",
+          "facts": {
+            "unit": "shifts",
+            "required": 7.0,
+            "actual": 8.0
+          },
+          "evidence": [
+            {
+              "label": "8 consecutive work days, ending 2026-10-08 (last shift 84490ac8-a447-39f3-816c-eb6cc8879549)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-07: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 60.0
+          },
+          "evidence": [
+            {
+              "label": "60.00 h in the 168 h window from Mon 5 Oct 15:00 (6 shifts: 77c18a4d-af3e-3194-a8bb-ee93f74553d3, b7201e44-fcd5-3fec-99fc-66eceda75996, 602fc271-99c8-3070-88d4-93f91b44841c)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    },
+    {
+      "employeeId": "fc029913-2588-3872-a8a8-1fcee7b8d930",
+      "name": "Devon Voss",
+      "qualifications": [
+        "CONTROL",
+        "FIRST_AID"
+      ],
+      "overtimeHoursThisQuarter": 48.0,
+      "seniorityDate": "Apr 2023",
+      "eligibility": "SKIPPED",
+      "reason": "U-08: More than 7 consecutive work days.",
+      "ruleResults": [
+        {
+          "ruleCode": "U-08",
+          "ruleTable": "CONSECUTIVE",
+          "outcome": "BLOCK",
+          "message": "More than 7 consecutive work days.",
+          "facts": {
+            "unit": "shifts",
+            "required": 7.0,
+            "actual": 8.0
+          },
+          "evidence": [
+            {
+              "label": "8 consecutive work days, ending 2026-10-08 (last shift 9632385d-1df6-314d-a1ee-4feb121836c4)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-12",
+          "ruleTable": "DAYS_OFF",
+          "outcome": "WARN",
+          "message": "Fewer than 2 consecutive days off in 7 days.",
+          "facts": {
+            "unit": "days",
+            "required": 2.0,
+            "actual": 0.0
+          },
+          "evidence": [
+            {
+              "label": "worst 7-day window ending 2026-10-07: longest break 24.00 h counts as 0 days off"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        },
+        {
+          "ruleCode": "U-14",
+          "ruleTable": "MAX_HOURS",
+          "outcome": "WARN",
+          "message": "Weekly hours above the 48-hour warning level or the 60-hour ceiling.",
+          "facts": {
+            "unit": "hours",
+            "required": 48.0,
+            "actual": 60.0
+          },
+          "evidence": [
+            {
+              "label": "60.00 h in the 168 h window from Mon 5 Oct 15:00 (6 shifts: de600c28-fd07-3b6e-8b4f-b26ecf52a201, b5b4653f-3e42-3e35-b7fd-5b0ee9004be1, 06ade2af-5b3b-36d9-bd61-767e14744452)"
+            }
+          ],
+          "overridePolicy": "ACKNOWLEDGE"
+        }
+      ]
+    }
+  ],
+  "ruleSetVersion": 2,
+  "rankingNote": "Offer overtime equitably among available, qualified officers. Fewest overtime hours this quarter first, ties broken by seniority. Officers who would break a block rule are skipped and not penalised.",
+  "history": [
+    {
+      "id": "e096ad6d-d6f2-365e-9b26-e71a1408e949",
+      "at": "07:00",
+      "employeeId": "75a7fd32-3b20-306a-89a1-33e8cc216fbc",
+      "employeeName": "Uma Moreau",
+      "status": "ACCEPTED"
+    }
+  ]
+}

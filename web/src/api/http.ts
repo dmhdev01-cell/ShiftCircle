@@ -18,6 +18,7 @@ import type {
   OpenShiftCandidates,
   OpenShiftQuery,
   ProblemDetails,
+  PublishedPeriod,
   RuleCheckChange,
   RuleCheckOutcome,
   BuildReport,
@@ -28,8 +29,11 @@ import type {
   RuleTableRow,
   SaveOutcome,
   SaveRequest,
+  AuditPage,
+  AuditQuery,
   SchedulePayload,
   ScheduleQuery,
+  AssignmentChangeResult,
   ShiftCircleApi,
 } from './types';
 
@@ -188,6 +192,40 @@ export function createHttpApi(): ShiftCircleApi {
       });
     },
 
+    publishSchedulePeriod(periodId: string): Promise<PublishedPeriod> {
+      return request<PublishedPeriod>(`/schedule-periods/${periodId}/publish`, {
+        method: 'POST',
+      });
+    },
+
+    moveAssignment(
+      assignmentId: string,
+      version: number,
+      save: SaveRequest,
+    ): Promise<AssignmentChangeResult> {
+      return request<AssignmentChangeResult>(`/assignments/${assignmentId}`, {
+        method: 'PATCH',
+        headers: { 'If-Match': `"${version}"` },
+        body: JSON.stringify({
+          change: save.change,
+          ...(save.acknowledgeWarnings ? { acknowledgeWarnings: save.acknowledgeWarnings } : {}),
+          ...(save.override ? { override: save.override } : {}),
+        }),
+      });
+    },
+
+    cancelAssignment(
+      assignmentId: string,
+      version: number,
+      reason: string,
+    ): Promise<AssignmentChangeResult> {
+      return request<AssignmentChangeResult>(`/assignments/${assignmentId}`, {
+        method: 'DELETE',
+        headers: { 'If-Match': `"${version}"` },
+        body: JSON.stringify({ reason }),
+      });
+    },
+
     getOpenShifts(query: OpenShiftQuery): Promise<OpenShift[]> {
       return request<OpenShift[]>(`/open-shifts${queryString(query)}`);
     },
@@ -241,6 +279,25 @@ export function createHttpApi(): ShiftCircleApi {
 
     getUnits(): Promise<Unit[]> {
       return request<Unit[]>('/units');
+    },
+
+    getAuditEvents(query: AuditQuery): Promise<AuditPage> {
+      const params = new URLSearchParams();
+      for (const key of [
+        'actor',
+        'action',
+        'entityType',
+        'entityId',
+        'from',
+        'to',
+        'beforeId',
+        'limit',
+      ] as const) {
+        const value = query[key];
+        if (value !== undefined && value !== '') params.set(key, String(value));
+      }
+      const suffix = params.toString();
+      return request<AuditPage>(`/audit-events${suffix ? '?' + suffix : ''}`);
     },
 
     async getDisplayToday() {

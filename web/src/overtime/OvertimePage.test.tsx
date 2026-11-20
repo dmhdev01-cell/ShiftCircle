@@ -50,6 +50,21 @@ describe('the overtime board', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows every blocking and warning code on the candidate pill', async () => {
+    renderBoard();
+
+    const table = await screen.findByRole('table');
+    const rows = within(table).getAllByRole('row').slice(1);
+
+    // Two blockers: the second must not hide behind the first.
+    expect(within(rows[1]).getByText('Skipped · U-01, U-05')).toBeInTheDocument();
+    // A block and a warning together.
+    expect(within(rows[7]).getByText('Skipped · U-01, U-12')).toBeInTheDocument();
+    // Warnings are named too, and a passing rule is not.
+    expect(within(rows[4]).getByText('Eligible · warning · U-14')).toBeInTheDocument();
+    expect(within(rows[4]).queryByText(/U-02/)).not.toBeInTheDocument();
+  });
+
   it('offers a Select only to the officers who can take the shift', async () => {
     renderBoard();
 
@@ -61,7 +76,7 @@ describe('the overtime board', () => {
     expect(within(rows[1]).queryByRole('checkbox')).not.toBeInTheDocument();
     // Sam is eligible, Tara is eligible with a warning.
     expect(within(rows[2]).getByRole('checkbox')).toBeInTheDocument();
-    expect(within(rows[4]).getByText('Eligible · warning')).toBeInTheDocument();
+    expect(within(rows[4]).getByText('Eligible · warning · U-14')).toBeInTheDocument();
   });
 
   it('shows the overtime hours and the seniority the api ranked on', async () => {
@@ -119,6 +134,33 @@ describe('the overtime board', () => {
     expect(saveChange).not.toHaveBeenCalled();
     assignOpenShift.mockRestore();
     saveChange.mockRestore();
+  });
+
+  it('closes offers and direct assignment on a filled shift', async () => {
+    const user = userEvent.setup();
+    renderBoard();
+
+    await user.click(
+      await screen.findByRole('button', { name: /Sun 22 Nov · Nights 23:00 – 07:00 \+1/ }),
+    );
+    expect(await screen.findByText('This shift is filled. No offers can be made.')).toBeVisible();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Offer to selected/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Assign directly…' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('Offers closed').length).toBeGreaterThan(0);
+  });
+
+  it('closes offers on a cancelled shift and shows it as cancelled', async () => {
+    const user = userEvent.setup();
+    renderBoard();
+
+    const list = await screen.findByRole('region', { name: 'Open shifts' });
+    expect(within(list).getByText('Cancelled')).toBeInTheDocument();
+    await user.click(within(list).getByRole('button', { name: /Tue 24 Nov · Days 07:00 – 15:00/ }));
+
+    expect(await screen.findByText('This shift was cancelled. No offers can be made.')).toBeVisible();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Offer to selected/ })).not.toBeInTheDocument();
   });
 
   it('shows the offer history, with a confirm action for an accepted offer', async () => {

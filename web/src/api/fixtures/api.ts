@@ -10,6 +10,9 @@
 import { ApiError } from '../http';
 import { getSessionUser } from '../session';
 import type {
+  AssignmentChangeResult,
+  AuditPage,
+  AuditQuery,
   BuildReport,
   CoverageReport,
   DemoUser,
@@ -20,6 +23,7 @@ import type {
   OvertimeReport,
   OverrideRow,
   PayPeriod,
+  PublishedPeriod,
   RecordActualInput,
   RecordActualResult,
   TimeEntry,
@@ -61,19 +65,75 @@ import {
   demoOvertimeReport,
   demoOverrides,
 } from './reports';
+import { demoAuditEvents } from './audit';
 import { demoUsers } from './demoUsers';
 import { demoDisplayToday } from './display';
 import { toDisplayToday } from '../../display/displayPayload';
 import { demoBuildReport, demoRuleSets, demoRuleTables } from './rules';
-import { demoSchedule, PC01_CHANGE } from './schedule';
+import {
+  changedAfterPublish,
+  demoSchedule,
+  DEMO_PERIOD_ID,
+  fixturePeriod,
+  PC01_CHANGE,
+  scheduleForRange,
+  shift,
+} from './schedule';
 import { demoPayPeriods, demoTimeEntries, unitCodeFor } from './timeAttendance';
 
-const LATENCY_MS = 120;
+/**
+ * How long a fixture call takes to answer, so a screen can show its loading
+ * state in the demo. The tests build the fixtures with no delay
+ * (`VITE_FIXTURE_LATENCY_MS=0` in `vite.config.ts`): a real timer in a test is a
+ * wait whose length the test does not control, and a shared build machine makes
+ * those longer than the suite's timeouts.
+ */
+const DEMO_LATENCY_MS = 120;
+
+/** The delay the demo uses, unless the build sets one (the tests set 0). */
+function fixtureLatencyMs(): number {
+  const configured = import.meta.env.VITE_FIXTURE_LATENCY_MS;
+  const ms = configured === undefined || configured === '' ? NaN : Number(configured);
+  return Number.isFinite(ms) ? Math.max(0, ms) : DEMO_LATENCY_MS;
+}
+
+/** When the demo fixture published the period (the demo clock has no time of day). */
+const DEMO_PUBLISHED_AT = '2026-11-19T09:00:00-06:00';
+
+/**
+ * A change to a shift of a published period is a change the officers have not
+ * seen yet, so the board counts it (docs/07 §4.2).
+ */
+function countUnpublishedChange(assignmentId: string) {
+  if (!demoSchedule.publishedState.published) return;
+  changedAfterPublish.add(assignmentId);
+  demoSchedule.publishedState = {
+    published: true,
+    unpublishedChanges: changedAfterPublish.size,
+  };
+}
+
+/** The officer, day cell and item for a rostered shift in the fixture schedule. */
+function findShift(assignmentId: string) {
+  for (const officer of demoSchedule.officers) {
+    for (const cell of officer.cells) {
+      const item = cell.items.find(
+        (entry) => entry.type === 'SHIFT' && entry.assignmentId === assignmentId,
+      );
+      if (item?.type === 'SHIFT') {
+        return { officer, cell, item };
+      }
+    }
+  }
+  return null;
+}
 const RULE_SET_VERSION = 7;
 const RULE_SET_PUBLISHED_AT = '13:50';
 
 function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  // No timer at all for a zero delay: a promise that is already resolved is
+  // deterministic on any machine, a 0 ms timer is still a timer.
+  return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve();
 }
 
 /** PC-01: the rule results the api documents for the blocked proposal. */
@@ -100,9 +160,10 @@ const PC01_RESULTS: RuleResult[] = [
   {
     ruleCode: 'U-14',
     ruleTable: 'MAX_HOURS',
-    outcome: 'WARN',
+    outcome: 'BLOCK',
     overridePolicy: 'ACKNOWLEDGE',
-    message: '52 hours this week, over the 48 h warning level.',
+    message: 'Weekly hours above the 60-hour ceiling.',
+    facts: { hours: 61, maxHours: 60 },
   },
 ];
 
@@ -170,18 +231,9 @@ function evaluate(request: RuleCheckRequest): RuleCheckOutcome {
   };
 
   if (isPc01(request.change)) {
-    // An emergency override does not make the rule pass: the api reports the
-    // overridden rule as INFO and accepts the change.
-    if (request.override?.reason) {
-      return {
-        ...base,
-        outcome: 'PASS',
-        ruleResults: PC01_RESULTS.map((result) =>
-          result.outcome === 'BLOCK' ? { ...result, outcome: 'INFO' as const } : result,
-        ),
-      };
-    }
-    return { ...base, outcome: 'BLOCK', ruleResults: PC01_RESULTS };
+    // PC-01 matches the real api: U-01 is an emergency block, U-14 is a block
+    // whose policy is ACKNOWLEDGE, so the change cannot be overridden.
+    return { ...base, overridable: false, outcome: 'BLOCK', ruleResults: PC01_RESULTS };
   }
 
   if (isZeroRest(request.change)) {
@@ -236,20 +288,25 @@ export function resetFixtures(): void {
   });
 }
 
-export function createFixtureApi(): ShiftCircleApi {
+export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftCircleApi {
+  /** The fixture's answer delay; 0 in the tests, so no test waits on a clock. */
+  const pause = () => wait(latencyMs);
+
   return {
-    async getSchedule(_query: ScheduleQuery): Promise<SchedulePayload> {
-      await wait(LATENCY_MS);
-      return demoSchedule;
+    async getSchedule(query: ScheduleQuery): Promise<SchedulePayload> {
+      await pause();
+      // The api answers the range it is asked for, with the roster week that
+      // covers it.
+      return scheduleForRange(query.from, query.to);
     },
 
     async previewRuleCheck(request: RuleCheckRequest): Promise<RuleCheckOutcome> {
-      await wait(LATENCY_MS);
+      await pause();
       return evaluate(request);
     },
 
     async saveChange(request: SaveRequest): Promise<SaveOutcome> {
-      await wait(LATENCY_MS);
+      await pause();
       const outcome = evaluate({
         change: request.change,
         ...(request.acknowledgeWarnings ? { acknowledgeWarnings: request.acknowledgeWarnings } : {}),
@@ -290,8 +347,112 @@ export function createFixtureApi(): ShiftCircleApi {
       return { assignmentId: `a-fixture-${assignmentCounter}`, ruleOutcome: outcome };
     },
 
+    async moveAssignment(
+      assignmentId: string,
+      version: number,
+      request: SaveRequest,
+    ): Promise<AssignmentChangeResult> {
+      await pause();
+      if (version === undefined || version === null) {
+        throw new ApiError('Send the version you read, as If-Match: "3".', 428, {
+          type: 'https://shiftcircle.local/problems/if-match-required',
+          title: 'If-Match is required',
+          status: 428,
+          detail: 'Send the version you read, as If-Match: "3".',
+        });
+      }
+      const found = findShift(assignmentId);
+      if (!found) {
+        throw new ApiError('That shift is not in the fixture.', 404);
+      }
+      if (found.item.version !== version) {
+        throw new ApiError('This shift changed since the board loaded. Reload the board.', 412, {
+          type: 'https://shiftcircle.local/problems/stale-version',
+          title: 'Stale version',
+          status: 412,
+          detail: 'This shift changed since the board loaded. Reload the board.',
+        });
+      }
+      if (request.change.employeeId !== found.officer.employeeId) {
+        throw new ApiError('The demo fixture can only move a shift within its officer.', 400);
+      }
+      const date = request.change.startAt.slice(0, 10);
+      const target = found.officer.cells.find((cell) => cell.date === date);
+      if (!target) {
+        throw new ApiError('The demo fixture only moves within the visible week.', 400);
+      }
+      found.cell.items = found.cell.items.filter(
+        (entry) => !(entry.type === 'SHIFT' && entry.assignmentId === assignmentId),
+      );
+      const moved = shift(assignmentId, request.change.shiftTemplate, date, {
+        kind: found.item.kind,
+        worked: false,
+        offer: found.item.offer,
+        proposed: found.item.proposed,
+      });
+      moved.version = version + 1;
+      target.items.push(moved);
+      countUnpublishedChange(assignmentId);
+      return { id: assignmentId, status: 'PLANNED', version: version + 1 };
+    },
+
+    async cancelAssignment(
+      assignmentId: string,
+      version: number,
+      reason: string,
+    ): Promise<AssignmentChangeResult> {
+      await pause();
+      if (reason === undefined || reason === null || reason.trim().length < 10) {
+        throw new ApiError('reason is required and must be at least 10 characters', 400, {
+          type: 'https://shiftcircle.local/problems/400',
+          title: 'Bad request',
+          status: 400,
+          detail: 'reason is required and must be at least 10 characters',
+        });
+      }
+      const found = findShift(assignmentId);
+      if (!found) {
+        throw new ApiError('That shift is not in the fixture.', 404);
+      }
+      if (found.item.version !== version) {
+        throw new ApiError('This shift changed since the board loaded. Reload the board.', 412, {
+          type: 'https://shiftcircle.local/problems/stale-version',
+          title: 'Stale version',
+          status: 412,
+          detail: 'This shift changed since the board loaded. Reload the board.',
+        });
+      }
+      found.cell.items = found.cell.items.filter(
+        (entry) => !(entry.type === 'SHIFT' && entry.assignmentId === assignmentId),
+      );
+      countUnpublishedChange(assignmentId);
+      return { id: assignmentId, status: 'CANCELLED', version: version + 1 };
+    },
+
+    async publishSchedulePeriod(periodId: string): Promise<PublishedPeriod> {
+      await pause();
+      const period = fixturePeriod(periodId);
+      if (!period) {
+        throw new ApiError('That period is not in the demo fixture.', 404);
+      }
+      if (period.status === 'PUBLISHED') {
+        throw new ApiError('This period is already published.', 409, {
+          type: 'https://shiftcircle.local/problems/already-published',
+          title: 'This period is already published',
+          status: 409,
+          detail: 'This period is already published.',
+        });
+      }
+      period.status = 'PUBLISHED';
+      if (period.id === DEMO_PERIOD_ID) {
+        // The demo week keeps the count of the changes since it was published.
+        demoSchedule.publishedState = { published: true, unpublishedChanges: 0 };
+      }
+      return { id: period.id, status: 'PUBLISHED', publishedAt: DEMO_PUBLISHED_AT };
+    },
+
     async getOpenShifts(query: OpenShiftQuery): Promise<OpenShift[]> {
-      await wait(LATENCY_MS);
+      await pause();
       const from = query.from ?? '0000-01-01';
       const to = query.to ?? '9999-12-31';
       return demoOpenShifts.filter(
@@ -304,7 +465,7 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async getOpenShiftCandidates(openShiftId: string): Promise<OpenShiftCandidates> {
-      await wait(LATENCY_MS);
+      await pause();
       const openShift = demoOpenShifts.find((shift) => shift.id === openShiftId);
       if (!openShift) {
         throw new ApiError('That open shift is not in the fixture.', 404);
@@ -329,7 +490,7 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async createOffers(openShiftId: string, employeeIds: string[]): Promise<OfferRecord[]> {
-      await wait(LATENCY_MS);
+      await pause();
       const openShift = demoOpenShifts.find((shift) => shift.id === openShiftId);
       if (!openShift) {
         throw new ApiError('That open shift is not in the fixture.', 404);
@@ -382,7 +543,7 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async confirmOffer(offerId: string): Promise<OfferRecord> {
-      await wait(LATENCY_MS);
+      await pause();
       // The history row carries no offer id in the browser contract, so the
       // screen hands back the employee id; accept either.
       const recorded = recordedOffers.find(
@@ -408,7 +569,7 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async assignOpenShift(openShiftId: string, employeeId: string): Promise<SaveOutcome> {
-      await wait(LATENCY_MS);
+      await pause();
       if (!demoOpenShifts.some((shift) => shift.id === openShiftId)) {
         throw new ApiError('That open shift is not in the fixture.', 404);
       }
@@ -428,7 +589,7 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async getMySchedule(query: ScheduleQuery): Promise<MySchedulePayload> {
-      await wait(LATENCY_MS);
+      await pause();
       const from = query.from ?? '0000-01-01';
       const to = query.to ?? '9999-12-31';
       const days = demoMySchedule.days.filter((day) => day >= from && day <= to);
@@ -440,12 +601,12 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async getMyOffers(): Promise<MyOffer[]> {
-      await wait(LATENCY_MS);
+      await pause();
       return demoMyOffers;
     },
 
     async respondToOffer(offerId: string, response: OfferResponse): Promise<MyOffer> {
-      await wait(LATENCY_MS);
+      await pause();
       const offer = demoMyOffers.find((entry) => entry.id === offerId);
       if (!offer) {
         throw new ApiError('That offer is not in the fixture.', 404);
@@ -465,15 +626,54 @@ export function createFixtureApi(): ShiftCircleApi {
       note: string,
       items: RuleCheckChange[],
     ): Promise<{ id: string; accepted: number }> {
-      await wait(LATENCY_MS);
+      await pause();
       if (note.trim().length === 0) {
         throw new ApiError('A note to the supervisor is required.', 400);
       }
       return { id: `p-fixture-${items.length}`, accepted: items.length };
     },
 
+    async getAuditEvents(query: AuditQuery): Promise<AuditPage> {
+      await pause();
+      let items = demoAuditEvents;
+      if (query.actor) {
+        items = items.filter((entry) => entry.actor?.username === query.actor);
+      }
+      if (query.action) {
+        items = items.filter((entry) => entry.action === query.action);
+      }
+      if (query.entityType) {
+        items = items.filter((entry) => entry.entityType === query.entityType);
+      }
+      if (query.entityId) {
+        items = items.filter((entry) => entry.entityId === query.entityId);
+      }
+      const localDate = (occurredAt: string) =>
+        new Intl.DateTimeFormat('en-CA', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          timeZone: 'America/Regina',
+        }).format(new Date(occurredAt));
+      if (query.from) {
+        items = items.filter((entry) => localDate(entry.occurredAt) >= query.from!);
+      }
+      if (query.to) {
+        items = items.filter((entry) => localDate(entry.occurredAt) <= query.to!);
+      }
+      if (query.beforeId !== undefined) {
+        items = items.filter((entry) => entry.id < query.beforeId!);
+      }
+      const limit = query.limit ?? 50;
+      const page = items.slice(0, limit);
+      return {
+        items: page,
+        nextBeforeId: items.length > limit ? page[page.length - 1].id : null,
+      };
+    },
+
     async getUnits(): Promise<Unit[]> {
-      await wait(LATENCY_MS);
+      await pause();
       return [
         {
           id: demoSchedule.unit.id,
@@ -487,18 +687,18 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async getDisplayToday() {
-      await wait(LATENCY_MS);
+      await pause();
       // Through the same whitelist as the http client.
       return toDisplayToday(demoDisplayToday(getSessionUser()));
     },
 
     async getDemoUsers(): Promise<DemoUser[]> {
-      await wait(LATENCY_MS);
+      await pause();
       return demoUsers;
     },
 
     async mockLogin(userId: string): Promise<MockLoginResult> {
-      await wait(LATENCY_MS);
+      await pause();
       const user = demoUsers.find((entry) => entry.id === userId);
       if (!user) {
         throw new ApiError('That user is not in the fixture.', 404);
@@ -511,12 +711,12 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async getRuleSets(): Promise<RuleSetVersion[]> {
-      await wait(LATENCY_MS);
+      await pause();
       return demoRuleSets;
     },
 
     async createRuleSetDraft(_basedOn: number, reason: string): Promise<RuleSetVersion> {
-      await wait(LATENCY_MS);
+      await pause();
       const next = Math.max(...demoRuleSets.map((entry) => entry.version)) + 1;
       const draft: RuleSetVersion = {
         version: next,
@@ -531,7 +731,7 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async getRuleTable(_version: number, code: string): Promise<RuleTable> {
-      await wait(LATENCY_MS);
+      await pause();
       const table = demoRuleTables.find((entry) => entry.code === code);
       if (!table) {
         throw new ApiError('That rule table is not in the fixture.', 404);
@@ -540,7 +740,7 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async saveRuleRows(_version: number, code: string, rows: RuleTableRow[]): Promise<RuleTable> {
-      await wait(LATENCY_MS);
+      await pause();
       const table = demoRuleTables.find((entry) => entry.code === code);
       if (!table) {
         throw new ApiError('That rule table is not in the fixture.', 404);
@@ -551,12 +751,12 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async buildRuleSet(_version?: number): Promise<BuildReport> {
-      await wait(LATENCY_MS);
+      await pause();
       return demoBuildReport;
     },
 
     async submitRuleSet(version: number): Promise<RuleSetVersion> {
-      await wait(LATENCY_MS);
+      await pause();
       const ruleSet = demoRuleSets.find((entry) => entry.version === version);
       if (!ruleSet) {
         throw new ApiError('That rule set is not in the fixture.', 404);
@@ -566,7 +766,7 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async approveRuleSet(version: number): Promise<RuleSetVersion> {
-      await wait(LATENCY_MS);
+      await pause();
       const ruleSet = demoRuleSets.find((entry) => entry.version === version);
       if (!ruleSet) {
         throw new ApiError('That rule set is not in the fixture.', 404);
@@ -585,7 +785,7 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async publishRuleSet(version: number, effectiveDate: string): Promise<RuleSetVersion> {
-      await wait(LATENCY_MS);
+      await pause();
       const ruleSet = demoRuleSets.find((entry) => entry.version === version);
       if (!ruleSet) {
         throw new ApiError('That rule set is not in the fixture.', 404);
@@ -599,29 +799,29 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async getCoverageReport(): Promise<CoverageReport> {
-      await wait(LATENCY_MS);
+      await pause();
       return demoCoverageReport;
     },
 
     async getHoursReport(): Promise<HoursReport> {
-      await wait(LATENCY_MS);
+      await pause();
       return demoHoursReport;
     },
 
     async getOvertimeReport(): Promise<OvertimeReport> {
-      await wait(LATENCY_MS);
+      await pause();
       return demoOvertimeReport;
     },
 
     async getOverrides(): Promise<OverrideRow[]> {
-      await wait(LATENCY_MS);
+      await pause();
       return demoOverrides;
     },
 
     async exportReportCsv(
       report: 'coverage' | 'hours' | 'overtime' | 'overrides',
     ): Promise<{ fileName: string; content: string }> {
-      await wait(LATENCY_MS);
+      await pause();
       if (report === 'hours') {
         const lines = [
           'employee_id,name,scheduled,worked,regular,ot_1_5,sick,vacation',
@@ -660,12 +860,12 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async getPayPeriods(): Promise<PayPeriod[]> {
-      await wait(LATENCY_MS);
+      await pause();
       return demoPayPeriods;
     },
 
     async getTimeEntries(payPeriodId: string): Promise<TimeEntry[]> {
-      await wait(LATENCY_MS);
+      await pause();
       const period = demoPayPeriods.find((entry) => entry.id === payPeriodId);
       if (!period) {
         throw new ApiError('That pay period is not in the fixture.', 404);
@@ -674,7 +874,7 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async recordActual(entryId: string, input: RecordActualInput): Promise<RecordActualResult> {
-      await wait(LATENCY_MS);
+      await pause();
       const entry = demoTimeEntries.find((candidate) => candidate.assignmentId === entryId);
       if (!entry) {
         throw new ApiError('That time entry is not in the fixture.', 404);
@@ -707,7 +907,7 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async lockPayPeriod(payPeriodId: string): Promise<PayPeriod> {
-      await wait(LATENCY_MS);
+      await pause();
       const period = demoPayPeriods.find((entry) => entry.id === payPeriodId);
       if (!period) {
         throw new ApiError('That pay period is not in the fixture.', 404);
@@ -743,7 +943,7 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async unlockPayPeriod(payPeriodId: string, reason: string): Promise<PayPeriod> {
-      await wait(LATENCY_MS);
+      await pause();
       const period = demoPayPeriods.find((entry) => entry.id === payPeriodId);
       if (!period) {
         throw new ApiError('That pay period is not in the fixture.', 404);
@@ -758,7 +958,7 @@ export function createFixtureApi(): ShiftCircleApi {
     },
 
     async exportPayroll(payPeriodId: string): Promise<{ fileName: string; content: string }> {
-      await wait(LATENCY_MS);
+      await pause();
       const period = demoPayPeriods.find((entry) => entry.id === payPeriodId);
       if (!period) {
         throw new ApiError('That pay period is not in the fixture.', 404);

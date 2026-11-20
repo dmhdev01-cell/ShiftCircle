@@ -24,7 +24,8 @@ describe('Time and attendance', () => {
   it('shows the period, the tiles and the shifts with no actual', async () => {
     renderScreen();
 
-    expect(await screen.findByRole('heading', { name: 'Time & attendance' })).toBeInTheDocument();
+    // The heading is drawn while the periods load; the select below is the wait.
+    await screen.findByRole('heading', { name: 'Time & attendance' });
     // The pay-period select appears once the periods have loaded.
     expect(await screen.findByLabelText('Pay period')).toBeInTheDocument();
     // A grid row appears once the time entries have loaded.
@@ -37,6 +38,39 @@ describe('Time and attendance', () => {
 
     // The shifts with no actual are named, not just counted.
     expect(screen.getByText('3 shifts with no actual recorded')).toBeInTheDocument();
+  });
+
+  it('records nothing until the supervisor says what happened', async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    await screen.findByText('Tara Nakamura');
+    const cells = await screen.findAllByRole('button', { name: /needs actual/ });
+    await user.click(cells[0]);
+
+    const save = await screen.findByRole('button', { name: 'Save' });
+    expect(save).toBeDisabled();
+    expect(
+      screen.getByText('Choose what happened. Nothing is recorded until you do.'),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: 'Worked as scheduled' }));
+    expect(save).toBeEnabled();
+    expect(
+      screen.getByText(/Will record: worked as scheduled, 07:00 – 15:00/),
+    ).toBeInTheDocument();
+  });
+
+  it('takes a missing-actual line to its cell and opens the actual panel', async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    await screen.findByText('Tara Nakamura');
+    await user.click(
+      screen.getByRole('button', { name: /Marc Desjardins · 2026-11-16 07:00/ }),
+    );
+
+    expect(await screen.findByRole('heading', { name: /Record actual/ })).toBeInTheDocument();
   });
 
   it('will not lock the period while a shift has no actual', async () => {

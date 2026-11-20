@@ -1,10 +1,21 @@
 import Box from '@mui/material/Box';
+import type { ReactNode } from 'react';
 
 import { AbsenceChip, OffChip, ShiftChip } from '../components/ShiftChip';
+import { ScrollShadows } from '../components/ScrollShadows';
 import { StatusPill } from '../components/StatusPill';
 import type { Block, CellItem, OfficerRow, SchedulePayload, ShiftItem } from '../api/types';
 import { colour } from '../theme/tokens';
 import { CoverageCell } from './CoverageCell';
+
+/** A chip and its words stay together when the key wraps. */
+function LegendItem({ children }: { children: ReactNode }) {
+  return (
+    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+      {children}
+    </Box>
+  );
+}
 
 const BLOCKS: { block: Block; label: string }[] = [
   { block: 'DAY', label: 'Days' },
@@ -87,18 +98,21 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGr
 
   return (
     <Box sx={{ backgroundColor: colour.bg.surface, border: `1px solid ${colour.border.default}`, borderRadius: '10px' }}>
-      <Box sx={{ overflowX: 'auto' }}>
+      <ScrollShadows
+        label="Roster, scrolls sideways"
+        hint="Scroll sideways to see the rest of the week."
+      >
         <table
           style={{
             width: '100%',
-            minWidth: 900,
+            minWidth: 860,
             borderCollapse: 'collapse',
             fontSize: 13,
           }}
         >
           <thead>
             <tr>
-              <th style={{ minWidth: 190, textAlign: 'left', padding: 8, fontSize: 12, fontWeight: 600, color: colour.text.secondary, backgroundColor: colour.bg.subtle }}>
+              <th style={{ width: 165, minWidth: 165, textAlign: 'left', padding: 6, fontSize: 12, fontWeight: 600, color: colour.text.secondary, backgroundColor: colour.bg.subtle, position: 'sticky', left: 0, zIndex: 2, boxShadow: 'inset -1px 0 0 #E1E3E6' }}>
                 Officer
               </th>
               <th
@@ -115,7 +129,7 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGr
                 Pay period
                 <br />
                 <span style={{ fontWeight: 500 }}>
-                  {payload.period?.label ?? 'Pay period'} · of {threshold} h
+                  of {threshold} h
                 </span>
               </th>
               {payload.days.map((date) => {
@@ -151,12 +165,17 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGr
               return (
                 <tr key={block}>
                   <td
-                    colSpan={2}
                     style={{
+                      width: 165,
+                      minWidth: 165,
                       fontWeight: 600,
                       padding: 8,
                       backgroundColor: colour.bg.subtle,
                       borderBottom: `1px solid ${colour.border.default}`,
+                      position: 'sticky',
+                      left: 0,
+                      zIndex: 1,
+                      boxShadow: 'inset -1px 0 0 #E1E3E6',
                     }}
                   >
                     {label}
@@ -165,6 +184,12 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGr
                       needs {requirement}
                     </span>
                   </td>
+                  <td
+                    style={{
+                      backgroundColor: colour.bg.subtle,
+                      borderBottom: `1px solid ${colour.border.default}`,
+                    }}
+                  />
                   {payload.days.map((date) => {
                     const entry = payload.coverage.find(
                       (item) => item.block === block && item.date === date,
@@ -188,7 +213,17 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGr
 
             {payload.officers.map((officer) => (
               <tr key={officer.employeeId}>
-                <td style={{ padding: 8, borderBottom: `1px solid ${colour.border.default}` }}>
+                <td
+                  style={{
+                    padding: 8,
+                    borderBottom: `1px solid ${colour.border.default}`,
+                    position: 'sticky',
+                    left: 0,
+                    zIndex: 1,
+                    backgroundColor: colour.bg.surface,
+                    boxShadow: 'inset -1px 0 0 #E1E3E6',
+                  }}
+                >
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     <Box component="span" sx={{ fontWeight: 600 }}>
                       {officer.name}
@@ -217,6 +252,8 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGr
                   return (
                     <td
                       key={date}
+                      data-officer-id={officer.employeeId}
+                      data-date={date}
                       style={{
                         padding: 8,
                         borderBottom: `1px solid ${colour.border.default}`,
@@ -277,7 +314,7 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGr
             ))}
           </tbody>
         </table>
-      </Box>
+      </ScrollShadows>
 
       <Box
         sx={{
@@ -294,15 +331,33 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGr
         <Box component="span" sx={{ fontWeight: 600, color: colour.text.primary }}>
           Key
         </Box>
-        <ShiftChip template="D8" /> <span>Day 07:00 – 15:00</span>
-        <ShiftChip template="E8" /> <span>Evening 15:00 – 23:00</span>
-        <ShiftChip template="N8" /> <span>Night 23:00 – 07:00</span>
-        <ShiftChip template="A12" /> <span>12 h 00:00 – 12:00</span>
-        <ShiftChip template="P12" /> <span>12 h 12:00 – 24:00</span>
-        <ShiftChip template="L16" /> <span>16 h 20:00 – 12:00</span>
-        <ShiftChip template="E8" extra /> <span>extra shift beyond the roster</span>
-        <AbsenceChip absenceType="SICK" /> <span>Sick</span>
-        <AbsenceChip absenceType="VACATION" /> <span>Vacation</span>
+        <LegendItem>
+          <ShiftChip template="D8" /> <span>Day 07:00 – 15:00</span>
+        </LegendItem>
+        <LegendItem>
+          <ShiftChip template="E8" /> <span>Evening 15:00 – 23:00</span>
+        </LegendItem>
+        <LegendItem>
+          <ShiftChip template="N8" /> <span>Night 23:00 – 07:00</span>
+        </LegendItem>
+        <LegendItem>
+          <ShiftChip template="A12" /> <span>12 h 00:00 – 12:00</span>
+        </LegendItem>
+        <LegendItem>
+          <ShiftChip template="P12" /> <span>12 h 12:00 – 24:00</span>
+        </LegendItem>
+        <LegendItem>
+          <ShiftChip template="L16" /> <span>16 h 20:00 – 12:00</span>
+        </LegendItem>
+        <LegendItem>
+          <ShiftChip template="E8" extra /> <span>extra shift beyond the roster</span>
+        </LegendItem>
+        <LegendItem>
+          <AbsenceChip absenceType="SICK" /> <span>Sick</span>
+        </LegendItem>
+        <LegendItem>
+          <AbsenceChip absenceType="VACATION" /> <span>Vacation</span>
+        </LegendItem>
         <span>✓ = worked (actual recorded)</span>
         <span>Overtime = pay-period hours over {threshold} h (status pill)</span>
       </Box>

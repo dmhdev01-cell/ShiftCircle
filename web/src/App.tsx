@@ -9,6 +9,7 @@ import { AboutPage } from './pages/AboutPage';
 import { LoginPage } from './pages/LoginPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 import { AppShell } from './shell/AppShell';
+import { ErrorBoundary } from './shell/ErrorBoundary';
 import { RoleProvider } from './shell/nav';
 import { theme } from './theme/theme';
 
@@ -37,6 +38,10 @@ const TimeAttendancePage = lazy(() =>
   import('./timeattendance/TimeAttendancePage').then((module) => ({
     default: module.TimeAttendancePage,
   })),
+);
+
+const AuditPage = lazy(() =>
+  import('./audit/AuditPage').then((module) => ({ default: module.AuditPage })),
 );
 
 const WallDisplayPage = lazy(() =>
@@ -90,6 +95,7 @@ export function AppRoutes() {
         />
         <Route path="/me/hours" element={<PlaceholderPage title="My hours" subtitle="Employee · Hours and overtime" />} />
         <Route path="/time" element={<TimeAttendancePage />} />
+        <Route path="/audit" element={<AuditPage />} />
         <Route
           path="/proposals"
           element={
@@ -119,9 +125,11 @@ export function AppRoutes() {
 /** The shell and the routes, without the router - handy for tests. */
 export function AppShellRoutes() {
   return (
-    <AppShell>
-      <AppRoutes />
-    </AppShell>
+    <ErrorBoundary title={'ShiftCircle could not start'}>
+      <AppShell>
+        <AppRoutes />
+      </AppShell>
+    </ErrorBoundary>
   );
 }
 
