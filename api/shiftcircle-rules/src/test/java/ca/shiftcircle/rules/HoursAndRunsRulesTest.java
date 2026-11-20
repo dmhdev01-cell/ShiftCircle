@@ -87,6 +87,8 @@ class HoursAndRunsRulesTest {
         .satisfies(
             result -> {
               assertThat(result.outcome()).isEqualTo(RuleOutcome.WARN);
+              // The warn branch reports the warn level, not the 60 h ceiling (review F6).
+              assertThat(result.required()).isEqualTo(48.0);
               assertThat(result.actual()).isEqualTo(48.25);
             });
   }

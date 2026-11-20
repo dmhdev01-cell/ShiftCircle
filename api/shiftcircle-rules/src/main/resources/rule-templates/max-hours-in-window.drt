@@ -45,7 +45,7 @@ then
             "MAX_HOURS",
             RuleOutcome.WARN,
             "@{message}",
-            @{maxHours},
+            @{firstThreshold},
             $f.getHours(),
             "hours",
             OverridePolicy.ACKNOWLEDGE,

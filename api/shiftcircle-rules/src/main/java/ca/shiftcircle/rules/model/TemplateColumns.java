@@ -36,8 +36,19 @@ public final class TemplateColumns {
         // One row can warn below the ceiling (U-14: warn 48, block 60): match at the lower level and
         // pick the outcome in the consequence.
         double warnAt = optionalNumber(row, "warnAtHours", 0);
-        columns.put("firstThreshold",
-            warnAt > 0 && warnAt < row.number("maxHours") ? warnAt : row.number("maxHours"));
+        double maxHours = row.number("maxHours");
+        if (warnAt > 0 && warnAt >= maxHours) {
+          // A warning level at or above the ceiling would silently disable the ceiling: refuse it,
+          // the same way the publish pipeline will (review F6).
+          throw new IllegalArgumentException(
+              row.code()
+                  + ": warnAtHours ("
+                  + warnAt
+                  + ") must be below maxHours ("
+                  + maxHours
+                  + ")");
+        }
+        columns.put("firstThreshold", warnAt > 0 ? warnAt : maxHours);
       }
       case CONSECUTIVE -> {
         columns.put("counts", row.text("counts"));
