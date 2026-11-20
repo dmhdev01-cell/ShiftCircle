@@ -277,7 +277,8 @@ public class PayrollService {
       double hours = rs.getDouble("actual_hours");
       if (code != null) {
         payCodes.add(
-            new PayrollViews.PayCodeView(code, round2(hours), "OT15".equals(code) ? 1.5 : 1.0));
+            new PayrollViews.PayCodeView(
+                code, round2(hours), "OT15".equals(code) ? policy.overtimeRate() : 1.0));
       }
     }
 

@@ -3,6 +3,8 @@ package ca.shiftcircle.api.payroll;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ca.shiftcircle.rules.pay.PayClassifier;
+import ca.shiftcircle.rules.rows.RuleRowsV1;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -306,7 +308,9 @@ class PayrollApiTest {
               Map<String, Object> payCode = (Map<String, Object>) code;
               assertThat(payCode).containsEntry("code", "OT15");
               assertThat(((Number) payCode.get("hours")).doubleValue()).isEqualTo(8.0);
-              assertThat(((Number) payCode.get("multiplier")).doubleValue()).isEqualTo(1.5);
+              // The display multiplier comes from the pay policy, not a literal.
+              assertThat(((Number) payCode.get("multiplier")).doubleValue())
+                  .isEqualTo(new PayClassifier().policyFrom(RuleRowsV1.ruleSet()).overtimeRate());
             });
 
     // The eleventh shift is the overtime one: the first ten are regular.
@@ -567,5 +571,43 @@ class PayrollApiTest {
             send("POST", "/api/v1/pay-periods/" + PERIOD_MISSING + "/lock", null, tokens.get("pay.employee"))
                 .statusCode())
         .as("employee cannot lock").isEqualTo(403);
+
+    assertThat(
+            send("POST", "/api/v1/pay-periods/" + PERIOD_MISSING + "/lock", null, tokens.get("a.reviewer"))
+                .statusCode())
+        .as("auditor cannot lock").isEqualTo(403);
+    assertThat(
+            send(
+                    "POST",
+                    "/api/v1/pay-periods/" + PERIOD_LOCK + "/unlock",
+                    "{\"reason\":\"auditor should not be able to do this\"}",
+                    tokens.get("a.reviewer"))
+                .statusCode())
+        .as("auditor cannot unlock").isEqualTo(403);
+    assertThat(
+            send(
+                    "GET",
+                    "/api/v1/pay-periods/" + PERIOD_LOCK + "/payroll-export",
+                    null,
+                    tokens.get("a.reviewer"))
+                .statusCode())
+        .as("auditor cannot export payroll").isEqualTo(403);
+
+    assertThat(
+            send(
+                    "POST",
+                    "/api/v1/pay-periods/" + PERIOD_LOCK + "/unlock",
+                    "{\"reason\":\"employee should not be able to do this\"}",
+                    tokens.get("pay.employee"))
+                .statusCode())
+        .as("employee cannot unlock").isEqualTo(403);
+    assertThat(
+            send(
+                    "GET",
+                    "/api/v1/pay-periods/" + PERIOD_LOCK + "/payroll-export",
+                    null,
+                    tokens.get("pay.employee"))
+                .statusCode())
+        .as("employee cannot export payroll").isEqualTo(403);
   }
 }
