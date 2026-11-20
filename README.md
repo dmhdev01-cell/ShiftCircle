@@ -118,28 +118,51 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
   mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
 ```
 
-**Count:** the last full clean runs are dev-qa's independent ones at `c0dcaf3`: **348 = 97 rules +
-27 infrastructure + 224 api tests**, in the default order and with random seed 20261121, 0
-failures/errors/skipped; this author's static count agrees (97 + 27 + 224 `@Test` methods, one per
-line, no parameterised tests). Playwright against the real api: desktop 19 passed, tablet 18 passed
-+ 1 skipped (the TV-size check is desktop-only); fixtures 43 passed / 3 skipped. The D6 sentence fix
-(`8c5d705`) adds `RuleSentenceTest` (2) and one HTTP check, so the count at `dc6890e` is
-**351 = 97 rules + 27 infrastructure + 227 api**; this author's full clean-worktree runs there are
-351, 0 failures/errors/skipped, in the default order and with random seed 20261121. dev-qa's
-independent run at that tip is pending. The V12/V19/V5 fix (`c8c05cd`) adds one API test class, so
-the count is **352 = 97 rules + 27 infrastructure + 228 api**; this author's full clean-worktree
-runs at `c8c05cd` are 352, 0 failures/errors/skipped, in the default order and with random seed
-20261121. dev-qa's independent run at that tip is pending. The evidence follow-up (`9ef9f7c`)
-adds `FactEvidenceTest` (4), so the count at `8a2257a` is **356 = 101 rules + 27 infrastructure +
-228 api**; this author's full clean-worktree runs there are 356, 0 failures/errors/skipped, in the
-default order and with random seed 20261121. dev-qa's independent run at that tip is pending.
-Earlier, as history:
+**The UI test: how to run the Playwright suite yourself.** Chromium only — the config refuses any
+other browser — against the compose stack. What the suite covers, screen by role by state, is in
+[`e2e/COVERAGE.md`](e2e/COVERAGE.md); these commands are from [`e2e/README.md`](e2e/README.md).
+
+```sh
+# once: install the test dependencies in a container (no Node on the host)
+docker run --rm -v "$PWD/e2e":/app -w /app node:24-alpine \
+  sh -c "corepack enable && pnpm install --frozen-lockfile"
+
+# the stack the suite drives
+docker compose up -d --build --wait
+
+# desktop viewport, real api (skip the fixtures-only specs)
+docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
+  -e BASE_URL=http://host.docker.internal:8080 \
+  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
+
+# tablet: the real-api specs change data, so a fresh stack per viewport
+docker compose down -v && docker compose up -d --wait
+docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
+  -e BASE_URL=http://host.docker.internal:8080 \
+  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project tablet
+```
+
+`host.docker.internal` reaches the host from a container on Docker Desktop; the `--add-host` line
+makes the same name work on Docker Engine. `E2E_WORKERS` (default 2) sets parallelism;
+`tests/screenshots.spec.ts` writes full-page captures and `index.json` to `SHOTS_DIR` (default
+`/private/tmp/sc-ui-shots/<RUN_ID>`, outside the repository: mount it the same way when the browser
+runs in Docker); the HTML report is `playwright-report/`. The fixtures-mode web and the `@api` /
+`@fixtures` tags are in `e2e/README.md`.
+
+**Count:** the latest independent runs are dev-qa's. API at `f4496c6`: **356 = 101 rules + 27
+infrastructure + 228 api tests**, in the default order, 0 failures/errors/skipped (the random-seed
+run at that tip is this author's). Web unit tests at `72ebd24`: **239 passed in 29 files**. Playwright
+against the real api, whole suite: desktop **86 passed**, tablet **85 passed + 1 skipped** (the
+TV-size check is desktop-only); fixtures: desktop 22 passed (+56 skipped by design as `@api`),
+tablet 21 (+57). The static counts in this tree agree (101 + 27 + 228 `@Test` methods, one per line,
+no parameterised tests). Earlier, as history: this author's full API runs were 356 at `8a2257a`,
+352 at `c8c05cd`, 351 at `dc6890e` and 348 at `c0dcaf3` (the last also dev-qa's independent run),
 301 = 91 + 27 + 183 at `5e7765f`, 296 = 91 + 22 + 183 at `dcee43b`, and default/random at
 `fe6487d`, reverse and random seeds at `22375d4`.
 
 **One viewport per fresh stack.** The real-api specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop`, then `docker compose down -v && docker compose up -d --wait`, then `--project tablet`.
 
-**Checked on the fresh clone:** both viewports on one stack gave 21 passed, 1 skipped and 4 failed, all 4 on tablet after desktop had changed the data; tablet alone on a fresh stack gave 12 passed, 1 skipped (the TV-size check runs on desktop only). The `--add-host` line was run on macOS; on Linux it is **UNVERIFIED** here (`--network host` with `BASE_URL=http://localhost:8080` is the alternative). Not run by this author: the `api-test` service (the builders and QA run the same Maven build; counts per round are in `docs/review-rounds.md`) and the web unit-test line in this clone (the same command passes in the branch worktrees). The web unit tests write `web/node_modules` with Linux binaries.
+**Earlier fresh-clone check (history at `f1d696d`):** both viewports on one stack gave 21 passed, 1 skipped and 4 failed, all 4 on tablet after desktop had changed the data; tablet alone on a fresh stack gave 12 passed, 1 skipped (the TV-size check runs on desktop only). The `--add-host` line was run on macOS; on Linux it is **UNVERIFIED** here (`--network host` with `BASE_URL=http://localhost:8080` is the alternative). Not run by this author: the `api-test` service (the builders and QA run the same Maven build; counts per round are in `docs/review-rounds.md`) and the web unit-test line in this clone (the same command passes in the branch worktrees). The web unit tests write `web/node_modules` with Linux binaries.
 
 **Fixtures and the shared test database:** each API test class gets its **own database** inside the
 shared PostgreSQL container (`PostgresTestSupport` creates one per class, and Flyway builds the
@@ -170,3 +193,5 @@ docker run --rm -v "$PWD/api":/src -v /var/run/docker.sock:/var/run/docker.sock 
 | PostgreSQL with Flyway migrations | "Today" is fixed at 19 Nov 2026 (`SC_DEMO_TODAY`) |
 
 **Not built at all** (designed, but not in the prototype): the Excel round-trip for rule tables, the employee shift planner and proposals inbox, offer withdrawal, a payroll-clerk role, arrow-key grid navigation and more. The full list, with what exists instead, is in [docs/10-testing.md §8](docs/10-testing.md#8-intentionally-not-built).
+
+**Known limit, by decision (ADR-025):** the sign-in token is kept in memory only, so a page refresh, a new tab or a deep link asks you to sign in again ("Please sign in to continue.") and then returns you to the screen you asked for.

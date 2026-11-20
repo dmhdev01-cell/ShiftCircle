@@ -1,18 +1,16 @@
 # ShiftCircle — requirement-to-proof traceability
 
 **Derived from the test sources, not from the prose.** Checked on 2026-11-20 against `main` at
-`9ef9f7c` by grepping `@Test`, Playwright `test(...)` titles and the Flyway migrations. The
+`72ebd24` by grepping `@Test`, Playwright `test(...)` titles and the Flyway migrations. The
 sources hold **101 rules + 27 infrastructure + 228 api = 356 tests**, counted as `@Test` methods
-on their own line (no parameterised tests). The last full clean-worktree runs are dev-qa's
-independent ones at `c0dcaf3`: **348 = 97 + 27 + 224, 0 failures, 0 skipped**, in the default order
-and with random seed 20261121; Playwright against the real api gives desktop 19 passed and tablet
-18 + 1 skipped, fixtures 43 passed / 3 skipped. The D6 fix adds three tests; this author's full
-clean-worktree runs at `dc6890e` are **351, 0 failures/errors/skipped** in the default order and
-with random seed 20261121, and dev-qa's independent run there is pending. The V12/V19/V5 fix adds
-one test and the evidence follow-up four; this author's full clean-worktree runs at `8a2257a` are
-**356, 0 failures/errors/skipped** in the default order and with random seed 20261121, and dev-qa's
-independent run there is pending. A proof below names the test class and method that makes the
-claim, not the document that hopes it exists.
+on their own line (no parameterised tests). The latest independent runs are dev-qa's: API at
+`f4496c6` is **356, 0 failures/errors/skipped**, in the default order (the random-seed run at that
+tip is this author's); web unit tests at `72ebd24` are **239 in 29 files**, 0 failed; Playwright
+against the real api, whole suite, gives desktop 86 and tablet 85 + 1 skipped, and the fixtures run
+22 (+56 skipped by design) and 21 (+57). Earlier, as history: this author's full API runs were 356
+at `8a2257a` (default and seed 20261121), 352 at `c8c05cd`, 351 at `dc6890e`; dev-qa's independent
+run at `c0dcaf3` was 348. A proof below names the test class and method that makes the claim, not
+the document that hopes it exists.
 
 **Path shorthand.** `RulesTest` = a class in `api/shiftcircle-rules/src/test/java/ca/shiftcircle/rules/`;
 `ApiTest` = a class in `api/shiftcircle-api/src/test/java/ca/shiftcircle/api/`;
@@ -188,3 +186,29 @@ reaches; E1 also calls `expectDisclaimer`. E2–E5 rely on the web shell test fo
    cell. The coverage is real; the phrasing is stronger than the structure.
 8. **T2's U-14 detail.** The real-api E1 test accepts "Blocked: 2 or 3 rules" and asserts U-01; the
    comment says U-14 also fires, but no assertion names U-14. `AssignmentApiTest` asserts U-01 only.
+
+## 8. UI test (Playwright, Chromium only)
+
+The suite in `e2e/tests` covers every screen by role and state at desktop 1440×900 and tablet
+768×1024, runs axe WCAG 2.1 AA on every screen reached (a serious or critical finding fails), and
+runs E1 and E3 by keyboard only. The whole matrix, the captures and the defects found are in
+[`e2e/COVERAGE.md`](../e2e/COVERAGE.md). Results below are dev-qa's independent real-api run at
+`72ebd24`: desktop 86 passed, tablet 85 + 1 skipped (the TV-size check is desktop-only); fixtures
+22 passed (+56 skipped by design) and 21 (+57).
+
+| Spec (`e2e/tests/`) | What it proves | Status |
+|---|---|---|
+| `a11y-every-screen` | axe on sign-in, the supervisor screens (including a locked period and the wall display), not-built/not-found, employee refusals, rules admin/approver/auditor and the display account; D10 (a sideways-scrolling table with no keyboard access) pinned | PASS |
+| `audit-viewer` | the auditor filters, loads older events and clears the filters; a supervisor does not see rule-change events | PASS |
+| `display-short` | a short unit is shown in words and with an icon on the wall display | PASS |
+| `keyboard-api` | E1 and the audit filter by keyboard only, and focus returns after the Block dialog closes | PASS |
+| `overtime-decline-filled` | a decline is visible to the supervisor; a filled shift offers no checkbox, offer or assign; no Confirm on a leftover accepted offer (D5) | PASS |
+| `planning-override` | an emergency-only Block saves with a reason; a warning saves after acknowledgement; the board shows the saved shift without leaving the screen (D9) | PASS |
+| `reports` | all four reports and their CSV export; an empty report says so (D2); the report named in the address opens (D3); the planted override is visible | PASS |
+| `routes-and-errors` | not-built/not-found wording; the api-unreachable panel and Try again; the error panel for broken data (D4); a wrong role gets plain words | PASS |
+| `rules-refusals` | the floor and 24 h refusals in plain words; the approver cannot edit; the sentence is words, with no `.*` or bare enum (D6) | PASS |
+| `screenshots` | 40 full-page captures per viewport plus `index.json` | PASS |
+| `session-and-nav` | sign-in and the seven demo users, landing and nav per role, TV with no nav, sign-out, the 401 notice, the top-bar demo date (D1), no supervisor nav when signed out (D8), and the requested route after sign-in (D11) | PASS |
+
+The phase's defects D1–D11 are pinned by these specs and fixed; the `test.fail` markers are gone and
+no assertion was weakened.
