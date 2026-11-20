@@ -5,6 +5,7 @@ import Box from '@mui/material/Box';
 
 import { getSession, subscribeSession } from '../api/session';
 import { AppFooter } from './AppFooter';
+import { ErrorBoundary } from './ErrorBoundary';
 import { SideNav } from './SideNav';
 import { TopBar } from './TopBar';
 
@@ -67,7 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             gap: 5,
           }}
         >
-          {children}
+          <ErrorBoundary resetKey={location.pathname}>{children}</ErrorBoundary>
         </Box>
       </Box>
 
