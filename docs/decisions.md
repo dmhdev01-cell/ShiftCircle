@@ -135,4 +135,13 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Why:** the review proved each of these with a working probe: a supervisor previewed a unit outside their scope; two parallel saves both created shifts that break U-01; an override silently approved warnings; and bogus ids returned 500 pages. All four are HANDOFF guardrail 3 or the RFC 9457 contract in `07-api-spec.md` §1/§3.
 **Consequences:** the preview's employee-own path is unchanged; the rule check now reads the published version from `rule_set_version` instead of a constant (so a published v2 is reported without a code change); `existingShifts` reads 28 days back (U-11 needs 28 days) and 14 days forward; `AuthorizationMatrixTest`, `AssignmentApiTest` and `ProblemDetailsApiTest` prove each case.
 
+## ADR-022 — Pay-period lock, unlock and payroll export are facility-wide; double lock is idempotent
+**Status:** Accepted (2026-11-20, `orch.lead` while the project lead was away, from dev-qa's step 9 PASS; **to be confirmed by the project lead**).
+**Decision:**
+1. A pay period has no unit (`pay_period` in `06-data-model.md`), so locking, unlocking and exporting can't be scoped to units. **Any supervisor with at least one unit in scope** may lock, unlock (with a reason) and export the facility's period. The auditor reads it. Each action is audited with the actor; unlock also records the reason, and export records the file hash.
+2. **Locking an already locked period is idempotent:** it returns `200` with the period view and writes no second audit row.
+**Why:** payroll runs per period for the whole facility. Splitting a period by unit would mean partial locks and partial exports that payroll can't use. The idempotent lock makes a double click or a retry harmless, without a misleading second audit entry.
+**Trade-off (stated plainly):** one supervisor can lock or unlock the period for every unit, and the export carries pay lines (employee number, hours, pay codes) for officers **outside that supervisor's scope**. This is wider than the unit scope used everywhere else (`09-access-control.md` §2). The audit trail makes it visible, but it doesn't prevent it.
+**Pilot:** restrict lock and export to a payroll-clerk role (or a payroll office), or require a second approver for unlock and export, and review who can see facility-wide pay lines under FOIP.
+**Consequences:** `09-access-control.md` §2 (the record-actuals row stays unit-scoped; lock, unlock and export are facility-wide) and `07-api-spec.md` §4.5 updated; each facility-wide cell needs an authorization test (a supervisor with any scope allowed, the auditor and others refused) — check they exist before calling step 9 complete.
 

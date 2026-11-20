@@ -32,9 +32,10 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 | Accept or decline an overtime offer | own | own | own | own | — | — |
 | Submit shift proposals | own | own | — | — | — | — |
 | Decide on proposals | — | scope | — | — | — | — |
-| Record actuals, lock a pay period | — | scope | — | — | — | — |
-| Unlock a pay period | — | scope (reason required) | — | — | — | — |
-| Payroll export | — | scope | — | — | — | — |
+| Record actuals | — | scope | — | — | — | — |
+| Lock a pay period | — | facility-wide (any supervisor with at least one unit in scope; audited), ADR-022 | — | — | — | — |
+| Unlock a pay period | — | facility-wide (reason required; audited), ADR-022 | — | — | — | — |
+| Payroll export | — | facility-wide (audited with file hash), ADR-022 | — | — | — | — |
 | Reports | own hours only | scope | — | — | ✓ | — |
 | View rule tables and versions | — | read | ✓ | ✓ | ✓ | — |
 | Edit draft rule tables, build, submit | — | — | ✓ | — | — | — |
