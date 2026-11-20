@@ -250,6 +250,28 @@ class RuleSetApiTest {
   }
 
   @Test
+  void aRejectionReasonLongerThanTheCapIsABadRequest() throws Exception {
+    int draft = createDraft(1, "reject reason cap");
+    build(draft);
+    submit(draft);
+
+    HttpResponse<String> response =
+        send(
+            "POST",
+            "/api/v1/rule-sets/" + draft + "/reject",
+            "{\"reason\":\"" + "x".repeat(501) + "\"}",
+            "p.singh");
+
+    assertThat(response.statusCode()).isEqualTo(400);
+    assertThat((String) json(response).get("title")).contains("reason").contains("500");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT status FROM rule_set_version WHERE version = ?", String.class, draft))
+        .as("a refused rejection leaves the version submitted")
+        .isEqualTo("SUBMITTED");
+  }
+
+  @Test
   @Order(3)
   void t7DroppingToThreeNightsShowsTheDryRunAndWarnsAfterPublish() throws Exception {
     assertThat(ruleResults(changeBody()))

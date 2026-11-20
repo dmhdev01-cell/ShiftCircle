@@ -38,6 +38,7 @@ import tools.jackson.databind.ObjectMapper;
 public class AssignmentService {
 
   private static final ZoneId REGINA = ZoneId.of("America/Regina");
+  private static final int MAX_REASON_LENGTH = 500;
 
   private final JdbcTemplate jdbc;
   private final RuleCheckService ruleChecks;
@@ -252,6 +253,11 @@ public class AssignmentService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "reason is required and must be at least 10 characters");
     }
+    if (reason.trim().length() > MAX_REASON_LENGTH) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "reason must be at most " + MAX_REASON_LENGTH + " characters");
+    }
     int expected = parseIfMatch(ifMatch);
     lockOfficer(observed.employeeId());
 
@@ -269,6 +275,9 @@ public class AssignmentService {
     }
     if (hasActual(current.id())) {
       throw new AssignmentProblemException(AssignmentProblemException.Kind.ACTUAL_RECORDED);
+    }
+    if (hasAbsence(current.id())) {
+      throw new AssignmentProblemException(AssignmentProblemException.Kind.ABSENCE_RECORDED);
     }
 
     int version = current.version() + 1;
@@ -358,6 +367,13 @@ public class AssignmentService {
           HttpStatus.BAD_REQUEST,
           "change.employeeId, change.unitId, change.shiftTemplate and change.startAt are required");
     }
+    if (request.override() != null
+        && request.override().reason() != null
+        && request.override().reason().trim().length() > MAX_REASON_LENGTH) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "override.reason must be at most " + MAX_REASON_LENGTH + " characters");
+    }
   }
 
   /**
@@ -407,6 +423,15 @@ public class AssignmentService {
     Boolean exists =
         jdbc.queryForObject(
             "SELECT EXISTS (SELECT 1 FROM time_entry WHERE shift_assignment_id = ?)",
+            Boolean.class,
+            assignmentId);
+    return Boolean.TRUE.equals(exists);
+  }
+
+  private boolean hasAbsence(UUID assignmentId) {
+    Boolean exists =
+        jdbc.queryForObject(
+            "SELECT EXISTS (SELECT 1 FROM absence WHERE shift_assignment_id = ?)",
             Boolean.class,
             assignmentId);
     return Boolean.TRUE.equals(exists);

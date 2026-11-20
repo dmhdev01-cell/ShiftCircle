@@ -675,6 +675,10 @@ public class PayrollService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "A reason of at least 10 characters is required");
     }
+    if (clean.length() > 500) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "reason must be at most 500 characters");
+    }
     if ("LOCKED".equals(period.status())) {
       jdbc.update(
           "UPDATE pay_period SET status = 'OPEN', locked_at = NULL, locked_by = NULL,"

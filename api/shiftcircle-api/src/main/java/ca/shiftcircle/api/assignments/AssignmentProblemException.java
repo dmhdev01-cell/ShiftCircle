@@ -29,7 +29,12 @@ public class AssignmentProblemException extends RuntimeException {
         409,
         "actual-recorded",
         "This shift has actual time recorded",
-        "Correct the actual in Time & attendance instead of cancelling the shift.");
+        "Correct the actual in Time & attendance instead of cancelling the shift."),
+    ABSENCE_RECORDED(
+        409,
+        "absence-recorded",
+        "This shift has an absence recorded",
+        "Correct the absence in Time & attendance instead of cancelling the shift.");
 
     private final int status;
     private final String slug;

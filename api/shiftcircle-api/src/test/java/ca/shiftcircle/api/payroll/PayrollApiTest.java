@@ -642,6 +642,19 @@ class PayrollApiTest {
                 .statusCode())
         .isEqualTo(400);
 
+    HttpResponse<String> tooLong =
+        send(
+            "POST",
+            "/api/v1/pay-periods/" + PERIOD_LOCK + "/unlock",
+            "{\"reason\":\"" + "x".repeat(501) + "\"}",
+            tokens.get("m.ellis"));
+    assertThat(tooLong.statusCode()).isEqualTo(400);
+    assertThat((String) json(tooLong).get("title")).contains("reason").contains("500");
+    assertThat(jdbc.queryForObject(
+            "SELECT status FROM pay_period WHERE id = ?", String.class, PERIOD_LOCK))
+        .as("a refused unlock leaves the period locked")
+        .isEqualTo("LOCKED");
+
     HttpResponse<String> response =
         send(
             "POST",
