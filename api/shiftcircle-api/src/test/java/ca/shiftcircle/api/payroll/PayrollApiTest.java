@@ -3,6 +3,8 @@ package ca.shiftcircle.api.payroll;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ca.shiftcircle.rules.pay.PayClassifier;
+import ca.shiftcircle.rules.rows.RuleRowsV1;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -66,6 +68,8 @@ class PayrollApiTest {
   private static final UUID PERIOD_LOCK = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-000000000001");
   private static final UUID PERIOD_MISSING = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-000000000002");
   private static final UUID PERIOD_OT = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-000000000003");
+  private static final UUID PERIOD_RACE = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-000000000004");
+  private static final UUID PERIOD_CSV = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-000000000005");
   private static final UUID OFFICER_LOCKED = UUID.fromString("33333333-3333-3333-3333-000000000101");
   private static final UUID OFFICER_MISSING = UUID.fromString("33333333-3333-3333-3333-000000000102");
   private static final UUID OFFICER_OT = UUID.fromString("33333333-3333-3333-3333-000000000103");
@@ -88,15 +92,19 @@ class PayrollApiTest {
   void fixtureAndLogins() throws Exception {
     // Unlock first: the trigger refuses deletes from a locked period, which is the point of T11.
     jdbc.update(
-        "UPDATE pay_period SET status = 'OPEN', locked_at = NULL WHERE id IN (?, ?, ?)",
+        "UPDATE pay_period SET status = 'OPEN', locked_at = NULL WHERE id IN (?, ?, ?, ?, ?)",
         PERIOD_LOCK,
         PERIOD_MISSING,
-        PERIOD_OT);
+        PERIOD_OT,
+        PERIOD_RACE,
+        PERIOD_CSV);
     jdbc.update(
-        "DELETE FROM payroll_export WHERE pay_period_id IN (?, ?, ?)",
+        "DELETE FROM payroll_export WHERE pay_period_id IN (?, ?, ?, ?, ?)",
         PERIOD_LOCK,
         PERIOD_MISSING,
-        PERIOD_OT);
+        PERIOD_OT,
+        PERIOD_RACE,
+        PERIOD_CSV);
     jdbc.update("DELETE FROM absence WHERE employee_id IN (?, ?, ?)", OFFICER_LOCKED, OFFICER_MISSING, OFFICER_OT);
     jdbc.update(
         "DELETE FROM time_entry WHERE employee_id IN (?, ?, ?)", OFFICER_LOCKED, OFFICER_MISSING, OFFICER_OT);
@@ -106,16 +114,30 @@ class PayrollApiTest {
         OFFICER_MISSING,
         OFFICER_OT);
     jdbc.update(
-        "DELETE FROM pay_period WHERE id IN (?, ?, ?)", PERIOD_LOCK, PERIOD_MISSING, PERIOD_OT);
+        "DELETE FROM time_entry WHERE employee_id IN (SELECT id FROM employee"
+            + " WHERE employee_no IN ('=2+5*10', 'E,1', 'E\"2'))");
+    jdbc.update(
+        "DELETE FROM shift_assignment WHERE employee_id IN (SELECT id FROM employee"
+            + " WHERE employee_no IN ('=2+5*10', 'E,1', 'E\"2'))");
+    jdbc.update("DELETE FROM employee WHERE employee_no IN ('=2+5*10', 'E,1', 'E\"2')");
+    jdbc.update(
+        "DELETE FROM pay_period WHERE id IN (?, ?, ?, ?, ?)",
+        PERIOD_LOCK,
+        PERIOD_MISSING,
+        PERIOD_OT,
+        PERIOD_RACE,
+        PERIOD_CSV);
 
     jdbc.update(
         "INSERT INTO pay_period (id, start_date, end_date, status) VALUES"
             + " (?, DATE '2026-01-19', DATE '2026-02-01', 'OPEN'),"
             + " (?, DATE '2026-02-02', DATE '2026-02-15', 'OPEN'),"
-            + " (?, DATE '2026-02-16', DATE '2026-03-01', 'OPEN')",
+            + " (?, DATE '2026-02-16', DATE '2026-03-01', 'OPEN'),"
+            + " (?, DATE '2026-03-16', DATE '2026-03-29', 'OPEN')",
         PERIOD_LOCK,
         PERIOD_MISSING,
-        PERIOD_OT);
+        PERIOD_OT,
+        PERIOD_RACE);
 
     insertOfficer(OFFICER_LOCKED, "E-PAY-L", "Locked", "Officer");
     insertOfficer(OFFICER_MISSING, "E-PAY-M", "Missing", "Officer");
@@ -258,6 +280,125 @@ class PayrollApiTest {
   }
 
   @Test
+  void p2HostileCsvValuesAreQuotedAndFormulaNeutralised() throws Exception {
+    String[] numbers = {"=2+5*10", "E,1", "E\"2"};
+    jdbc.update(
+        "INSERT INTO pay_period (id, start_date, end_date, status)"
+            + " VALUES (?, DATE '2026-03-02', DATE '2026-03-15', 'OPEN')",
+        PERIOD_CSV);
+    for (int index = 0; index < numbers.length; index++) {
+      UUID employeeId = UUID.fromString("33333333-3333-3333-3333-00000000020" + (index + 1));
+      jdbc.update(
+          "INSERT INTO employee (id, employee_no, first_name, last_name, home_unit_id, seniority_date)"
+              + " VALUES (?, ?, 'Hostile', 'Value', ?, DATE '2020-01-01')",
+          employeeId,
+          numbers[index],
+          UNIT_A);
+      UUID assignmentId =
+          UUID.fromString("66666666-6666-6666-6666-0000000004" + String.format("%02d", index + 1));
+      insertAssignment(
+          assignmentId,
+          employeeId,
+          "2026-03-03T07:00:00-06:00",
+          "2026-03-03T15:00:00-06:00",
+          "2026-03-03");
+      jdbc.update(
+          "INSERT INTO time_entry (id, employee_id, pay_period_id, shift_assignment_id, work_date,"
+              + " start_at, end_at, hours, entry_type, pay_code) VALUES (?, ?, ?, ?, DATE '2026-03-03',"
+              + " TIMESTAMPTZ '2026-03-03 07:00:00-06', TIMESTAMPTZ '2026-03-03 15:00:00-06', 8,"
+              + " 'ACTUAL', 'REG')",
+          UUID.randomUUID(),
+          employeeId,
+          PERIOD_CSV,
+          assignmentId);
+    }
+    jdbc.update(
+        "UPDATE pay_period SET status = 'LOCKED', locked_at = now() WHERE id = ?", PERIOD_CSV);
+
+    HttpResponse<String> exported =
+        send(
+            "GET",
+            "/api/v1/pay-periods/" + PERIOD_CSV + "/payroll-export",
+            null,
+            tokens.get("m.ellis"));
+    assertThat(exported.statusCode()).isEqualTo(200);
+    String csv = exported.body();
+
+    // A leading = is neutralised with a single quote; commas and quotes are RFC 4180 quoted.
+    assertThat(csv).contains("'=2+5*10,2026-03-02,2026-03-15,2026-03-03,REG,8.00,A,A");
+    assertThat(csv).contains("\"E,1\",2026-03-02,2026-03-15,2026-03-03,REG,8.00,A,A");
+    assertThat(csv).contains("\"E\"\"2\",2026-03-02,2026-03-15,2026-03-03,REG,8.00,A,A");
+
+    jdbc.update(
+        "UPDATE pay_period SET status = 'OPEN', locked_at = NULL WHERE id = ?", PERIOD_CSV);
+    jdbc.update(
+        "DELETE FROM time_entry WHERE employee_id IN (SELECT id FROM employee"
+            + " WHERE employee_no IN ('=2+5*10', 'E,1', 'E\"2'))");
+    jdbc.update(
+        "DELETE FROM shift_assignment WHERE employee_id IN (SELECT id FROM employee"
+            + " WHERE employee_no IN ('=2+5*10', 'E,1', 'E\"2'))");
+    jdbc.update("DELETE FROM employee WHERE employee_no IN ('=2+5*10', 'E,1', 'E\"2')");
+    jdbc.update("DELETE FROM payroll_export WHERE pay_period_id = ?", PERIOD_CSV);
+    jdbc.update("DELETE FROM pay_period WHERE id = ?", PERIOD_CSV);
+  }
+
+  @Test
+  void p3AnActualOutsideTheShiftWindowIsRejected() throws Exception {
+    HttpResponse<String> far =
+        send(
+            "PUT",
+            "/api/v1/time-entries/" + MISSING_ASSIGNMENTS[0],
+            "{\"workedAsScheduled\":false,"
+                + "\"actualStart\":\"2036-01-01T07:00:00-06:00\","
+                + "\"actualEnd\":\"2036-01-01T15:00:00-06:00\"}",
+            tokens.get("m.ellis"));
+    assertThat(far.statusCode()).isEqualTo(400);
+    assertThat(far.headers().firstValue("Content-Type").orElse(""))
+        .contains("application/problem+json");
+    assertThat(far.body()).contains("within 24 hours");
+
+    HttpResponse<String> near =
+        send(
+            "PUT",
+            "/api/v1/time-entries/" + MISSING_ASSIGNMENTS[0],
+            "{\"workedAsScheduled\":false,"
+                + "\"actualStart\":\"2026-02-03T05:00:00-06:00\","
+                + "\"actualEnd\":\"2026-02-03T17:00:00-06:00\"}",
+            tokens.get("m.ellis"));
+    assertThat(near.statusCode()).isEqualTo(200);
+  }
+
+  @Test
+  void lowConcurrentLocksWriteExactlyOneAuditRow() throws Exception {
+    java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+    java.util.concurrent.CyclicBarrier barrier = new java.util.concurrent.CyclicBarrier(2);
+    java.util.concurrent.Callable<Integer> lock =
+        () -> {
+          barrier.await();
+          return send(
+                  "POST", "/api/v1/pay-periods/" + PERIOD_RACE + "/lock", null, tokens.get("m.ellis"))
+              .statusCode();
+        };
+    java.util.concurrent.Future<Integer> first = pool.submit(lock);
+    java.util.concurrent.Future<Integer> second = pool.submit(lock);
+    assertThat(first.get(20, java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(200);
+    assertThat(second.get(20, java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(200);
+    pool.shutdown();
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT status FROM pay_period WHERE id = ?", String.class, PERIOD_RACE))
+        .isEqualTo("LOCKED");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM audit_event WHERE action = 'lock_pay_period' AND entity_id = ?",
+                Integer.class,
+                PERIOD_RACE))
+        .as("one lock, one audit row")
+        .isEqualTo(1);
+  }
+
+  @Test
   @SuppressWarnings("unchecked")
   void recordsAnActualAndReportsThePeriodPayCodes() throws Exception {
     HttpResponse<String> response =
@@ -306,7 +447,9 @@ class PayrollApiTest {
               Map<String, Object> payCode = (Map<String, Object>) code;
               assertThat(payCode).containsEntry("code", "OT15");
               assertThat(((Number) payCode.get("hours")).doubleValue()).isEqualTo(8.0);
-              assertThat(((Number) payCode.get("multiplier")).doubleValue()).isEqualTo(1.5);
+              // The display multiplier comes from the pay policy, not a literal.
+              assertThat(((Number) payCode.get("multiplier")).doubleValue())
+                  .isEqualTo(new PayClassifier().policyFrom(RuleRowsV1.ruleSet()).overtimeRate());
             });
 
     // The eleventh shift is the overtime one: the first ten are regular.
@@ -567,5 +710,43 @@ class PayrollApiTest {
             send("POST", "/api/v1/pay-periods/" + PERIOD_MISSING + "/lock", null, tokens.get("pay.employee"))
                 .statusCode())
         .as("employee cannot lock").isEqualTo(403);
+
+    assertThat(
+            send("POST", "/api/v1/pay-periods/" + PERIOD_MISSING + "/lock", null, tokens.get("a.reviewer"))
+                .statusCode())
+        .as("auditor cannot lock").isEqualTo(403);
+    assertThat(
+            send(
+                    "POST",
+                    "/api/v1/pay-periods/" + PERIOD_LOCK + "/unlock",
+                    "{\"reason\":\"auditor should not be able to do this\"}",
+                    tokens.get("a.reviewer"))
+                .statusCode())
+        .as("auditor cannot unlock").isEqualTo(403);
+    assertThat(
+            send(
+                    "GET",
+                    "/api/v1/pay-periods/" + PERIOD_LOCK + "/payroll-export",
+                    null,
+                    tokens.get("a.reviewer"))
+                .statusCode())
+        .as("auditor cannot export payroll").isEqualTo(403);
+
+    assertThat(
+            send(
+                    "POST",
+                    "/api/v1/pay-periods/" + PERIOD_LOCK + "/unlock",
+                    "{\"reason\":\"employee should not be able to do this\"}",
+                    tokens.get("pay.employee"))
+                .statusCode())
+        .as("employee cannot unlock").isEqualTo(403);
+    assertThat(
+            send(
+                    "GET",
+                    "/api/v1/pay-periods/" + PERIOD_LOCK + "/payroll-export",
+                    null,
+                    tokens.get("pay.employee"))
+                .statusCode())
+        .as("employee cannot export payroll").isEqualTo(403);
   }
 }

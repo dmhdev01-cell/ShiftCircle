@@ -277,7 +277,8 @@ public class PayrollService {
       double hours = rs.getDouble("actual_hours");
       if (code != null) {
         payCodes.add(
-            new PayrollViews.PayCodeView(code, round2(hours), "OT15".equals(code) ? 1.5 : 1.0));
+            new PayrollViews.PayCodeView(
+                code, round2(hours), "OT15".equals(code) ? policy.overtimeRate() : 1.0));
       }
     }
 
@@ -335,6 +336,21 @@ public class PayrollService {
       end = input.actualEnd();
       if (!end.isAfter(start)) {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The actual end must be after the start");
+      }
+      // A ten-year actual is a typo, not a shift. Keep the window to the day either side of the
+      // rostered shift; it also keeps the hours inside numeric(5,2) (review-r2 P3).
+      Instant earliest = assignment.start().minusSeconds(24 * 3600);
+      Instant latest = assignment.end().plusSeconds(24 * 3600);
+      if (start.isBefore(earliest)
+          || end.isBefore(earliest)
+          || start.isAfter(latest)
+          || end.isAfter(latest)) {
+        throw new InvalidActualWindowException(
+            "The actual times must be within 24 hours of the rostered shift ("
+                + assignment.start()
+                + " to "
+                + assignment.end()
+                + ")");
       }
     }
 
@@ -624,18 +640,23 @@ public class PayrollService {
       if (!missing.isEmpty()) {
         throw new MissingActualsException(missing);
       }
-      jdbc.update(
-          "UPDATE pay_period SET status = 'LOCKED', locked_at = now(),"
-              + " locked_by = (SELECT id FROM app_user WHERE username = ?), unlock_reason = NULL,"
-              + " version = version + 1 WHERE id = ?",
-          principal.username(),
-          periodId);
-      audit(
-          principal,
-          "lock_pay_period",
-          "pay_period",
-          periodId,
-          Map.of("status", "LOCKED", "totals", totals(periodId).toString()));
+      int locked =
+          jdbc.update(
+              "UPDATE pay_period SET status = 'LOCKED', locked_at = now(),"
+                  + " locked_by = (SELECT id FROM app_user WHERE username = ?), unlock_reason = NULL,"
+                  + " version = version + 1 WHERE id = ? AND status = 'OPEN'",
+              principal.username(),
+              periodId);
+      if (locked > 0) {
+        // A concurrent lock that lost the race changed nothing, so it must not write a second
+        // audit row (review-r2 low finding).
+        audit(
+            principal,
+            "lock_pay_period",
+            "pay_period",
+            periodId,
+            Map.of("status", "LOCKED", "totals", totals(periodId).toString()));
+      }
     }
     return periodView(periodRow(periodId));
   }
@@ -785,16 +806,36 @@ public class PayrollService {
     String unitCode = String.valueOf(row.get("unit_code"));
     return String.join(
             ",",
-            String.valueOf(row.get("employee_no")),
-            period.from().toString(),
-            period.to().toString(),
-            ((java.sql.Date) row.get("work_date")).toLocalDate().toString(),
-            code,
-            String.format(Locale.ROOT, "%.2f", hours),
-            unitCode,
+            csvCell(String.valueOf(row.get("employee_no"))),
+            csvCell(period.from().toString()),
+            csvCell(period.to().toString()),
+            csvCell(((java.sql.Date) row.get("work_date")).toLocalDate().toString()),
+            csvCell(code),
+            csvCell(String.format(Locale.ROOT, "%.2f", hours)),
+            csvCell(unitCode),
             // The prototype has no separate cost-centre reference, so the unit code is used.
-            unitCode)
+            csvCell(unitCode))
         + "\n";
+  }
+
+  /**
+   * One CSV cell. RFC 4180 quoting only where the value needs it, and a leading {@code = + - @} is
+   * neutralised with a single quote so a spreadsheet cannot evaluate a hostile employee number or
+   * note as a formula (review-r2 P2). The demo values are unaffected, so the golden file stays
+   * byte-identical.
+   */
+  static String csvCell(String value) {
+    String clean = value == null ? "" : value;
+    if (!clean.isEmpty() && "=+-@".indexOf(clean.charAt(0)) >= 0) {
+      clean = "'" + clean;
+    }
+    if (clean.indexOf(',') >= 0
+        || clean.indexOf('"') >= 0
+        || clean.indexOf('\n') >= 0
+        || clean.indexOf('\r') >= 0) {
+      return '"' + clean.replace("\"", "\"\"") + '"';
+    }
+    return clean;
   }
 
   private static String sha256(String content) {
