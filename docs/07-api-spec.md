@@ -25,7 +25,7 @@
 | `400` | Malformed request or invalid values (field errors listed) |
 | `401` / `403` | Not signed in / role or unit scope doesn't allow it |
 | `404` | Not found, or outside the caller's scope (we don't reveal what exists) |
-| `409` | State conflict (e.g. pay period locked, offer already answered) |
+| `409` | State conflict (e.g. pay period locked, offer already answered, lock refused because past shifts lack actuals) |
 | `412` | Stale `If-Match` version |
 | `422` | **A rule blocked the change** (body includes `ruleResults`), or Warn results need acknowledgement |
 
@@ -99,7 +99,7 @@ Content-Type: application/problem+json
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
-| GET | `/schedule?unitId=&from=&to=` | **Planning board payload:** days, coverage per block (required / scheduled / actual), officer rows with assignments, overtime status per officer, warnings | SUPERVISOR, AUDITOR |
+| GET | `/schedule?unitId=&from=&to=` | **Planning board payload:** days, coverage per block (required / scheduled / actual, each with the lowest hourly count and the short hour ranges, see below), officer rows with assignments, overtime status per officer, warnings | SUPERVISOR, AUDITOR |
 | GET | `/me/schedule?from=&to=` | My shifts, hours this pay period, overtime this quarter, next shift | EMPLOYEE |
 | POST | `/rule-checks` | Preview any change (§3) | SUPERVISOR; EMPLOYEE for own proposals |
 | POST | `/assignments` | Assign a shift (§3 rules apply) | SUPERVISOR |
@@ -107,6 +107,17 @@ Content-Type: application/problem+json
 | DELETE | `/assignments/{id}` | Cancel (sets `CANCELLED`; never hard-deletes) | SUPERVISOR |
 | POST | `/schedule-periods/{id}/publish` | Publish a period | SUPERVISOR |
 | POST | `/absences` | Record sick, vacation or other (type only) | SUPERVISOR |
+
+**Coverage per block (ADR-013 revised, ADR-017):** coverage is hourly, so one number per block can hide a short hour. Each block in `GET /schedule` and `GET /display/today` carries:
+
+```json
+{ "block": "EVENING", "date": "2026-11-20", "required": 5,
+  "scheduled": { "lowestHourly": 4, "shortHours": [ { "from": "15:00", "to": "17:00", "count": 4 } ], "maxHourly": 6 },
+  "actual":    { "lowestHourly": 5, "shortHours": [] },
+  "covered": false }
+```
+
+`lowestHourly` is the minimum headcount over the block's hours; `shortHours` lists merged hour ranges below `required` (`to` is exclusive); `covered` is true when `shortHours` is empty. `actual` is present for past hours only. The display version has the same shape and still **no names**.
 
 ### 4.3 Overtime
 
@@ -137,7 +148,7 @@ Content-Type: application/problem+json
 | GET | `/pay-periods` | Periods with status | SUPERVISOR, AUDITOR |
 | GET | `/pay-periods/{id}/time-entries?employeeId=` | Scheduled vs actual entries with pay codes | SUPERVISOR, AUDITOR; EMPLOYEE (own) |
 | PUT | `/time-entries/{id}` | Record actuals (worked as scheduled / adjusted times / absence type) | SUPERVISOR |
-| POST | `/pay-periods/{id}/lock` | Lock: actuals become read-only | SUPERVISOR |
+| POST | `/pay-periods/{id}/lock` | Lock: actuals become read-only. **Refused with `409`** (`type: .../problems/missing-actuals`, body lists `missing: [{ assignmentId, employeeId, start }]` and a count) while any shift in the period that has ended (`end_at ≤ now`) has no actual time entry or absence (ADR-017) | SUPERVISOR |
 | POST | `/pay-periods/{id}/unlock` | `{ "reason" }`; audited | SUPERVISOR |
 | GET | `/pay-periods/{id}/payroll-export` | `text/csv`; locked periods only; records a `payroll_export` row with the file hash | SUPERVISOR |
 

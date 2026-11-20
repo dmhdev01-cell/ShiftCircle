@@ -170,7 +170,7 @@ README §6 already specifies this screen. It's in the Must list (step 11).
 
 ---
 
-## 3. Decisions in these notes (tell `dev.design` or the lead if they're wrong)
+## 3. Decisions in these notes (confirmed by the lead 2026-11-20, recorded as ADR-017)
 
 1. The coverage cell shows the lowest hourly count plus the short hours (§1.3). This needs the API to return them.
 2. A period can't be locked while past shifts have no actual (§2.2).

@@ -84,3 +84,14 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Why:** the lead's direction; matches averaging arrangements for long-shift rotations.
 **Governance note:** the Saskatchewan Employment Act's default overtime is daily/weekly; period averaging relies on a modified work arrangement or collective agreement provisions. Recorded as an assumption to confirm.
 **Consequences:** pay codes are recalculated for the whole period after any change and frozen on lock; the overtime ranking still uses overtime hours this quarter.
+
+## ADR-017 — UI build decisions: hourly coverage cells, lock precondition, counts-only rule review, explicit proposal decisions
+**Status:** Accepted (2026-11-20, lead confirmed; proposed in `docs/ui/build-notes.md` §3)
+**Decision:**
+1. **Coverage cells show the lowest hourly count and the short hours.** `GET /schedule` and `GET /display/today` return, per block, `lowestHourly`, `shortHours` and `covered` (`07-api-spec.md` §4.2). The wall display stays counts only.
+2. **A pay period can't be locked while any shift in it that has ended lacks an actual** (a time entry or an absence). The API refuses with `409 missing-actuals`; the UI disables "Lock pay period" and says how many are missing. The demo generator must give every past shift an actual (self-check 8).
+3. **The rule version review shows dry-run impact as counts** by rule, unit and date, never names, because `RULES_APPROVER` has no roster access (`09-access-control.md` §2).
+4. **Proposals are decided with an explicit Accept or Decline per item**, sent once; accepted items re-run the rules and follow the normal 422 / acknowledge / override contract.
+**Why:** (1) with hourly coverage (ADR-013) a single block number can read `5 / 5` while two hours are short; (2) exporting a period with unrecorded shifts would put wrong figures into payroll; (3) keeps the permission matrix true on every screen; (4) "not yet decided" must stay visible, and nothing auto-approves (HANDOFF guardrail 3).
+**Consequences:** extra fields in two endpoints; one new problem type; boundary test and scenario T14 in `10-testing.md`; generator self-check 8.
+

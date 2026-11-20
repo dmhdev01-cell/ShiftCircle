@@ -47,6 +47,7 @@ Each line is at least three tests: just under, exactly at, just over. Times are 
 | P-02 day of rest: 2×, min 2 h (off by default; test when switched on) | 1 h worked → paid 2 h OT20 | 2 h → 2 h OT20 | 8 h → 8 h OT20 |
 | P-04 OT under 30 min unpaid | 29 m → 0 | 30 m → 0.5 h | — |
 | L-01 / S-03 16 h regular only where allowed | 16 h rostered on a unit with `allows_16h` → PASS | 16 h rostered on a unit without it → **BLOCK** | — |
+| Pay-period lock precondition (ADR-017) | one shift ended 1 min before now with no actual → lock **409 missing-actuals** | shift ending exactly now (`end_at = now`) with no actual → **409** (it counts as ended); with an actual or absence → lock succeeds | shift ending 1 min after now with no actual → not counted; lock succeeds if all ended shifts are recorded |
 | Time zones / midnight | Night 23:00–07:00 crossing midnight: `work_date` = start date; a 12:00–24:00 shift **ends at 00:00 the next day** (not 23:59); 00:00–12:00 shift belongs to its own date; a 16 h shift 20:00–12:00 spans two dates; rest maths correct across midnight and month end (31 Oct → 1 Nov) | | |
 
 ## 4. Scenario library (named, reusable)
@@ -68,6 +69,7 @@ These are the verification cases. Pick 2–5 for the build record (recommended: 
 | T11 | Supervisor edits an actual in a locked pay period | `409`; database trigger also refuses |
 | T12 | Employee requests another officer's hours | `404` (not revealed) |
 | T13 | Validation: a rule row value below the legal floor (U-01 = 7) | Build fails validation with a plain message; can't be submitted |
+| T14 | Supervisor locks a pay period with 3 ended shifts lacking actuals (ADR-017) | `409 missing-actuals` listing the 3; period stays open; after recording them, lock succeeds and is audited |
 
 ## 5. End-to-end demo flows (Playwright)
 
@@ -161,6 +163,7 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 5. For every locked pay period: sum of actual time entries = sum of payroll export lines per officer.
 6. Every person row has `is_synthetic = true`; no name appears outside the fixed lists.
 7. Re-running with the same seed produces identical row counts and a matching checksum of assignments.
+8. Every assignment that ended before "today" has an actual time entry or an absence (so every past period can be locked, ADR-017).
 
 ## 7. Test data hygiene
 
