@@ -109,6 +109,14 @@ const PC01_RESULTS: RuleResult[] = [
     source: 'Saskatchewan Employment Act',
   },
   {
+    ruleCode: 'U-05',
+    ruleTable: 'MAX_HOURS',
+    outcome: 'BLOCK',
+    overridePolicy: 'EMERGENCY',
+    message: '17 hours of work in 24 hours (Fri 12:00 – Sat 12:00).',
+    facts: { hours: 17, maxHours: 16 },
+  },
+  {
     ruleCode: 'U-14',
     ruleTable: 'MAX_HOURS',
     outcome: 'BLOCK',

@@ -185,6 +185,51 @@ export function RuleCheckPanel({
         </Box>
       ) : null}
 
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+        {blocking.length > 0 ? (
+          <Button
+            variant={hasPrimary ? 'outlined' : 'contained'}
+            color="primary"
+            component={Link}
+            to={findEligibleHref}
+          >
+            Find eligible officer
+          </Button>
+        ) : null}
+
+        {state.kind === 'saved' ? (
+          <Button variant="outlined" color="primary" onClick={onCancel}>
+            Done
+          </Button>
+        ) : (
+          <Button variant="outlined" color="primary" onClick={onCancel}>
+            Close
+          </Button>
+        )}
+
+        {canOverride ? (
+          <Button variant="outlined" color="error" onClick={onOverride}>
+            Emergency override…
+          </Button>
+        ) : null}
+
+        {showAcknowledge ? (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => onAcknowledge(unacknowledged.map((result) => result.ruleCode))}
+          >
+            Acknowledge and assign
+          </Button>
+        ) : null}
+
+        {showSave ? (
+          <Button variant="contained" color="primary" onClick={onSave}>
+            {saveLabel}
+          </Button>
+        ) : null}
+      </Box>
+
       {outcome && outcome.ruleResults.length > 0 ? (
         <Box
           component="ul"
@@ -244,54 +289,11 @@ export function RuleCheckPanel({
         </Box>
       ) : null}
 
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-        {blocking.length > 0 ? (
-          <Button
-            variant={hasPrimary ? 'outlined' : 'contained'}
-            color="primary"
-            component={Link}
-            to={findEligibleHref}
-          >
-            Find eligible officer
-          </Button>
-        ) : null}
-
-        {state.kind === 'saved' ? (
-          <Button variant="outlined" color="primary" onClick={onCancel}>
-            Done
-          </Button>
-        ) : (
-          <Button variant="outlined" color="primary" onClick={onCancel}>
-            Close
-          </Button>
-        )}
-
-        {canOverride ? (
-          <Button variant="outlined" color="error" onClick={onOverride}>
-            Emergency override…
-          </Button>
-        ) : null}
-
-        {showAcknowledge ? (
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => onAcknowledge(unacknowledged.map((result) => result.ruleCode))}
-          >
-            Acknowledge and assign
-          </Button>
-        ) : null}
-
-        {showSave ? (
-          <Button variant="contained" color="primary" onClick={onSave}>
-            {saveLabel}
-          </Button>
-        ) : null}
-      </Box>
-
-      <p style={{ margin: 0, fontSize: 12, color: colour.text.secondary, lineHeight: 1.5 }}>
-        An override needs a written reason. It is saved to the audit log and flagged in reports.
-      </p>
+      {canOverride ? (
+        <p style={{ margin: 0, fontSize: 12, color: colour.text.secondary, lineHeight: 1.5 }}>
+          An override needs a written reason. It is saved to the audit log and flagged in reports.
+        </p>
+      ) : null}
     </Box>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -83,6 +83,14 @@ export function PlanningPage() {
   const [proposal, setProposal] = useState<{ officer: OfficerRow; item: ShiftItem } | null>(null);
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const lastFocus = useRef<HTMLElement | null>(null);
+
+  /** Put focus back on the cell or chip that opened the dock. */
+  const restoreFocus = () => {
+    const target = lastFocus.current;
+    lastFocus.current = null;
+    window.setTimeout(() => target?.focus?.({ preventScroll: true }), 0);
+  };
 
   // Keep the evidence beside the verdict: a non-modal bottom sheet, and the
   // selected cell scrolled above it.
@@ -126,8 +134,11 @@ export function PlanningPage() {
     if (!ruleCheckOpen) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
+      // An override dialog above the dock owns Escape first.
+      if (document.querySelector('[role="dialog"]')) return;
       setPending(null);
       mutation.reset();
+      restoreFocus();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -190,6 +201,8 @@ export function PlanningPage() {
       .map((result) => result.ruleCode) ?? [];
 
   const startChoose = (officer: OfficerRow, date: string) => {
+    lastFocus.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setPending({ officer, date, template: 'D8' });
   };
 
@@ -200,6 +213,8 @@ export function PlanningPage() {
   const pickChip = (officer: OfficerRow, item: ShiftItem) => {
     setPending(null);
     if (item.proposed) {
+      lastFocus.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
       setProposal({ officer, item });
       void mutation.preview({
         type: 'ASSIGN',
@@ -229,6 +244,7 @@ export function PlanningPage() {
   const cancelChange = () => {
     setPending(null);
     mutation.reset();
+    restoreFocus();
   };
 
   const template = pending ? shiftTemplates[pending.template] : undefined;
@@ -349,7 +365,7 @@ export function PlanningPage() {
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
           gap: 3,
         }}
       >

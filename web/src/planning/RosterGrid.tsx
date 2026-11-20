@@ -165,8 +165,9 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGr
               return (
                 <tr key={block}>
                   <td
-                    colSpan={2}
                     style={{
+                      width: 165,
+                      minWidth: 165,
                       fontWeight: 600,
                       padding: 8,
                       backgroundColor: colour.bg.subtle,
@@ -183,6 +184,12 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGr
                       needs {requirement}
                     </span>
                   </td>
+                  <td
+                    style={{
+                      backgroundColor: colour.bg.subtle,
+                      borderBottom: `1px solid ${colour.border.default}`,
+                    }}
+                  />
                   {payload.days.map((date) => {
                     const entry = payload.coverage.find(
                       (item) => item.block === block && item.date === date,

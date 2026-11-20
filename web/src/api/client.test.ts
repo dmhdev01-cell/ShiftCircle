@@ -72,7 +72,7 @@ describe('the fixture api', () => {
     // U-14 is a Block with an ACKNOWLEDGE policy, so the change is not
     // overridable; this matches the real api's PC-01 answer.
     expect(outcome.overridable).toBe(false);
-    expect(outcome.ruleResults.map((result) => result.ruleCode)).toEqual(['U-01', 'U-14']);
+    expect(outcome.ruleResults.map((result) => result.ruleCode)).toEqual(['U-01', 'U-05', 'U-14']);
     expect(outcome.ruleResults[0].evidence?.[0].label).toBe('Fri 20 P12 12:00–24:00');
   });
 
@@ -88,7 +88,7 @@ describe('the fixture api', () => {
       expect(apiError.status).toBe(422);
       expect(apiError.blockedByRules).toBe(true);
       expect(apiError.problem?.type).toBe(BLOCKED_BY_RULES);
-      expect(apiError.problem?.ruleResults).toHaveLength(2);
+      expect(apiError.problem?.ruleResults).toHaveLength(3);
     }
   });
 
@@ -106,6 +106,7 @@ describe('the fixture api', () => {
       expect(apiError.blockedByRules).toBe(true);
       expect(apiError.problem?.ruleResults?.map((result) => result.ruleCode)).toEqual([
         'U-01',
+        'U-05',
         'U-14',
       ]);
     }

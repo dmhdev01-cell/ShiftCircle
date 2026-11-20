@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
@@ -98,7 +98,7 @@ describe('the planning board', () => {
     await user.click(chip);
 
     expect(await screen.findByRole('heading', { name: /Assign Nia Thompson/ })).toBeInTheDocument();
-    expect(await screen.findByText('Blocked: 2 rules fail')).toBeInTheDocument();
+    expect(await screen.findByText('Blocked: 3 rules fail')).toBeInTheDocument();
     expect(screen.getByText(/U-01 · Minimum rest/)).toBeInTheDocument();
     // "Find eligible officer" carries the slot, so the overtime board can open
     // the matching open shift instead of whichever is first.
@@ -118,6 +118,29 @@ describe('the planning board', () => {
     ).toBeInTheDocument();
   });
 
+  it('returns focus to the chip when the verdict is closed', async () => {
+    const user = userEvent.setup();
+    renderBoard();
+
+    const chip = await screen.findByRole('button', { name: /! D proposed for Nia Thompson/ });
+    await user.click(chip);
+    await user.click(await screen.findByRole('button', { name: 'Close' }));
+
+    await waitFor(() => expect(chip).toHaveFocus());
+  });
+
+  it('returns focus to the chip when Escape closes the verdict', async () => {
+    const user = userEvent.setup();
+    renderBoard();
+
+    const chip = await screen.findByRole('button', { name: /! D proposed for Nia Thompson/ });
+    await user.click(chip);
+    await screen.findByRole('region', { name: 'Rule check' });
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => expect(chip).toHaveFocus());
+  });
+
   it('offers a skip link straight to the roster', async () => {
     renderBoard();
 
@@ -131,7 +154,7 @@ describe('the planning board', () => {
     renderBoard();
 
     await user.click(await screen.findByRole('button', { name: /! D proposed for Nia Thompson/ }));
-    expect(await screen.findByText('Blocked: 2 rules fail')).toBeInTheDocument();
+    expect(await screen.findByText('Blocked: 3 rules fail')).toBeInTheDocument();
 
     expect(screen.queryByRole('button', { name: 'Emergency override…' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Acknowledge/ })).not.toBeInTheDocument();

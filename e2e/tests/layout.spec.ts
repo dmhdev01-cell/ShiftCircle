@@ -48,6 +48,15 @@ test.describe('the week and the pay period fit a laptop', () => {
       element.scrollLeft = element.scrollWidth;
     });
     await expect(firstColumn).toBeInViewport();
+    // The sticky coverage label is no wider than the officer column, so it
+    // cannot cover the first coverage cell.
+    const officerHeader = roster.getByRole('columnheader', { name: 'Officer' });
+    const [labelBox, officerBox] = await Promise.all([
+      firstColumn.boundingBox(),
+      officerHeader.boundingBox(),
+    ]);
+    expect(labelBox && officerBox).toBeTruthy();
+    expect(Math.abs((labelBox?.width ?? 0) - (officerBox?.width ?? 0))).toBeLessThanOrEqual(1);
 
     await navTo(page, 'Time & attendance');
     await expect(page.getByText('Scroll sideways for more days.')).toBeVisible();

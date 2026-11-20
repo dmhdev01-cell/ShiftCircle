@@ -20,9 +20,10 @@ test.describe('E1 blocked assignment (PC-01)', () => {
     await page.getByRole('button', { name: PC01_CHIP }).click();
 
     await expect(page.getByRole('heading', { name: /Assign Nia Thompson/ })).toBeVisible();
-    await expect(page.getByText('Blocked: 2 rules fail')).toBeVisible();
+    await expect(page.getByText('Blocked: 3 rules fail')).toBeVisible();
     // The reasons name the rules and say why, in plain words.
     await expect(page.getByText(/U-01 · Minimum rest/)).toBeVisible();
+    await expect(page.getByText(/U-05/).first()).toBeVisible();
     await expect(page.getByText(/U-14/).first()).toBeVisible();
     // The fixture's U-01 text says "7 hours' rest"; the api says "Less than 8 hours rest".
     await expect(page.getByText(/Less than 8 hours rest|7 hours' rest/)).toBeVisible();
@@ -35,11 +36,21 @@ test.describe('E1 blocked assignment (PC-01)', () => {
     await expectAccessible(page, testInfo, 'planning-rule-check');
   });
 
+  test('@fixtures the dock keeps its primary action above the fold', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await signIn(page, 'M. Ellis');
+    await page.getByRole('button', { name: PC01_CHIP }).click();
+
+    await expect(page.getByText('Blocked: 3 rules fail')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Find eligible officer' })).toBeInViewport();
+    await expect(page.getByRole('button', { name: 'Close' })).toBeInViewport();
+  });
+
   test('@fixtures a Block with an ACKNOWLEDGE policy offers no way past it', async ({ page }, testInfo) => {
     await signIn(page, 'M. Ellis');
     await page.getByRole('button', { name: PC01_CHIP }).click();
 
-    await expect(page.getByText('Blocked: 2 rules fail')).toBeVisible();
+    await expect(page.getByText('Blocked: 3 rules fail')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Emergency override…' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Acknowledge/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Assign shift' })).toHaveCount(0);

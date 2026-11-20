@@ -18,13 +18,15 @@ test.describe('keyboard only', () => {
     const presses = await tabTo(page, chip, 150);
     test.info().annotations.push({ type: 'tabs to the PC-01 chip', description: String(presses) });
     await page.keyboard.press('Enter');
-    await expect(page.getByText('Blocked: 2 rules fail')).toBeVisible();
+    await expect(page.getByText('Blocked: 3 rules fail')).toBeVisible();
     // Focus moves to the result, so a keyboard user is not left behind.
     await expect(page.getByRole('heading', { name: /Assign Nia Thompson/ })).toBeFocused();
 
     await tabTo(page, page.getByRole('button', { name: 'Close' }), 20);
     await page.keyboard.press('Enter');
     await expect(page.getByRole('region', { name: 'Rule check' })).toBeHidden();
+    // A: closing the dock returns focus to the chip that opened it.
+    await expect(chip).toBeFocused();
   });
 
   test('@fixtures E1: the skip link goes straight to the roster', async ({ page }) => {
