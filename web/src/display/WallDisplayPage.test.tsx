@@ -187,6 +187,10 @@ describe('Wall display', () => {
     const unitA = screen.getByRole('region', { name: 'Unit A · Living unit' });
     expect(within(unitA).getByText('Last known: Covered')).toBeInTheDocument();
     expect(within(unitA).queryByText('Covered')).not.toBeInTheDocument();
+    // Old per-block detail is hidden, the totals say they are last known, and no browser jargon reaches the TV.
+    expect(within(unitA).queryByText(/Evenings 15:00/)).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Facility today · last known' })).toBeInTheDocument();
+    expect(alert).not.toHaveTextContent('Could not reach the API');
     expect(screen.getByText(/updated 14:32 · not live/)).toBeInTheDocument();
 
     // When the api is back, the next refresh is live again.

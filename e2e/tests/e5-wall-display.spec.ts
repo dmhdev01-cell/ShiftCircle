@@ -56,7 +56,7 @@ test.describe('E5 wall display', () => {
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
 
-  test('@api says it is not live when the api cannot be reached, and recovers', async ({ page }) => {
+  test('@api says it is not live when the api cannot be reached, and recovers', async ({ page }, testInfo) => {
     await page.clock.install({ time: DEMO_TIME });
     await openAsDisplay(page);
     await expect(page.getByRole('alert')).toHaveCount(0);
@@ -65,6 +65,17 @@ test.describe('E5 wall display', () => {
     await page.clock.runFor(61_000);
     await expect(page.getByRole('alert')).toContainText('Not live: no update since');
     await expect(page.getByText(/^Last known: /).first()).toBeVisible();
+    // The banner takes room: the stale screen must fit too (it once spilled into the footer).
+    if (testInfo.project.name === 'desktop') {
+      for (const size of [
+        { width: 1920, height: 1080 },
+        { width: 1366, height: 768 },
+      ]) {
+        await page.setViewportSize(size);
+        await expectFits(page, `stale ${size.width}×${size.height}`);
+      }
+    }
+    await expect(page.getByRole('heading', { name: 'Facility today · last known' })).toBeVisible();
 
     await page.unroute('**/api/v1/display/today');
     await page.clock.runFor(61_000);
@@ -95,19 +106,26 @@ test.describe('E5 wall display', () => {
       await page.setViewportSize(size);
       await openAsDisplay(page);
       await page.clock.runFor(2_000);
-      const overflow = await page.evaluate(() => ({
-        vertical: Math.max(0, document.documentElement.scrollHeight - window.innerHeight),
-        horizontal: Math.max(0, document.documentElement.scrollWidth - window.innerWidth),
-      }));
-      expect(overflow, `page overflow at ${size.width}×${size.height}`).toEqual({ vertical: 0, horizontal: 0 });
-      // The page not scrolling isn't enough: a card can spill over its
-      // neighbour or the footer. Every card and the main area must hold its content.
-      const spilled = await page.evaluate(() =>
-        [...document.querySelectorAll<HTMLElement>('main, main section[aria-label]')]
-          .filter((element) => element.scrollHeight > element.clientHeight + 1 || element.scrollWidth > element.clientWidth + 1)
-          .map((element) => `${element.getAttribute('aria-label') ?? 'main'} (${element.scrollHeight} > ${element.clientHeight})`),
-      );
-      expect(spilled, `content spilling out at ${size.width}×${size.height}`).toEqual([]);
+      await expectFits(page, `${size.width}×${size.height}`);
     }
   });
 });
+
+/**
+ * The page doesn't scroll, and nothing spills: a card can overflow onto its
+ * neighbour or the footer without the page scrolling, so every card and the
+ * main area must hold its content.
+ */
+async function expectFits(page: import('@playwright/test').Page, label: string): Promise<void> {
+  const overflow = await page.evaluate(() => ({
+    vertical: Math.max(0, document.documentElement.scrollHeight - window.innerHeight),
+    horizontal: Math.max(0, document.documentElement.scrollWidth - window.innerWidth),
+  }));
+  expect(overflow, `page overflow at ${label}`).toEqual({ vertical: 0, horizontal: 0 });
+  const spilled = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>('main, main section[aria-label]')]
+      .filter((element) => element.scrollHeight > element.clientHeight + 1 || element.scrollWidth > element.clientWidth + 1)
+      .map((element) => `${element.getAttribute('aria-label') ?? 'main'} (${element.scrollHeight} > ${element.clientHeight})`),
+  );
+  expect(spilled, `content spilling out at ${label}`).toEqual([]);
+}

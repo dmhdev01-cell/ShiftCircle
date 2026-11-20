@@ -33,6 +33,8 @@ const C = {
   dark: '#333333',
   grassText: '#1F2A0A',
   neutral: '#5A6066',
+  /** Dimmed old counts: still 4.2:1 on the card, so large text stays readable. */
+  stale: '#8E959B',
 };
 
 /** A length that scales with the screen: n design pixels at 1920×1080. */
@@ -151,17 +153,17 @@ function Pill({ status, live }: { status: Status; live: boolean }) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: s(8),
-        height: s(38),
+        height: s(42),
         px: s(16),
-        borderRadius: s(19),
-        fontSize: s(20),
+        borderRadius: s(21),
+        fontSize: s(22, 14),
         fontWeight: 700,
         whiteSpace: 'nowrap',
         backgroundColor: palette.bg,
         color: palette.fg,
       }}
     >
-      <Icon kind={status.kind} size={20} />
+      <Icon kind={status.kind} size={22} />
       {live ? statusWords(status) : `Last known: ${statusWords(status)}`}
     </Box>
   );
@@ -180,7 +182,8 @@ function UnitCard({ entry, now, live }: { entry: DisplayUnit; now: Block; live: 
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between',
+        // Stale cards have no detail list, so keep the name and the number together.
+        justifyContent: live ? 'space-between' : 'flex-start',
         gap: s(10),
         p: `${s(20)} ${s(24)}`,
         minWidth: 0,
@@ -198,7 +201,8 @@ function UnitCard({ entry, now, live }: { entry: DisplayUnit; now: Block; live: 
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: s(12), flexWrap: 'wrap' }}>
             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: s(12) }}>
-              <Box component="span" sx={{ fontSize: s(84, 28), fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+              {/* Old counts are dimmed, so from across the room they don't read as live. */}
+              <Box component="span" sx={{ fontSize: s(84, 28), fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums', color: live ? C.text : C.stale }}>
                 {current.scheduled.lowestHourly} / {current.required}
               </Box>
               <Box component="span" sx={{ fontSize: s(22), color: C.muted }}>on duty</Box>
@@ -210,6 +214,8 @@ function UnitCard({ entry, now, live }: { entry: DisplayUnit; now: Block; live: 
         <Box sx={{ fontSize: s(24), color: C.muted }}>No requirement for this block</Box>
       )}
 
+      {/* When stale, the per-block detail is hidden: old detail shouldn't look current, and the banner needs the room. */}
+      {live ? (
       <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, pt: s(10), borderTop: `1px solid ${C.rule}`, display: 'flex', flexDirection: 'column', gap: s(4) }}>
         {others.map((item) => {
           const status = statusOf(item);
@@ -242,11 +248,12 @@ function UnitCard({ entry, now, live }: { entry: DisplayUnit; now: Block; live: 
           </span>
         </Box>
       </Box>
+      ) : null}
     </Box>
   );
 }
 
-function FacilityPanel({ data, now }: { data: DisplayToday; now: Block }) {
+function FacilityPanel({ data, now, live }: { data: DisplayToday; now: Block; live: boolean }) {
   const blocks = data.units.flatMap((entry) => entry.coverage);
   const shortNow = blocks.filter((item) => item.block === now && !item.covered).length;
   const shortTonight = blocks.filter((item) => item.block === 'NIGHT' && !item.covered).length;
@@ -258,12 +265,14 @@ function FacilityPanel({ data, now }: { data: DisplayToday; now: Block }) {
   ];
   return (
     <Box component="section" aria-label="Facility today" sx={{ display: 'flex', flexDirection: 'column', gap: s(14), p: `${s(28)} ${s(32)}`, backgroundColor: C.card, borderRadius: s(20) }}>
-      <Box component="h2" sx={{ m: 0, fontSize: s(28), fontWeight: 700 }}>Facility today</Box>
+      <Box component="h2" sx={{ m: 0, fontSize: s(28), fontWeight: 700 }}>
+        {live ? 'Facility today' : 'Facility today · last known'}
+      </Box>
       <Box component="dl" sx={{ m: 0, display: 'flex', flexDirection: 'column', gap: s(10) }}>
         {rows.map(([label, value]) => (
           <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', gap: s(12), fontSize: s(24) }}>
             <Box component="dt" sx={{ color: C.muted }}>{label}</Box>
-            <Box component="dd" sx={{ m: 0, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{value}</Box>
+            <Box component="dd" sx={{ m: 0, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: live ? C.text : C.stale }}>{value}</Box>
           </Box>
         ))}
       </Box>
@@ -274,7 +283,7 @@ function FacilityPanel({ data, now }: { data: DisplayToday; now: Block }) {
   );
 }
 
-function StaleBanner({ updatedAt, error }: { updatedAt: number | null; error: string | null }) {
+function StaleBanner({ updatedAt }: { updatedAt: number | null }) {
   return (
     <Box
       role="alert"
@@ -295,7 +304,6 @@ function StaleBanner({ updatedAt, error }: { updatedAt: number | null; error: st
         {updatedAt === null
           ? `Not updating: can't reach ShiftCircle. Trying again every ${REFRESH_MS / 1000} seconds.`
           : `Not live: no update since ${clockTime(updatedAt)}. These counts may be out of date.`}
-        {error ? ` (${error})` : ''}
       </span>
     </Box>
   );
@@ -358,7 +366,7 @@ export function WallDisplayPage() {
         </Box>
       </Box>
 
-      {stale ? <StaleBanner updatedAt={updatedAt} error={error} /> : null}
+      {stale ? <StaleBanner updatedAt={updatedAt} /> : null}
 
       <Box component="main" sx={{ flex: 1, minHeight: 0, display: 'flex', gap: s(28), flexWrap: { xs: 'wrap', md: 'nowrap' } }}>
         {data ? (
@@ -378,7 +386,7 @@ export function WallDisplayPage() {
               ))}
             </Box>
             <Box sx={{ width: { xs: '100%', md: s(440) }, flexShrink: 0 }}>
-              <FacilityPanel data={data} now={block} />
+              <FacilityPanel data={data} now={block} live={live} />
             </Box>
           </>
         ) : error === null ? (
