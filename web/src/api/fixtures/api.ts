@@ -10,6 +10,7 @@
 import { ApiError } from '../http';
 import { getSessionUser } from '../session';
 import type {
+  AssignmentChangeResult,
   AuditPage,
   AuditQuery,
   BuildReport,
@@ -68,10 +69,25 @@ import { demoUsers } from './demoUsers';
 import { demoDisplayToday } from './display';
 import { toDisplayToday } from '../../display/displayPayload';
 import { demoBuildReport, demoRuleSets, demoRuleTables } from './rules';
-import { demoSchedule, PC01_CHANGE } from './schedule';
+import { demoSchedule, PC01_CHANGE, shift } from './schedule';
 import { demoPayPeriods, demoTimeEntries, unitCodeFor } from './timeAttendance';
 
 const LATENCY_MS = 120;
+
+/** The officer, day cell and item for a rostered shift in the fixture schedule. */
+function findShift(assignmentId: string) {
+  for (const officer of demoSchedule.officers) {
+    for (const cell of officer.cells) {
+      const item = cell.items.find(
+        (entry) => entry.type === 'SHIFT' && entry.assignmentId === assignmentId,
+      );
+      if (item?.type === 'SHIFT') {
+        return { officer, cell, item };
+      }
+    }
+  }
+  return null;
+}
 const RULE_SET_VERSION = 7;
 const RULE_SET_PUBLISHED_AT = '13:50';
 
@@ -291,6 +307,70 @@ export function createFixtureApi(): ShiftCircleApi {
 
       assignmentCounter += 1;
       return { assignmentId: `a-fixture-${assignmentCounter}`, ruleOutcome: outcome };
+    },
+
+    async moveAssignment(
+      assignmentId: string,
+      version: number,
+      request: SaveRequest,
+    ): Promise<AssignmentChangeResult> {
+      await wait(LATENCY_MS);
+      const found = findShift(assignmentId);
+      if (!found) {
+        throw new ApiError('That shift is not in the fixture.', 404);
+      }
+      if (found.item.version !== version) {
+        throw new ApiError('This shift changed since the board loaded. Reload the board.', 412, {
+          type: 'https://shiftcircle.local/problems/stale-version',
+          title: 'Stale version',
+          status: 412,
+          detail: 'This shift changed since the board loaded. Reload the board.',
+        });
+      }
+      if (request.change.employeeId !== found.officer.employeeId) {
+        throw new ApiError('The demo fixture can only move a shift within its officer.', 400);
+      }
+      const date = request.change.startAt.slice(0, 10);
+      const target = found.officer.cells.find((cell) => cell.date === date);
+      if (!target) {
+        throw new ApiError('The demo fixture only moves within the visible week.', 400);
+      }
+      found.cell.items = found.cell.items.filter(
+        (entry) => !(entry.type === 'SHIFT' && entry.assignmentId === assignmentId),
+      );
+      const moved = shift(assignmentId, request.change.shiftTemplate, date, {
+        kind: found.item.kind,
+        worked: false,
+        offer: found.item.offer,
+        proposed: found.item.proposed,
+      });
+      moved.version = version + 1;
+      target.items.push(moved);
+      return { id: assignmentId, status: 'PLANNED', version: version + 1 };
+    },
+
+    async cancelAssignment(
+      assignmentId: string,
+      version: number,
+      _reason: string,
+    ): Promise<AssignmentChangeResult> {
+      await wait(LATENCY_MS);
+      const found = findShift(assignmentId);
+      if (!found) {
+        throw new ApiError('That shift is not in the fixture.', 404);
+      }
+      if (found.item.version !== version) {
+        throw new ApiError('This shift changed since the board loaded. Reload the board.', 412, {
+          type: 'https://shiftcircle.local/problems/stale-version',
+          title: 'Stale version',
+          status: 412,
+          detail: 'This shift changed since the board loaded. Reload the board.',
+        });
+      }
+      found.cell.items = found.cell.items.filter(
+        (entry) => !(entry.type === 'SHIFT' && entry.assignmentId === assignmentId),
+      );
+      return { id: assignmentId, status: 'CANCELLED', version: version + 1 };
     },
 
     async getOpenShifts(query: OpenShiftQuery): Promise<OpenShift[]> {

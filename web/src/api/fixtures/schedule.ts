@@ -60,6 +60,7 @@ export function shift(
     endAt: `${endDate}T${endTime}:00${TZ}`,
     kind: options.kind ?? 'ROSTERED',
     worked: options.worked ?? date < DEMO_TODAY,
+    version: 0,
     ...(options.offer ? { offer: true } : {}),
     ...(options.proposed ? { proposed: true } : {}),
   };

@@ -429,7 +429,9 @@ export function PlanningPage() {
         <ShiftActionsDialog
           officer={shiftActions.officer}
           item={shiftActions.item}
+          unitId={payload.unit.id}
           onClose={() => setShiftActions(null)}
+          onChanged={reload}
         />
       ) : null}
 

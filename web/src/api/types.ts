@@ -70,8 +70,7 @@ export const WARNINGS_NEED_ACKNOWLEDGEMENT =
 export type RuleCheckChange = {
   /**
    * ASSIGN is a rostered shift; EXTRA is one picked up beyond the roster
-   * (docs/07 §3). The api has no move or cancel endpoint yet, so the screens
-   * do not send one.
+   * (docs/07 §3). PATCH /assignments/{id} uses the same change shape.
    */
   type: 'ASSIGN' | 'EXTRA';
   employeeId: string;
@@ -140,6 +139,8 @@ export interface ShiftItem {
   offer?: boolean;
   /** Proposed but blocked by a rule. */
   proposed?: boolean;
+  /** The row version for If-Match; the api sends it with every SHIFT item. */
+  version: number;
 }
 
 export interface AbsenceItem {
@@ -629,6 +630,17 @@ export interface SaveRequest {
   override?: { reason: string };
 }
 
+/** The api's answer to PATCH or DELETE /assignments/{id}. */
+export interface AssignmentChangeResult {
+  id: string;
+  status: string;
+  version: number;
+  outcome?: RuleOutcome;
+  ruleSetVersion?: number;
+  overridable?: boolean;
+  ruleResults?: RuleResult[];
+}
+
 export interface SaveOutcome {
   /** The assignment that was created, moved or cancelled. */
   assignmentId?: string;
@@ -645,6 +657,20 @@ export interface ShiftCircleApi {
   getSchedule(query: ScheduleQuery): Promise<SchedulePayload>;
   previewRuleCheck(request: RuleCheckRequest): Promise<RuleCheckOutcome>;
   saveChange(request: SaveRequest): Promise<SaveOutcome>;
+
+  /** PATCH /assignments/{id}; the version goes in If-Match. */
+  moveAssignment(
+    assignmentId: string,
+    version: number,
+    request: SaveRequest,
+  ): Promise<AssignmentChangeResult>;
+
+  /** DELETE /assignments/{id} with a reason; the version goes in If-Match. */
+  cancelAssignment(
+    assignmentId: string,
+    version: number,
+    reason: string,
+  ): Promise<AssignmentChangeResult>;
 
   // Overtime.
   getOpenShifts(query: OpenShiftQuery): Promise<OpenShift[]>;

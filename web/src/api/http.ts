@@ -32,6 +32,7 @@ import type {
   AuditQuery,
   SchedulePayload,
   ScheduleQuery,
+  AssignmentChangeResult,
   ShiftCircleApi,
 } from './types';
 
@@ -187,6 +188,34 @@ export function createHttpApi(): ShiftCircleApi {
       return request<SaveOutcome>('/assignments', {
         method: 'POST',
         body,
+      });
+    },
+
+    moveAssignment(
+      assignmentId: string,
+      version: number,
+      save: SaveRequest,
+    ): Promise<AssignmentChangeResult> {
+      return request<AssignmentChangeResult>(`/assignments/${assignmentId}`, {
+        method: 'PATCH',
+        headers: { 'If-Match': `"${version}"` },
+        body: JSON.stringify({
+          change: save.change,
+          ...(save.acknowledgeWarnings ? { acknowledgeWarnings: save.acknowledgeWarnings } : {}),
+          ...(save.override ? { override: save.override } : {}),
+        }),
+      });
+    },
+
+    cancelAssignment(
+      assignmentId: string,
+      version: number,
+      reason: string,
+    ): Promise<AssignmentChangeResult> {
+      return request<AssignmentChangeResult>(`/assignments/${assignmentId}`, {
+        method: 'DELETE',
+        headers: { 'If-Match': `"${version}"` },
+        body: JSON.stringify({ reason }),
       });
     },
 
