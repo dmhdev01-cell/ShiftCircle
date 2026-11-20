@@ -80,6 +80,8 @@ export const demoRuleTables: RuleTable[] = [
   {
     code: 'rest-between-shifts',
     name: 'Rest between shifts',
+    hoursParam: 'minRestHours',
+    afterParam: 'afterShiftKind',
     columns: {
       after: 'After this kind of shift…',
       hours: '…needs at least',
@@ -92,6 +94,7 @@ export const demoRuleTables: RuleTable[] = [
   {
     code: 'maximum-hours',
     name: 'Maximum hours',
+    hoursParam: 'maxHours',
     columns: {
       after: 'In a window of…',
       hours: '…at most',
@@ -127,6 +130,7 @@ export const demoRuleTables: RuleTable[] = [
   {
     code: 'consecutive-work',
     name: 'Consecutive work',
+    hoursParam: 'max',
     columns: {
       after: 'Counting…',
       hours: '…at most',
@@ -151,6 +155,7 @@ export const demoRuleTables: RuleTable[] = [
   {
     code: 'sixteen-hour-shifts',
     name: '16-hour shifts',
+    hoursParam: 'maxIn7Days',
     columns: {
       after: 'In a window of…',
       hours: '…at most',
@@ -175,6 +180,7 @@ export const demoRuleTables: RuleTable[] = [
   {
     code: 'days-off',
     name: 'Days off',
+    hoursParam: 'daysOff',
     columns: {
       after: 'Within…',
       hours: '…at least',
@@ -199,6 +205,7 @@ export const demoRuleTables: RuleTable[] = [
   {
     code: 'pay-classification',
     name: 'Pay classification',
+    hoursParam: 'thresholdHours',
     columns: {
       after: 'In a window of…',
       hours: '…at most',

@@ -58,16 +58,16 @@ public class RuleCheckService {
   }
 
   public OutcomeView evaluate(Change change) {
-    return evaluate(change, publishedVersion());
+    return evaluate(change, published.snapshot());
   }
 
   /**
-   * The same evaluation, with the published version already read.
+   * The same evaluation against one already-read snapshot.
    *
-   * <p>Ranking an open shift asks this once per candidate; reading the version once per request
-   * keeps a 100-officer list from making 100 identical queries.
+   * <p>The caller reads the snapshot once so the label it reports and the base it evaluates came
+   * from the same publish; ranking 100 officers or checking a label must not straddle a hot swap.
    */
-  public OutcomeView evaluate(Change change, int ruleSetVersion) {
+  public OutcomeView evaluate(Change change, PublishedRuleSet.Snapshot live) {
     Map<String, Object> employee =
         jdbc.queryForMap(
             "SELECT e.employee_no, u.code AS unit_code, u.allows_12h, u.allows_16h"
@@ -105,16 +105,13 @@ public class RuleCheckService {
     facts.addAll(new ShiftLengthFactBuilder().build(shifts));
 
     List<RuleResult> results =
-        evaluator.evaluate(published.kieBase(), String.valueOf(ruleSetVersion), facts.toArray());
-    return summarise(results, ruleSetVersion);
+        evaluator.evaluate(live.kieBase(), String.valueOf(live.version()), facts.toArray());
+    return summarise(results, live.version());
   }
 
   /** The live rule set's version, so a published v2 is reported without a code change (step 11). */
   public int publishedVersion() {
-    Integer version =
-        jdbc.queryForObject(
-            "SELECT version FROM rule_set_version WHERE status = 'PUBLISHED'", Integer.class);
-    return version == null ? 1 : version;
+    return published.version();
   }
 
   private List<ShiftFact> existingShifts(UUID employeeId, Instant around) {

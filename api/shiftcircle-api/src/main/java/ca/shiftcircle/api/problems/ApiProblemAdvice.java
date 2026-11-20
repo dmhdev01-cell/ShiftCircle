@@ -38,10 +38,31 @@ public class ApiProblemAdvice {
 
   @ExceptionHandler(DataIntegrityViolationException.class)
   public ResponseEntity<Map<String, Object>> onConflict(DataIntegrityViolationException exception) {
+    // The database CHECK is the last line behind the app's maker/checker rule. If it fires, the
+    // caller must see a refusal, not a 500 with a driver message (defense in depth).
+    if (mentionsMakerChecker(exception)) {
+      return problem(
+          HttpStatus.FORBIDDEN,
+          "The author of a rule version cannot approve it",
+          "The database refused the approval: a version must be approved by someone other than"
+              + " its author.");
+    }
     return problem(
         HttpStatus.CONFLICT,
         "State conflict",
         "The change conflicts with another saved change. Reload and try again.");
+  }
+
+  private static boolean mentionsMakerChecker(Throwable error) {
+    Throwable cause = error;
+    while (cause != null) {
+      String message = cause.getMessage();
+      if (message != null && message.contains("rule_set_version_maker_checker")) {
+        return true;
+      }
+      cause = cause.getCause();
+    }
+    return false;
   }
 
   @ExceptionHandler(ca.shiftcircle.api.overtime.CandidateUnavailableException.class)

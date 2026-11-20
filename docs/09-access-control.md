@@ -26,7 +26,7 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 | View others' hours, absences, overtime totals | — | scope | — | — | ✓ | — |
 | Absence **type** (sick/vacation) for others | — | scope | — | — | ✓ | — |
 | Assign, move or cancel shifts | — | scope | — | — | — | — |
-| Emergency override of a Block rule | — | scope (reason required) | — | — | — | — |
+| Emergency override of a Block rule whose policy allows one (U-01, U-03, U-05; ADR-023) | — | scope (reason required) | — | — | — | — |
 | Publish a schedule period | — | scope | — | — | — | — |
 | Create open shifts, send offers, assign overtime | — | scope | — | — | — | — |
 | Accept or decline an overtime offer | own | own | own | own | — | — |
