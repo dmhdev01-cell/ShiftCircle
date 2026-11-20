@@ -8,6 +8,9 @@ import { useRole } from './nav';
  * Side navigation (docs/ui/README.md §4): white, 220px, role-specific items,
  * active item green with white text. Every item is a real link with a 44px
  * touch target.
+ *
+ * On a tablet the nav stacks above the content as a wrapping row of buttons,
+ * so the content starts above the fold (docs/ui/build-notes.md §2.5).
  */
 export function SideNav() {
   const { nav } = useRole();
@@ -26,6 +29,14 @@ export function SideNav() {
         display: 'flex',
         flexDirection: 'column',
         gap: 1,
+        '@media (max-width: 900px)': {
+          flex: '1 1 100%',
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          borderRight: 'none',
+          borderBottom: `1px solid ${colour.border.default}`,
+        },
       }}
     >
       {nav.map((item) => (
@@ -39,6 +50,7 @@ export function SideNav() {
             alignItems: 'center',
             gap: '10px',
             minHeight: 44,
+            minWidth: 44,
             px: 3,
             borderRadius: '8px',
             color: item.muted ? colour.text.muted : colour.text.primary,
