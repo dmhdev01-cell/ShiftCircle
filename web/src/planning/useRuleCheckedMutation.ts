@@ -91,7 +91,7 @@ export function useRuleCheckedMutation() {
        * open shift instead of creating an assignment.
        */
       saver?: (change: RuleCheckChange, options?: SaveOptions) => Promise<SaveOutcome>,
-    ) => {
+    ): Promise<boolean> => {
       const acknowledged = options?.acknowledgeWarnings ?? [];
       setState((previous) => ({ ...previous, kind: 'checking' }));
       try {
@@ -107,6 +107,8 @@ export function useRuleCheckedMutation() {
           acknowledged,
           savedAs: result.assignmentId,
         });
+        // The caller reloads what it shows: a saved change has moved the board.
+        return true;
       } catch (error) {
         if (error instanceof ApiError && error.problem?.ruleResults) {
           setState({
@@ -115,9 +117,10 @@ export function useRuleCheckedMutation() {
             outcome: outcomeFromProblem(error.problem),
             acknowledged,
           });
-          return;
+          return false;
         }
         setState((previous) => ({ ...previous, kind: 'error', message: messageOf(error) }));
+        return false;
       }
     },
     [],

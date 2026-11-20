@@ -170,7 +170,8 @@ test.describe('planning board: override and acknowledgement', () => {
     await panel.getByRole('button', { name: 'Done' }).click();
     await expectSaved(api, unit!, pass!.officer.name, pass!.date, pass!.template);
 
-    test.fail(true, 'D9: the planning board does not refresh after a save');
+    // D9 was here: the board kept the saved cell as "Off" until the person left
+    // the screen. It now reads the board again after the save.
     await expect(cell).toHaveCount(0, { timeout: 5_000 });
   });
 });

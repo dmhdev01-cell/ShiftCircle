@@ -455,11 +455,18 @@ export function PlanningPage() {
             detail={panelDetail}
             findEligibleHref={findEligibleHref}
             onSave={() => {
-              if (mutation.state.change) void mutation.save(mutation.state.change);
+              // A saved change moves the board: read it again (D9).
+              if (mutation.state.change) {
+                void mutation.save(mutation.state.change).then((saved) => {
+                  if (saved) reload();
+                });
+              }
             }}
             onAcknowledge={(codes) => {
               if (mutation.state.change) {
-                void mutation.save(mutation.state.change, { acknowledgeWarnings: codes });
+                void mutation.save(mutation.state.change, { acknowledgeWarnings: codes }).then((saved) => {
+                  if (saved) reload();
+                });
               }
             }}
             onOverride={() => setOverrideOpen(true)}
@@ -534,10 +541,14 @@ export function PlanningPage() {
           if (mutation.state.change) {
             // The warnings are acknowledged with the override, or the api
             // refuses the change.
-            void mutation.save(mutation.state.change, {
-              override: { reason },
-              ...(warnCodes.length > 0 ? { acknowledgeWarnings: warnCodes } : {}),
-            });
+            void mutation
+              .save(mutation.state.change, {
+                override: { reason },
+                ...(warnCodes.length > 0 ? { acknowledgeWarnings: warnCodes } : {}),
+              })
+              .then((saved) => {
+                if (saved) reload();
+              });
           }
         }}
       />

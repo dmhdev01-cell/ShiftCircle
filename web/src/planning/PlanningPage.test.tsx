@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
+import { api } from '../api/client';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
@@ -159,6 +160,37 @@ describe('the planning board', () => {
     expect(screen.queryByRole('button', { name: 'Emergency override…' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Acknowledge/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Assign shift' })).not.toBeInTheDocument();
+  });
+
+  it('reloads the board after a save', async () => {
+    // D9: Assign, Acknowledge and assign and the emergency override all saved
+    // through the api but never reloaded the board, so the saved cell still
+    // said "Off" until the person left the screen.
+    const user = userEvent.setup();
+    const schedule = vi.spyOn(api, 'getSchedule');
+    vi.spyOn(api, 'previewRuleCheck').mockResolvedValue({
+      outcome: 'PASS',
+      ruleSetVersion: 7,
+      overridable: false,
+      ruleResults: [],
+    });
+    vi.spyOn(api, 'saveChange').mockResolvedValue({
+      assignmentId: 'assignment-new',
+      version: 0,
+      status: 'PLANNED',
+      ruleOutcome: { outcome: 'PASS', ruleSetVersion: 7, overridable: false, ruleResults: [] },
+    } as never);
+
+    renderBoard();
+
+    await user.click(
+      await screen.findByRole('button', { name: /assign a shift to Aiden Bergeron on 2026-11-19/ }),
+    );
+    await user.click(await screen.findByRole('button', { name: /D8 · Day 8 h/ }));
+    await user.click(await screen.findByRole('button', { name: 'Assign shift' }));
+
+    // The first read is the board itself; the save must ask for a second one.
+    await waitFor(() => expect(schedule.mock.calls.length).toBeGreaterThanOrEqual(2));
   });
 
   it('offers the supervisor the publish action for the roster week', async () => {
