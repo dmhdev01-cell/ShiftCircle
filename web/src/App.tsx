@@ -6,6 +6,7 @@ import Box from '@mui/material/Box';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AboutPage } from './pages/AboutPage';
+import { LoginPage } from './pages/LoginPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 import { AppShell } from './shell/AppShell';
 import { RoleProvider } from './shell/nav';
@@ -103,16 +104,7 @@ export function AppRoutes() {
             />
           }
         />
-        <Route
-          path="/login"
-          element={
-            <PlaceholderPage
-              title="Sign in"
-              subtitle="Mock sign-in, demo only"
-              planned="A list of demo users with roles. Until it is built, the role switcher in the top bar does the same job."
-            />
-          }
-        />
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route
           path="*"
