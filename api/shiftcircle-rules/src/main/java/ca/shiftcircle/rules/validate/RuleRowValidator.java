@@ -24,6 +24,8 @@ public final class RuleRowValidator {
       Set.of("DAYS", "SHIFTS_12H", "SHIFTS_NIGHT_12H");
   private static final Set<String> SORT_KEYS = Set.of("OT_HOURS_QUARTER_ASC", "SENIORITY_ASC");
   private static final Set<Integer> SHIFT_LENGTHS = Set.of(8, 12, 16);
+  /** A list column never needs more than this; a 4000-item list is a payload, not an edit. */
+  private static final int MAX_LIST_VALUES = 16;
   /**
    * A rule row is turned into DRL source, so a value is a code fragment, not data (review-r2 S1).
    * Codes and the shift-kind regex are restricted to characters that cannot close a string literal
@@ -70,44 +72,59 @@ public final class RuleRowValidator {
       }
     }
     for (RuleRow row : ruleSet.rows()) {
-      if (row.code() == null || !CODE.matcher(row.code()).matches()) {
+      // A row stored with the wrong type must become a validation error, never a 500. The API
+      // refuses such values at PUT; this is the defence for rows edited directly in PostgreSQL.
+      try {
+        validateRow(row, violations);
+      } catch (RuntimeException unreadable) {
         violations.add(
             new Violation(
                 display(row.code()),
-                "Rule code",
-                "A rule code uses capital letters, digits and hyphens only (for example U-01)."));
-      }
-      OverridePolicy documented = REQUIRED_POLICIES.get(row.code());
-      if (documented != null && row.overridePolicy() != documented) {
-        violations.add(
-            new Violation(
-                row.code(),
-                "Override",
-                "The documented override policy for this rule is "
-                    + policyLabel(documented)
-                    + "; a Must rule cannot be changed."));
-      }
-      if (row.message() == null || row.message().isBlank()) {
-        violations.add(new Violation(row.code(), "Message", "A rule needs a message to show."));
-      } else if (UNSAFE_MESSAGE.matcher(row.message()).find()) {
-        violations.add(
-            new Violation(
-                row.code(),
-                "Message",
-                "The message can't contain a quote, backslash, newline or brace."));
-      }
-      switch (row.table()) {
-        case REST -> validateRest(row, violations);
-        case MAX_HOURS -> validateMaxHours(row, violations);
-        case CONSECUTIVE -> validateConsecutive(row, violations);
-        case LONG_SHIFTS -> validateLongShifts(row, violations);
-        case DAYS_OFF -> validateDaysOff(row, violations);
-        case PAY -> validatePay(row, violations);
-        case OT_RANKING -> validateRanking(row, violations);
-        case SHIFT_LENGTHS -> validateShiftLengths(row, violations);
+                "Row values",
+                "One of this row's values has the wrong type or is missing; correct the row and"
+                    + " build again."));
       }
     }
     return violations;
+  }
+
+  private void validateRow(RuleRow row, List<Violation> violations) {
+    if (row.code() == null || !CODE.matcher(row.code()).matches()) {
+      violations.add(
+          new Violation(
+              display(row.code()),
+              "Rule code",
+              "A rule code uses letters, digits and hyphens only (for example U-01 or P-01b)."));
+    }
+    OverridePolicy documented = REQUIRED_POLICIES.get(row.code());
+    if (documented != null && row.overridePolicy() != documented) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "Override",
+              "The documented override policy for this rule is "
+                  + policyLabel(documented)
+                  + "; a Must rule cannot be changed."));
+    }
+    if (row.message() == null || row.message().isBlank()) {
+      violations.add(new Violation(row.code(), "Message", "A rule needs a message to show."));
+    } else if (UNSAFE_MESSAGE.matcher(row.message()).find()) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "Message",
+              "The message can't contain a quote, backslash, newline or brace."));
+    }
+    switch (row.table()) {
+      case REST -> validateRest(row, violations);
+      case MAX_HOURS -> validateMaxHours(row, violations);
+      case CONSECUTIVE -> validateConsecutive(row, violations);
+      case LONG_SHIFTS -> validateLongShifts(row, violations);
+      case DAYS_OFF -> validateDaysOff(row, violations);
+      case PAY -> validatePay(row, violations);
+      case OT_RANKING -> validateRanking(row, violations);
+      case SHIFT_LENGTHS -> validateShiftLengths(row, violations);
+    }
   }
 
   private static void validateRest(RuleRow row, List<Violation> violations) {
@@ -138,12 +155,13 @@ public final class RuleRowValidator {
               "Window must be 24 hours: the fact builders measure rest in a 24-hour window."));
     }
     double minimum = row.number("minRestHours");
-    if (minimum < 8) {
+    if (minimum < 8 || minimum > 24) {
       violations.add(
           new Violation(
               row.code(),
               "At least (hours) off",
-              "Minimum rest can't be below the 8-hour legal floor."));
+              "Minimum rest must be between 8 and 24 hours: 8 is the legal floor and the fact"
+                  + " builders measure rest in a 24-hour window."));
     }
     if (optional(row, "minExtensionMinutes", 0) < 0) {
       violations.add(
@@ -274,12 +292,34 @@ public final class RuleRowValidator {
 
   private static void validateRanking(RuleRow row, List<Violation> violations) {
     Object rawOrder = row.params().get("orderBy");
-    if (rawOrder instanceof List<?> order) {
+    if (rawOrder == null) {
+      if (row.params().containsKey("orderBy")) {
+        violations.add(
+            new Violation(row.code(), "Sort order", "Choose the sort keys as a list."));
+      }
+      // The skip/keep row (O-03) carries no sort order; only the ordering row does.
+      return;
+    }
+    if (!(rawOrder instanceof List<?> order)) {
+      violations.add(
+          new Violation(row.code(), "Sort order", "Choose the sort keys as a list."));
+    } else {
       if (order.isEmpty()) {
         violations.add(
             new Violation(row.code(), "Sort order", "Choose at least one sort key."));
       }
+      if (order.size() > MAX_LIST_VALUES) {
+        violations.add(
+            new Violation(
+                row.code(),
+                "Sort order",
+                "A ranking row lists at most " + MAX_LIST_VALUES + " sort keys."));
+      }
+      int checked = 0;
       for (Object key : order) {
+        if (checked++ >= MAX_LIST_VALUES) {
+          break;
+        }
         if (!SORT_KEYS.contains(String.valueOf(key))) {
           violations.add(
               new Violation(
@@ -301,26 +341,84 @@ public final class RuleRowValidator {
 
   private static void validateShiftLengths(RuleRow row, List<Violation> violations) {
     Object rawLengths = row.params().get("allowedLengths");
-    if (rawLengths instanceof List<?> lengths) {
+    boolean hasLengths = row.params().containsKey("allowedLengths");
+    if (hasLengths && rawLengths == null) {
+      violations.add(
+          new Violation(row.code(), "Allowed lengths", "Choose at least one shift length."));
+    } else if (rawLengths != null && !(rawLengths instanceof List<?>)) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "Allowed lengths",
+              "Choose the allowed shift lengths (8, 12 and 16) as a list."));
+    } else if (rawLengths instanceof List<?> lengths) {
       if (lengths.isEmpty()) {
         violations.add(
             new Violation(row.code(), "Allowed lengths", "Choose at least one shift length."));
       }
+      if (lengths.size() > MAX_LIST_VALUES) {
+        violations.add(
+            new Violation(
+                row.code(),
+                "Allowed lengths",
+                "A shift-types row lists at most " + MAX_LIST_VALUES + " lengths."));
+      }
+      int checked = 0;
       for (Object length : lengths) {
-        if (!SHIFT_LENGTHS.contains(((Number) length).intValue())) {
+        if (checked++ >= MAX_LIST_VALUES) {
+          break;
+        }
+        if (!(length instanceof Number number)) {
+          violations.add(
+              new Violation(
+                  row.code(), "Allowed lengths", "Every allowed length must be a number of hours."));
+          continue;
+        }
+        if (!SHIFT_LENGTHS.contains(number.intValue())) {
           violations.add(
               new Violation(
                   row.code(),
                   "Allowed lengths",
-                  "Only 8, 12 and 16-hour shifts have templates: " + length + " h cannot be"
+                  "Only 8, 12 and 16-hour shifts have templates: " + number + " h cannot be"
                       + " scheduled."));
         }
       }
     }
     Object rawFlags = row.params().get("requireUnitFlagFor");
-    if (rawFlags instanceof List<?> flags) {
+    if (row.params().containsKey("requireUnitFlagFor") && rawFlags == null) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "Needs a local agreement on the unit",
+              "Choose the 12- and 16-hour patterns as a list."));
+    } else if (rawFlags != null && !(rawFlags instanceof List<?>)) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "Needs a local agreement on the unit",
+              "Choose the 12- and 16-hour patterns as a list."));
+    } else if (rawFlags instanceof List<?> flags) {
+      if (flags.size() > MAX_LIST_VALUES) {
+        violations.add(
+            new Violation(
+                row.code(),
+                "Needs a local agreement on the unit",
+                "A shift-types row lists at most " + MAX_LIST_VALUES + " lengths."));
+      }
+      int checked = 0;
       for (Object flag : flags) {
-        if (!Set.of(12, 16).contains(((Number) flag).intValue())) {
+        if (checked++ >= MAX_LIST_VALUES) {
+          break;
+        }
+        if (!(flag instanceof Number number)) {
+          violations.add(
+              new Violation(
+                  row.code(),
+                  "Needs a local agreement on the unit",
+                  "Every length must be a number of hours."));
+          continue;
+        }
+        if (!Set.of(12, 16).contains(number.intValue())) {
           violations.add(
               new Violation(
                   row.code(),
@@ -349,7 +447,7 @@ public final class RuleRowValidator {
 
   private static double optional(RuleRow row, String key, double fallback) {
     Object value = row.params().get(key);
-    return value == null ? fallback : ((Number) value).doubleValue();
+    return value instanceof Number number ? number.doubleValue() : fallback;
   }
 
   private static String optionalText(RuleRow row, String key, String fallback) {

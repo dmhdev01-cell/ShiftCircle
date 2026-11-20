@@ -102,7 +102,7 @@ public final class TemplateColumns {
   private static String checkedCode(String code) {
     if (code == null || !CODE.matcher(code).matches()) {
       throw new RuleCompilationException(
-          "A rule code uses capital letters, digits and hyphens only");
+          "A rule code uses letters, digits and hyphens only");
     }
     return code;
   }

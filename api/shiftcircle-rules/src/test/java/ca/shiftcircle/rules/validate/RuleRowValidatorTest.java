@@ -87,7 +87,7 @@ class RuleRowValidatorTest {
         .anySatisfy(
             violation -> {
               assertThat(violation.code()).isEqualTo("U-01");
-              assertThat(violation.message()).contains("8-hour legal floor");
+              assertThat(violation.message()).contains("between 8 and 24");
             });
   }
 
@@ -328,7 +328,7 @@ class RuleRowValidatorTest {
         .anySatisfy(
             violation -> {
               assertThat(violation.column()).isEqualTo("Rule code");
-              assertThat(violation.message()).contains("capital letters");
+              assertThat(violation.message()).contains("letters, digits and hyphens");
             });
   }
 

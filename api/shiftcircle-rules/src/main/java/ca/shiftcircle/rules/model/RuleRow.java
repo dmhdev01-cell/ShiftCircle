@@ -30,7 +30,10 @@ public record RuleRow(
     int sortOrder) {
 
   public RuleRow {
-    params = Map.copyOf(params);
+    // A row read back from PostgreSQL can carry a null in params (a direct edit, a bad restore).
+    // Map.copyOf would throw before validation can turn it into a plain violation, so copy into an
+    // unmodifiable map that tolerates null values.
+    params = java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(params));
   }
 
   public double number(String key) {
