@@ -77,7 +77,7 @@ export const theme = createTheme({
       defaultProps: { disableElevation: true },
       styleOverrides: {
         root: {
-          borderRadius: shape.button,
+          borderRadius: `${shape.button}px`,
           minHeight: 44,
           paddingInline: 16,
           fontWeight: 600,
@@ -110,14 +110,14 @@ export const theme = createTheme({
     },
     MuiChip: {
       styleOverrides: {
-        root: { borderRadius: shape.chip, fontWeight: 600 },
+        root: { borderRadius: `${shape.chip}px`, fontWeight: 600 },
       },
     },
     MuiCard: {
       defaultProps: { elevation: 0 },
       styleOverrides: {
         root: {
-          borderRadius: shape.card,
+          borderRadius: `${shape.card}px`,
           border: `1px solid ${colour.border.default}`,
           backgroundColor: colour.bg.surface,
         },

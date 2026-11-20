@@ -97,7 +97,7 @@ export function AboutPage() {
                       p: 3,
                       backgroundColor: colour.bg.subtle,
                       border: `1px solid ${colour.border.default}`,
-                      borderRadius: 1,
+                      borderRadius: '4px',
                       fontSize: 12,
                       overflowX: 'auto',
                     }}

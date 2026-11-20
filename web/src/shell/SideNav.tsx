@@ -40,7 +40,7 @@ export function SideNav() {
             gap: '10px',
             minHeight: 44,
             px: 3,
-            borderRadius: 2,
+            borderRadius: '8px',
             color: item.muted ? colour.text.muted : colour.text.primary,
             textDecoration: 'none',
             fontSize: 14,

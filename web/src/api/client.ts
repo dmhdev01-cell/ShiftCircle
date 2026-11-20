@@ -6,18 +6,21 @@ import type { ShiftCircleApi } from './types';
  * The one module that decides where the data comes from.
  *
  * The screens only ever call the typed functions on `api`, so swapping the
- * fixtures for the real api is a change to this file alone: flip
- * `USE_FIXTURES` (or set `VITE_API_MODE=http`). Nothing else in the web
- * imports a fixture or a fetch call.
+ * fixtures for the real api is a change to this file alone.
+ *
+ * The shipped build talks to the real api. The fixtures are for the tests and
+ * for `VITE_API_MODE=fixtures`, and the top bar shows a "demo fixtures" badge
+ * whenever they are in use, so fixture data is never mistaken for live data.
  */
-const USE_FIXTURES = import.meta.env.VITE_API_MODE !== 'http';
+const API_MODE = import.meta.env.VITE_API_MODE ?? 'http';
 
-export const api: ShiftCircleApi = USE_FIXTURES ? createFixtureApi() : createHttpApi();
+/** True when the screens are reading the typed fixtures instead of the api. */
+export const usingFixtures = API_MODE === 'fixtures';
+
+export const api: ShiftCircleApi = usingFixtures ? createFixtureApi() : createHttpApi();
 
 export { ApiError } from './http';
 export type {
-  AssignOutcome,
-  AssignRequest,
   BlockCoverage,
   CellItem,
   DayCell,
@@ -28,6 +31,8 @@ export type {
   RuleCheckRequest,
   RuleOutcome,
   RuleResult,
+  SaveOutcome,
+  SaveRequest,
   SchedulePayload,
   ScheduleQuery,
   ShiftCircleApi,

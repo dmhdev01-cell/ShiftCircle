@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 
+import { usingFixtures } from '../api/client';
 import { colour } from '../theme/tokens';
 import { useRole } from './nav';
 import { roles } from './roles';
@@ -46,6 +47,31 @@ function formatClock(date: Date): string {
   return `${weekday} ${day} ${month} ${year} · ${time}`;
 }
 
+/**
+ * The badge that says the screen is reading the typed fixtures rather than
+ * the api, so fixture data is never mistaken for live data.
+ */
+function FixturesBadge() {
+  return (
+    <Box
+      sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 1,
+        px: 2,
+        py: 1,
+        borderRadius: '2px',
+        backgroundColor: colour.brand.accent,
+        color: colour.text.primary,
+        fontSize: 12,
+        fontWeight: 700,
+      }}
+    >
+      Demo fixtures
+    </Box>
+  );
+}
+
 export function TopBar() {
   const { role, setRole } = useRole();
   const [now, setNow] = useState(() => new Date());
@@ -81,6 +107,8 @@ export function TopBar() {
         </Box>
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 3, fontSize: 13 }}>
+          {usingFixtures ? <FixturesBadge /> : null}
+
           <Typography className="num" sx={{ color: colour.text.onDark, fontSize: 13 }}>
             {formatClock(now)}
           </Typography>
@@ -92,7 +120,7 @@ export function TopBar() {
               gap: 2,
               px: 3,
               py: 1.5,
-              borderRadius: 16,
+              borderRadius: '16px',
               backgroundColor: colour.brand.primaryDark,
               fontSize: 13,
             }}
@@ -118,7 +146,7 @@ export function TopBar() {
                 sx={{
                   minHeight: 44,
                   px: 2,
-                  borderRadius: 2,
+                  borderRadius: '2px',
                   border: `1px solid ${colour.text.onDarkMuted}`,
                   backgroundColor: 'transparent',
                   color: colour.text.onDark,
