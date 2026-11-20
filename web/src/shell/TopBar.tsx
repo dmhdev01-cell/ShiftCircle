@@ -47,10 +47,14 @@ const REGINA = 'America/Regina';
 function formatClock(day: string | undefined, now: Date): string {
   const date = day ?? now.toISOString().slice(0, 10);
   const parsed = new Date(`${date}T00:00:00Z`);
-  const weekday = new Intl.DateTimeFormat('en-CA', { weekday: 'short', timeZone: REGINA }).format(parsed);
-  const dayOfMonth = new Intl.DateTimeFormat('en-CA', { day: '2-digit', timeZone: REGINA }).format(parsed);
-  const month = new Intl.DateTimeFormat('en-CA', { month: 'short', timeZone: REGINA }).format(parsed);
-  const year = new Intl.DateTimeFormat('en-CA', { year: 'numeric', timeZone: REGINA }).format(parsed);
+  // The api answers a calendar day ("2026-11-19"), not an instant: format it in
+  // UTC. Reading it in Regina time (UTC-6) turned the demo day into the 18th on
+  // every screen (D1).
+  const weekday = new Intl.DateTimeFormat('en-CA', { weekday: 'short', timeZone: 'UTC' }).format(parsed);
+  const dayOfMonth = new Intl.DateTimeFormat('en-CA', { day: '2-digit', timeZone: 'UTC' }).format(parsed);
+  const month = new Intl.DateTimeFormat('en-CA', { month: 'short', timeZone: 'UTC' }).format(parsed);
+  const year = new Intl.DateTimeFormat('en-CA', { year: 'numeric', timeZone: 'UTC' }).format(parsed);
+  // The time is the browser's clock, read in the centre's time zone.
   const time = new Intl.DateTimeFormat('en-CA', {
     hour: '2-digit',
     minute: '2-digit',

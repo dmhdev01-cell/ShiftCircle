@@ -168,10 +168,8 @@ test.describe('session and navigation', () => {
   });
 
   test('the top bar shows the demo day, not the day before', async ({ page, request }) => {
-    // DEFECT D1 (found by this spec): TopBar.tsx formatClock parses asOf as UTC
-    // midnight and formats it in Regina time, so 2026-11-19 shows as
-    // "Wed 18 Nov 2026" on every screen. Remove test.fail when fixed.
-    test.fail(true, 'D1: the top bar shows the day before the demo day');
+    // D1 was here: TopBar.tsx parsed asOf as UTC midnight and formatted it in
+    // Regina time, so 2026-11-19 showed as "Wed 18 Nov 2026" on every screen.
     const version = await (await request.get('/api/v1/version')).json();
     expect(version.asOf).toBe('2026-11-19');
     await signIn(page, 'M. Ellis');
