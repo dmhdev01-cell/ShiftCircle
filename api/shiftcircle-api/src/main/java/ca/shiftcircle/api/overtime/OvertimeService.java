@@ -253,8 +253,8 @@ public class OvertimeService {
               flaggedCodes(outcome)));
     }
 
-    List<OvertimeRanker.Ranked> ranked =
-        ranker.rank(pool, RankingPolicy.from(publishedRuleSet.ruleSet()));
+    PublishedRuleSet.Snapshot live = publishedRuleSet.snapshot();
+    List<OvertimeRanker.Ranked> ranked = ranker.rank(pool, RankingPolicy.from(live.ruleSet()));
 
     List<CandidateView> candidates = new ArrayList<>();
     long skipped = 0;
@@ -280,7 +280,7 @@ public class OvertimeService {
 
     List<RuleResult> policyResults =
         evaluator.evaluate(
-            publishedRuleSet.kieBase(),
+            live.kieBase(),
             String.valueOf(ruleSetVersion),
             new OvertimeRankingFact(
                 ranked.size(),

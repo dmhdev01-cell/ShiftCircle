@@ -56,6 +56,22 @@ class RuleRowValidatorTest {
   }
 
   @Test
+  void aMissingRequiredRuleIsNamedAndRefused() {
+    List<RuleRow> rows =
+        RuleRowsV1.ruleSet().rows().stream()
+            .filter(row -> !row.code().equals("U-01"))
+            .toList();
+
+    assertThat(validator.validate(new RuleSet("test", rows)))
+        .as("deleting a rule is not an edit the pipeline may accept")
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.code()).isEqualTo("U-01");
+              assertThat(violation.message()).contains("required");
+            });
+  }
+
+  @Test
   void aRestFloorBelowEightHoursIsRefused() {
     List<RuleRowValidator.Violation> violations =
         validateWith(

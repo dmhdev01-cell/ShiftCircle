@@ -440,7 +440,7 @@ public class RuleSetService {
 
   private List<ImpactView> dryRun(RuleSet candidateRows) {
     KieBase candidate = compiler.compile(candidateRows);
-    KieBase current = live.kieBase();
+    KieBase current = live.snapshot().kieBase();
 
     Map<String, List<ShiftFact>> shiftsByOfficer = new LinkedHashMap<>();
     Map<String, String> unitByOfficer = new LinkedHashMap<>();
