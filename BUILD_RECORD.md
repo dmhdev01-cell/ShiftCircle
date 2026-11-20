@@ -72,7 +72,7 @@ The verifiers are a different model family from the builders, so verification do
 | Move and cancel | 270 tests at `62dd4fc`; ~30 probes, no Block bypass by moving (R29) |
 | All of `main` | From a true clean clone at `17308b7`: api 246/246, web 118/118, demo script walked end to end (R30) |
 
-Latest independently verified api totals: **270 at `62dd4fc`** (R29) and **246/246 from a clean clone at `17308b7`** (R30). E2E (Playwright, axe on every screen) at `17308b7` (R30): real api desktop 13 passed, tablet 12 passed + 1 skipped; fixtures web 35 passed, 3 skipped, 0 failed. Open: the `api-test` service can fail when built fresh because of test class order (R30; a test-isolation fix is in progress). <!-- TODO: final totals on the submission commit (api / web / e2e / axe), with the command -->
+Latest independently verified api totals: **270 at `62dd4fc`** (R29) and **246/246 from a clean clone at `17308b7`** (R30). E2E (Playwright, axe on every screen) at `17308b7` (R30): real api desktop 13 passed, tablet 12 passed + 1 skipped; fixtures web 35 passed, 3 skipped, 0 failed. The class-order failure R30 found in the `api-test` service is fixed in `22375d4` (each API test class gets its own database): the author's clean-worktree runs in three class orders (reverse, and random with two seeds) each gave 91 rules + 20 infrastructure + 165 api = **276 tests, 0 failures**. Not yet independently re-verified. <!-- TODO: final totals on the submission commit (api / web / e2e / axe), with the command -->
 
 | ID | Case | Expected | Result |
 |---|---|---|---|
