@@ -399,6 +399,45 @@ class ReportsApiTest {
   }
 
   @Test
+  void m1ReversedAndOversizeRangesAreRejectedOnEveryReport() throws Exception {
+    String[] paths = {
+      "/api/v1/reports/coverage?from=2026-11-10&to=2026-11-01",
+      "/api/v1/reports/hours?from=2026-11-10&to=2026-11-01",
+      "/api/v1/reports/overtime?from=2026-11-10&to=2026-11-01",
+      "/api/v1/reports/overrides?from=2026-11-10&to=2026-11-01",
+      "/api/v1/reports/coverage?from=2025-01-01&to=2026-12-31",
+      "/api/v1/reports/hours?from=2025-01-01&to=2026-12-31",
+      "/api/v1/reports/overtime?from=2025-01-01&to=2026-12-31",
+      "/api/v1/reports/overrides?from=2025-01-01&to=2026-12-31"
+    };
+    for (String path : paths) {
+      assertThat(get(path, tokens.get("a.reviewer"), null).statusCode())
+          .as(path)
+          .isEqualTo(400);
+    }
+  }
+
+  @Test
+  void m3AnUnknownGroupByIsABadRequest() throws Exception {
+    HttpResponse<String> response =
+        get(
+            "/api/v1/reports/coverage?from=2026-10-26&to=2026-11-08&groupBy=hour",
+            tokens.get("a.reviewer"),
+            null);
+    assertThat(response.statusCode()).isEqualTo(400);
+  }
+
+  @Test
+  void m4DisplayIsDeniedEveryReport() throws Exception {
+    String range = "?from=2026-10-26&to=2026-11-08";
+    for (String report : new String[] {"coverage", "hours", "overtime", "overrides"}) {
+      assertThat(get("/api/v1/reports/" + report + range, tokens.get("tv.display"), null).statusCode())
+          .as(report)
+          .isEqualTo(403);
+    }
+  }
+
+  @Test
   void csvExportsUseTheDocumentedHeaders() throws Exception {
     Map<String, String> headers =
         Map.of(
