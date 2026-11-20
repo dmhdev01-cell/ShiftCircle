@@ -25,7 +25,8 @@ describe('Reports', () => {
   it('shows the coverage chart with its summary and the figures', async () => {
     renderReports();
 
-    expect(await screen.findByRole('heading', { name: 'Reports' })).toBeInTheDocument();
+    // The heading is drawn while the charts load; the chart below is the wait.
+    await screen.findByRole('heading', { name: 'Reports' });
 
     const chart = await screen.findByRole('img', { name: /Weekly coverage/ });
     expect(chart).toHaveAttribute(
@@ -109,7 +110,7 @@ describe('the coverage report against the real api shape', () => {
     renderReports();
 
     expect(await screen.findByRole('heading', { name: 'Reports' })).toBeInTheDocument();
-    const table = screen.getByRole('table');
+    const table = await screen.findByRole('table');
     expect(within(table).getByText('16 – 22 Nov')).toBeInTheDocument();
     expect(within(table).getByText('—')).toBeInTheDocument();
   });

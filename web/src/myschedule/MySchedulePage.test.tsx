@@ -24,8 +24,11 @@ describe('the employee My schedule', () => {
   it('shows the officer and their own hours', async () => {
     renderMySchedule();
 
-    expect(await screen.findByRole('heading', { name: 'My schedule' })).toBeInTheDocument();
+    // The heading is drawn while loading and again when the answers land, so
+    // wait for the officer's line and then read the heading from the page that
+    // is actually on screen.
     expect(await screen.findByText(/Sam Abara · Correctional officer/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'My schedule' })).toBeInTheDocument();
     expect(screen.getByText('72')).toBeInTheDocument();
     expect(screen.getByText('of 80 h')).toBeInTheDocument();
     expect(screen.getByText('60 h worked · 12 h still scheduled')).toBeInTheDocument();

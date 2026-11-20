@@ -24,7 +24,8 @@ describe('Time and attendance', () => {
   it('shows the period, the tiles and the shifts with no actual', async () => {
     renderScreen();
 
-    expect(await screen.findByRole('heading', { name: 'Time & attendance' })).toBeInTheDocument();
+    // The heading is drawn while the periods load; the select below is the wait.
+    await screen.findByRole('heading', { name: 'Time & attendance' });
     // The pay-period select appears once the periods have loaded.
     expect(await screen.findByLabelText('Pay period')).toBeInTheDocument();
     // A grid row appears once the time entries have loaded.

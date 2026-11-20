@@ -45,7 +45,9 @@ describe('the mock sign-in', () => {
 
     await user.click(await screen.findByRole('button', { name: /T. Nakamura/ }));
 
-    expect(await screen.findByRole('heading', { name: 'My schedule' })).toBeInTheDocument();
+    // The destination page draws its heading while it loads and again when the
+    // answers land, so this waits for the route rather than asserting a node.
+    await screen.findByRole('heading', { name: 'My schedule' });
   });
 
   it('sends a supervisor to the planning board', async () => {
@@ -54,7 +56,7 @@ describe('the mock sign-in', () => {
 
     await user.click(await screen.findByRole('button', { name: /M. Ellis/ }));
 
-    expect(await screen.findByRole('heading', { name: 'Planning board' })).toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'Planning board' });
   });
 
   it('says mock sign-in is turned off when the endpoint is missing', async () => {

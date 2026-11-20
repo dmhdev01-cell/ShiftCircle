@@ -30,10 +30,14 @@ describe('the audit log', () => {
   it('lists the events newest first with the actor, action, entity and summary', async () => {
     renderAudit();
 
-    expect(await screen.findByRole('heading', { name: 'Audit log', level: 1 })).toBeInTheDocument();
+    // Wait for the table, not for the heading: the page draws the same "Audit
+    // log" heading while it loads, and React replaces that node when the events
+    // arrive. Asserting on the loading node made this test fail whenever the
+    // answer landed between the find and the assertion.
+    const rows = await auditRows();
+    expect(screen.getByRole('heading', { name: 'Audit log', level: 1 })).toBeInTheDocument();
     expect(screen.getByText('Demo fixtures')).toBeInTheDocument();
 
-    const rows = await auditRows();
     expect(rows.length).toBe(20);
     expect(within(rows[0]).getByText(/20 Nov 2026 · 13:50/)).toBeInTheDocument();
     expect(within(rows[0]).getByText('P. Singh')).toBeInTheDocument();
