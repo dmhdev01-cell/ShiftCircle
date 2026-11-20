@@ -80,7 +80,7 @@ docs/ai-dev-log.md           AI-assisted development log (assessment requirement
 
 | Guardrail | Exception | Status |
 |---|---|---|
-| 4: boundary tests reviewed by a human | **Waived by the project lead on 2026-11-20.** The rule boundary tests are reviewed by AI verifiers instead: `dev-qa` (GLM 5.3, with mutation spot-checks) and `review-r2` (GLM 5.3, independent of the DeepSeek author). **No human review of the boundary tests has taken place.** | A pilot should restore human review (a labour-relations or scheduling practitioner) before any rule set is relied on. See `docs/ai-dev-log.md` #23. |
+| 4: boundary tests reviewed by a human | **Waived by the project lead on 2026-11-20.** The rule boundary tests are reviewed by AI verifiers instead: `dev-qa` (GLM 5.3, with mutation spot-checks) and `review-r2` (GLM 5.3, independent of the DeepSeek author). **No human review of the boundary tests has taken place.** | A pilot should restore human review (a labour-relations or scheduling practitioner) before any rule set is relied on. See `docs/ai-dev-log.md` #24. |
 
 ## 6. Next steps for development (in order)
 

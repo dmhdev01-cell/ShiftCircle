@@ -33,7 +33,7 @@ Change flow, as specified (TODO-VERIFY once step 6 is built): preview (`POST /ru
 
 ## 3. AI-assisted development
 
-**Tools:** Claude (Opus 5.5) for design and specs (2026-11-19). From 2026-11-20, an OpenRig team of AI agents did the build: a lead and an advisor (Claude Code), an implementer (opencode, DeepSeek), QA (opencode, GLM 5.3), independent reviewers (review-r1 <!-- TODO: model -->, review-r2, GLM 5.3) and a designer (Claude Code). The project lead set direction and decided. Steps, checks, corrections and rejections are logged in `docs/ai-dev-log.md` <!-- TODO: final row count -->.
+**Tools:** Claude (Opus 5.5) for design and specs (2026-11-19). From 2026-11-20, an OpenRig team of AI agents did the build: a lead (Claude Sonnet 5.5) and an advisor (Claude Opus 5.5); implementers dev-build (DeepSeek V4.1 Flash) and dev-build2 (MiniMax M3.1 Flash); QA dev-qa (GLM 5.3); independent reviewers review-r1 (GLM 5.3 Flash) and review-r2 (GLM 5.3); and a designer (Claude Opus 5.5). The project lead set direction and decided. Steps, checks, corrections and rejections are logged in `docs/ai-dev-log.md` <!-- TODO: final row count -->.
 
 **Verified by:** tests run in Docker, independent review rounds, and a check of each doc against the code. <!-- TODO: number of review/QA rounds, from the log -->
 
@@ -44,10 +44,10 @@ Change flow, as specified (TODO-VERIFY once step 6 is built): preview (`POST /ru
 | 5 | **Rejected:** AI recommended a custom rule catalogue. The lead chose Drools so non-technical staff can edit rules as decision tables. |
 | 13 | **Corrected by the lead:** AI had modelled 16 h shifts as overtime-only doubles and overtime per shift. Both are wrong: 16 h shifts are regular, and overtime is per pay period. |
 | 18 | **Found by building:** Spring Boot 4 skipped Flyway without any error, and the app reported "ready" with no schema. Readiness now also requires a published rule set. |
-| 19 (web) | **Rejected an instruction:** proxying to `api:8080` contradicted the deployment spec (8081). It was checked with the api builder first. |
-| 22 | **AI review claim disproved:** QA said a CHECK constraint rejected NULL. PostgreSQL CHECKs pass on NULL. |
+| 20 | **Rejected an instruction:** proxying to `api:8080` contradicted the deployment spec (8081). It was checked with the api builder first. |
+| 23 | **AI review claim disproved:** QA said a CHECK constraint rejected NULL. PostgreSQL CHECKs pass on NULL. |
 
-<!-- TODO: keep 3–4 rows; prefer ones with evidence. Note: the log currently has two rows numbered 19 (rules engine and web scaffold). Renumber before citing. -->
+<!-- TODO: keep 3–4 rows; prefer ones with evidence. -->
 
 ## 4. Test cases
 
