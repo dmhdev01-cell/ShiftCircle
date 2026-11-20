@@ -1,5 +1,7 @@
 package ca.shiftcircle.rules.model;
 
+import ca.shiftcircle.rules.RuleCompilationException;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +52,7 @@ public final class TemplateColumns {
         if (warnAt > 0 && warnAt >= maxHours) {
           // A warning level at or above the ceiling would silently disable the ceiling: refuse it,
           // the same way the publish pipeline will (review F6).
-          throw new IllegalArgumentException(
+          throw new RuleCompilationException(
               row.code()
                   + ": warnAtHours ("
                   + warnAt
@@ -99,7 +101,7 @@ public final class TemplateColumns {
 
   private static String checkedCode(String code) {
     if (code == null || !CODE.matcher(code).matches()) {
-      throw new IllegalArgumentException(
+      throw new RuleCompilationException(
           "A rule code uses capital letters, digits and hyphens only");
     }
     return code;
@@ -107,7 +109,7 @@ public final class TemplateColumns {
 
   private static String checkedRegex(String value) {
     if (value == null || value.length() > 64 || !SHIFT_KIND.matcher(value).matches()) {
-      throw new IllegalArgumentException(
+      throw new RuleCompilationException(
           "The shift-kind pattern is a list of shift codes joined by |, or .*");
     }
     return value;

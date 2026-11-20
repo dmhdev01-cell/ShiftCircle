@@ -3,6 +3,7 @@ package ca.shiftcircle.rules.model;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ca.shiftcircle.rules.RuleCompilationException;
 import ca.shiftcircle.rules.facts.RuleOutcome;
 import ca.shiftcircle.rules.rows.RuleRowsV1;
 import java.util.Map;
@@ -27,9 +28,45 @@ class TemplateColumnsTest {
             60);
 
     assertThatThrownBy(() -> TemplateColumns.of(row))
-        .isInstanceOf(IllegalArgumentException.class)
+        .isInstanceOf(RuleCompilationException.class)
         .hasMessageContaining("warnAtHours")
         .hasMessageContaining("must be below maxHours");
+  }
+
+  @Test
+  void theDefenceLayerRefusesHostileStringsAsACompileFailure() {
+    RuleRow hostileCode =
+        new RuleRow(
+            "X\"); System.setProperty(\"sc.pwn\", \"1\"); //",
+            RuleTableCode.REST,
+            true,
+            Map.of("afterShiftKind", ".*", "windowHours", 24, "minExtensionMinutes", 0,
+                "minRestHours", 8),
+            RuleOutcome.BLOCK,
+            OverridePolicy.ACKNOWLEDGE,
+            "Rest",
+            "MOCK",
+            false,
+            10);
+    assertThatThrownBy(() -> TemplateColumns.of(hostileCode))
+        .as("a bypassed validator must still answer the pipeline's plain refusal")
+        .isInstanceOf(RuleCompilationException.class);
+
+    RuleRow hostileRegex =
+        new RuleRow(
+            "U-01",
+            RuleTableCode.REST,
+            true,
+            Map.of("afterShiftKind", "(a+)+", "windowHours", 24, "minExtensionMinutes", 0,
+                "minRestHours", 8),
+            RuleOutcome.BLOCK,
+            OverridePolicy.EMERGENCY,
+            "Rest",
+            "MOCK",
+            true,
+            10);
+    assertThatThrownBy(() -> TemplateColumns.of(hostileRegex))
+        .isInstanceOf(RuleCompilationException.class);
   }
 
   @Test
