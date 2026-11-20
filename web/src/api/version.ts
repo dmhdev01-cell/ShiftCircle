@@ -1,17 +1,27 @@
 /**
  * Build information from `GET /api/v1/version`.
  *
- * The api spec (docs/07-api-spec.md §4.8) pins the endpoint but not the exact
- * JSON field names, so the reader is deliberately tolerant: it looks for the
- * documented facts (build version, git commit, live rule set version) under
- * the usual names and keeps the raw payload for display, so the UI never
- * shows a silent blank.
+ * The response shape is the api's `VersionResponse` record
+ * (`api/shiftcircle-api/.../version/VersionResponse.java`):
+ * `{ name, version, buildTime, gitCommit, ruleSetVersion, profiles }`.
+ * The field names are read exactly as the api sends them. If the api answers
+ * with a different shape the reader keeps the raw payload so the screen can
+ * show it, rather than showing a blank.
  */
 
 export interface VersionInfo {
-  buildVersion?: string;
+  /** Application name, e.g. `shiftcircle-api`. */
+  name?: string;
+  /** Build version, or `dev` when the api runs without build info. */
+  version?: string;
+  /** Build timestamp, or `unknown`. */
+  buildTime?: string;
+  /** Git commit the image was built from, or `unknown`. */
   gitCommit?: string;
+  /** Published rule-set version the rules engine is running. */
   ruleSetVersion?: string;
+  /** Active Spring profiles, comma separated. */
+  profiles?: string;
   /** The raw response body, kept so unexpected shapes can be shown as-is. */
   raw: unknown;
 }
@@ -24,43 +34,34 @@ function asString(value: unknown): string | undefined {
   return undefined;
 }
 
-function pick(source: Record<string, unknown>, keys: string[]): string | undefined {
-  for (const key of keys) {
-    const found = asString(source[key]);
-    if (found !== undefined && found !== '') return found;
-  }
-  return undefined;
-}
-
-/** Pull the documented facts out of whatever shape the api returns. */
+/** Read the fields the api's VersionResponse sends. */
 export function normaliseVersion(raw: unknown): VersionInfo {
   if (typeof raw !== 'object' || raw === null) {
     return { raw };
   }
   const source = raw as Record<string, unknown>;
 
-  const nestedBuild =
-    typeof source.build === 'object' && source.build !== null
-      ? (source.build as Record<string, unknown>)
-      : undefined;
-
-  const nestedRuleSet =
-    typeof source.ruleSet === 'object' && source.ruleSet !== null
-      ? (source.ruleSet as Record<string, unknown>)
-      : undefined;
-
   return {
-    buildVersion:
-      pick(source, ['buildVersion', 'version', 'appVersion', 'build']) ??
-      (nestedBuild ? pick(nestedBuild, ['version', 'buildVersion']) : undefined),
-    gitCommit:
-      pick(source, ['gitCommit', 'commit', 'buildCommit', 'git']) ??
-      (nestedBuild ? pick(nestedBuild, ['commit', 'gitCommit']) : undefined),
-    ruleSetVersion:
-      pick(source, ['ruleSetVersion', 'rulesVersion', 'liveRuleSetVersion']) ??
-      (nestedRuleSet ? pick(nestedRuleSet, ['version', 'ruleSetVersion']) : undefined),
+    name: asString(source.name),
+    version: asString(source.version),
+    buildTime: asString(source.buildTime),
+    gitCommit: asString(source.gitCommit),
+    ruleSetVersion: asString(source.ruleSetVersion),
+    profiles: asString(source.profiles),
     raw,
   };
+}
+
+/** True when the body carried none of the fields we know how to show. */
+export function isKnownVersionShape(info: VersionInfo): boolean {
+  return (
+    info.name !== undefined ||
+    info.version !== undefined ||
+    info.buildTime !== undefined ||
+    info.gitCommit !== undefined ||
+    info.ruleSetVersion !== undefined ||
+    info.profiles !== undefined
+  );
 }
 
 export class VersionError extends Error {
