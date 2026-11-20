@@ -333,6 +333,13 @@ at the PUT. The build's validation is total: a row stored with a bad value (for
 example by a direct database edit) becomes a validation error, not a `500`, and a report shows at
 most 20 errors with a count of the rest.
 
+**The sentence is for the person reading it, not the compiler.** Each row's `sentence` is plain
+language: the `afterShiftKind` pattern appears as a phrase ("any shift", "a regular shift", "a
+16-hour shift", or the shift codes in words), never as the stored regex (`.*`), and the severity is
+a word ("blocked", "warned", "noted"), never the raw enum (`BLOCK`). The override policy is its own
+sentence ("A supervisor may override only in an emergency, with a written reason."). A row message
+is shown as written. `RuleSentenceTest` pins this for every shipped row, including the message rows.
+
 **The build is the evidence, and it goes stale if the rows move.** `build` stores a fingerprint of
 the exact rows it validated, compiled and ran; saving rows again clears the report and the
 fingerprint, and `submit`/`publish` refuse an older build with `409`. At boot the live rule base is
