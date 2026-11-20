@@ -1,6 +1,6 @@
 # ShiftCircle
 
-A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervisors plan 8, 12 and 16-hour shifts against a **configurable rules engine** (rest and hours limits, staffing, qualifications, trade limits, overtime). Employees see their schedule and hours and propose shifts. Time feeds a payroll export, and reports show coverage and overtime as planned vs. actual.
+A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervisors plan 8, 12 and 16-hour shifts against a **configurable rules engine** (rest and hours limits, consecutive shifts, staffing, qualifications, overtime). Employees see their schedule and hours and propose shifts. Time feeds a payroll export, and reports show coverage and overtime as planned vs. actual.
 
 > Built for the AI Solutions Architect screening assessment. **All data is synthetic.** Payroll and sign-on are simulated. The dataset is 100 fictional officers over 90 days.
 
