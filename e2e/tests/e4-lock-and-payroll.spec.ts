@@ -38,10 +38,21 @@ test.describe('E4 time and attendance, lock, payroll export', () => {
     expect(file.suggestedFilename()).toMatch(/\.csv$/);
     const content = await (await file.createReadStream()).toArray();
     const text = Buffer.concat(content).toString('utf8');
-    // docs/07 section 4.5 column order.
-    expect(text.split('\n')[0]).toBe(
+    // docs/07 section 4.5: column order, one line per officer, day and pay code,
+    // hours to 2 decimals.
+    const lines = text.trim().split(/\r?\n/);
+    expect(lines[0]).toBe(
       'employee_no,pay_period_start,pay_period_end,work_date,pay_code,hours,unit_code,cost_centre',
     );
+    const rows = lines.slice(1).map((line) => line.split(','));
+    expect(rows.length, 'the locked period exports data rows').toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row, `row ${row.join(',')}`).toHaveLength(8);
+      expect(row[5], `hours in ${row.join(',')}`).toMatch(/^\d+\.\d{2}$/);
+      // Every row belongs to the period that was exported.
+      expect(row[1]).toBe('2026-10-26');
+      expect(row[2]).toBe('2026-11-08');
+    }
   });
 
   test('unlocking a period asks for a reason of at least 10 characters', async ({ page }) => {
