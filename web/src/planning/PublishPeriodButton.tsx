@@ -8,6 +8,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Typography from '@mui/material/Typography';
 
 import { api, ApiError } from '../api/client';
+import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
 
 interface PublishPeriodButtonProps {
@@ -99,6 +100,11 @@ export function PublishPeriodButton({ period, onPublished }: PublishPeriodButton
           Publish the roster for {period.label}
         </DialogTitle>
         <DialogContent>
+          <Box sx={{ mb: 2 }}>
+            <StatusPill tone="info">
+              {period.status === 'PUBLISHED' ? 'Published' : 'Draft'}
+            </StatusPill>
+          </Box>
           <Typography sx={{ fontSize: 14, mb: 2 }}>
             Publishing tells the officers in this unit that the roster is final. The board keeps
             showing later changes as unpublished.

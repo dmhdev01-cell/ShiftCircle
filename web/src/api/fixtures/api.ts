@@ -70,7 +70,15 @@ import { demoUsers } from './demoUsers';
 import { demoDisplayToday } from './display';
 import { toDisplayToday } from '../../display/displayPayload';
 import { demoBuildReport, demoRuleSets, demoRuleTables } from './rules';
-import { changedAfterPublish, demoSchedule, PC01_CHANGE, shift } from './schedule';
+import {
+  changedAfterPublish,
+  demoSchedule,
+  DEMO_PERIOD_ID,
+  fixturePeriod,
+  PC01_CHANGE,
+  scheduleForRange,
+  shift,
+} from './schedule';
 import { demoPayPeriods, demoTimeEntries, unitCodeFor } from './timeAttendance';
 
 const LATENCY_MS = 120;
@@ -266,9 +274,11 @@ export function resetFixtures(): void {
 
 export function createFixtureApi(): ShiftCircleApi {
   return {
-    async getSchedule(_query: ScheduleQuery): Promise<SchedulePayload> {
+    async getSchedule(query: ScheduleQuery): Promise<SchedulePayload> {
       await wait(LATENCY_MS);
-      return demoSchedule;
+      // The api answers the range it is asked for, with the roster week that
+      // covers it.
+      return scheduleForRange(query.from, query.to);
     },
 
     async previewRuleCheck(request: RuleCheckRequest): Promise<RuleCheckOutcome> {
@@ -402,8 +412,8 @@ export function createFixtureApi(): ShiftCircleApi {
 
     async publishSchedulePeriod(periodId: string): Promise<PublishedPeriod> {
       await wait(LATENCY_MS);
-      const period = demoSchedule.period;
-      if (!period || period.id !== periodId) {
+      const period = fixturePeriod(periodId);
+      if (!period) {
         throw new ApiError('That period is not in the demo fixture.', 404);
       }
       if (period.status === 'PUBLISHED') {
@@ -415,7 +425,10 @@ export function createFixtureApi(): ShiftCircleApi {
         });
       }
       period.status = 'PUBLISHED';
-      demoSchedule.publishedState = { published: true, unpublishedChanges: 0 };
+      if (period.id === DEMO_PERIOD_ID) {
+        // The demo week keeps the count of the changes since it was published.
+        demoSchedule.publishedState = { published: true, unpublishedChanges: 0 };
+      }
       return { id: period.id, status: 'PUBLISHED', publishedAt: DEMO_PUBLISHED_AT };
     },
 

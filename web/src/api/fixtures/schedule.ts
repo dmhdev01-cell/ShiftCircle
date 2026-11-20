@@ -23,6 +23,21 @@ import type {
 } from '../types';
 
 export const DEMO_TODAY = '2026-11-19';
+
+const MONTHS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+/** The demo board's roster week: Monday to Sunday. */
+export const DEMO_WEEK_FROM = '2026-11-16';
+export const DEMO_WEEK_TO = '2026-11-22';
+
+/** The id the api's roster week has in the fixture. */
+export const DEMO_PERIOD_ID = 'period-2026-11-16';
+
+/** The roster weeks the fixture knows, by id. */
+const fixturePeriods = new Map<string, FixturePeriod>();
 export const DEMO_UNIT = { id: 'unit-b', name: 'Unit B · Living unit' };
 
 const TZ = '-06:00';
@@ -377,11 +392,14 @@ export const demoSchedule: SchedulePayload = {
     unpublishedChanges: null,
   },
   period: {
-    id: 'period-2026-11-16',
-    label: '16 – 22 Nov 2026',
+    id: DEMO_PERIOD_ID,
+    label: rosterWeekLabel(DEMO_WEEK_FROM, DEMO_WEEK_TO),
     status: 'DRAFT',
   },
 };
+
+// The demo week is a roster week the fixture knows, like the api's seeded weeks.
+fixturePeriods.set(DEMO_PERIOD_ID, demoSchedule.period as FixturePeriod);
 
 /**
  * The shifts that changed after the period was published. The api counts them
@@ -395,12 +413,14 @@ export const changedAfterPublish = new Set<string>();
  */
 export function resetSchedulePeriod() {
   demoSchedule.period = {
-    id: 'period-2026-11-16',
-    label: '16 – 22 Nov 2026',
+    id: DEMO_PERIOD_ID,
+    label: rosterWeekLabel(DEMO_WEEK_FROM, DEMO_WEEK_TO),
     status: 'DRAFT',
   };
   demoSchedule.publishedState = { published: false, unpublishedChanges: null };
   changedAfterPublish.clear();
+  fixturePeriods.clear();
+  fixturePeriods.set(DEMO_PERIOD_ID, demoSchedule.period as FixturePeriod);
 }
 
 /** PC-01: the assignment the rule check is about. */
@@ -410,3 +430,111 @@ export const PC01_CHANGE = {
   shiftTemplate: 'D8',
   startAt: '2026-11-21T07:00:00-06:00',
 } as const;
+
+/**
+ * The roster weeks the fixture knows, by id.
+ *
+ * The api answers the period whose dates contain the board's range: a Monday
+ * to Sunday roster week with a status (docs/07 §4.2). A range that spans two
+ * weeks has no such period, and the api answers null.
+ */
+export interface FixturePeriod {
+  id: string;
+  label: string;
+  status: 'DRAFT' | 'PUBLISHED';
+}
+
+
+/** The api's label for a roster week: "16 – 22 Nov 2026". */
+export function rosterWeekLabel(from: string, to: string): string {
+  const start = new Date(`${from}T00:00:00Z`);
+  const end = new Date(`${to}T00:00:00Z`);
+  return `${start.getUTCDate()} – ${end.getUTCDate()} ${MONTHS[end.getUTCMonth()]} ${end.getUTCFullYear()}`;
+}
+
+/** The Monday to Sunday week that holds the date. */
+function weekBounds(date: string): { from: string; to: string } {
+  const parsed = new Date(`${date}T00:00:00Z`);
+  const monday = new Date(parsed);
+  monday.setUTCDate(parsed.getUTCDate() - ((parsed.getUTCDay() + 6) % 7));
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  return { from: monday.toISOString().slice(0, 10), to: sunday.toISOString().slice(0, 10) };
+}
+
+/**
+ * The roster week that contains the range, or null when the range spans two
+ * weeks and no single period covers it.
+ */
+export function coveringWeek(from?: string, to?: string): { from: string; to: string } | null {
+  if (!from || !to) return null;
+  const week = weekBounds(from);
+  return to <= week.to ? week : null;
+}
+
+/** Every date of the range. */
+function daysInRange(from: string, to: string): string[] {
+  const days: string[] = [];
+  const parsed = new Date(`${from}T00:00:00Z`);
+  const last = new Date(`${to}T00:00:00Z`);
+  while (parsed <= last) {
+    days.push(parsed.toISOString().slice(0, 10));
+    parsed.setUTCDate(parsed.getUTCDate() + 1);
+  }
+  return days;
+}
+
+/** The period of a roster week: the one the fixture knows, or a new draft. */
+export function periodForWeek(week: { from: string; to: string }): FixturePeriod {
+  const id = `period-${week.from}`;
+  const known = fixturePeriods.get(id);
+  if (known) return known;
+  const created: FixturePeriod = {
+    id,
+    label: rosterWeekLabel(week.from, week.to),
+    status: 'DRAFT',
+  };
+  fixturePeriods.set(id, created);
+  return created;
+}
+
+/** The period with that id, or null when the fixture does not know it. */
+export function fixturePeriod(id: string): FixturePeriod | null {
+  return fixturePeriods.get(id) ?? null;
+}
+
+/**
+ * The board payload for a range of days, the way the api answers it: the
+ * days of the range, the shifts in them, and the roster week that covers the
+ * range (null when the range spans two weeks).
+ */
+export function scheduleForRange(from?: string, to?: string): SchedulePayload {
+  // A board with no range shows the demo week, the way the fixture always did.
+  const first = from ?? DEMO_WEEK_FROM;
+  const last = to ?? DEMO_WEEK_TO;
+  const days = daysInRange(first, last);
+  const week = coveringWeek(first, last);
+  const payload: SchedulePayload = {
+    ...demoSchedule,
+    days,
+    coverage: demoSchedule.coverage.filter((block) => days.includes(block.date)),
+    officers: demoSchedule.officers.map((officer) => ({
+      ...officer,
+      cells: officer.cells.filter((cell) => days.includes(cell.date)),
+    })),
+    period: null,
+    publishedState: { published: false, unpublishedChanges: null },
+  };
+  if (!week) return payload;
+
+  const period = periodForWeek(week);
+  payload.period = period;
+  if (period.status === 'PUBLISHED') {
+    payload.publishedState = {
+      published: true,
+      unpublishedChanges:
+        week.from === DEMO_WEEK_FROM ? (demoSchedule.publishedState.unpublishedChanges ?? 0) : 0,
+    };
+  }
+  return payload;
+}

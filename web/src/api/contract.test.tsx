@@ -7,6 +7,7 @@ import { AppShellRoutes } from '../App';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 import { api } from './client';
+import { demoSchedule } from './fixtures/schedule';
 import auditEvents from './contract-samples/audit-events.json';
 import displayToday from './contract-samples/display-today.json';
 import meOffers from './contract-samples/me-offers.json';
@@ -166,5 +167,25 @@ describe('the board against the real api shapes', () => {
     await screen.findByText('Coverage gaps');
 
     expect(screen.queryByText('This screen could not be shown')).not.toBeInTheDocument();
+  });
+
+});
+
+describe('the fixture period against the api', () => {
+  it('has the same keys and types as the api sends', () => {
+    const fixture = demoSchedule.period;
+    const sample = schedulePublished.period;
+
+    expect(fixture, 'the fixture has a period').not.toBeNull();
+    expect(sample, 'the api sent a period').not.toBeNull();
+    expect(Object.keys(fixture!).sort()).toEqual(Object.keys(sample!).sort());
+    expect(typeof fixture!.id).toBe(typeof sample!.id);
+    expect(typeof fixture!.label).toBe(typeof sample!.label);
+    expect(typeof fixture!.status).toBe(typeof sample!.status);
+  });
+
+  it('names the roster week the way the api does', () => {
+    expect(demoSchedule.period?.label).toBe('16 – 22 Nov 2026');
+    expect(demoSchedule.period?.status).toBe('DRAFT');
   });
 });

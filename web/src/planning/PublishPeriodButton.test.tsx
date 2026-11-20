@@ -87,4 +87,15 @@ describe('the publish period action', () => {
     expect(screen.getByRole('button', { name: 'Publish period' })).toBeDisabled();
     expect(screen.getByText('Published. A correction is a further assignment.')).toBeInTheDocument();
   });
+
+  it('names the week and says what state it is in', async () => {
+    const user = userEvent.setup();
+    renderButton();
+
+    await user.click(screen.getByRole('button', { name: 'Publish period' }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent('16 – 22 Nov 2026');
+    expect(dialog).toHaveTextContent('Draft');
+  });
 });

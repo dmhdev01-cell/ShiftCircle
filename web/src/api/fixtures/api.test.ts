@@ -209,3 +209,66 @@ describe('the fixture publish', () => {
     );
   });
 });
+
+describe('the fixture roster week', () => {
+  beforeEach(() => {
+    resetSchedulePeriod();
+  });
+
+  it('answers the week the board shows', async () => {
+    const board = await api.getSchedule({
+      unitId: 'unit-b',
+      from: '2026-11-16',
+      to: '2026-11-22',
+    });
+
+    expect(board.period).toEqual({
+      id: 'period-2026-11-16',
+      label: '16 – 22 Nov 2026',
+      status: 'DRAFT',
+    });
+    expect(board.publishedState).toEqual({ published: false, unpublishedChanges: null });
+  });
+
+  it('answers no period when the range spans two weeks', async () => {
+    const board = await api.getSchedule({
+      unitId: 'unit-b',
+      from: '2026-11-20',
+      to: '2026-11-26',
+    });
+
+    expect(board.period).toBeNull();
+    expect(board.publishedState).toEqual({ published: false, unpublishedChanges: null });
+  });
+
+  it('answers a draft week for another week', async () => {
+    const board = await api.getSchedule({
+      unitId: 'unit-b',
+      from: '2026-11-23',
+      to: '2026-11-29',
+    });
+
+    expect(board.period).toEqual({
+      id: 'period-2026-11-23',
+      label: '23 – 29 Nov 2026',
+      status: 'DRAFT',
+    });
+  });
+
+  it('answers a published week after the supervisor publishes it', async () => {
+    await api.publishSchedulePeriod('period-2026-11-16');
+
+    const board = await api.getSchedule({
+      unitId: 'unit-b',
+      from: '2026-11-16',
+      to: '2026-11-22',
+    });
+
+    expect(board.period).toEqual({
+      id: 'period-2026-11-16',
+      label: '16 – 22 Nov 2026',
+      status: 'PUBLISHED',
+    });
+    expect(board.publishedState).toEqual({ published: true, unpublishedChanges: 0 });
+  });
+});
