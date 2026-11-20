@@ -9,18 +9,12 @@ import Typography from '@mui/material/Typography';
 import { api, ApiError } from '../api/client';
 import type { AuditEvent, AuditQuery } from '../api/types';
 import { colour } from '../theme/tokens';
+import { ENTITY_FILTER_CHOICES } from './auditCodes';
 import { actionLabel, entityLabel, formatAt, summaryOf } from './auditText';
 
 const PAGE_SIZE = 20;
 
-const ENTITY_CHOICES = [
-  'shift_assignment',
-  'time_entry',
-  'pay_period',
-  'open_shift',
-  'overtime_offer',
-  'rule_set_version',
-];
+const ENTITY_CHOICES = ENTITY_FILTER_CHOICES;
 
 interface Draft {
   actor: string;
@@ -202,8 +196,8 @@ export function AuditPage() {
           >
             <option value="">All entities</option>
             {ENTITY_CHOICES.map((choice) => (
-              <option key={choice} value={choice}>
-                {entityLabel(choice)}
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
               </option>
             ))}
           </TextField>

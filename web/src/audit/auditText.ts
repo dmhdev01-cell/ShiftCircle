@@ -1,46 +1,21 @@
 import type { AuditEvent } from '../api/types';
 
-/** Plain words for the audit action codes (the api writes snake_case codes). */
-const ACTIONS: Record<string, string> = {
-  assign_shift: 'Shift assigned',
-  override_rule: 'Rule override',
-  record_actual: 'Actual recorded',
-  record_absence: 'Absence recorded',
-  lock_pay_period: 'Pay period locked',
-  unlock_pay_period: 'Pay period unlocked',
-  payroll_export: 'Payroll export',
-  create_open_shift: 'Open shift created',
-  offer_overtime: 'Overtime offered',
-  accept_overtime_offer: 'Overtime accepted',
-  decline_overtime_offer: 'Overtime declined',
-  confirm_overtime_offer: 'Overtime confirmed',
-  assign_open_shift: 'Open shift assigned',
-  rule_set_draft: 'Rule draft created',
-  rule_rows_saved: 'Rule rows saved',
-  rule_set_build: 'Rule set built',
-  rule_set_submit: 'Rule set submitted',
-  rule_set_approve: 'Rule set approved',
-  rule_set_publish: 'Rule set published',
-  generate_demo_dataset: 'Demo data generated',
-};
+import { ACTION_LABELS, ENTITY_LABELS } from './auditCodes';
 
+/**
+ * Plain words for an audit action code.
+ *
+ * A code this screen does not know yet reads as "Unknown action: <code>", so a
+ * gap is visible instead of a raw snake_case string pretending to be a label.
+ */
 export function actionLabel(action: string): string {
-  return ACTIONS[action] ?? action;
+  return ACTION_LABELS[action] ?? `Unknown action: ${action}`;
 }
 
-const ENTITIES: Record<string, string> = {
-  shift_assignment: 'Shift',
-  time_entry: 'Time entry',
-  pay_period: 'Pay period',
-  open_shift: 'Open shift',
-  overtime_offer: 'Overtime offer',
-  rule_set_version: 'Rule version',
-  demo: 'Demo',
-};
-
+/** Plain words for an audit entity type, with the same readable fallback. */
 export function entityLabel(entityType: string | null): string {
   if (!entityType) return '—';
-  return ENTITIES[entityType] ?? entityType;
+  return ENTITY_LABELS[entityType] ?? `Unknown entity: ${entityType}`;
 }
 
 /** The time in Regina, the timezone the facility runs on. */
@@ -94,6 +69,20 @@ export function summaryOf(event: AuditEvent): string {
       return [text(after.assignmentId), shortWhen(after.startAt), shortWhen(after.endAt)]
         .filter(Boolean)
         .join(' · ');
+    case 'move_assignment':
+      return [
+        text(after.shiftTemplate),
+        after.unit ? 'unit ' + text(after.unit) : '',
+        shortWhen(after.startAt),
+      ]
+        .filter(Boolean)
+        .join(' · ');
+    case 'cancel_assignment':
+      return ['Status: ' + text(after.status), after.reason ? 'Reason: ' + text(after.reason) : '']
+        .filter(Boolean)
+        .join(' · ');
+    case 'publish_schedule_period':
+      return `Status: ${text(after.status)}`;
     case 'lock_pay_period':
       return `Locked${after.totals ? ` · ${text(after.totals)}` : ''}`;
     case 'unlock_pay_period':
