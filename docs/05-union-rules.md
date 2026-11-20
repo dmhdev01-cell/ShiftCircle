@@ -95,6 +95,8 @@ To keep the build realistic, the prototype implements a core set and documents t
 |---|---|
 | U-01, U-02, U-03, U-04, U-05, U-08, U-09, U-10, U-11, U-12, U-14, U-15 · P-01, P-01b, P-04 · S-03, S-04 (workflow, ADR-019) · O-01, O-02, O-03 · L-01 | U-06, U-07, U-13 · P-02, P-03, P-05, P-06 · S-01, S-02 · O-04 · L-02 |
 
+**Implementation notes (2026-11-20).** U-04 is a live Warn row in rule set v1 (docs/04 §3 and docs/10 §3 already require its boundary tests; 4 h extension trigger, 10 h rest). U-15 stays a Must **feature** but is **not** a decision-table row: under / approaching / in-overtime is a pay-period status, computed with the pay classification (P-01) and shown on the planning board — a rolling hours window cannot express it. S-04 is enforced by the workflow (ADR-019). Rule set v1 therefore has 19 rows across the 8 tables.
+
 ## 4. How these map onto the engine
 
 The rules are grouped into Drools decision tables (see `04-rules-engine.md` §5). The derived facts each table needs are computed by Java fact builders. The "rule type" names below are now those fact/template pairs:
