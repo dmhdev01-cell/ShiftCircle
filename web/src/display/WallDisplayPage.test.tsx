@@ -153,8 +153,9 @@ describe('Wall display', () => {
 
     const unitC = screen.getByRole('region', { name: 'Unit C · Living unit' });
     expect(within(unitC).getByText('3 / 4')).toBeInTheDocument();
-    expect(within(unitC).getByText('Short 1')).toBeInTheDocument();
-    expect(within(unitC).getByText('Short 1 from 19:00 – 23:00')).toBeInTheDocument();
+    // Words and an icon in the pill, not colour alone.
+    const pill = within(unitC).getByText('Short 1 · 19:00 – 23:00');
+    expect(pill.querySelector('svg')).not.toBeNull();
     const facility = screen.getByRole('region', { name: 'Facility today' });
     expect(within(facility).getByText('Units short right now').nextSibling).toHaveTextContent('1');
   });

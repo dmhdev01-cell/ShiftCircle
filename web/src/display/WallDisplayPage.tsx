@@ -53,7 +53,7 @@ function statusOf(entry: DisplayBlock): Status {
 }
 
 function statusWords(status: Status): string {
-  if (status.kind === 'short') return `Short ${status.by}`;
+  if (status.kind === 'short') return `Short ${status.by} · ${status.when}`;
   if (status.kind === 'extra') return `+${status.by} extra`;
   return 'Covered';
 }
@@ -151,17 +151,17 @@ function Pill({ status, live }: { status: Status; live: boolean }) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: s(8),
-        height: s(44),
-        px: s(18),
-        borderRadius: s(22),
-        fontSize: s(22),
+        height: s(38),
+        px: s(16),
+        borderRadius: s(19),
+        fontSize: s(20),
         fontWeight: 700,
         whiteSpace: 'nowrap',
         backgroundColor: palette.bg,
         color: palette.fg,
       }}
     >
-      <Icon kind={status.kind} size={22} />
+      <Icon kind={status.kind} size={20} />
       {live ? statusWords(status) : `Last known: ${statusWords(status)}`}
     </Box>
   );
@@ -181,67 +181,65 @@ function UnitCard({ entry, now, live }: { entry: DisplayUnit; now: Block; live: 
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        gap: s(12),
-        p: `${s(24)} ${s(28)}`,
+        gap: s(10),
+        p: `${s(20)} ${s(24)}`,
         minWidth: 0,
+        minHeight: 0,
         backgroundColor: C.card,
         borderRadius: s(20),
         border: `${s(3, 2)} solid ${live && short ? C.canola : C.rule}`,
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: s(16), flexWrap: 'wrap' }}>
-        <Box component="h2" sx={{ m: 0, fontSize: s(32), fontWeight: 700, lineHeight: 1.1 }}>
-          {entry.unit.name}
-        </Box>
-        {currentStatus ? <Pill status={currentStatus} live={live} /> : null}
+      <Box component="h2" sx={{ m: 0, fontSize: s(28), fontWeight: 700, lineHeight: 1.15 }}>
+        {entry.unit.name}
       </Box>
 
       {current ? (
         <Box>
-          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: s(16), flexWrap: 'wrap' }}>
-            <Box component="span" sx={{ fontSize: s(104, 32), fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
-              {current.scheduled.lowestHourly} / {current.required}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: s(12), flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: s(12) }}>
+              <Box component="span" sx={{ fontSize: s(84, 28), fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                {current.scheduled.lowestHourly} / {current.required}
+              </Box>
+              <Box component="span" sx={{ fontSize: s(22), color: C.muted }}>on duty</Box>
             </Box>
-            <Box component="span" sx={{ fontSize: s(24), color: C.muted }}>
-              on duty, {BLOCK_WORDS[current.block].name.toLowerCase()} {BLOCK_WORDS[current.block].hours}
-            </Box>
+            {currentStatus ? <Pill status={currentStatus} live={live} /> : null}
           </Box>
-          {currentStatus?.kind === 'short' ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: s(10), mt: s(8), fontSize: s(24), fontWeight: 700, color: C.canola }}>
-              <Icon kind="short" size={24} />
-              {`Short ${currentStatus.by} from ${currentStatus.when}`}
-            </Box>
-          ) : null}
         </Box>
       ) : (
         <Box sx={{ fontSize: s(24), color: C.muted }}>No requirement for this block</Box>
       )}
 
-      <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, pt: s(12), borderTop: `1px solid ${C.rule}`, display: 'flex', flexDirection: 'column', gap: s(6) }}>
+      <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, pt: s(10), borderTop: `1px solid ${C.rule}`, display: 'flex', flexDirection: 'column', gap: s(4) }}>
         {others.map((item) => {
           const status = statusOf(item);
           return (
-            <Box component="li" key={item.block} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: s(12), fontSize: s(22) }}>
-              <Box component="span" sx={{ color: C.muted }}>
+            <Box component="li" key={item.block} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: s(12), fontSize: s(20) }}>
+              <Box component="span" sx={{ color: C.muted, whiteSpace: 'nowrap' }}>
                 {BLOCK_WORDS[item.block].name} {BLOCK_WORDS[item.block].hours.slice(0, 5)}
               </Box>
-              <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: s(8), fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: status.kind === 'short' ? C.canola : C.text }}>
+              <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: s(8), whiteSpace: 'nowrap', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: status.kind === 'short' ? C.canola : C.text }}>
                 {item.scheduled.lowestHourly} / {item.required}
                 {status.kind === 'short' ? (
                   <>
+                    {/* The hours are on the card when the block is current; here the count is enough. */}
                     <Icon kind="short" size={20} />
-                    {`short ${status.by}, ${status.when}`}
+                    {`short ${status.by}`}
                   </>
                 ) : null}
               </Box>
             </Box>
           );
         })}
-        <Box component="li" sx={{ display: 'flex', justifyContent: 'space-between', gap: s(12), fontSize: s(22) }}>
-          <Box component="span" sx={{ color: C.muted }}>Open shifts today · on overtime</Box>
-          <Box component="span" sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-            {entry.openShifts} · {entry.officersInOvertime}
-          </Box>
+        <Box component="li" sx={{ display: 'flex', justifyContent: 'space-between', gap: s(12), fontSize: s(20) }}>
+          <span>
+            <Box component="span" sx={{ color: C.muted }}>Open shifts today </Box>
+            <Box component="span" sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{entry.openShifts}</Box>
+          </span>
+          <span>
+            <Box component="span" sx={{ color: C.muted }}>On overtime </Box>
+            <Box component="span" sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{entry.officersInOvertime}</Box>
+          </span>
         </Box>
       </Box>
     </Box>

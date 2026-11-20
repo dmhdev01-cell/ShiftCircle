@@ -83,17 +83,31 @@ test.describe('E5 wall display', () => {
 
   test('fits a 1920×1080 TV and a 1366×768 screen without scrolling', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'desktop', 'TV sizes are checked once, in the desktop project');
+    // 14:32 and 20:05: in the fixtures, Unit C's evening shortfall is first a
+    // row further down the card, then the card's headline. Both must fit.
+    await page.clock.install({ time: DEMO_TIME });
+    for (const time of [DEMO_TIME, new Date('2026-11-20T02:05:00Z')])
     for (const size of [
       { width: 1920, height: 1080 },
       { width: 1366, height: 768 },
     ]) {
+      await page.clock.setSystemTime(time);
       await page.setViewportSize(size);
       await openAsDisplay(page);
+      await page.clock.runFor(2_000);
       const overflow = await page.evaluate(() => ({
         vertical: Math.max(0, document.documentElement.scrollHeight - window.innerHeight),
         horizontal: Math.max(0, document.documentElement.scrollWidth - window.innerWidth),
       }));
-      expect(overflow, `overflow at ${size.width}×${size.height}`).toEqual({ vertical: 0, horizontal: 0 });
+      expect(overflow, `page overflow at ${size.width}×${size.height}`).toEqual({ vertical: 0, horizontal: 0 });
+      // The page not scrolling isn't enough: a card can spill over its
+      // neighbour or the footer. Every card and the main area must hold its content.
+      const spilled = await page.evaluate(() =>
+        [...document.querySelectorAll<HTMLElement>('main, main section[aria-label]')]
+          .filter((element) => element.scrollHeight > element.clientHeight + 1 || element.scrollWidth > element.clientWidth + 1)
+          .map((element) => `${element.getAttribute('aria-label') ?? 'main'} (${element.scrollHeight} > ${element.clientHeight})`),
+      );
+      expect(spilled, `content spilling out at ${size.width}×${size.height}`).toEqual([]);
     }
   });
 });
