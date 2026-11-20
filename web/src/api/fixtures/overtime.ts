@@ -142,3 +142,24 @@ export const demoOfferHistory: OfferRecord[] = [
     status: 'CONFIRMED',
   },
 ];
+
+/**
+ * Offers recorded in this session (E2). They carry the open shift so the
+ * supervisor's board shows them under the right shift, and the offer id so the
+ * employee's answer can update the same row.
+ */
+export interface RecordedOffer extends OfferRecord {
+  offerId: string;
+  openShiftId: string;
+}
+
+export const recordedOffers: RecordedOffer[] = [];
+
+const SEEDED_HISTORY = demoOfferHistory.map((entry) => ({ ...entry }));
+
+/** Put the offer history back, so one test cannot change what the next one sees. */
+export function resetOfferHistory(): void {
+  demoOfferHistory.splice(0, demoOfferHistory.length, ...SEEDED_HISTORY.map((entry) => ({ ...entry })));
+  recordedOffers.length = 0;
+}
+

@@ -46,8 +46,14 @@ import {
   MISSING_ACTUALS,
   WARNINGS_NEED_ACKNOWLEDGEMENT,
 } from '../types';
-import { demoMyOffers, demoMySchedule } from './mySchedule';
-import { demoCandidates, demoOfferHistory, demoOpenShifts } from './overtime';
+import { demoMyOffers, demoMySchedule, resetMyOffers } from './mySchedule';
+import {
+  demoCandidates,
+  demoOfferHistory,
+  demoOpenShifts,
+  recordedOffers,
+  resetOfferHistory,
+} from './overtime';
 import {
   demoCoverageReport,
   demoHoursReport,
@@ -215,6 +221,8 @@ let assignmentCounter = 0;
  */
 export function resetFixtures(): void {
   assignmentCounter = 0;
+  resetOfferHistory();
+  resetMyOffers();
   demoRuleSets.forEach((entry) => {
     entry.status =
       entry.version === 7 ? 'LIVE' : entry.version === 8 ? 'DRAFT' : ('PUBLISHED' as const);
@@ -261,9 +269,9 @@ export function createFixtureApi(): ShiftCircleApi {
       const warnings = outcome.ruleResults.filter((result) => result.outcome === 'WARN');
       const acknowledged = new Set(request.acknowledgeWarnings ?? []);
       const unacknowledged = warnings.filter((result) => !acknowledged.has(result.ruleCode));
-      // An emergency override is a deliberate decision, so the Warn results do
-      // also have to be acknowledged.
-      if (unacknowledged.length > 0 && !request.override) {
+      // Warnings always have to be acknowledged, including when the change is
+      // saved with an emergency override: the api refuses the save otherwise.
+      if (unacknowledged.length > 0) {
         throw new ApiError('The warnings need acknowledging', 422, {
           type: WARNINGS_NEED_ACKNOWLEDGEMENT,
           title: 'The warnings need acknowledging',
@@ -298,13 +306,21 @@ export function createFixtureApi(): ShiftCircleApi {
       if (!openShift) {
         throw new ApiError('That open shift is not in the fixture.', 404);
       }
+      const recorded = recordedOffers
+        .filter((offer) => offer.openShiftId === openShiftId)
+        .map((offer) => ({
+          at: offer.at,
+          employeeId: offer.employeeId,
+          employeeName: offer.employeeName,
+          status: offer.status,
+        }));
       return {
         openShift,
         candidates: demoCandidates,
         ruleSetVersion: RULE_SET_VERSION,
         rankingNote:
           'Fewest overtime hours this quarter first, then seniority. Officers who would break a Block rule are skipped without losing their place.',
-        history: demoOfferHistory,
+        history: [...demoOfferHistory, ...recorded],
       };
     },
 
@@ -315,13 +331,45 @@ export function createFixtureApi(): ShiftCircleApi {
         throw new ApiError('That open shift is not in the fixture.', 404);
       }
       // Only a supervisor may offer overtime (S-04). This is the supervisor's
-      // session, so the offers are recorded.
+      // session, so the offers are recorded for the officer to answer (E2).
       return employeeIds.map((employeeId) => {
         const candidate = demoCandidates.find((entry) => entry.employeeId === employeeId);
+        const employeeName = candidate?.name ?? employeeId;
+        const offerId = `offer-${openShift.id}-${employeeId}`;
+
+        const existing = demoMyOffers.find((offer) => offer.id === offerId);
+        if (existing) {
+          existing.status = 'OFFERED';
+        } else {
+          demoMyOffers.push({
+            id: offerId,
+            openShift,
+            offeredBy: 'M. Ellis',
+            offeredAt: 'now',
+            eligibility: candidate?.eligibility ?? 'ELIGIBLE',
+            ...(candidate?.reason ? { reason: candidate.reason } : {}),
+            status: 'OFFERED',
+          });
+        }
+
+        const recorded = recordedOffers.find((offer) => offer.offerId === offerId);
+        if (recorded) {
+          recorded.status = 'OFFERED';
+        } else {
+          recordedOffers.push({
+            offerId,
+            openShiftId: openShift.id,
+            at: 'now',
+            employeeId,
+            employeeName,
+            status: 'OFFERED',
+          });
+        }
+
         return {
           at: 'now',
           employeeId,
-          employeeName: candidate?.name ?? employeeId,
+          employeeName,
           status: 'OFFERED' as const,
         };
       });
@@ -329,11 +377,26 @@ export function createFixtureApi(): ShiftCircleApi {
 
     async confirmOffer(offerId: string): Promise<OfferRecord> {
       await wait(LATENCY_MS);
+      // The history row carries no offer id in the browser contract, so the
+      // screen hands back the employee id; accept either.
+      const recorded = recordedOffers.find(
+        (entry) => entry.offerId === offerId || entry.employeeId === offerId,
+      );
+      if (recorded) {
+        recorded.status = 'CONFIRMED';
+        return {
+          at: recorded.at,
+          employeeId: recorded.employeeId,
+          employeeName: recorded.employeeName,
+          status: 'CONFIRMED',
+        };
+      }
       const offer = demoOfferHistory.find((entry) => entry.employeeId === offerId);
       if (!offer) {
         throw new ApiError('That offer is not in the fixture.', 404);
       }
       // Only a supervisor confirms an accepted offer (S-04).
+      offer.status = 'CONFIRMED';
       return { ...offer, status: 'CONFIRMED' };
     },
 
@@ -380,11 +443,15 @@ export function createFixtureApi(): ShiftCircleApi {
       if (!offer) {
         throw new ApiError('That offer is not in the fixture.', 404);
       }
-      // Accepting re-checks the rules; the supervisor confirms afterwards.
-      return {
-        ...offer,
-        status: response === 'ACCEPT' ? 'ACCEPTED' : 'DECLINED',
-      };
+      // Accepting re-checks the rules; the supervisor confirms afterwards. The
+      // same answer shows on the supervisor's board (E2).
+      const status = response === 'ACCEPT' ? 'ACCEPTED' : 'DECLINED';
+      offer.status = status;
+      const recorded = recordedOffers.find((entry) => entry.offerId === offerId);
+      if (recorded) {
+        recorded.status = status;
+      }
+      return { ...offer, status };
     },
 
     async submitProposals(

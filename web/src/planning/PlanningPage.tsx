@@ -159,6 +159,13 @@ export function PlanningPage() {
   };
 
   const template = pending ? shiftTemplates[pending.template] : undefined;
+  // "Find eligible officer" takes the slot with it: the unit and the start
+  // instant are what the overtime board can match against an open shift.
+  const requestedStart = pending && template ? `${pending.date}T${template.start}:00${REGINA_OFFSET}` : proposal?.item.startAt;
+  const findEligibleHref =
+    requestedStart === undefined
+      ? '/overtime'
+      : `/overtime?unit=${encodeURIComponent(payload.unit.id)}&startAt=${encodeURIComponent(requestedStart)}`;
   const panelTitle = pending
     ? `Assign ${pending.officer.name} → ${template?.label ?? pending.template}`
     : proposal
@@ -299,6 +306,7 @@ export function PlanningPage() {
               state={mutation.state}
               title={panelTitle}
               detail={panelDetail}
+              findEligibleHref={findEligibleHref}
               onSave={() => {
                 if (mutation.state.change) void mutation.save(mutation.state.change);
               }}

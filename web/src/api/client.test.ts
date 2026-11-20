@@ -90,15 +90,31 @@ describe('the fixture api', () => {
     }
   });
 
-  it('accepts the same save with an emergency override', async () => {
+  it('accepts the same save with an emergency override and the warnings acknowledged', async () => {
+    // The api's override path still requires the Warn results to be
+    // acknowledged (AssignmentService), so the save carries both.
     const outcome = await api.saveChange({
       change: { type: 'ASSIGN', ...pc01 },
       override: { reason: 'Lockdown, no relief available' },
+      acknowledgeWarnings: ['U-14'],
     });
 
     expect(outcome.ruleOutcome.outcome).toBe('PASS');
     expect(outcome.assignmentId).toBeTruthy();
     expect(outcome.ruleOutcome.ruleResults[0].outcome).toBe('INFO');
+  });
+
+  it('refuses an override that leaves the warnings unacknowledged', async () => {
+    try {
+      await api.saveChange({
+        change: { type: 'ASSIGN', ...pc01 },
+        override: { reason: 'Lockdown, no relief available' },
+      });
+      throw new Error('the save should have been refused');
+    } catch (error) {
+      const apiError = error as ApiError;
+      expect(apiError.needsAcknowledgement).toBe(true);
+    }
   });
 
   it('asks for acknowledgement when a change only warns', async () => {

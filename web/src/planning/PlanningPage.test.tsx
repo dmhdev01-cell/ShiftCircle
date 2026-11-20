@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
+import { api } from '../api/client';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
@@ -89,6 +90,12 @@ describe('the planning board', () => {
     expect(await screen.findByRole('heading', { name: /Assign Nia Thompson/ })).toBeInTheDocument();
     expect(await screen.findByText('Blocked: 2 rules fail')).toBeInTheDocument();
     expect(screen.getByText(/U-01 · Minimum rest/)).toBeInTheDocument();
+    // "Find eligible officer" carries the slot, so the overtime board can open
+    // the matching open shift instead of whichever is first.
+    expect(screen.getByRole('link', { name: 'Find eligible officer' })).toHaveAttribute(
+      'href',
+      '/overtime?unit=unit-b&startAt=2026-11-21T07%3A00%3A00-06%3A00',
+    );
   });
 
   it('reads Off on the empty cells and only offers an assignment for today or later', async () => {
@@ -111,6 +118,7 @@ describe('the planning board', () => {
 
   it('B2: an emergency override acknowledges the warnings with it', async () => {
     const user = userEvent.setup();
+    const saveChange = vi.spyOn(api, 'saveChange');
     renderBoard();
 
     // PC-01 blocks on U-01 and U-05 and also warns on U-14.
@@ -129,5 +137,14 @@ describe('the planning board', () => {
     await user.click(screen.getByRole('button', { name: 'Emergency override' }));
 
     expect(await screen.findByText('Saved')).toBeInTheDocument();
+    // The api refuses an override with an unacknowledged warning, so the save
+    // must carry U-14 as well as the reason (the fixture now enforces this).
+    expect(saveChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        override: { reason: 'Unit B is short and no eligible officer is left tonight' },
+        acknowledgeWarnings: ['U-14'],
+      }),
+    );
+    saveChange.mockRestore();
   });
 });

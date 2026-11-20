@@ -139,3 +139,10 @@ export const demoMyOffers: MyOffer[] = [
     status: 'OFFERED',
   },
 ];
+
+const SEEDED_OFFERS = demoMyOffers.map((offer) => ({ ...offer }));
+
+/** Put the employee's offer list back after a test or a demo run. */
+export function resetMyOffers(): void {
+  demoMyOffers.splice(0, demoMyOffers.length, ...SEEDED_OFFERS.map((offer) => ({ ...offer })));
+}

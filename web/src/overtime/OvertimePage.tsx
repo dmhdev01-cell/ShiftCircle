@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -73,10 +74,26 @@ const OFFER_TEXT = {
  */
 export function OvertimePage() {
   const { state: shiftsState } = useOpenShifts();
+  const [searchParams] = useSearchParams();
   const [pickedId, setPickedId] = useState<string | null>(null);
   const shifts = shiftsState.kind === 'ready' ? shiftsState.shifts : [];
-  // The first open shift is selected until the supervisor picks another.
-  const activeId = pickedId ?? shifts[0]?.id ?? null;
+  // "Find eligible officer" names the shift it came from, so the board opens
+  // on that shift rather than whatever happens to be first.
+  const requestedId = searchParams.get('shift');
+  const requestedUnit = searchParams.get('unit');
+  const requestedStart = searchParams.get('startAt');
+  const requested =
+    shifts.find((shift) => shift.id === requestedId) ??
+    shifts.find(
+      (shift) =>
+        requestedUnit !== null &&
+        requestedStart !== null &&
+        shift.unit.id === requestedUnit &&
+        shift.startAt === requestedStart,
+    ) ??
+    null;
+  // The requested shift is selected until the supervisor picks another.
+  const activeId = pickedId ?? requested?.id ?? shifts[0]?.id ?? null;
   const { state: candidatesState, reload: reloadCandidates } = useOpenShiftCandidates(activeId);
   const [selected, setSelected] = useState<string[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -436,6 +453,8 @@ export function OvertimePage() {
               {payload.history.map((entry, index) => (
                 <Box
                   key={`${entry.at}-${entry.employeeId}-${index}`}
+                  role="group"
+                  aria-label={`${entry.employeeName} · ${OFFER_TEXT[entry.status]}`}
                   sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px', fontSize: 13 }}
                 >
                   <Box component="span" className="num" sx={{ color: colour.text.secondary, minWidth: 42 }}>

@@ -9,11 +9,11 @@ import { AppShellRoutes } from '../App';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
-function renderBoard() {
+function renderBoard(path = '/overtime') {
   return render(
     <ThemeProvider theme={theme}>
       <RoleProvider>
-        <MemoryRouter initialEntries={['/overtime']}>
+        <MemoryRouter initialEntries={[path]}>
           <AppShellRoutes />
         </MemoryRouter>
       </RoleProvider>
@@ -127,5 +127,59 @@ describe('the overtime board', () => {
     expect(await screen.findByText('Offer history')).toBeInTheDocument();
     expect(screen.getByText('Fri evenings → Ruth Okafor')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
+  });
+
+  it('opens the shift named in the "Find eligible officer" link', async () => {
+    renderBoard('/overtime?shift=os-fri-evenings');
+
+    expect(
+      await screen.findByRole('heading', { name: /Fri 20 Nov · Evenings/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Sat 21 Nov · Days/ })).not.toBeInTheDocument();
+  });
+
+  it('matches a link that names the unit and start instead of the shift id', async () => {
+    renderBoard(
+      `/overtime?unit=admissions&startAt=${encodeURIComponent('2026-11-22T23:00:00-06:00')}`,
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: /Sun 22 Nov · Nights/ }),
+    ).toBeInTheDocument();
+  });
+
+  it('E2: an offer reaches the employee, comes back accepted, and can be confirmed', async () => {
+    const user = userEvent.setup();
+    const supervisor = renderBoard();
+
+    // The supervisor offers the Saturday day shift to Sam.
+    await user.click(
+      await screen.findByRole('checkbox', { name: 'Select Sam Abara for this shift' }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Offer to selected (1)' }));
+    expect(await screen.findByText(/1 offer recorded/)).toBeInTheDocument();
+    supervisor.unmount();
+
+    // The employee sees the offer and accepts it.
+    const employee = renderBoard('/me/schedule');
+    const regions = await screen.findAllByRole('region', { name: 'Overtime offer' });
+    const offered = regions.find(
+      (region) =>
+        within(region).queryByText(/Sat 21 Nov/) && within(region).queryByText(/07:00 – 15:00/),
+    );
+    expect(offered).toBeDefined();
+    await user.click(within(offered as HTMLElement).getByRole('button', { name: 'Accept' }));
+    expect(
+      await within(offered as HTMLElement).findByText(/Accepted/),
+    ).toBeInTheDocument();
+    employee.unmount();
+
+    // The supervisor sees the answer and confirms it (S-04).
+    renderBoard();
+    const accepted = await screen.findByRole('group', { name: 'Sam Abara · Accepted' });
+    await user.click(within(accepted).getByRole('button', { name: 'Confirm' }));
+    expect(
+      await screen.findByRole('group', { name: 'Sam Abara · Confirmed' }),
+    ).toBeInTheDocument();
   });
 });
