@@ -9,12 +9,12 @@ target/
 *.log
 .mvn/wrapper/maven-wrapper.jar
 
-# Node / frontend
+# Node / frontend. build, dist and coverage are anchored to web/: the unanchored
+# patterns once ignored the Java packages .../rules/build/ (caught in review,
+# 2026-11-20) and .../api/coverage/ (caught by a clean-worktree run, 2026-11-20).
 node_modules/
-coverage/
 .vite/
-# Anchored to the web container: an unanchored "build/" ignored
-# api/shiftcircle-rules/src/main/java/.../rules/build/ (caught in review, 2026-11-20).
+/web/coverage/
 /web/build/
 /web/dist/
 
