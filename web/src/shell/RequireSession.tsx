@@ -1,4 +1,4 @@
-import { useRef, useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
@@ -22,8 +22,11 @@ import { getSession, subscribeSession } from '../api/session';
 export function RequireSession({ children }: { children: ReactNode }) {
   const session = useSyncExternalStore(subscribeSession, getSession);
   const location = useLocation();
-  const hadSession = useRef(session.user !== null);
-  if (session.user !== null) hadSession.current = true;
+  // Whether this page load began with a session. A reload or a deep link
+  // begins without one, so the route is worth remembering; a sign-out or an
+  // expired session happens after a signed-in start, and the next person gets
+  // their own landing page instead.
+  const [arrivedSignedIn] = useState(() => session.user !== null);
 
   // The fixtures demo has no token by design; its screens are the demo.
   if (usingFixtures) return <>{children}</>;
@@ -35,7 +38,7 @@ export function RequireSession({ children }: { children: ReactNode }) {
     <Navigate
       to="/login"
       replace
-      state={{ from: hadSession.current ? undefined : `${location.pathname}${location.search}` }}
+      state={{ from: arrivedSignedIn ? undefined : `${location.pathname}${location.search}` }}
     />
   );
 }
