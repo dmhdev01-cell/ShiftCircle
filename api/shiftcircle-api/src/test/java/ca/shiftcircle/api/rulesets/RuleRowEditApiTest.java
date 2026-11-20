@@ -114,6 +114,55 @@ class RuleRowEditApiTest {
     assertThat(storedAfter(draft)).as("the refusal saved nothing").isEqualTo(".*");
   }
 
+  @Test
+  void theReviewProbeClassesGetTheDocumentedAnswer() throws Exception {
+    // review-r2's standalone probe recorded 18 afterShiftKind payload classes, two of them valid
+    // controls. The payload strings themselves are not in its response file, so these are the
+    // equivalent values for each recorded class; every hostile class must be refused, and the two
+    // valid controls must be saved exactly.
+    String len64 = "D8|".repeat(21) + "D";
+    String len65 = "D8|".repeat(21) + "DE";
+    String[][] probes = {
+      {"classic-quote-exit", ".*\")|System.exit(0)|(\"", "refused"},
+      {"backslash", ".*\\", "refused"},
+      {"backslash-quote", ".*\\\"", "refused"},
+      {"newline", ".*\n", "refused"},
+      {"crlf", ".*\r\n", "refused"},
+      {"fullwidth-quote", ".*\u201D", "refused"},
+      {"rlo", ".*\u202E", "refused"},
+      {"zero-width", ".*\u200B", "refused"},
+      {"redos-alt", "(a|a)*", "refused"},
+      {"redos-star", "(a+)+", "refused"},
+      {"big-quantifier", "(a|b){1,999999}", "refused"},
+      {"unbalanced-open", "(D8|N8", "refused"},
+      {"unbalanced-close", "D8|N8)", "refused"},
+      {"valid-control", ".*", "saved"},
+      {"valid-alt", "(D8|N8|A12)", "saved"},
+      {"charset-odd", "[a-z]+", "refused"},
+      {"len-64", len64, "saved"},
+      {"len-65", len65, "refused"},
+    };
+
+    int draft = draft();
+    for (String[] probe : probes) {
+      Map<String, Object> table = table(draft, "REST");
+      Map<String, Object> row = row(table, "U-01");
+      row.put("after", "Any shift");
+      params(row).put("afterShiftKind", probe[1]);
+
+      HttpResponse<String> response = save(draft, "REST", table);
+      if ("saved".equals(probe[2])) {
+        assertThat(response.statusCode()).as(probe[0]).isEqualTo(200);
+        assertThat(storedAfter(draft)).as(probe[0]).isEqualTo(probe[1]);
+      } else {
+        assertThat(response.statusCode()).as(probe[0]).isEqualTo(400);
+        assertThat(problem(response).get("title").toString())
+            .as(probe[0])
+            .contains("After this kind of shift");
+      }
+    }
+  }
+
   // -------------------------------------------------------------------------------------------
   // (a) unknown keys and wrong types are refused at PUT, naming the column
   // -------------------------------------------------------------------------------------------
@@ -292,6 +341,19 @@ class RuleRowEditApiTest {
     List<?> errors = (List<?>) json(response).get("errors");
     assertThat(errors).as("the report shows 20 and counts the rest").hasSize(21);
     assertThat(errors.get(errors.size() - 1).toString()).contains("more");
+  }
+
+  @Test
+  void aBuildWithAStoredNonObjectParamsAnswersValidationNotAFiveHundred() throws Exception {
+    int draft = draft();
+    jdbc.update(
+        "UPDATE rule_row rr SET params = '[]'::jsonb FROM rule_set_version v"
+            + " WHERE v.id = rr.rule_set_version_id AND v.version = ? AND rr.code = 'U-01'",
+        draft);
+
+    HttpResponse<String> response = build(draft);
+    assertThat(response.statusCode()).isEqualTo(200);
+    assertThat((List<?>) json(response).get("errors")).isNotEmpty();
   }
 
   // -------------------------------------------------------------------------------------------

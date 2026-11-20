@@ -212,8 +212,22 @@ class RuleSetApiTest {
     int draft = createDraft(1, "T13: the legal floor");
     Map<String, Object> rest = table(draft, "REST");
     setParam(rest, "U-01", "minRestHours", 7);
-    saveRows(draft, "REST", rest);
+    HttpResponse<String> put =
+        send(
+            "PUT",
+            "/api/v1/rule-sets/" + draft + "/tables/REST/rows",
+            mapper.writeValueAsString(Map.of("rows", rest.get("rows"))),
+            "l.fraser");
+    assertThat(put.statusCode()).as("the PUT refuses a row below the legal floor").isEqualTo(400);
+    assertThat(put.body()).contains("between 8 and 24");
 
+    // A row stored by a direct database edit (or a bad restore) must still fail validation and
+    // stay unsubmittable; the PUT refusal above is the first line, not the only one.
+    jdbc.update(
+        "UPDATE rule_row rr SET params = jsonb_set(rr.params, '{minRestHours}', '7'::jsonb)"
+            + " FROM rule_set_version v WHERE v.id = rr.rule_set_version_id"
+            + " AND v.version = ? AND rr.code = 'U-01'",
+        draft);
     Map<String, Object> report = build(draft);
 
     List<Map<String, Object>> steps = (List<Map<String, Object>>) report.get("steps");
@@ -500,22 +514,26 @@ class RuleSetApiTest {
     // The screen sends the friendly label; a crafted request omits it so params is authoritative.
     u01.put("after", null);
     setParam(rest, "U-01", "afterShiftKind", ".*\"); System.setProperty(\"sc.pwn\", \"1\"); //");
-    saveRows(draft, "REST", rest);
+    HttpResponse<String> put =
+        send(
+            "PUT",
+            "/api/v1/rule-sets/" + draft + "/tables/REST/rows",
+            mapper.writeValueAsString(Map.of("rows", rest.get("rows"))),
+            "l.fraser");
 
-    Map<String, Object> report = build(draft);
-    List<Map<String, Object>> steps = (List<Map<String, Object>>) report.get("steps");
-    assertThat(steps)
-        .as("validation refuses the value and the compile step never runs")
-        .extracting(step -> step.get("key"))
-        .contains("validation")
-        .doesNotContain("compile");
-    assertThat(steps.get(0).get("done")).isEqualTo(false);
-    assertThat(report.get("errors").toString()).contains("shift codes");
-    assertThat(System.getProperty("sc.pwn")).as("no injected code ran at build time").isNull();
-
-    assertThat(send("POST", "/api/v1/rule-sets/" + draft + "/submit", null, "l.fraser").statusCode())
-        .as("a failed build cannot be submitted")
-        .isEqualTo(409);
+    assertThat(put.statusCode()).as("the PUT refuses the hostile value").isEqualTo(400);
+    assertThat(put.body())
+        .as("plain words, no regex echo")
+        .contains("After this kind of shift")
+        .doesNotContain("System.setProperty");
+    assertThat(System.getProperty("sc.pwn")).as("no injected code ran at PUT time").isNull();
+    String stored =
+        jdbc.queryForObject(
+            "SELECT rr.params->>'afterShiftKind' FROM rule_row rr JOIN rule_set_version v"
+                + " ON v.id = rr.rule_set_version_id WHERE v.version = ? AND rr.code = 'U-01'",
+            String.class,
+            draft);
+    assertThat(stored).as("nothing was saved").isEqualTo(".*");
   }
 
   @Test
@@ -534,13 +552,18 @@ class RuleSetApiTest {
     String body = mapper.writeValueAsString(Map.of("rows", rows));
     HttpResponse<String> saved =
         send("PUT", "/api/v1/rule-sets/" + draft + "/tables/REST/rows", body, "l.fraser");
-    assertThat(saved.statusCode()).withFailMessage(saved.body() + "\nBODY=" + body).isEqualTo(200);
-
-    Map<String, Object> report = build(draft);
-    List<Map<String, Object>> steps = (List<Map<String, Object>>) report.get("steps");
-    assertThat(steps).extracting(step -> step.get("key")).doesNotContain("compile");
-    assertThat(report.get("errors").toString()).contains("Rule code");
-    assertThat(System.getProperty("sc.pwn2")).as("no injected code ran at build time").isNull();
+    assertThat(saved.statusCode()).as("the PUT refuses the hostile rule code").isEqualTo(400);
+    assertThat(saved.body())
+        .contains("letters, digits and hyphens")
+        .doesNotContain("System.setProperty");
+    assertThat(System.getProperty("sc.pwn2")).as("no injected code ran at PUT time").isNull();
+    String stored =
+        jdbc.queryForObject(
+            "SELECT code FROM rule_row rr JOIN rule_set_version v ON v.id = rr.rule_set_version_id"
+                + " WHERE v.version = ? AND rr.code = 'U-01'",
+            String.class,
+            draft);
+    assertThat(stored).as("nothing was renamed").isEqualTo("U-01");
   }
 
   @Test

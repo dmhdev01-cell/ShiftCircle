@@ -59,7 +59,7 @@ class PublishedRuleSetBootTest {
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("ShiftCircle will not start")
           .hasMessageContaining("U-01")
-          .hasMessageContaining("8-hour");
+          .hasMessageContaining("between 8 and 24");
       assertThat(output)
           .as("the refusal is in the log, not only in the exception")
           .contains("is not valid, so ShiftCircle will not start")
@@ -73,7 +73,7 @@ class PublishedRuleSetBootTest {
   }
 
   @Test
-  void aPublishedRowThatCannotBeReadRefusesToStartInsteadOfServingV1(CapturedOutput output) {
+  void aPublishedRowWithNullParamsIsReportedAsInvalidInsteadOfServingV1(CapturedOutput output) {
     UUID published =
         jdbc.queryForObject(
             "SELECT id FROM rule_set_version WHERE status = 'PUBLISHED'"
@@ -90,10 +90,12 @@ class PublishedRuleSetBootTest {
       assertThatThrownBy(() -> new PublishedRuleSet(compiler, rows))
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("ShiftCircle will not start")
-          .hasMessageContaining("could not be read");
+          .hasMessageContaining("U-01")
+          .hasMessageContaining("Row values");
       assertThat(output)
           .as("the refusal is in the log, not only in the exception")
-          .contains("could not be read, so ShiftCircle will not start");
+          .contains("is not valid, so ShiftCircle will not start")
+          .contains("U-01");
     } finally {
       restore(published, original);
     }

@@ -984,6 +984,13 @@ public class RuleSetService {
       Map<String, Object> params,
       RuleTableCode table,
       RuleRow existing) {
+    if (table == RuleTableCode.REST
+        && params.get("minRestHours") instanceof Number rest
+        && (rest.doubleValue() < 8 || rest.doubleValue() > 24)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "The At least (hours) off column (minRestHours) must be between 8 and 24 hours");
+    }
     for (Map.Entry<String, Object> entry : params.entrySet()) {
       String key = entry.getKey();
       if ("_message".equals(key)) {
@@ -1057,13 +1064,6 @@ public class RuleSetService {
           && !allowed.contains(String.valueOf(value))) {
         throw columnProblem(label, key, "must be one of " + allowed);
       }
-    }
-    if (table == RuleTableCode.REST
-        && params.get("minRestHours") instanceof Number rest
-        && (rest.doubleValue() < 8 || rest.doubleValue() > 24)) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST,
-          "The At least (hours) off column (minRestHours) must be between 8 and 24 hours");
     }
   }
 

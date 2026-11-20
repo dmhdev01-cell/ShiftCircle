@@ -99,6 +99,9 @@ public class RuleRowsRepository {
     if (json == null || json.isBlank()) {
       return Map.of();
     }
-    return mapper.readValue(json, Map.class);
+    // A stored params value that is not a JSON object (SQL NULL, 'null', a string, a list) is an
+    // invalid row for the validator to report, never an exception from the row mapper.
+    Object parsed = mapper.readValue(json, Object.class);
+    return parsed instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
   }
 }

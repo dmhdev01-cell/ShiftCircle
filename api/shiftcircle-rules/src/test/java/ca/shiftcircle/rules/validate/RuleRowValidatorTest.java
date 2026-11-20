@@ -372,6 +372,43 @@ class RuleRowValidatorTest {
             });
   }
 
+  @Test
+  void nullParamsAreAValidationErrorNotAnException() {
+    assertThat(validateWith("U-01", null))
+        .as("a row with no params is reported, never thrown")
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.code()).isEqualTo("U-01");
+              assertThat(violation.column()).isEqualTo("Row values");
+            });
+  }
+
+  @Test
+  void emptyParamsAreAValidationErrorNotAnException() {
+    assertThat(validateWith("U-01", Map.of()))
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.code()).isEqualTo("U-01");
+              assertThat(violation.column()).isEqualTo("Row values");
+            });
+  }
+
+  @Test
+  void aNullValueInParamsIsAValidationErrorNotAnException() {
+    Map<String, Object> params = new LinkedHashMap<>();
+    params.put("afterShiftKind", ".*");
+    params.put("windowHours", null);
+    params.put("minRestHours", 8);
+
+    assertThat(validateWith("U-01", params))
+        .as("a stored numeric column that is null is a row problem, not a crash")
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.code()).isEqualTo("U-01");
+              assertThat(violation.column()).isEqualTo("Row values");
+            });
+  }
+
   private static RuleRow withPolicy(
       RuleRow row, ca.shiftcircle.rules.model.OverridePolicy policy) {
     return new RuleRow(
