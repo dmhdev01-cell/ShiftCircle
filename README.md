@@ -88,6 +88,11 @@ Sign-in is **simulated**. The sign-in screen lists fictional demo users (`GET /a
 All in Docker.
 
 ```sh
+# Guard: a source or docs path hidden by .gitignore is invisible to git, so a clean
+# checkout silently misses it. Run this before committing and again in the clean
+# worktree used for the verified run.
+./scripts/check-ignored-sources.sh
+
 # API: rules boundary tests, repository tests (Testcontainers PostgreSQL), API and authorization tests.
 # Needs the Docker socket; .env must exist because compose reads the whole file.
 docker compose --profile test run --rm api-test

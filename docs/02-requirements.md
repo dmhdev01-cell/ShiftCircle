@@ -42,7 +42,7 @@ FR-10 to FR-13 (trade request, colleague acceptance, supervisor approval, monthl
 | FR-20 | The supervisor creates an **open shift** (a gap, or extra coverage). | M |
 | FR-21 | The system lists **eligible** officers, meaning those whose rules pass if assigned. They're ordered by the configured fair-distribution policy (default: fewest overtime hours this quarter, then a seniority placeholder). | M |
 | FR-22 | The supervisor sends an **offer** to one or more officers (recorded in the app; the officer sees it on My Schedule). The first eligible acceptance, confirmed by the supervisor, gets the shift. | M |
-| FR-23 | The supervisor can **directly assign** overtime. If a hard rule fails, an emergency override with a reason is required. | M |
+| FR-23 | The supervisor can **directly assign** overtime. If a hard rule fails, an emergency override with a reason is required where the rule allows one; otherwise it can't be saved (ADR-023). | M |
 
 ### Employee proposals
 | ID | Requirement | P |

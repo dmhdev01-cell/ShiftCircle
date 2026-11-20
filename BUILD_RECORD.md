@@ -69,11 +69,11 @@ The verifiers are a different model family from the builders. After the 05:06Z r
 | 6 | **Verified** at `f73d6c5`: 142/142, dev-qa PASS and review-r2 APPROVE with revert-the-fix checks (R15, R16), after two high findings in R12/R13 |
 | 7–11 | TODO (step 8 overtime backend in progress; 9 time/payroll and 11 publish pipeline not built; web screens on an unmerged branch) |
 
-Latest verified total on `main`: 142/142 at `f73d6c5` (R15). E2E (Playwright, desktop and tablet, axe on every screen) against the fixtures-mode web `d99de9e`: 28 passed, 0 failed, 4 skipped (wall display not built). Along the way it found and confirmed fixes for an accessibility defect and a payroll-CSV contract mismatch (E2E-1 to E2E-3). <!-- TODO-VERIFY: e2e against the compose stack (real api) --> <!-- TODO: final totals (unit / repository / api / web / e2e / axe), the command and the commit -->
+Latest verified total on `main`: 142/142 at `f73d6c5` (R15). E2E (Playwright, desktop and tablet, axe on every screen) against the fixtures-mode web `d99de9e`: 28 passed, 0 failed, 4 skipped (wall display not built). Along the way it found and confirmed fixes for an accessibility defect and a payroll-CSV contract mismatch (E2E-1 to E2E-3). Against the **real api**, the web ran on a compose stack at `integration` `2ba502d` (dev-build2): 5 passed and 2 skipped on each of desktop and tablet (E1, E2, E4). The first real-api run found six integration defects, all fixed. E3 is pending until step 11 is merged into `integration`. <!-- TODO-VERIFY: E3 and E5 on the real api; this result is on the integration branch, not main --> <!-- TODO: final totals (unit / repository / api / web / e2e / axe), the command and the commit -->
 
 | ID | Case | Expected | Result |
 |---|---|---|---|
-| T2 | Block: 12 h shift Fri 12:00–24:00, then Day 8 h Sat 07:00 (PC-01) | **BLOCK** U-01 (7 h rest) and U-05 (17 h in 24 h); nothing saved | Api: 422 and nothing saved (R12). UI: e2e E1 passes (fixtures). TODO-VERIFY on the full stack |
+| T2 | Block: 12 h shift Fri 12:00–24:00, then Day 8 h Sat 07:00 (PC-01) | **BLOCK** U-01 (7 h rest) and U-05 (17 h in 24 h); nothing saved | Api: 422 and nothing saved (R12). Full stack (`integration` `2ba502d`): **3 Blocks**, U-01, U-05 and **U-14** (the week passes 60 h). No Save and **no override offered**, because U-14 allows none. E1 `@api` passes on desktop and tablet |
 | T3 | Boundary: exactly 8 h of rest (PC-02) | U-01 PASS (inclusive); U-02 WARN | U-01 8 h 00 m PASS, 7 h 59 m BLOCK in the boundary matrix (R4, R7). TODO-VERIFY on PC-02 data |
 | T7 | Rule change without code: U-10 from 4 to 3 nights (PC-06) | Dry run lists the four-night runs; warns after publish | TODO (step 11 backend not built) |
 | T8 | Payroll export, locked 26 Oct – 8 Nov (PC-05) | CSV equals the golden file; overtime only beyond 80 h | TODO (step 9 backend not built) |
@@ -83,7 +83,7 @@ Latest verified total on `main`: 142/142 at `f73d6c5` (R15). E2E (Playwright, de
 
 - **Synthetic data only:** 100 officers from fixed fictional name lists, seed 20261001, `is_synthetic` on every person; the generator self-check passes (R10).
 - **No secrets in the repo:** `.env.example` ships empty. Compose and the api both refuse to start without `POSTGRES_PASSWORD` (≥ 8) and `SC_JWT_SECRET` (≥ 32) (R2, R9).
-- **Safeguards:** Blocks need an EMERGENCY override with a reason of ≥ 10 trimmed characters, and warnings must be acknowledged. Maker/checker is enforced by the api and a DB CHECK. Audit is append-only. Locked periods are protected by a trigger. Overtime is authorized only by a supervisor (S-04). There's no auto-approval. Concurrent saves are serialized per officer, so a race can't slip past a Block (R12, R13, R16).
+- **Safeguards:** Each rule row carries an override policy. A Block whose policy is EMERGENCY can be overridden only with a reason of ≥ 10 trimmed characters, which is audited (PC-03: 17 h in a lockdown, U-05). A Block with any other policy, such as U-14's 60 h weekly ceiling, has no override at all, so PC-01 can't be forced through (verified on the full stack). Warnings must be acknowledged. Maker/checker is enforced by the api and a DB CHECK. Audit is append-only. Locked periods are protected by a trigger. Overtime is authorized only by a supervisor (S-04). There's no auto-approval. Concurrent saves are serialized per officer, so a race can't slip past a Block (R12, R13, R16).
 - **Privacy:** role and unit scope on every endpoint, and out-of-scope returns `404` (R12; the one leak, rule preview without a scope check, was fixed in `f73d6c5` and verified in R15/R16). The wall display shows counts only. <!-- TODO-VERIFY: wall display not built -->
 - **Rule values** are labelled by source (Employment Act, agreement, MOCK). MOCK values and period-based overtime (ADR-016) are assumptions to confirm.
 - **Honest limits:**
@@ -91,7 +91,7 @@ Latest verified total on `main`: 142/142 at `f73d6c5` (R15). E2E (Playwright, de
   - Audit is protected by triggers, not role grants, and the database owner could disable them (ADR-018).
   - The stock nginx master runs as root (`docs/08-deployment.md` §2).
   - Sign-in is a mock issuer; validation is real.
-  - Accessibility: one known axe "serious" defect is open. <!-- TODO-VERIFY -->
+  - Accessibility: axe (WCAG 2.1 AA) shows no serious or critical findings on the screens the e2e suite visits; the one it found was fixed (E2E-2). Reaching a chip in the roster grid by keyboard takes many Tab presses, because there's no arrow-key navigation (open, ai-dev-log #51).
 
 ## 6. Next steps (pilot)
 
