@@ -456,7 +456,8 @@ public class ReportsService {
     LocalDate from = fromInput != null ? fromInput : firstOfQuarter(asOf);
     LocalDate to = toInput != null ? toInput : asOf;
     validate(from, to);
-    int limit = top == null || top < 1 ? 10 : Math.min(top, 100);
+    // The screen's chart is "top 8" (docs/ui/README.md §5.5); ?top= can ask for more.
+    int limit = top == null || top < 1 ? 8 : Math.min(top, 100);
 
     Scope scope = scope(principal, unitId);
     if (scope.unitIds().isEmpty()) {
