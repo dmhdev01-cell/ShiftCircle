@@ -11,7 +11,6 @@ import ca.shiftcircle.rules.build.ShiftKind;
 import ca.shiftcircle.rules.build.ShiftLengthFactBuilder;
 import ca.shiftcircle.rules.facts.RuleOutcome;
 import ca.shiftcircle.rules.facts.RuleResult;
-import ca.shiftcircle.rules.rows.RuleRowsV1;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -95,8 +94,18 @@ public class RuleCheckService {
     facts.addAll(new DaysOffFactBuilder().build(shifts));
     facts.addAll(new ShiftLengthFactBuilder().build(shifts));
 
-    List<RuleResult> results = evaluator.evaluate(ruleBase, RuleRowsV1.VERSION, facts.toArray());
-    return summarise(results);
+    int ruleSetVersion = publishedVersion();
+    List<RuleResult> results =
+        evaluator.evaluate(ruleBase, String.valueOf(ruleSetVersion), facts.toArray());
+    return summarise(results, ruleSetVersion);
+  }
+
+  /** The live rule set's version, so a published v2 is reported without a code change (step 11). */
+  private int publishedVersion() {
+    Integer version =
+        jdbc.queryForObject(
+            "SELECT version FROM rule_set_version WHERE status = 'PUBLISHED'", Integer.class);
+    return version == null ? 1 : version;
   }
 
   private List<ShiftFact> existingShifts(UUID employeeId, Instant around) {
@@ -125,12 +134,12 @@ public class RuleCheckService {
                         resultSet.getBoolean("allows_12h"),
                         resultSet.getBoolean("allows_16h"))),
         employeeId,
-        Timestamp.from(around.minus(Duration.ofDays(14))),
+        Timestamp.from(around.minus(Duration.ofDays(28))),
         Timestamp.from(around.plus(Duration.ofDays(14))));
     return shifts;
   }
 
-  private OutcomeView summarise(List<RuleResult> results) {
+  private OutcomeView summarise(List<RuleResult> results, int ruleSetVersion) {
     boolean blocked = results.stream().anyMatch(r -> r.outcome() == RuleOutcome.BLOCK);
     boolean warned = results.stream().anyMatch(r -> r.outcome() == RuleOutcome.WARN);
     String outcome = blocked ? "BLOCK" : warned ? "WARN" : "PASS";
@@ -154,6 +163,6 @@ public class RuleCheckService {
                         java.util.List.of(new EvidenceView(r.evidence())),
                         r.overridePolicy().name()))
             .toList();
-    return new OutcomeView(outcome, 1, overridable, views);
+    return new OutcomeView(outcome, ruleSetVersion, overridable, views);
   }
 }

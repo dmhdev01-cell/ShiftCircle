@@ -37,7 +37,7 @@ Every schedule-changing endpoint runs the rules engine. Clients use the same bod
 2. **Save:** the real endpoint (e.g. `POST /assignments`) → `201` if every result is Pass or Info.
    - If any **Warn** results: `422` with `type: .../warnings-need-acknowledgement`; resend with `"acknowledgeWarnings": ["U-14"]`.
    - If any **Block**: `422` with `type: .../blocked-by-rules`.
-3. **Override:** resend with `"override": { "reason": "Lockdown, no relief available" }` (supervisor only, and only for rules whose override policy is `EMERGENCY`). Creates an `override` row and an audit event.
+3. **Override:** resend with `"override": { "reason": "Lockdown, no relief available" }` (supervisor only, and only for rules whose override policy is `EMERGENCY`). Creates an `override` row and an audit event. An override does **not** acknowledge warnings: the same request must also list every Warn code in `acknowledgeWarnings`, or it is refused with `422 warnings-need-acknowledgement`. Nothing auto-approves, including the warnings that accompany an emergency override.
 
 **Preview request** (the same body is sent to `/assignments`; `type` is `ASSIGN` or `EXTRA`):
 ```json

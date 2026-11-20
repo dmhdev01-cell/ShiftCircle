@@ -7,9 +7,18 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -97,6 +106,16 @@ class AssignmentApiTest {
         + "}}";
   }
 
+  private String changeAt(String shiftTemplate, String startAt) {
+    return "{\"change\":{\"employeeId\":\"" + EMPLOYEE + "\",\"unitId\":\"" + UNIT_B + "\","
+        + "\"shiftTemplate\":\"" + shiftTemplate + "\",\"startAt\":\"" + startAt + "\"}}";
+  }
+
+  private String withOverride(String body, String reason) {
+    return body.substring(0, body.length() - 1)
+        + ",\"override\":{\"reason\":\"" + reason + "\"}}";
+  }
+
   @Test
   void previewReturnsBlockingResultsAndSavesNothing() throws Exception {
     String token = login("m.ellis");
@@ -127,11 +146,16 @@ class AssignmentApiTest {
 
   @Test
   void aBlockIsSavedWithAnEmergencyOverrideAndAudited() throws Exception {
-    String body =
-        changeBody(null).substring(0, changeBody(null).length() - 1)
+    String token = login("m.ellis");
+    String body = changeBody(null);
+    List<String> warnCodes = new ArrayList<>(warnCodes(post("/api/v1/rule-checks", body, token)));
+    String withOverride =
+        body.substring(0, body.length() - 1)
+            + ",\"acknowledgeWarnings\":"
+            + mapper.writeValueAsString(warnCodes)
             + ",\"override\":{\"reason\":\"Lockdown, relief unavailable\"}}";
 
-    HttpResponse<String> response = post("/api/v1/assignments", body, login("m.ellis"));
+    HttpResponse<String> response = post("/api/v1/assignments", withOverride, token);
 
     assertThat(response.statusCode()).isEqualTo(201);
     assertThat(count("SELECT count(*) FROM override WHERE reason LIKE 'Lockdown%'")).isEqualTo(1);
@@ -193,11 +217,171 @@ class AssignmentApiTest {
     assertThat(warnCodes).contains("U-02");
 
     assertThat(post("/api/v1/assignments", body, token).statusCode()).isEqualTo(422);
+    HttpResponse<String> refused = post("/api/v1/assignments", body, token);
+    assertThat(refused.statusCode()).isEqualTo(422);
+    assertThat((String) mapper.readValue(refused.body(), Map.class).get("type"))
+        .endsWith("/warnings-need-acknowledgement");
 
     String acknowledged =
         body.substring(0, body.length() - 1)
             + ",\"acknowledgeWarnings\":" + mapper.writeValueAsString(warnCodes) + "}";
     assertThat(post("/api/v1/assignments", acknowledged, token).statusCode()).isEqualTo(201);
+  }
+
+  @Test
+  void concurrentSavesCannotBothBypassBlockRules() throws Exception {
+    jdbc.update(
+        "DELETE FROM shift_assignment WHERE employee_id = ?"
+            + " AND start_at >= TIMESTAMPTZ '2026-11-29 00:00:00-06'",
+        EMPLOYEE);
+    String evening = changeAt("E8", "2026-11-30T15:00:00-06:00");
+    String night = changeAt("N8", "2026-11-30T23:30:00-06:00");
+    String token = login("m.ellis");
+
+    ExecutorService pool = Executors.newFixedThreadPool(2);
+    try {
+      CountDownLatch ready = new CountDownLatch(2);
+      CountDownLatch go = new CountDownLatch(1);
+      List<Future<HttpResponse<String>>> saves = new ArrayList<>();
+      for (String body : List.of(evening, night)) {
+        saves.add(
+            pool.submit(
+                () -> {
+                  ready.countDown();
+                  go.await();
+                  return post("/api/v1/assignments", body, token);
+                }));
+      }
+      assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+      go.countDown();
+
+      List<Integer> statuses = new ArrayList<>();
+      for (Future<HttpResponse<String>> save : saves) {
+        statuses.add(save.get(30, TimeUnit.SECONDS).statusCode());
+      }
+      assertThat(statuses)
+          .as("one save wins; the other then sees the 30-minute rest and is blocked by U-01")
+          .containsExactlyInAnyOrder(201, 422);
+    } finally {
+      pool.shutdownNow();
+    }
+  }
+
+  @Test
+  void anEleventhSixteenHourShiftInTwentyEightDaysWarns() throws Exception {
+    jdbc.update("DELETE FROM shift_assignment WHERE employee_id = ?", EMPLOYEE);
+    LocalDate proposalDate = LocalDate.of(2026, 12, 10);
+    // Ten 16-hour shifts, spaced so U-14 (60 h in any 7 days) never blocks: 3 + 3 + 2 + 2.
+    for (int daysBefore : new int[] {-27, -25, -24, -20, -18, -17, -13, -11, -6, -4}) {
+      insertSixteenHourShift(proposalDate.plusDays(daysBefore));
+    }
+
+    HttpResponse<String> response =
+        post("/api/v1/rule-checks", changeAt("L16", "2026-12-10T20:00:00-06:00"), login("m.ellis"));
+
+    assertThat(response.statusCode()).isEqualTo(200);
+    assertThat(warnCodes(response))
+        .as("the 11th 16-hour shift inside 28 days breaches U-11")
+        .contains("U-11");
+  }
+
+  @Test
+  void aBlockRuleWithoutAnEmergencyOverrideCannotBeOverridden() throws Exception {
+    jdbc.update("DELETE FROM shift_assignment WHERE employee_id = ?", EMPLOYEE);
+    ZoneId regina = ZoneId.of("America/Regina");
+    for (int day = 10; day <= 16; day++) {
+      LocalDate date = LocalDate.of(2026, 11, day);
+      jdbc.update(
+          "INSERT INTO shift_assignment (id, employee_id, unit_id, shift_template_id, start_at, end_at,"
+              + " work_date, kind, source) SELECT ?, ?, ?, t.id, ?, ?, ?, 'ROSTERED', 'ROTATION'"
+              + " FROM shift_template t WHERE t.code = 'D8'",
+          UUID.randomUUID(),
+          EMPLOYEE,
+          UNIT_B,
+          Timestamp.from(date.atTime(7, 0).atZone(regina).toInstant()),
+          Timestamp.from(date.atTime(15, 0).atZone(regina).toInstant()),
+          date);
+    }
+
+    HttpResponse<String> response =
+        post(
+            "/api/v1/assignments",
+            withOverride(
+                changeAt("D8", "2026-11-17T07:00:00-06:00"),
+                "Eighth consecutive day, relief unavailable"),
+            login("m.ellis"));
+
+    assertThat(response.statusCode())
+        .as("U-08 blocks with an acknowledgement policy, so an emergency override is not enough")
+        .isEqualTo(422);
+    Map<?, ?> body = mapper.readValue(response.body(), Map.class);
+    assertThat((String) body.get("type")).endsWith("/blocked-by-rules");
+    assertThat(body.get("overridable")).isEqualTo(false);
+  }
+
+  @Test
+  void anEmergencyOverrideMustAlsoAcknowledgeTheWarnings() throws Exception {
+    String token = login("m.ellis");
+    String body = changeAt("D8", "2026-11-21T07:00:00-06:00");
+    List<String> warnCodes = new ArrayList<>(warnCodes(post("/api/v1/rule-checks", body, token)));
+    assertThat(warnCodes).contains("U-02");
+
+    assertThat(
+            post(
+                    "/api/v1/assignments",
+                    withOverride(body, "Lockdown, relief unavailable"),
+                    token)
+                .statusCode())
+        .as("an override does not silently swallow warnings")
+        .isEqualTo(422);
+
+    String acknowledged =
+        body.substring(0, body.length() - 1)
+            + ",\"acknowledgeWarnings\":"
+            + mapper.writeValueAsString(warnCodes)
+            + ",\"override\":{\"reason\":\"Lockdown, relief unavailable\"}}";
+    assertThat(post("/api/v1/assignments", acknowledged, token).statusCode()).isEqualTo(201);
+  }
+
+  @Test
+  void thePreviewReportsThePublishedRuleSetVersion() throws Exception {
+    Integer original =
+        jdbc.queryForObject(
+            "SELECT version FROM rule_set_version WHERE status = 'PUBLISHED'", Integer.class);
+    try {
+      jdbc.update("UPDATE rule_set_version SET version = 42 WHERE status = 'PUBLISHED'");
+      Map<?, ?> body =
+          mapper.readValue(
+              post("/api/v1/rule-checks", changeBody(null), login("m.ellis")).body(), Map.class);
+      assertThat(body.get("ruleSetVersion"))
+          .as("the version comes from the published rule set, not a constant")
+          .isEqualTo(42);
+    } finally {
+      jdbc.update("UPDATE rule_set_version SET version = ? WHERE status = 'PUBLISHED'", original);
+    }
+  }
+
+  private void insertSixteenHourShift(LocalDate date) {
+    ZoneId regina = ZoneId.of("America/Regina");
+    jdbc.update(
+        "INSERT INTO shift_assignment (id, employee_id, unit_id, shift_template_id, start_at, end_at,"
+            + " work_date, kind, source) SELECT ?, ?, ?, t.id, ?, ?, ?, 'ROSTERED', 'ROTATION'"
+            + " FROM shift_template t WHERE t.code = 'L16'",
+        UUID.randomUUID(),
+        EMPLOYEE,
+        UNIT_B,
+        Timestamp.from(date.atTime(20, 0).atZone(regina).toInstant()),
+        Timestamp.from(date.plusDays(1).atTime(12, 0).atZone(regina).toInstant()),
+        date);
+  }
+
+  private List<String> warnCodes(HttpResponse<String> response) throws Exception {
+    List<?> results = (List<?>) mapper.readValue(response.body(), Map.class).get("ruleResults");
+    return results.stream()
+        .map(result -> (Map<?, ?>) result)
+        .filter(result -> "WARN".equals(result.get("outcome")))
+        .map(result -> (String) result.get("ruleCode"))
+        .toList();
   }
 
   private int count(String sql) {

@@ -9,9 +9,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -36,18 +38,42 @@ public class AssignmentService {
   }
 
   public RuleCheckService.OutcomeView preview(RuleCheckRequest request, AuthPrincipal principal) {
-    scopeGuard.requireUnit(principal, unitCode(request.change().unitId()));
+    requireValidChange(request);
+    String unitCode = unitCode(request.change().unitId());
+    if (principal.hasRole("SUPERVISOR")) {
+      scopeGuard.requireUnit(principal, unitCode);
+    } else {
+      // An employee previews their own record only, and on their own unit (docs/07 §3, docs/09 §2).
+      scopeGuard.requireEmployeeAccess(principal, request.change().employeeId(), unitCode);
+      String homeUnit =
+          jdbc.queryForObject(
+              "SELECT u.code FROM employee e JOIN unit u ON u.id = e.home_unit_id WHERE e.id = ?",
+              String.class,
+              request.change().employeeId());
+      if (!unitCode.equals(homeUnit)) {
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found");
+      }
+    }
     return ruleChecks.evaluate(change(request));
   }
 
   @Transactional
   public UUID assign(RuleCheckRequest request, AuthPrincipal principal) {
+    requireValidChange(request);
     String unitCode = unitCode(request.change().unitId());
     scopeGuard.requireUnit(principal, unitCode);
 
+    // Two supervisors (or a double click) must not both pass the rules against the same old roster:
+    // the exclusion constraint catches true overlaps, but two saves close together can break rest
+    // rules without overlapping. Serialising on the officer closes that window (review-r2 S2).
+    lockOfficer(request.change().employeeId());
+
     RuleCheckService.OutcomeView outcome = ruleChecks.evaluate(change(request));
     boolean blocked = "BLOCK".equals(outcome.outcome());
-    boolean warned = "WARN".equals(outcome.outcome());
+    List<String> warnCodes = warnCodes(outcome);
+    List<String> acknowledged =
+        request.acknowledgeWarnings() == null ? List.of() : request.acknowledgeWarnings();
+    boolean allWarningsAcknowledged = acknowledged.containsAll(warnCodes);
 
     UUID overrideId = null;
     if (blocked) {
@@ -56,17 +82,13 @@ public class AssignmentService {
           || request.override().reason().trim().length() < 10) {
         throw new RuleViolationException(RuleViolationException.Kind.BLOCKED, outcome);
       }
-      overrideId = createOverride(request.override().reason(), blockingCodes(outcome), principal);
-    } else if (warned) {
-      List<String> acknowledged =
-          request.acknowledgeWarnings() == null ? List.of() : request.acknowledgeWarnings();
-      boolean allAcknowledged =
-          outcome.ruleResults().stream()
-              .filter(result -> "WARN".equals(result.outcome()))
-              .allMatch(result -> acknowledged.contains(result.ruleCode()));
-      if (!allAcknowledged) {
+      // An override excuses the blocks, never the warnings: nothing auto-approves (docs/07 §3).
+      if (!allWarningsAcknowledged) {
         throw new RuleViolationException(RuleViolationException.Kind.WARNINGS, outcome);
       }
+      overrideId = createOverride(request.override().reason(), blockingCodes(outcome), principal);
+    } else if (!warnCodes.isEmpty() && !allWarningsAcknowledged) {
+      throw new RuleViolationException(RuleViolationException.Kind.WARNINGS, outcome);
     }
 
     Map<String, Object> template =
@@ -111,6 +133,32 @@ public class AssignmentService {
         request.change().unitId(),
         request.change().shiftTemplate(),
         request.change().startAt());
+  }
+
+  private void requireValidChange(RuleCheckRequest request) {
+    if (request == null
+        || request.change() == null
+        || request.change().employeeId() == null
+        || request.change().unitId() == null
+        || request.change().shiftTemplate() == null
+        || request.change().shiftTemplate().isBlank()
+        || request.change().startAt() == null) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "change.employeeId, change.unitId, change.shiftTemplate and change.startAt are required");
+    }
+  }
+
+  private void lockOfficer(UUID employeeId) {
+    long key = employeeId.getMostSignificantBits() ^ employeeId.getLeastSignificantBits();
+    jdbc.queryForList("SELECT pg_advisory_xact_lock(?)", Object.class, key);
+  }
+
+  private List<String> warnCodes(RuleCheckService.OutcomeView outcome) {
+    return outcome.ruleResults().stream()
+        .filter(result -> "WARN".equals(result.outcome()))
+        .map(RuleCheckService.ResultView::ruleCode)
+        .toList();
   }
 
   private String unitCode(UUID unitId) {

@@ -125,3 +125,14 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Doesn't change:** HANDOFF §4's dataset decisions (100 fictional officers, 90 days 1 Oct – 29 Dec 2026, "today" 19 Nov, seed 20261001), the rotations, the staffing requirements, or the overtime rule. It changes only the absence rates and one self-check threshold.
 **Trade-off:** fewer absences mean fewer coverage gaps to demonstrate. Gap filling, unfilled gaps (self-check 3) and the planted cases are unaffected.
 
+## ADR-021 — Save-time safeguards: one scope guard, one officer lock, overrides never swallow warnings
+**Status:** Accepted (2026-11-20, from the dev-qa / review-r2 review of `0dc96e1`; the lead routed the findings).
+**Decision:**
+1. **Preview and save share one authorization path.** `POST /rule-checks` delegates to the same service method as `POST /assignments`, so a supervisor's preview is unit-scope checked (404 outside scope) and an employee can preview only their own record on their own unit.
+2. **Saves are serialized per officer.** `POST /assignments` takes `pg_advisory_xact_lock` on the employee id before evaluating the rules, so two concurrent saves cannot both pass against the same old roster. The overlap exclusion constraint stays as the last line of defence and now answers `409` rather than an error page.
+3. **An emergency override does not acknowledge warnings.** A request that overrides a `BLOCK` must also list every `WARN` code in `acknowledgeWarnings`; otherwise it is refused with `422 warnings-need-acknowledgement`. Nothing auto-approves.
+4. **Bad input never becomes a 500.** Unknown identifiers answer `404`, a malformed or incomplete body answers `400`, and every error is RFC 9457 `problem+json` with no stack trace or internal class name.
+**Why:** the review proved each of these with a working probe: a supervisor previewed a unit outside their scope; two parallel saves both created shifts that break U-01; an override silently approved warnings; and bogus ids returned 500 pages. All four are HANDOFF guardrail 3 or the RFC 9457 contract in `07-api-spec.md` §1/§3.
+**Consequences:** the preview's employee-own path is unchanged; the rule check now reads the published version from `rule_set_version` instead of a constant (so a published v2 is reported without a code change); `existingShifts` reads 28 days back (U-11 needs 28 days) and 14 days forward; `AuthorizationMatrixTest`, `AssignmentApiTest` and `ProblemDetailsApiTest` prove each case.
+
+

@@ -49,6 +49,7 @@ class AuthorizationMatrixTest {
 
   private static final UUID UNIT_A = UUID.fromString("11111111-1111-1111-1111-000000000001");
   private static final UUID UNIT_B = UUID.fromString("11111111-1111-1111-1111-000000000002");
+  private static final UUID UNIT_C = UUID.fromString("11111111-1111-1111-1111-000000000003");
   private static final UUID EMPLOYEE = UUID.fromString("33333333-3333-3333-3333-000000000009");
   private static final java.time.LocalDate DAY = java.time.LocalDate.of(2026, 11, 18);
 
@@ -158,6 +159,18 @@ class AuthorizationMatrixTest {
             + "\",\"shiftTemplate\":\"D8\",\"startAt\":\"2026-11-24T07:00:00-06:00\"}}";
 
     assertThat(send("POST", "/api/v1/rule-checks", ownPreview, tokens.get("m.ellis")).statusCode())
+        .isEqualTo(200);
+    // A supervisor may preview only inside their unit scope (docs/09 §2): 404, never 403.
+    String unitBPreview = ownPreview.replace(UNIT_A.toString(), UNIT_B.toString());
+    String unitCPreview = ownPreview.replace(UNIT_A.toString(), UNIT_C.toString());
+    assertThat(send("POST", "/api/v1/rule-checks", unitBPreview, tokens.get("j.chen")).statusCode())
+        .as("j.chen has no Unit B scope")
+        .isEqualTo(404);
+    assertThat(send("POST", "/api/v1/rule-checks", unitCPreview, tokens.get("m.ellis")).statusCode())
+        .as("m.ellis has no Unit C scope")
+        .isEqualTo(404);
+    assertThat(send("POST", "/api/v1/rule-checks", unitBPreview, tokens.get("m.ellis")).statusCode())
+        .as("m.ellis does have Unit B scope")
         .isEqualTo(200);
     // An employee can preview only against themselves; this employee link is not set.
     assertThat(send("POST", "/api/v1/rule-checks", ownPreview, tokens.get("t.nakamura")).statusCode())
