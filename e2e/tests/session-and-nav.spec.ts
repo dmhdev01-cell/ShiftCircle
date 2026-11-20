@@ -168,7 +168,9 @@ test.describe('session and navigation', () => {
     ['Planning board', '/planning', 'Planning board'],
   ] as const) {
     test(`a reload on ${path} lands on sign-in with a notice and no page errors`, async ({ page }) => {
-      test.fail(true, 'D11: a reload loses the in-memory session and shows errors instead of sign-in');
+      // Measured at ac7e1cd: /planning already lands on sign-in with the
+      // notice (its 401 ends the session cleanly); /reports/coverage does not.
+      test.fail(path === '/reports/coverage', 'D11: a reload loses the in-memory session and shows errors instead of sign-in');
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
       await signIn(page, 'M. Ellis');
