@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -7,7 +7,6 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
-import Drawer from '@mui/material/Drawer';
 import Typography from '@mui/material/Typography';
 
 import { shiftTemplates } from '../api/shiftTemplates';
@@ -84,6 +83,42 @@ export function PlanningPage() {
   const [proposal, setProposal] = useState<{ officer: OfficerRow; item: ShiftItem } | null>(null);
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+
+  // Keep the evidence beside the verdict: a non-modal bottom sheet, and the
+  // selected cell scrolled above it.
+  const ruleCheckOpen = mutation.state.kind !== 'idle';
+  useEffect(() => {
+    if (!ruleCheckOpen) return;
+    const officerId = pending?.officer.employeeId ?? proposal?.officer.employeeId;
+    const date = pending?.date ?? proposal?.item.startAt.slice(0, 10);
+    if (!officerId || !date) return;
+    const cell = document.querySelector<HTMLElement>(
+      `[data-officer-id="${officerId}"][data-date="${date}"]`,
+    );
+    if (!cell) return;
+    cell.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    const top = cell.getBoundingClientRect().top;
+    // The fixed verdict sheet takes the bottom 52vh; put the row in the part
+    // still visible above it.
+    if (top < 80 || top > window.innerHeight * 0.35) {
+      try {
+        window.scrollBy({ top: top - 140, behavior: 'auto' });
+      } catch {
+        // jsdom has no layout to scroll.
+      }
+    }
+  }, [ruleCheckOpen, pending, proposal]);
+
+  useEffect(() => {
+    if (!ruleCheckOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setPending(null);
+      mutation.reset();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [ruleCheckOpen, mutation]);
 
   if (state.kind === 'loading') {
     return (
@@ -298,7 +333,13 @@ export function PlanningPage() {
         </Box>
       </Box>
 
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: 3,
+        }}
+      >
         <KpiTile label="Coverage gaps" value={gapBlocks.length} note={gapNote} />
         <KpiTile label="In overtime" value={inOvertime.length} note="this pay period" />
         <KpiTile
@@ -313,6 +354,23 @@ export function PlanningPage() {
           note="emergency, with reason"
         />
       </Box>
+
+      {helpOpen && !ruleCheckOpen ? (
+        <Card>
+          <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Typography sx={{ fontWeight: 600, fontSize: 15 }}>Rule check</Typography>
+            <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
+              Pick an empty cell to propose a shift. The rules are checked before anything is
+              saved, and a rule that blocks the change has to be overridden with a written reason.
+            </Typography>
+            <Box>
+              <Button variant="outlined" color="primary" onClick={() => setHelpOpen(false)}>
+                Close
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Box
         component="section"
@@ -329,59 +387,42 @@ export function PlanningPage() {
         />
       </Box>
 
-      <Drawer
-        anchor="right"
-        open={helpOpen || mutation.state.kind !== 'idle'}
-        onClose={() => {
-          if (mutation.state.kind === 'idle') setHelpOpen(false);
-          else cancelChange();
-        }}
-      >
+      {ruleCheckOpen ? (
         <Box
+          role="region"
+          aria-label="Rule check"
           sx={{
-            width: { xs: '100vw', sm: 420 },
+            position: 'fixed',
+            left: { xs: 0, md: '220px' },
+            right: 0,
+            bottom: 0,
+            zIndex: (theme) => theme.zIndex.drawer - 1,
+            maxHeight: '52vh',
+            overflowY: 'auto',
             p: 3,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
+            backgroundColor: colour.bg.surface,
+            borderTop: `3px solid ${colour.brand.primary}`,
+            boxShadow: '0 -10px 30px rgba(0, 0, 0, 0.18)',
           }}
         >
-          {mutation.state.kind === 'idle' ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
-                Rule check
-              </Typography>
-              <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
-                Pick an empty cell to propose a shift. The rules are checked before anything is
-                saved, and a rule that blocks the change has to be overridden with a written
-                reason.
-              </Typography>
-              <Box>
-                <Button variant="outlined" color="primary" onClick={() => setHelpOpen(false)}>
-                  Close
-                </Button>
-              </Box>
-            </Box>
-          ) : (
-            <RuleCheckPanel
-              state={mutation.state}
-              title={panelTitle}
-              detail={panelDetail}
-              findEligibleHref={findEligibleHref}
-              onSave={() => {
-                if (mutation.state.change) void mutation.save(mutation.state.change);
-              }}
-              onAcknowledge={(codes) => {
-                if (mutation.state.change) {
-                  void mutation.save(mutation.state.change, { acknowledgeWarnings: codes });
-                }
-              }}
-              onOverride={() => setOverrideOpen(true)}
-              onCancel={cancelChange}
-            />
-          )}
+          <RuleCheckPanel
+            state={mutation.state}
+            title={panelTitle}
+            detail={panelDetail}
+            findEligibleHref={findEligibleHref}
+            onSave={() => {
+              if (mutation.state.change) void mutation.save(mutation.state.change);
+            }}
+            onAcknowledge={(codes) => {
+              if (mutation.state.change) {
+                void mutation.save(mutation.state.change, { acknowledgeWarnings: codes });
+              }
+            }}
+            onOverride={() => setOverrideOpen(true)}
+            onCancel={cancelChange}
+          />
         </Box>
-      </Drawer>
+      ) : null}
 
       <Dialog
         open={pending !== null && mutation.state.kind === 'idle'}

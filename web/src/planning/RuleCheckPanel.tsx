@@ -262,7 +262,7 @@ export function RuleCheckPanel({
           </Button>
         ) : (
           <Button variant="outlined" color="primary" onClick={onCancel}>
-            Cancel
+            Close
           </Button>
         )}
 

@@ -54,40 +54,42 @@ export function ScrollShadows({ children, label, hint }: ScrollShadowsProps) {
     top: 0,
     bottom: 0,
     [side]: 0,
-    width: 28,
+    width: 32,
     pointerEvents: 'none' as const,
-    background: `linear-gradient(to ${side === 'left' ? 'right' : 'left'}, ${
-      colour.bg.surface
-    } 10%, transparent)`,
+    background: `linear-gradient(to ${side === 'left' ? 'right' : 'left'}, rgba(0, 0, 0, 0.14) 0%, rgba(0, 0, 0, 0.05) 45%, transparent 100%)`,
   });
 
+  const scrolling = edges.left || edges.right;
+
   return (
-    <Box sx={{ position: 'relative' }}>
-      <Box
-        ref={ref}
-        role="region"
-        aria-label={label}
-        tabIndex={0}
-        sx={{
-          overflowX: 'auto',
-          '&:focus-visible': {
-            outline: `2px solid ${colour.brand.link}`,
-            outlineOffset: 2,
-          },
-        }}
-      >
-        {children}
-      </Box>
-      {edges.left ? <Box aria-hidden="true" sx={shadow('left')} /> : null}
-      {edges.right ? <Box aria-hidden="true" sx={shadow('right')} /> : null}
-      {edges.left || edges.right ? (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+      {scrolling ? (
         <Box
           component="p"
-          sx={{ m: '6px 12px 0', fontSize: 12, color: colour.text.secondary }}
+          sx={{ m: '0 12px', fontSize: 12, fontWeight: 600, color: colour.text.secondary }}
         >
           {hint}
         </Box>
       ) : null}
+      <Box sx={{ position: 'relative' }}>
+        <Box
+          ref={ref}
+          role="region"
+          aria-label={label}
+          tabIndex={0}
+          sx={{
+            overflowX: 'auto',
+            '&:focus-visible': {
+              outline: `2px solid ${colour.brand.link}`,
+              outlineOffset: 2,
+            },
+          }}
+        >
+          {children}
+        </Box>
+        {edges.left ? <Box aria-hidden="true" sx={shadow('left')} /> : null}
+        {edges.right ? <Box aria-hidden="true" sx={shadow('right')} /> : null}
+      </Box>
     </Box>
   );
 }

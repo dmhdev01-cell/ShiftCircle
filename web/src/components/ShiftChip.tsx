@@ -97,7 +97,9 @@ export function ShiftChip({
         ...chipBox(style, compact),
         ...(onClick
           ? {
-              border: 0,
+              border: style.border
+                ? `1px ${style.borderStyle ?? 'solid'} ${style.border}`
+                : 0,
               padding: 0,
               fontFamily: 'inherit',
               cursor: 'pointer',
