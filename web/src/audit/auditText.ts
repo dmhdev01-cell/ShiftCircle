@@ -91,7 +91,12 @@ function plainFacts(after: Record<string, unknown>): string {
 export function summaryOf(event: AuditEvent): string {
   const after = (event.after ?? null) as Record<string, unknown> | null;
   if (!after) return '—';
-  switch (event.action) {
+  return sentenceFor(event.action, after) || plainFacts(after) || '—';
+}
+
+/** The sentence for one action, or an empty string when its fields are absent. */
+function sentenceFor(action: string, after: Record<string, unknown>): string {
+  switch (action) {
     case 'override_rule':
       return `Reason: ${text(after.reason)} · rules ${text(after.rules)}`;
     case 'assign_shift':

@@ -58,4 +58,18 @@ describe('the audit summary', () => {
     expect(summaryOf(event('something_new', { assignmentId: UUID }))).toBe('—');
     expect(summaryOf(event('something_new', null))).toBe('—');
   });
+
+  it('writes every action code the api has as words, never as json', async () => {
+    // The list is the one scripts/check-audit-codes.sh keeps in step with the
+    // api. A code with no sentence of its own must still read as its facts.
+    const { ACTION_LABELS } = await import('./auditCodes');
+    for (const code of Object.keys(ACTION_LABELS)) {
+      const line = summaryOf(
+        event(code, { status: 'DECLINED', unit: 'B', reason: 'EXTRA_COVERAGE', version: 8 }),
+      );
+      expect(line, code).not.toContain('{');
+      expect(line, code).not.toContain(UUID);
+      expect(line.length, code).toBeGreaterThan(0);
+    }
+  });
 });
