@@ -78,9 +78,8 @@ test.describe('reports', () => {
   });
 
   test('a report with nothing in it says so', async ({ page }) => {
-    // DEFECT D2 (found by this spec): with no overrides in scope the Overrides
-    // tab shows an empty table and no sentence (ReportsPage.tsx:353-372).
-    test.fail(true, 'D2: an empty overrides report has no empty-state message');
+    // D2 was here: with no overrides in scope the Overrides tab showed an empty
+    // table and no sentence (ReportsPage.tsx).
     await signIn(page, 'M. Ellis');
     await navTo(page, 'Reports');
     await openTab(page, 'Overrides');

@@ -369,6 +369,12 @@ export function ReportsPage() {
             <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
               Emergency overrides
             </Typography>
+            {/* An empty table is not an answer: say that nothing was overridden (D2). */}
+            {overrides !== null && overrides.length === 0 ? (
+              <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
+                No emergency overrides in this scope. Nothing has needed one.
+              </Typography>
+            ) : null}
             <Table headings={['When', 'Officer', 'Unit', 'Rule', 'Reason']}>
               {overrides?.map((row) => (
                 <tr key={row.id}>

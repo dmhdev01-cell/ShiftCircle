@@ -115,6 +115,17 @@ describe('the coverage report against the real api shape', () => {
     expect(within(table).getByText('—')).toBeInTheDocument();
   });
 
+  it('says so when there are no emergency overrides', async () => {
+    // D2: an empty Overrides report showed an empty table and no sentence.
+    vi.spyOn(api, 'getOverrides').mockResolvedValue([]);
+
+    renderReports('/reports/overrides');
+
+    expect(await screen.findByRole('heading', { name: 'Emergency overrides' })).toBeInTheDocument();
+    expect(await screen.findByText(/no emergency overrides/i)).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'When' })).toBeInTheDocument();
+  });
+
   it('opens the report the address names, and keeps the address in step', async () => {
     const user = userEvent.setup();
     // D3: the route is /reports/:tab, but the page always opened on Coverage.
