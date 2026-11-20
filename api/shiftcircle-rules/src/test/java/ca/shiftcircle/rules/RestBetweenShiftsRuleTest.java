@@ -27,9 +27,9 @@ class RestBetweenShiftsRuleTest {
   }
 
   private static List<RuleResult> evaluate(double restHours) {
-    MinRestInWindowFact fact =
-        new MinRestInWindowFact(
-            "ANY", 24, restHours, "Previous shift ended 23:00; next shift starts 07:00");
+    // Evidence is derived from the measurement so a failing message can never contradict the fact.
+    String evidence = String.format("Shortest rest gap in the 24 h window was %.1f h", restHours);
+    MinRestInWindowFact fact = new MinRestInWindowFact("ANY", 24, restHours, evidence);
     return new RuleEvaluator().evaluate(ruleBase(), RULE_SET_VERSION, fact);
   }
 

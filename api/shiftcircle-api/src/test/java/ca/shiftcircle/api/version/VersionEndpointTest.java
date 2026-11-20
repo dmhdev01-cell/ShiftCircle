@@ -7,10 +7,13 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import ca.shiftcircle.api.PostgresTestSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.Environment;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * Proves the two HTTP contracts the deployment relies on (docs/08-deployment.md §2, §8): the
@@ -18,6 +21,11 @@ import org.springframework.core.env.Environment;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class VersionEndpointTest {
+
+  @DynamicPropertySource
+  static void database(DynamicPropertyRegistry registry) {
+    PostgresTestSupport.register(registry);
+  }
 
   @Autowired private Environment environment;
 

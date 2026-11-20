@@ -24,6 +24,11 @@ management:
       show-details: never
       probes:
         enabled: true
+      group:
+        # Readiness means "database reachable, migrations applied, rule set published", not just
+        # "process started".
+        readiness:
+          include: readinessState,db,referenceData
 
 logging:
   structured:
