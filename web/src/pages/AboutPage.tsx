@@ -6,6 +6,7 @@ import CardContent from '@mui/material/CardContent';
 import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
 
+import { isKnownVersionShape } from '../api/version';
 import { useVersion } from '../api/useVersion';
 import { colour } from '../theme/tokens';
 
@@ -76,13 +77,14 @@ export function AboutPage() {
 
           {state.status === 'ready' ? (
             <>
-              <Row label="Build version" value={state.info.buildVersion ?? 'Not reported'} />
+              <Row label="Application" value={state.info.name ?? 'Not reported'} />
+              <Row label="Build version" value={state.info.version ?? 'Not reported'} />
+              <Row label="Built" value={state.info.buildTime ?? 'Not reported'} />
               <Row label="Git commit" value={state.info.gitCommit ?? 'Not reported'} />
               <Row label="Live rule set" value={state.info.ruleSetVersion ?? 'Not reported'} />
+              <Row label="Profiles" value={state.info.profiles ?? 'Not reported'} />
 
-              {state.info.buildVersion === undefined &&
-              state.info.gitCommit === undefined &&
-              state.info.ruleSetVersion === undefined ? (
+              {!isKnownVersionShape(state.info) ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <Alert severity="warning" sx={{ fontSize: 14 }}>
                     The API answered, but not with the fields this screen expects. The raw response is
@@ -95,7 +97,7 @@ export function AboutPage() {
                       p: 3,
                       backgroundColor: colour.bg.subtle,
                       border: `1px solid ${colour.border.default}`,
-                      borderRadius: 1,
+                      borderRadius: '4px',
                       fontSize: 12,
                       overflowX: 'auto',
                     }}

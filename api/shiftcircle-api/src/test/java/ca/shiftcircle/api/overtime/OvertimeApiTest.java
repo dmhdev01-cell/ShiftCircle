@@ -333,6 +333,9 @@ class OvertimeApiTest {
     assertThat(offered.statusCode()).isEqualTo(200);
     List<?> history = (List<?>) mapper.readValue(offered.body(), List.class);
     assertThat(history).hasSize(2);
+    assertThat(((Map<String, Object>) history.get(0)).get("id"))
+        .as("the history carries the offer id the supervisor's Confirm needs")
+        .isNotNull();
     String offerId =
         jdbc.queryForObject(
             "SELECT id::text FROM overtime_offer WHERE open_shift_id = ? AND employee_id = ?",

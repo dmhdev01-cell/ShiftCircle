@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
+import { createHttpApi } from '../api/http';
 import { RoleProvider } from './nav';
 import { theme } from '../theme/theme';
 
@@ -80,7 +81,58 @@ describe('AppShell', () => {
     expect(within(nav).getByRole('link', { name: 'My schedule' })).toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: 'Propose shifts' })).toBeInTheDocument();
     expect(within(nav).queryByRole('link', { name: 'Overtime' })).not.toBeInTheDocument();
-    expect(screen.getByText('Employee · N. Thompson')).toBeInTheDocument();
+    // The switch acts as the demo employee in the api's user list.
+    expect(screen.getByText('Employee · T. Nakamura')).toBeInTheDocument();
+  });
+
+  it('shows no role chip on the sign-in screen (build notes 2.1)', () => {
+    renderShell('/login');
+
+    expect(screen.queryByText('(mock sign-in)')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Mock sign-in: choose a role')).not.toBeInTheDocument();
+  });
+
+  it('signs out from the account menu and returns to the sign-in screen', async () => {
+    const user = userEvent.setup();
+    renderShell('/login');
+
+    await user.click(await screen.findByRole('button', { name: /M. Ellis/ }));
+    await screen.findByRole('heading', { name: 'Planning board' });
+
+    // A signed-in person gets an account menu, not the demo switch.
+    expect(screen.getByText('Supervisor · M. Ellis')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Mock sign-in: choose a role')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Account menu for M. Ellis' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Sign out' }));
+
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
+    expect(screen.queryByText('Your session ended. Sign in again.')).not.toBeInTheDocument();
+  });
+
+  it('sends an expired session to the sign-in screen when the api answers 401', async () => {
+    const user = userEvent.setup();
+    renderShell('/login');
+
+    await user.click(await screen.findByRole('button', { name: /M. Ellis/ }));
+    await screen.findByRole('heading', { name: 'Planning board' });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        json: async () => ({ title: 'Unauthorized', status: 401 }),
+      })),
+    );
+
+    await expect(createHttpApi().getSchedule({})).rejects.toThrow();
+
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText('Your session ended. Sign in again.')).toBeInTheDocument(),
+    );
   });
 
   it('does not use a government logo, wheat sheaf or coat of arms', () => {

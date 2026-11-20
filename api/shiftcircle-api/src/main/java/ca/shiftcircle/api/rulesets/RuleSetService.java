@@ -62,7 +62,8 @@ public class RuleSetService {
       String override, String source, Double min, String sentence, Map<String, Object> params) {}
 
   public record TableView(
-      String code, String name, Columns columns, List<RowView> rows, int changed) {}
+      String code, String name, Columns columns, List<RowView> rows, int changed,
+      String hoursParam, String afterParam) {}
 
   public record VersionView(
       int version, String status, boolean live, String createdBy, String createdAt, String reason,
@@ -126,7 +127,7 @@ public class RuleSetService {
 
   public TableView table(int version, String tableCode) {
     Map<String, Object> versionRow = versionRow(version);
-    RuleTableCode table = RuleTableCode.fromCode(tableCode);
+    RuleTableCode table = resolveTable(tableCode);
     Map<String, Object> tableRow =
         jdbc.queryForMap(
             "SELECT name, column_schema::text AS schema FROM rule_table WHERE code = ?",
@@ -144,7 +145,9 @@ public class RuleSetService {
         (String) tableRow.get("name"),
         new Columns("After this kind of shift", "Hours", "If not", "Override"),
         views,
-        changed);
+        changed,
+        primaryHoursKey(table),
+        table == RuleTableCode.REST ? "afterShiftKind" : null);
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -191,7 +194,7 @@ public class RuleSetService {
       int version, String tableCode, List<RowView> rows, AuthPrincipal principal) {
     Map<String, Object> versionRow = versionRow(version);
     requireStatus(versionRow, "DRAFT", "Only a draft can be edited");
-    RuleTableCode table = RuleTableCode.fromCode(tableCode);
+    RuleTableCode table = resolveTable(tableCode);
     if (rows == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "rows is required");
     }
@@ -203,6 +206,14 @@ public class RuleSetService {
     for (RowView row : rows) {
       order++;
       Map<String, Object> params = row.params() == null ? new LinkedHashMap<>() : row.params();
+      // The web updates params[hoursParam] itself; the after select carries a friendly label,
+      // so map that back to the stored pattern when it is one of the known labels.
+      if (table == RuleTableCode.REST && row.after() != null) {
+        String rawAfter = rawAfter(row.after());
+        if (rawAfter != null) {
+          params.put("afterShiftKind", rawAfter);
+        }
+      }
       RuleRow existing = findRow(versionId, table, row.ruleCode());
       String severity = row.result() == null
           ? (existing == null ? "WARN" : existing.severity().name()) : row.result();
@@ -715,16 +726,74 @@ public class RuleSetService {
     }
   }
 
+  private static final Map<String, String> TABLE_SLUGS =
+      Map.ofEntries(
+          Map.entry("rest-between-shifts", "REST"),
+          Map.entry("maximum-hours", "MAX_HOURS"),
+          Map.entry("consecutive-work", "CONSECUTIVE"),
+          Map.entry("sixteen-hour-shifts", "LONG_SHIFTS"),
+          Map.entry("days-off", "DAYS_OFF"),
+          Map.entry("pay-classification", "PAY"),
+          Map.entry("overtime-ranking", "OT_RANKING"),
+          Map.entry("shift-types", "SHIFT_LENGTHS"));
+
+  /** The web routes use readable slugs; the rules module uses its own table codes. */
+  private static RuleTableCode resolveTable(String code) {
+    try {
+      return RuleTableCode.fromCode(code);
+    } catch (IllegalArgumentException notACode) {
+      String mapped = TABLE_SLUGS.get(code);
+      if (mapped == null) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "Unknown rule table: " + code);
+      }
+      return RuleTableCode.fromCode(mapped);
+    }
+  }
+
+  /** The numeric column the grid's single hours field edits, per table. */
+  private static String primaryHoursKey(RuleTableCode table) {
+    return switch (table) {
+      case REST -> "minRestHours";
+      case MAX_HOURS -> "maxHours";
+      case CONSECUTIVE -> "max";
+      case LONG_SHIFTS -> "maxIn7Days";
+      case DAYS_OFF -> "daysOff";
+      case PAY -> "thresholdHours";
+      case SHIFT_LENGTHS, OT_RANKING -> null;
+    };
+  }
+
+  private static String friendlyAfter(String raw) {
+    return switch (raw) {
+      case ".*" -> "Any shift";
+      case "(D8|E8|N8|A12|P12)" -> "Regular shift";
+      case "L16" -> "16 h shift";
+      case "A12" -> "12 h 00–12";
+      case "P12" -> "12 h 12–24";
+      default -> raw;
+    };
+  }
+
+  private static String rawAfter(String friendly) {
+    return switch (friendly) {
+      case "Any shift" -> ".*";
+      case "Regular shift" -> "(D8|E8|N8|A12|P12)";
+      case "16 h shift" -> "L16";
+      case "12 h 00–12" -> "A12";
+      case "12 h 12–24" -> "P12";
+      default -> null;
+    };
+  }
+
   private RowView rowView(RuleRow row, Map<String, Object> schema) {
     Map<String, Object> params = row.params();
-    String after = value(params.get("afterShiftKind"), "");
-    double minHours = params.containsKey("minRestHours")
-        ? ((Number) params.get("minRestHours")).doubleValue()
-        : params.containsKey("maxHours")
-            ? ((Number) params.get("maxHours")).doubleValue()
-            : params.containsKey("max")
-                ? ((Number) params.get("max")).doubleValue()
-                : 0;
+    String after = friendlyAfter(value(params.get("afterShiftKind"), ""));
+    String hoursKey = primaryHoursKey(row.table());
+    double minHours =
+        hoursKey == null || !(params.get(hoursKey) instanceof Number number)
+            ? 0
+            : number.doubleValue();
     Double min = null;
     Object schemaMin = schema.containsKey("minRestHours")
         ? ((Map<?, ?>) schema.get("minRestHours")).get("minimum")

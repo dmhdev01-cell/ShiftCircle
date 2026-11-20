@@ -8,9 +8,9 @@ import { colour } from '../theme/tokens';
 function versionSummary(state: ReturnType<typeof useVersion>['state']): string {
   if (state.status === 'loading') return 'Loading build information';
   if (state.status === 'error') return `Build information unavailable: ${state.message}`;
-  const { buildVersion, gitCommit, ruleSetVersion } = state.info;
+  const { version, gitCommit, ruleSetVersion } = state.info;
   const parts = [
-    buildVersion ? `Build ${buildVersion}` : null,
+    version ? `Build ${version}` : null,
     gitCommit ? `commit ${gitCommit}` : null,
     ruleSetVersion ? `rule set v${ruleSetVersion}` : null,
   ].filter((part): part is string => part !== null);

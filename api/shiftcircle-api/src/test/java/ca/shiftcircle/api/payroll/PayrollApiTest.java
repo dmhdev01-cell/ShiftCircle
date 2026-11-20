@@ -81,6 +81,16 @@ class PayrollApiTest {
     UUID.fromString("66666666-6666-6666-6666-000000000203")
   };
 
+  /** Hostile employee numbers for the CSV test (P2): formula, comma, quote, tab and CR prefixes. */
+  private static final String[] HOSTILE_NUMBERS = {
+    "=2+5*10", "E,1", "E\"2", "\t=2+5*10", "\r=1"
+  };
+
+  private static final UUID[] HOSTILE_EMPLOYEES =
+      java.util.stream.IntStream.rangeClosed(201, 205)
+          .mapToObj(number -> UUID.fromString(String.format("33333333-3333-3333-3333-%012d", number)))
+          .toArray(UUID[]::new);
+
   /** Eleven shifts for the overtime officer; the last one is recorded by the test. */
   private static final UUID[] OT_ASSIGNMENTS =
       java.util.stream.IntStream.rangeClosed(301, 311)
@@ -114,12 +124,11 @@ class PayrollApiTest {
         OFFICER_MISSING,
         OFFICER_OT);
     jdbc.update(
-        "DELETE FROM time_entry WHERE employee_id IN (SELECT id FROM employee"
-            + " WHERE employee_no IN ('=2+5*10', 'E,1', 'E\"2'))");
+        "DELETE FROM time_entry WHERE employee_id IN (?, ?, ?, ?, ?)", (Object[]) HOSTILE_EMPLOYEES);
     jdbc.update(
-        "DELETE FROM shift_assignment WHERE employee_id IN (SELECT id FROM employee"
-            + " WHERE employee_no IN ('=2+5*10', 'E,1', 'E\"2'))");
-    jdbc.update("DELETE FROM employee WHERE employee_no IN ('=2+5*10', 'E,1', 'E\"2')");
+        "DELETE FROM shift_assignment WHERE employee_id IN (?, ?, ?, ?, ?)",
+        (Object[]) HOSTILE_EMPLOYEES);
+    jdbc.update("DELETE FROM employee WHERE id IN (?, ?, ?, ?, ?)", (Object[]) HOSTILE_EMPLOYEES);
     jdbc.update(
         "DELETE FROM pay_period WHERE id IN (?, ?, ?, ?, ?)",
         PERIOD_LOCK,
@@ -281,13 +290,13 @@ class PayrollApiTest {
 
   @Test
   void p2HostileCsvValuesAreQuotedAndFormulaNeutralised() throws Exception {
-    String[] numbers = {"=2+5*10", "E,1", "E\"2"};
+    String[] numbers = HOSTILE_NUMBERS;
     jdbc.update(
         "INSERT INTO pay_period (id, start_date, end_date, status)"
             + " VALUES (?, DATE '2026-03-02', DATE '2026-03-15', 'OPEN')",
         PERIOD_CSV);
     for (int index = 0; index < numbers.length; index++) {
-      UUID employeeId = UUID.fromString("33333333-3333-3333-3333-00000000020" + (index + 1));
+      UUID employeeId = HOSTILE_EMPLOYEES[index];
       jdbc.update(
           "INSERT INTO employee (id, employee_no, first_name, last_name, home_unit_id, seniority_date)"
               + " VALUES (?, ?, 'Hostile', 'Value', ?, DATE '2020-01-01')",
@@ -328,16 +337,18 @@ class PayrollApiTest {
     assertThat(csv).contains("'=2+5*10,2026-03-02,2026-03-15,2026-03-03,REG,8.00,A,A");
     assertThat(csv).contains("\"E,1\",2026-03-02,2026-03-15,2026-03-03,REG,8.00,A,A");
     assertThat(csv).contains("\"E\"\"2\",2026-03-02,2026-03-15,2026-03-03,REG,8.00,A,A");
+    // OWASP also treats a leading TAB or CR as a formula prefix.
+    assertThat(csv).contains("\"'\t=2+5*10\",2026-03-02,2026-03-15,2026-03-03,REG,8.00,A,A");
+    assertThat(csv).contains("\"'\r=1\",2026-03-02,2026-03-15,2026-03-03,REG,8.00,A,A");
 
     jdbc.update(
         "UPDATE pay_period SET status = 'OPEN', locked_at = NULL WHERE id = ?", PERIOD_CSV);
     jdbc.update(
-        "DELETE FROM time_entry WHERE employee_id IN (SELECT id FROM employee"
-            + " WHERE employee_no IN ('=2+5*10', 'E,1', 'E\"2'))");
+        "DELETE FROM time_entry WHERE employee_id IN (?, ?, ?, ?, ?)", (Object[]) HOSTILE_EMPLOYEES);
     jdbc.update(
-        "DELETE FROM shift_assignment WHERE employee_id IN (SELECT id FROM employee"
-            + " WHERE employee_no IN ('=2+5*10', 'E,1', 'E\"2'))");
-    jdbc.update("DELETE FROM employee WHERE employee_no IN ('=2+5*10', 'E,1', 'E\"2')");
+        "DELETE FROM shift_assignment WHERE employee_id IN (?, ?, ?, ?, ?)",
+        (Object[]) HOSTILE_EMPLOYEES);
+    jdbc.update("DELETE FROM employee WHERE id IN (?, ?, ?, ?, ?)", (Object[]) HOSTILE_EMPLOYEES);
     jdbc.update("DELETE FROM payroll_export WHERE pay_period_id = ?", PERIOD_CSV);
     jdbc.update("DELETE FROM pay_period WHERE id = ?", PERIOD_CSV);
   }

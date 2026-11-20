@@ -62,6 +62,9 @@ final class DemoPlantedCases {
 
     // Make one Unit B day shift on the Saturday open (the demo tries to fill it with Nia).
     removeOneAssignment("B", "D8", PC01_DATE.plusDays(1));
+    // E2: Tara is the demo employee account (t.nakamura). She must be free to take that open
+    // shift, or the supervisor cannot offer it to the one employee who can sign in.
+    deleteAssignments("E-001", PC01_DATE.plusDays(1));
     insertOpenShift("planted:pc08:unit-b-day", "B", "D8", PC01_DATE.plusDays(1), "EXTRA_COVERAGE");
   }
 

@@ -108,8 +108,8 @@ Content-Type: application/problem+json
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
-| GET | `/schedule?unitId=&from=&to=` | **Planning board payload:** days, coverage per block (required / scheduled / actual, each with the lowest hourly count and the short hour ranges, see below), officer rows with assignments, overtime status per officer, warnings | SUPERVISOR, AUDITOR |
-| GET | `/me/schedule?from=&to=` | My shifts, hours this pay period, overtime this quarter, next shift | EMPLOYEE |
+| GET | `/schedule?unitId=&from=&to=` | **Planning board payload:** days, coverage per block (required / scheduled / actual, each with the lowest hourly count and the short hour ranges, see below), officer rows with assignments, overtime status per officer, warnings, `overridesThisPeriod`, `asOf` and `publishedState` (see below) | SUPERVISOR, AUDITOR |
+| GET | `/me/schedule?from=&to=` | My shifts, hours this pay period, overtime this quarter, next shift, `asOf` (the server's "today", as on `GET /schedule`) | EMPLOYEE |
 | POST | `/rule-checks` | Preview any change (§3) | SUPERVISOR; EMPLOYEE for own proposals |
 | POST | `/assignments` | Assign a shift (§3 rules apply) | SUPERVISOR |
 | PATCH | `/assignments/{id}` | Move or change a shift (`If-Match`) | SUPERVISOR |
@@ -131,6 +131,16 @@ The payload also has `unit { id, name }`, `days` (ISO dates), `asOf` (the demo t
 `publishedState { published, unpublishedChanges }`, matching `web/src/api/types.ts`.
 
 `lowestHourly` is the minimum headcount over the block's hours; `shortHours` lists merged hour ranges below `required` (`to` is exclusive); `covered` is true when `shortHours` is empty. `actual` is present for past hours only. The display version has the same shape and still **no names**.
+
+**Board header fields:** three facts on the board are neither per-officer nor per-block, so `GET /schedule` returns them at the top level of the payload:
+
+```json
+{ "asOf": "2026-11-19",
+  "overridesThisPeriod": 1,
+  "publishedState": { "published": true, "unpublishedChanges": 3 } }
+```
+
+`asOf` is the server's "today" (`SC_DEMO_TODAY` on the demo profile), so the board marks the same days the api does instead of guessing from the browser clock. `overridesThisPeriod` counts the emergency overrides recorded in the pay period on the board. `publishedState` says whether the period is published and how many changes are not published yet.
 
 ### 4.3 Overtime
 
@@ -171,12 +181,14 @@ path (`POST /assignments`), so S-04 and the audit event still hold.
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
-| GET | `/pay-periods` | Periods with status | SUPERVISOR, AUDITOR |
-| GET | `/pay-periods/{id}/time-entries?employeeId=` | Scheduled vs actual entries with pay codes | SUPERVISOR, AUDITOR; EMPLOYEE (own) |
+| GET | `/pay-periods` | Periods with status, the period's overtime threshold and the lock totals | SUPERVISOR, AUDITOR |
+| GET | `/pay-periods/{id}/time-entries?employeeId=` | Scheduled vs actual entries with pay codes, the officer's name and unit, the actual start and end, and the unpaid extension under 30 min (P-04) | SUPERVISOR, AUDITOR; EMPLOYEE (own) |
 | PUT | `/time-entries/{id}` | Record actuals (worked as scheduled / adjusted times / absence type) | SUPERVISOR |
 | POST | `/pay-periods/{id}/lock` | Lock: actuals become read-only. **Refused with `409`** (`type: .../problems/missing-actuals`, body lists `missing: [{ assignmentId, employeeId, start }]` and a count) while any shift in the period that has ended (`end_at ≤ now`) has no actual time entry or absence (ADR-017). **Idempotent:** locking a period that is already `LOCKED` returns `200` with the period view and writes no second audit row. Facility-wide: any supervisor with at least one unit in scope (ADR-022) | SUPERVISOR |
 | POST | `/pay-periods/{id}/unlock` | `{ "reason" }`; audited with actor and reason. Facility-wide (ADR-022) | SUPERVISOR |
 | GET | `/pay-periods/{id}/payroll-export` | `text/csv`; locked periods only; records a `payroll_export` row with the actor and file hash. Facility-wide: every officer in the period, not only the caller's units (ADR-022) | SUPERVISOR |
+
+**Time entries and pay periods (what the Time and attendance screen needs):** a time entry carries the officer's `employeeName` and the `unitId` / `unitName` it belongs to, so the grid needs no second call; when something was recorded it carries `actualStart` and `actualEnd`, and an extension under 30 minutes that is not paid is `unpaidExtensionMinutes` (P-04). A shift that has ended (`end_at ≤ now`) with no actual and no absence is `needsActual: true`. A pay period carries `overtimeThresholdHours` (80 h by default, ADR-016) and the totals the lock confirmation repeats: `totals.officers`, `totals.workedHours` and `totals.overtimeHours`.
 
 **Overtime classification:** overtime is computed per pay period (P-01): hours beyond the threshold, in time order, get overtime codes. Any change to a period's actuals recalculates its codes; locking freezes them.
 
@@ -190,6 +202,10 @@ path (`POST /assignments`), so S-04 and the audit event still hold.
 | GET | `/reports/hours?from=&to=&employeeId=` | Scheduled, worked, and hours by pay code per officer | SUPERVISOR, AUDITOR; EMPLOYEE (own only) |
 | GET | `/reports/overtime?from=&to=&top=` | Overtime hours by officer and unit | SUPERVISOR, AUDITOR |
 | GET | `/reports/overrides?from=&to=` | Emergency overrides with reasons | SUPERVISOR, AUDITOR |
+
+**CSV export:** each report answers `text/csv` on the same path when the request sends `Accept: text/csv`; the web's Export CSV button uses that. Columns: coverage `week, required_hours, scheduled_hours, actual_hours, scheduled_percent, actual_percent, planned`; hours `employee_no, name, scheduled, worked, regular, overtime_15, overtime_20, sick, vacation`; overtime `employee_no, name, overtime_hours`; overrides `at, employee, unit, rule_codes, actor, reason`. Cells are RFC 4180 quoted where needed and a leading `=`, `+`, `-`, `@`, TAB or CR is neutralised with a single quote, so a spreadsheet cannot evaluate a value as a formula.
+
+**Definitions:** coverage is hourly (ADR-013): required staff-hours are the unit requirements per block × the block's hours, and scheduled/actual hours count each assignment or actual entry once per hour slot it covers. A week that has not started is `planned` with no actual figure; an in-progress week compares against the required hours that have elapsed at the demo "today". Overtime is classified per pay period through the same `PayClassifier` as payroll, so a period's `OT15` hours equal the payroll export's. Override rows carry the reason, the rule codes and the actor who recorded them (docs/09 §6). Defaults when no range is given: coverage = the last six weeks plus next week; hours = the latest locked pay period; overtime = the current quarter; overrides = the last four weeks.
 
 ### 4.7 Rules administration
 
@@ -220,7 +236,7 @@ is the rollback path, and the audit row records which version went live.
 |---|---|---|---|
 | GET | `/display/today` | Counts per unit and block, open shifts and overtime counts. **No names.** | DISPLAY, SUPERVISOR (own units), AUDITOR |
 | GET | `/audit-events?entityType=&entityId=&from=&to=` | Audit trail | AUDITOR, SUPERVISOR (own units) |
-| GET | `/version` | Build version, git commit, live rule set version | any |
+| GET | `/version` | Build version, git commit, live rule set version, and `asOf` (the server's "today", so the web's clock shows the demo day) | any |
 | GET | `/actuator/health` | Liveness and readiness. Internal only, not proxied by nginx. | container network |
 
 ## 5. Screen-to-endpoint map

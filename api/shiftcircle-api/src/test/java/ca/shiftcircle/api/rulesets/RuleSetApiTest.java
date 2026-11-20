@@ -299,6 +299,45 @@ class RuleSetApiTest {
             });
   }
 
+
+  @Test
+  @Order(5)
+  @SuppressWarnings("unchecked")
+  void theWebGridsDisplayFieldsReachTheParamsAndSlugsResolve() throws Exception {
+    // Base it on the original v1 so the assertion does not depend on an earlier publish.
+    int draft = createDraft(1, "Integration: the web grid maps its fields to params");
+    Map<String, Object> rest = table(draft, "rest-between-shifts");
+    List<Map<String, Object>> rows = (List<Map<String, Object>>) rest.get("rows");
+    Map<String, Object> u03 =
+        rows.stream()
+            .filter(row -> "U-03".equals(row.get("ruleCode")))
+            .findFirst()
+            .orElseThrow();
+    assertThat(u03.get("after")).isEqualTo("16 h shift");
+    assertThat(((Number) u03.get("minHours")).doubleValue()).isEqualTo(12.0);
+    String hoursParam = (String) rest.get("hoursParam");
+    assertThat(hoursParam).isEqualTo("minRestHours");
+    assertThat(rest.get("afterParam")).isEqualTo("afterShiftKind");
+
+    // The web updates the friendly field and the params key the table names.
+    u03.put("minHours", 14);
+    ((Map<String, Object>) u03.get("params")).put(hoursParam, 14);
+    saveRows(draft, "rest-between-shifts", rest);
+
+    Map<String, Object> saved = table(draft, "REST");
+    Map<String, Object> savedU03 =
+        ((List<Map<String, Object>>) saved.get("rows"))
+            .stream().filter(row -> "U-03".equals(row.get("ruleCode"))).findFirst().orElseThrow();
+    assertThat(((Number) savedU03.get("minHours")).doubleValue()).isEqualTo(14.0);
+    String params =
+        jdbc.queryForObject(
+            "SELECT rr.params::text FROM rule_row rr JOIN rule_set_version v"
+                + " ON v.id = rr.rule_set_version_id WHERE v.version = ? AND rr.code = 'U-03'",
+            String.class,
+            draft);
+    assertThat(params).contains("\"minRestHours\"").contains("14");
+  }
+
   @Test
   @Order(4)
   void e3ARestTargetChangePublishesAndIncrementsTheLiveVersion() throws Exception {
