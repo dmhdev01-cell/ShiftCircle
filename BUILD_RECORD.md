@@ -42,7 +42,7 @@ Change flow: preview (`POST /rule-checks`) → save → `422` with plain-languag
 
 The verifiers are a different model family from the builders, so verification doesn't depend on the authors.
 
-**How it was verified.** 28 review and QA rounds, three e2e runs and one visual review, each recorded with what was checked, found and fixed (`docs/review-rounds.md`; narrative in `docs/ai-dev-log.md`). Fixes were proved by reverting them and watching their test fail.
+**How it was verified.** 30 review and QA rounds (the last a full clean-clone check of `main`), three e2e runs and one visual review, each recorded with what was checked, found and fixed (`docs/review-rounds.md`; narrative in `docs/ai-dev-log.md`). Fixes were proved by reverting them and watching their test fail.
 
 **What the verification caught.** The best evidence that independent checking mattered is what passed every test and was still wrong:
 
@@ -52,7 +52,7 @@ The verifiers are a different model family from the builders, so verification do
 | **Concurrent saves got past a Block rule.** Each save was checked on its own, so every test passed; two saves for one officer sent at once both got 201. Fixed with a per-officer lock; the fix fails its test when reverted. | review-r2 | R13, R16 |
 | **Source code missing from git, twice.** A `.gitignore` line meant for the web (`build/`, later `coverage/`) ignored a Java package, so results, including a QA PASS, ran on files a clean clone didn't have. A guard script now fails on any ignored file under a source folder. | review-r2, then the builder | R5, log #25 |
 | **A screen that passed two automated checks was visibly broken.** In the wall display's stale state every card spilled into the footer and old numbers still looked live. A geometry probe and the author's fit test had checked only the live state; a visual review of screenshots found it. | dev-design (author) | Visual, R27 |
-| **The payroll lock used the real clock, not the demo's**, so the demo's lock step was refused on a fresh stack and no test caught it. Fix merged (`210e59b`), not yet re-verified. | dev-qa | R25 |
+| **The payroll lock used the real clock, not the demo's**, so the demo's lock step was refused on a fresh stack and no test caught it. Fixed in `210e59b`; the lock works at the demo clock from a clean clone (R30). | dev-qa | R25, R30 |
 | **Claims corrected:** a reviewer's own probe was vacuous (off-by-one setup; it said so); a QA claim that a CHECK rejects NULL was disproved; two spec numbers couldn't both hold (84 h on a 12 h rotation is overtime before any absence, ADR-020); docs said U-14 could be overridden, the code said no (ADR-023); a verifier retracted its own finding (empty fields in the auditor's override view) after checking the raw data: its query had used the wrong field names. | r2, design seat, builder, dev-qa | R16, log #23, #27, R25, R30 |
 | **Rejected or corrected by the lead:** a custom rule catalogue (Drools chosen so staff can edit rules); 16 h shifts as overtime-only and overtime per shift. | project lead | log #5, #13 |
 
@@ -69,8 +69,10 @@ The verifiers are a different model family from the builders, so verification do
 | 10 | 206/206; reports reconciled against independent SQL and the real payroll CSV (R22) |
 | 11 | 235/235 at `35c225d`, after a critical finding (R23, R24, R28) |
 | 12a (wall display) | Counts only, stale state, role reach (R26, R27) |
+| Move and cancel | 270 tests at `62dd4fc`; ~30 probes, no Block bypass by moving (R29) |
+| All of `main` | From a true clean clone at `17308b7`: api 246/246, web 118/118, demo script walked end to end (R30) |
 
-Latest independently verified api total: **235/235 at `35c225d`** (R28). E2E (Playwright, desktop and tablet, axe on every screen): fixtures web 28/0/4 (E2E-3); real api 5/2 per viewport (R25); wall display 9 passed / 1 skipped (R26, R27). <!-- TODO: final totals on the submission commit (api / web / e2e / axe), with the command -->
+Latest independently verified api totals: **270 at `62dd4fc`** (R29) and **246/246 from a clean clone at `17308b7`** (R30). E2E (Playwright, axe on every screen) at `17308b7` (R30): real api desktop 13 passed, tablet 12 passed + 1 skipped; fixtures web 35 passed, 3 skipped, 0 failed. Open: the `api-test` service can fail when built fresh because of test class order (R30; a test-isolation fix is in progress). <!-- TODO: final totals on the submission commit (api / web / e2e / axe), with the command -->
 
 | ID | Case | Expected | Result |
 |---|---|---|---|
@@ -83,7 +85,7 @@ Latest independently verified api total: **235/235 at `35c225d`** (R28). E2E (Pl
 ## 5. Governance and ministry suitability
 
 - **Synthetic data only:** 100 fictional officers, seed 20261001, `is_synthetic` on every person; one planted override only, so the audit log holds no invented events (R10, R25).
-- **No secrets in the repo:** `.env.example` ships empty; compose and the api refuse to start without strong secrets (R2, R9).
+- **No secrets in the repo:** `.env.example` ships empty; compose and the api refuse to start without strong secrets; no `.env`, key or certificate anywhere in the history (R2, R9, R30).
 - **Safeguards:** emergency-policy Blocks need a reason of ≥ 10 characters and are audited (PC-03); other Blocks can't be overridden (PC-01, ADR-023). Warnings must be acknowledged. Maker/checker in the api and a DB CHECK; append-only audit; locked periods protected by a trigger; only a supervisor authorizes overtime; saves are serialized per officer (R12–R16, R21, R28).
 - **Rule editor security:** staff input is treated as untrusted code input: whitelisted, validated before compile, generic errors (R28).
 - **Privacy:** role and unit scope on every endpoint, out-of-scope is `404` (R12, R16). The wall display shows counts only, even when the api sends a planted name (R26). Supervisors don't see rule-change audit events; the auditor sees all (`docs/09-access-control.md` §2).
