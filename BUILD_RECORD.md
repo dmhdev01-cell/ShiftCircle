@@ -69,7 +69,7 @@ The verifiers are a different model family from the builders. After the 05:06Z r
 | 6 | **Verified** at `f73d6c5`: 142/142, dev-qa PASS and review-r2 APPROVE with revert-the-fix checks (R15, R16), after two high findings in R12/R13 |
 | 7–11 | TODO (step 8 overtime backend in progress; 9 time/payroll and 11 publish pipeline not built; web screens on an unmerged branch) |
 
-Latest verified total on `main`: 142/142 at `f73d6c5` (R15). E2E against the fixtures-mode web `a908c1f`: 26 passed, 2 failed (the fixture CSV header doesn't match docs/07, fixtures only), 4 skipped (wall display not built). The earlier accessibility defect is fixed (E2E-2). <!-- TODO: final totals (unit / repository / api / web / e2e / axe), the command and the commit -->
+Latest verified total on `main`: 142/142 at `f73d6c5` (R15). E2E (Playwright, desktop and tablet, axe on every screen) against the fixtures-mode web `d99de9e`: 28 passed, 0 failed, 4 skipped (wall display not built). Along the way it found and confirmed fixes for an accessibility defect and a payroll-CSV contract mismatch (E2E-1 to E2E-3). <!-- TODO-VERIFY: e2e against the compose stack (real api) --> <!-- TODO: final totals (unit / repository / api / web / e2e / axe), the command and the commit -->
 
 | ID | Case | Expected | Result |
 |---|---|---|---|
