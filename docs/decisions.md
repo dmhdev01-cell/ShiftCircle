@@ -104,13 +104,13 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Supersedes:** the earlier wording in `06-data-model.md` and `09-access-control.md` that the application role had `INSERT, SELECT` only.
 
 ## ADR-019 — S-04 (overtime authorization) is enforced by the workflow, not a decision table
-**Status:** Accepted (2026-11-20, lead's decision)
+**Status:** Accepted (2026-11-20, lead's decision). **Confirmed by the person on 2026-11-20.**
 **Decision:** S-04 has no rule table and no `RequiresAuthorization` template. `EXTRA` shifts and overtime offers can be created or confirmed only by a `SUPERVISOR` (`POST /assignments`, `POST /open-shifts/{id}/offers|assign`, `POST /offers/{id}/confirm`, `POST /proposals/{id}/decision`), and each writes an `audit_event` with actor and time. An employee accepting an offer doesn't create the assignment; the supervisor's confirmation does.
 **Why:** "who may authorize" is a permission, already enforced by role and scope checks (`09-access-control.md` §3) and proven by the authorization tests; a configurable table would let an admin switch off a safeguard (HANDOFF guardrail 3).
 **Consequences:** `05-union-rules.md` §2E and §4 updated; S-04 is tested by the authorization tests (an `EMPLOYEE` creating or confirming an `EXTRA` shift gets `403`) and by checking the audit event, not by the rule boundary matrix.
 
 ## ADR-020 — Demo data sizing correction: 2% sick + 2% vacation, overtime band 3–8%
-**Status:** Accepted (2026-11-20, `orch.lead` while the project lead was away; **to be confirmed by the project lead**). Found by the generator build (`docs/ai-dev-log.md` #27).
+**Status:** Accepted (2026-11-20, `orch.lead` while the project lead was away). **Confirmed by the person on 2026-11-20.** Found by the generator build (`docs/ai-dev-log.md` #27).
 **Decision:** the demo generator uses about **2% sick + 2% vacation** (was 4% + 4%), and self-check 4 accepts **3–8% overtime** of worked hours (was 3–6%).
 **Arithmetic (per 2-week pay period, 80 h threshold, ADR-016):**
 - 12 h crews, 60 officers on 2 × 00–12, 2 × 12–24, 4 off. That's 48 h per 8 days, so **84 h** per period, and 4 h of overtime each before any absence is covered: 60 × 4 = **240 h**.
@@ -136,7 +136,7 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Consequences:** the preview's employee-own path is unchanged; the rule check now reads the published version from `rule_set_version` instead of a constant (so a published v2 is reported without a code change); `existingShifts` reads 28 days back (U-11 needs 28 days) and 14 days forward; `AuthorizationMatrixTest`, `AssignmentApiTest` and `ProblemDetailsApiTest` prove each case.
 
 ## ADR-022 — Pay-period lock, unlock and payroll export are facility-wide; double lock is idempotent
-**Status:** Accepted (2026-11-20, `orch.lead` while the project lead was away, from dev-qa's step 9 PASS; **to be confirmed by the project lead**).
+**Status:** Accepted (2026-11-20, `orch.lead` while the project lead was away, from dev-qa's step 9 PASS). **Confirmed by the person on 2026-11-20.**
 **Decision:**
 1. A pay period has no unit (`pay_period` in `06-data-model.md`), so locking, unlocking and exporting can't be scoped to units. **Any supervisor with at least one unit in scope** may lock, unlock (with a reason) and export the facility's period. The auditor reads it. Each action is audited with the actor; unlock also records the reason, and export records the file hash.
 2. **Locking an already locked period is idempotent:** it returns `200` with the period view and writes no second audit row.
@@ -146,7 +146,7 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Consequences:** `09-access-control.md` §2 (the record-actuals row stays unit-scoped; lock, unlock and export are facility-wide) and `07-api-spec.md` §4.5 updated; each facility-wide cell needs an authorization test (a supervisor with any scope allowed, the auditor and others refused) — check they exist before calling step 9 complete.
 
 ## ADR-023: Override policy defaults. Only rules marked emergency can be overridden; the U-08, U-09 and U-14 Blocks can't be
-**Status:** Accepted (2026-11-20, `orch.lead` while the project lead was away). **TO BE CONFIRMED BY THE PERSON.**
+**Status:** Accepted (2026-11-20, `orch.lead` while the project lead was away). **Confirmed by the person on 2026-11-20.**
 **Context:** `05-union-rules.md` said U-14's Block allowed an override. Rule set v1 (`RuleRowsV1.java`, `V2__reference_data.sql`) gives U-14, U-08 and U-09 the override policy `ACKNOWLEDGE`, and the api refuses an emergency override for a Block with that policy. The full-stack e2e run made this visible: PC-01 (Nia) blocks on U-01, U-05 and U-14, and no override is offered.
 **Decision:** keep the code. Only Blocks whose policy is `EMERGENCY` can be overridden, with a reason of ≥ 10 characters, and audited: U-01, U-03 and U-05 in v1 (U-06 when built). The U-08 (consecutive days), U-09 (consecutive 12 h shifts) and U-14 (60 h weekly ceiling) Blocks can't be overridden in v1. The override policy is a column of each rule row, so a ministry can loosen it through the rules admin's maker/checker flow without a code change.
 **Why:** a Block that nothing can override is the safer default; no safeguard is weakened. Loosening a rule then becomes a deliberate, approved and audited rule change, not a per-shift decision.
@@ -154,7 +154,7 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Consequences:** `05-union-rules.md` §2 (legend, U-06, U-08, U-09, U-14), §3 notes and the §5 example; `10-testing.md` §1 and the U-14 boundary row; `09-access-control.md` §2 override row; `02-requirements.md` FR-23. The demo shows PC-01 as the Block with no way around it, and PC-03 (U-05, a lockdown) as the legitimate override.
 
 ## ADR-024: Cross-unit cover. A supervisor may assign an officer from any unit into a unit they run
-**Status:** Accepted (2026-11-20, `orch.lead` while the project lead was away, from review-r3's authorization pass). **TO BE CONFIRMED BY THE PERSON.**
+**Status:** Accepted (2026-11-20, `orch.lead` while the project lead was away, from review-r3's authorization pass). **Confirmed by the person on 2026-11-20: keep it.**
 **Context:** `docs/09` §3 said the scope guard checks "the target unit, or the target employee's unit". The code checks the **target unit only** for a supervisor (`AssignmentService.preview` and `assign` call `ScopeGuard.requireUnit` on the shift's unit). So a supervisor can preview and save a shift for an officer whose home unit is outside their scope, as long as the shift is in a unit they run.
 **Decision:** keep the code. This is cross-unit cover: an officer from another unit works an extra or covering shift in a unit the supervisor runs, which a 24/7 centre needs when relief is short. A supervisor:
 - **may** assign an officer from any unit into a unit in their own scope;

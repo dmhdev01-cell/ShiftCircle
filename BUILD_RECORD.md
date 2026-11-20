@@ -21,7 +21,7 @@ Only the web publishes a port. A published rule version is compiled and swapped 
 - No AI at runtime: the rules engine decides, and a supervisor approves (ADR-002, ADR-005).
 - Drools decision tables are edited in the app; publishing uses maker/checker, test scenarios and a dry run (ADR-012).
 - Coverage is by unit and block, measured hourly. Overtime is the hours over the pay-period threshold (ADR-013, 016, 017).
-- **Deviations, for the person to confirm:** only emergency Blocks can be overridden (ADR-023); lock and export are facility-wide (ADR-022); audit relies on triggers, not grants (ADR-018); cross-unit cover (ADR-024).
+- **Deviations confirmed by the project lead on 2026-11-20:** only emergency Blocks can be overridden (ADR-023); lock and export are facility-wide (ADR-022); cross-unit cover (ADR-024). Audit relies on triggers, not grants (ADR-018, prototype only).
 
 ## 3. AI-assisted development
 
@@ -70,10 +70,11 @@ Only the web publishes a port. A published rule version is compiled and swapped 
   - **Locked periods:** time entries are guarded by the api and a trigger, but shifts only by the api: a raw SQL `UPDATE` can still cancel one (R38). The audit table is append-only by trigger.
   - **Rule ranges are sanity bounds, not business validation:** 280 of 297 hostile values were refused. A wrong but legal value, such as a 0.5 h overtime threshold, is stopped only by maker/checker, the scenarios and the dry-run counts, so approvers must read the dry run (R40).
   - **Tokens:** valid for 8 h with no revocation; the header and `nbf` aren't checked.
+  - **Cross-unit cover (confirmed, ADR-024):** the rule preview shows another unit's officer's rest conflicts. Pilot option: a shared cover pool.
   - Mock sign-in issuer (validation is real); nginx master runs as root. Not built: `docs/10-testing.md` §8.
 
 ## 6. Next steps (pilot)
 
-1. A practitioner reviews the rule boundary tests. The centre validates the MOCK values and confirms ADR-020, 022, 023 and 024.
+1. A practitioner reviews the rule boundary tests, and the centre validates the MOCK values.
 2. Government SSO with short-lived tokens; a payroll-clerk role for lock and export.
 3. Separate database roles, with insert-only audit and a locked-period guard on shifts (ADR-018). Also non-root containers, TLS, a secrets manager, and CI with image scanning (`docs/08-deployment.md` §9).
