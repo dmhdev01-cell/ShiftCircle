@@ -18,35 +18,34 @@ Internal note for the team; remove before submission (step 13) or fold into the 
 | 6 authz | `0a2f51d` | role/scope matrix over the live endpoints |
 | 6 reference | `3d373bc` | units (scoped), shift-templates, qualifications, employees |
 | docs | `6ec99b2`, `3d373bc` | API spec matches the api and web shapes |
+| step 6 review fixes | `f73d6c5` | preview unit scope, per-officer save lock, override+warn acknowledgement, 28-day U-11 window, problem+json; 142 tests from a clean worktree (ADR-021) |
+| 8 overtime | `ba8f95f`, `6e68a8d` | `OvertimeRanker` + endpoints: ranked candidates (PC-07 tie, PC-08 offer→accept→confirm, PC-09 unavailable head, PC-02 exactly 8 h), `/me/schedule`, `/me/offers`, V4 `CONFIRMED`; 162 tests |
 
-Latest full run: 56 rules + 20 infrastructure + 54 api = **130 tests**, all passing in Docker.
+Latest full run: 66 rules + 20 infrastructure + 76 api = **162 tests**, all passing in Docker.
 
 ## Next, in the lead's priority order
 
-### a) Step 8 backend: overtime (E1/E2, T6) — DO THIS NEXT
+### a) Step 8 backend: overtime (E1/E2, T6)
 
-- `OvertimeRanker` in `shiftcircle-rules`: policy from the OT_RANKING rows
-  (`orderBy`, `skipIfBlocked`, `keepPlace`); rank candidates by fewest overtime hours this quarter,
-  ties by seniority; mark `SKIPPED` (would break a Block rule) **without losing their place**, and
-  `UNAVAILABLE` (unqualified, already scheduled, insufficient rest).
-- Endpoints: `GET /open-shifts?unitId=&from=&to=&status=`, `GET /open-shifts/{id}/candidates`
-  (ranked list + per-candidate rule results), `POST /open-shifts/{id}/offers` (SUPERVISOR, audit),
-  `GET /me/offers`, `POST /offers/{id}/accept|decline` (own), `POST /offers/{id}/confirm`
-  (SUPERVISOR; creates the assignment through the same rules/override/audit path).
-- T6 test: planted PC-08 open Unit B day shift Sat 21 Nov; assert fewest-OT-then-seniority order,
-  a skipped officer keeps their rank, and PC-09's unqualified highest-ranked officer shows
-  UNAVAILABLE for Control.
+**Done** (commits `ba8f95f`, `6e68a8d`). `OvertimeRanker` + `RankingPolicy` in
+`shiftcircle-rules`; `OvertimeController`/`OvertimeService`; `/me/schedule` in
+`MyScheduleQuery`; V4 adds `CONFIRMED` to `overtime_offer`. Candidates are limited to the
+caller's unit scope (overtime totals are scope-only data); confirm accepts the offer-time
+warnings but refuses a *new* one. Tests: `OvertimeRankerTest` (10), `OvertimeApiTest` (9),
+matrix cells.
 
-### b) Step 11 backend: rules publish pipeline (T7/E3, T10, T13)
+### b) Step 11 backend: rules publish pipeline (T7/E3, T10, T13) — DO THIS NEXT
 
 - Reads rows from PostgreSQL (the drift guard proves V2 == RuleRowsV1), validates against
-  `TemplateColumns`/builder limits (reject `windowHours` the builders never emit — docs/04 §5a),
-  compiles with `RuleSetCompiler`, runs scenarios T1–T13, dry run with counts only, stores the
-  build report, submit/approve (DB maker/checker already enforced), publish with a hot-swapped
-  `KieBase` bean (replace `RuleEngineConfig.publishedRuleBase` with a mutable holder), version
-  history, rollback.
+  `TemplateColumns`/builder limits (reject `windowHours` the builders never emit — docs/04 §5a,
+  and reject `skipIfBlocked=false`), compiles with `RuleSetCompiler`, runs scenarios T1–T13,
+  dry run with counts only (ADR-017), stores the build report, submit/approve (DB maker/checker
+  already enforced), publish with a hot-swapped `KieBase` bean (the current config compiles v1
+  at startup), version history, rollback. Audit each step.
 - T7: change U-10 from 4 to 3 nights on a draft, dry run lists PC-06's four-night runs as new
   warnings; after approval/publish the same check warns. No code change.
+- The ranking policy must be read from the published rows too (a v2 draft that edits O-02 has
+  to change the list), so route `RankingPolicy.from` through the same published rule set.
 
 ### c) Leftovers only if time remains
 
