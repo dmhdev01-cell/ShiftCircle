@@ -9,27 +9,35 @@ Internal note for the team; remove before submission (step 13) or fold into the 
 | 1 spike | `a70556e` | Spring Boot 4.1.3 + Drools 10.2.0 on Java 21, tested in Docker |
 | 2 scaffold | `52b8693` | five Maven modules, version endpoint, compose, secrets refusal |
 | 3 database | `c24389a` | Flyway V1–V3, constraint tests (T10, T11, overlap), readiness guards |
-| 4 rules | `64092c5`, `1452a3d`, `5ad4367`, `dbd0365` | 56 rule tests, full boundary matrix, seed/rule-set drift guard |
+| 4 rules | `64092c5`, `1452a3d`, `5ad4367`, `dbd0365` | full boundary matrix, seed/rule-set drift guard |
 | 4 fixes | `b4a2562`…`6755e4f`, `baf42d0`, `c3f5d41` | review-r2 F2–F8, R5; .gitignore integrity fix |
-| 5 generator | `e63e548`, `1c73768`, `c3f5d41` | 100 officers × 90 days, self-check, PC-01…PC-09, reproducible checksum |
-| 6 auth | `e19cec5` | mock sign-in, HS256 JWT, roles/scope, /me |
-| 6 schedule | `4c09f95` | `GET /api/v1/schedule` with ADR-017 coverage fields |
+| 5 generator | `e63e548`, `1c73768`, `3cec3bd` | self-check, PC-01…PC-09, reproducible checksum; PC-06 now counts runs |
+| 6 auth | `e19cec5`, `ba8f763` | mock sign-in, HS256 JWT, roles/scope; hostile claims are 401s (A1–A3) |
+| 6 schedule | `4c09f95`, `74b22c8` | `GET /api/v1/schedule`, hourly coverage, now in the web's shape |
+| 6 assignments | `132590d`, `74b22c8` | rule-check preview, 422/acknowledge/override, audit, S-04 |
+| 6 authz | `0a2f51d` | role/scope matrix over the endpoints that exist |
+| docs | `6ec99b2` | API spec updated to the shared shapes |
 
-Full suite at `c3f5d41` from a clean worktree: 84/84. Later slices add api tests
-(22 after auth, 29 after schedule) and are run module-local in Docker.
+Latest full run: 56 rules + 20 infrastructure + 49 api = **125 tests, all passing** in Docker.
 
-## Next (step 6 remaining)
+## Next (step 6 remaining, then 7–13)
 
-1. `POST /api/v1/rule-checks` preview: build facts for a proposed change, return
-   `ruleResults` with PASS/WARN/BLOCK, evidence and rule-set version.
-2. `POST /api/v1/assignments` (+ PATCH/DELETE): 422 with `ruleResults`, Warn needs
-   `acknowledgeWarnings`, Block needs an EMERGENCY override with reason ≥ 10 chars;
-   saving creates the assignment, the override row and an audit event.
-3. Authorization matrix tests: one per denied/scoped cell of docs/09 §2, plus S-04
-   (EXTRA shifts/offers only by SUPERVISOR, audited).
-4. Then steps 7–13 per HANDOFF; dev-build2 owns step 9 backend.
+1. `GET /api/v1/units`, `/employees`, `/shift-templates`, `/qualifications` (reference data for the
+   planning board and sign-in flows); `PATCH`/`DELETE /assignments/{id}`; `POST /schedule-periods/{id}/publish`;
+   `POST /absences`. Follow the same scope guard + audit pattern.
+2. Overtime endpoints and ranking (step 8, T6), proposals (step 10-ish), reports (step 10), rules admin
+   (step 11, T7/T10/T13/E3).
+3. dev-build2 owns the time/payroll backend on branch `api-time-payroll`; wire its endpoints to
+   `AuthPrincipal` and the audit pattern.
+4. After those: Playwright E2E (step 12), build record/demo script/recording (step 13).
 
-## Running everything
+## Gotchas for the next seat
 
-- Tests: `docker run --rm -v "$PWD/api":/src -v shiftcircle_m2:/root/.m2 -v /var/run/docker.sock:/var/run/docker.sock -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -w /src maven:3.9-eclipse-temurin-21 ./mvnw -B test`
-- Stack: `SC_WEB_PORT=18080 SC_API_PORT=28081 SC_DB_PORT=25432 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build` (this host already owns 8080/5432/5433).
+- The host owns 8080/5432/5433; use `SC_WEB_PORT=18080 SC_API_PORT=28081 SC_DB_PORT=25432`.
+- Tests run only in Docker (no JDK on the host); Testcontainers needs the Docker socket and
+  `TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal`.
+- `sc.demo.generate=false` lets tests enable the demo profile without generating 100 officers.
+- Verify from a clean worktree (`git worktree add /tmp/x HEAD`) before claiming counts: the .gitignore
+  bug taught us that working-tree passes can hide uncommitted files.
+- Testcontainers 2.0 artifact names are `testcontainers-postgresql` / `testcontainers-junit-jupiter`.
+- Boot 4 needs `spring-boot-flyway` explicitly; without it the app reports readiness with no schema.
