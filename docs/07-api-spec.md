@@ -143,6 +143,19 @@ The payload also has `unit { id, name }`, `days` (ISO dates), `asOf` (the demo t
 | POST | `/offers/{id}/accept` · `/offers/{id}/decline` | Respond. Accepting re-checks rules; the supervisor then confirms. | EMPLOYEE (own) |
 | POST | `/offers/{id}/confirm` | Confirm an accepted offer → creates the assignment | SUPERVISOR |
 
+**Who appears in the candidate list.** The list is the fair-distribution order for officers in the
+caller's unit scope; a supervisor outside that scope gets `404` for the shift. The ranking is still
+fewest overtime hours this quarter, ties by seniority (O-02); an officer a Block rule would stop is
+`SKIPPED` in place, and an officer who cannot take the shift (unqualified for Control or Escort,
+already scheduled) is `UNAVAILABLE` in place, so the fairest next person stays visible (O-03, PC-09).
+
+**Offers and confirmation.** The supervisor makes offers only to officers the rules allow; a
+`BLOCK` at offer time is refused with the rule results. The employee's accept re-checks the rules.
+The confirmation re-checks again: a `BLOCK` refuses, a warning the supervisor already saw in the
+offer-time snapshot does not need a second answer, but a **new** warning is refused with
+`422 warnings-need-acknowledgement`. The assignment is created through the normal rules/override
+path (`POST /assignments`), so S-04 and the audit event still hold.
+
 ### 4.4 Proposals (employee shift planner)
 
 | Method | Path | Purpose | Roles |

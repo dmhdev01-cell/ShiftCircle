@@ -211,6 +211,45 @@ class AuthorizationMatrixTest {
   }
 
   @Test
+  void overtimeAndOwnScheduleCells() throws Exception {
+    String openShifts = "/api/v1/open-shifts?from=2026-11-01&to=2026-11-30";
+    assertThat(send("GET", openShifts, null, tokens.get("m.ellis")).statusCode()).isEqualTo(200);
+    for (String role : new String[] {"t.nakamura", "l.fraser", "p.singh", "a.reviewer",
+        "tv.display"}) {
+      assertThat(send("GET", openShifts, null, tokens.get(role)).statusCode())
+          .as(role + " may not read the overtime board")
+          .isEqualTo(403);
+    }
+    assertThat(send("GET", openShifts, null, null).statusCode()).isEqualTo(401);
+
+    String offers = "{\"employeeIds\":[\"" + EMPLOYEE + "\"],\"ordered\":false}";
+    String shift = "/api/v1/open-shifts/00000000-0000-0000-0000-000000000001";
+    assertThat(send("POST", shift + "/offers", offers, tokens.get("t.nakamura")).statusCode())
+        .as("an employee cannot send overtime offers (S-04)")
+        .isEqualTo(403);
+    assertThat(
+            send("POST", shift + "/assign", "{\"employeeId\":\"" + EMPLOYEE + "\"}",
+                tokens.get("t.nakamura"))
+                .statusCode())
+        .as("an employee cannot assign overtime directly (S-04)")
+        .isEqualTo(403);
+    assertThat(send("POST", shift + "/offers", offers, null).statusCode()).isEqualTo(401);
+
+    // Own data only: with no linked officer the endpoints answer an empty list / 404, and never
+    // another officer's rows.
+    jdbc.update("UPDATE app_user SET employee_id = NULL WHERE username = 't.nakamura'");
+    assertThat(send("GET", "/api/v1/me/offers", null, tokens.get("t.nakamura")).statusCode())
+        .isEqualTo(200);
+    assertThat((java.util.List<?>) mapper.readValue(
+            send("GET", "/api/v1/me/offers", null, tokens.get("t.nakamura")).body(), java.util.List.class))
+        .isEmpty();
+    assertThat(send("GET", "/api/v1/me/schedule", null, tokens.get("t.nakamura")).statusCode())
+        .isEqualTo(404);
+    assertThat(send("GET", "/api/v1/me/schedule", null, null).statusCode()).isEqualTo(401);
+  }
+
+
+  @Test
   void extraShiftsAreASeparateSupervisorActionAndAreAudited() throws Exception {
     String body =
         "{\"change\":{\"employeeId\":\""

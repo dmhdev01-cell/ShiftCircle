@@ -23,11 +23,21 @@ public class ScheduleController {
   private static final int MAX_DAYS = 31;
 
   private final ScheduleQuery scheduleQuery;
+  private final MyScheduleQuery myScheduleQuery;
   private final ScopeGuard scopeGuard;
 
-  public ScheduleController(ScheduleQuery scheduleQuery, ScopeGuard scopeGuard) {
+  public ScheduleController(
+      ScheduleQuery scheduleQuery, MyScheduleQuery myScheduleQuery, ScopeGuard scopeGuard) {
     this.scheduleQuery = scheduleQuery;
+    this.myScheduleQuery = myScheduleQuery;
     this.scopeGuard = scopeGuard;
+  }
+
+  @GetMapping("/me/schedule")
+  public MyScheduleQuery.MySchedulePayload mySchedule(
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+    return myScheduleQuery.forEmployee(scopeGuard.principal(), from, to);
   }
 
   @GetMapping("/schedule")

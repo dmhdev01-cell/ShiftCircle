@@ -58,6 +58,16 @@ public class RuleCheckService {
   }
 
   public OutcomeView evaluate(Change change) {
+    return evaluate(change, publishedVersion());
+  }
+
+  /**
+   * The same evaluation, with the published version already read.
+   *
+   * <p>Ranking an open shift asks this once per candidate; reading the version once per request
+   * keeps a 100-officer list from making 100 identical queries.
+   */
+  public OutcomeView evaluate(Change change, int ruleSetVersion) {
     Map<String, Object> employee =
         jdbc.queryForMap(
             "SELECT e.employee_no, u.code AS unit_code, u.allows_12h, u.allows_16h"
@@ -94,14 +104,13 @@ public class RuleCheckService {
     facts.addAll(new DaysOffFactBuilder().build(shifts));
     facts.addAll(new ShiftLengthFactBuilder().build(shifts));
 
-    int ruleSetVersion = publishedVersion();
     List<RuleResult> results =
         evaluator.evaluate(ruleBase, String.valueOf(ruleSetVersion), facts.toArray());
     return summarise(results, ruleSetVersion);
   }
 
   /** The live rule set's version, so a published v2 is reported without a code change (step 11). */
-  private int publishedVersion() {
+  public int publishedVersion() {
     Integer version =
         jdbc.queryForObject(
             "SELECT version FROM rule_set_version WHERE status = 'PUBLISHED'", Integer.class);

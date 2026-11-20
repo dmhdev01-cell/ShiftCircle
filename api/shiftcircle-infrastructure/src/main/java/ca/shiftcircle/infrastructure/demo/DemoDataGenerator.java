@@ -122,6 +122,7 @@ public class DemoDataGenerator implements ApplicationRunner {
     persistExtraAssignments(assignments);
     persistOpenShifts(openShifts);
     persistOffers(offers);
+    linkDemoSignIn();
 
     Instant now = settings.today().atTime(LocalTime.NOON).atZone(BusinessTime.REGINA).toInstant();
     persistTimeEntries(settings, payPeriods, assignments, absences, now, random);
@@ -320,6 +321,16 @@ public class DemoDataGenerator implements ApplicationRunner {
     return new Officer(
         id, employeeNo, firstName, lastName, unitCode, units.get(unitCode).id(), seniority,
         qualifications);
+  }
+
+  /**
+   * The demo sign-in {@code t.nakamura} is Tara Nakamura (E-001), so My schedule and her overtime
+   * offers show real rows. V3 seeds the account; only the generator knows which officer she is.
+   */
+  private void linkDemoSignIn() {
+    jdbc.update(
+        "UPDATE app_user SET employee_id = (SELECT id FROM employee WHERE employee_no = 'E-001')"
+            + " WHERE username = 't.nakamura'");
   }
 
   private Map<String, List<String>> officersByUnit(List<Officer> officers) {
