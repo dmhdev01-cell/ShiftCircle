@@ -1,0 +1,18 @@
+[
+  {
+    "id": "11111111-1111-1111-1111-000000000001",
+    "code": "A",
+    "name": "Unit A \u00b7 Living unit",
+    "kind": "LIVING",
+    "allows_12h": true,
+    "allows_16h": true
+  },
+  {
+    "id": "11111111-1111-1111-1111-000000000002",
+    "code": "B",
+    "name": "Unit B \u00b7 Living unit",
+    "kind": "LIVING",
+    "allows_12h": true,
+    "allows_16h": true
+  }
+]

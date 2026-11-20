@@ -1,0 +1,45 @@
+{
+  "rows": [
+    {
+      "employeeId": "d882d15e-2dc0-3408-9508-b7cba3fb8cfa",
+      "name": "Marc Desjardins",
+      "hours": 44.0
+    },
+    {
+      "employeeId": "c526b199-e906-33d8-91aa-40739b5a3388",
+      "name": "Zeke Bouchard",
+      "hours": 43.17
+    },
+    {
+      "employeeId": "60fe89f3-d6e2-3df9-a03e-1e0e566c9b9d",
+      "name": "Aiden Kowalczyk",
+      "hours": 42.56
+    },
+    {
+      "employeeId": "591a76b3-03e8-351d-a96d-ef2a9b0ff380",
+      "name": "Greta Iqbal",
+      "hours": 40.0
+    },
+    {
+      "employeeId": "16bf0cfa-21ec-3e5f-8b7c-90e4da144d7d",
+      "name": "Owen Dubois",
+      "hours": 39.48
+    },
+    {
+      "employeeId": "76625bc7-4ee6-3353-9047-0132617c4637",
+      "name": "Lars Yilmaz",
+      "hours": 39.43
+    },
+    {
+      "employeeId": "782f86c9-5f15-3a5b-991c-d130718c6029",
+      "name": "Lars Young",
+      "hours": 38.49
+    },
+    {
+      "employeeId": "4ad5f431-ac27-3f50-9c5c-f9ca046c12ce",
+      "name": "Isaac Young",
+      "hours": 38.48
+    }
+  ],
+  "averageHours": 18.11
+}

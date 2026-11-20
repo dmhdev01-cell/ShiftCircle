@@ -1,0 +1,56 @@
+[
+  {
+    "id": "37666711-2afd-498a-8898-de5383931b05",
+    "code": "A12",
+    "label": "Overnight 12 h",
+    "start": "00:00:00",
+    "duration_minutes": 720,
+    "regular_allowed": true,
+    "chip_style": "night"
+  },
+  {
+    "id": "c4667373-4a7c-4989-a51c-e0067d6d6989",
+    "code": "D8",
+    "label": "Day 8 h",
+    "start": "07:00:00",
+    "duration_minutes": 480,
+    "regular_allowed": true,
+    "chip_style": "day"
+  },
+  {
+    "id": "e4bec5d6-ff5c-4c62-948f-2e3b0456ce4f",
+    "code": "P12",
+    "label": "Afternoon 12 h",
+    "start": "12:00:00",
+    "duration_minutes": 720,
+    "regular_allowed": true,
+    "chip_style": "evening"
+  },
+  {
+    "id": "5292a401-a5a7-4477-b6a5-d8d76c625d91",
+    "code": "E8",
+    "label": "Evening 8 h",
+    "start": "15:00:00",
+    "duration_minutes": 480,
+    "regular_allowed": true,
+    "chip_style": "evening"
+  },
+  {
+    "id": "5d159ce4-cc35-4ad6-9380-dcc54dc449db",
+    "code": "L16",
+    "label": "Long 16 h",
+    "start": "20:00:00",
+    "duration_minutes": 960,
+    "regular_allowed": true,
+    "chip_style": "long"
+  },
+  {
+    "id": "97d50de0-3528-4e43-890f-098c6c7badfe",
+    "code": "N8",
+    "label": "Night 8 h",
+    "start": "23:00:00",
+    "duration_minutes": 480,
+    "regular_allowed": true,
+    "chip_style": "night"
+  }
+]

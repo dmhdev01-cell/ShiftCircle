@@ -1,0 +1,9 @@
+{
+  "name": "shiftcircle-api",
+  "version": "0.1.0-SNAPSHOT",
+  "buildTime": "2026-11-20T10:31:25.284Z",
+  "gitCommit": "unknown",
+  "ruleSetVersion": "v2",
+  "profiles": "demo",
+  "asOf": "2026-11-19"
+}

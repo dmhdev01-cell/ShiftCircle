@@ -1,0 +1,24 @@
+[
+  {
+    "version": 2,
+    "status": "PUBLISHED",
+    "live": true,
+    "createdBy": "L. Fraser",
+    "createdAt": "2026-11-20T10:49:25.825710Z",
+    "reason": "Raise the 16-hour rest target to 14 hours",
+    "approvedBy": "P. Singh",
+    "approvedAt": "2026-11-20T10:49:26.590309Z",
+    "publishedAt": "2026-11-20T10:49:26.658925Z"
+  },
+  {
+    "version": 1,
+    "status": "SUPERSEDED",
+    "live": false,
+    "createdBy": null,
+    "createdAt": null,
+    "reason": "Initial rule set from the mock agreement",
+    "approvedBy": null,
+    "approvedAt": null,
+    "publishedAt": "2026-10-01T08:00:00Z"
+  }
+]
