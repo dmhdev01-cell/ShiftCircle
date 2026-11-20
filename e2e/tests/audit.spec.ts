@@ -14,7 +14,7 @@ import { signIn, signInAgain, signOut } from './support';
 const REASON = 'Audit spec: relief unavailable for the Friday day shift';
 
 test.describe('audit log', () => {
-  test('an override is visible to the auditor, and an employee is refused', async ({ page }) => {
+  test('@api an override is visible to the auditor, and an employee is refused', async ({ page }) => {
     await page.goto('/login');
     test.skip(
       (await page.getByText('Demo fixtures').count()) > 0,
