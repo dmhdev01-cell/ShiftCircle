@@ -1,0 +1,42 @@
+template header
+code
+condition
+thresholdHours
+severity
+overridePolicy
+message
+
+package ca.shiftcircle.rules.tables.pay
+
+import ca.shiftcircle.rules.facts.PayPeriodFact;
+import ca.shiftcircle.rules.facts.RuleOutcome;
+import ca.shiftcircle.rules.facts.RuleResult;
+import ca.shiftcircle.rules.model.OverridePolicy;
+
+global java.util.List ruleResults;
+global String ruleSetVersion;
+
+// The pay table is configuration plus a report: the classification itself is computed in Java
+// (time maths does not belong in rule syntax), and the rule records what was applied so every export
+// can name the rule-set version behind it. Rows without a condition (the overtime rate and the
+// 30-minute minimum) are read by the classifier and produce no rule.
+template "pay_classification"
+
+rule "@{code} row @{row.rowNumber}"
+when
+    $f : PayPeriodFact( @{condition} )
+then
+    ruleResults.add( new RuleResult(
+        "@{code}",
+        "PAY",
+        RuleOutcome.@{severity},
+        "@{message}",
+        @{thresholdHours},
+        $f.getTotalHours(),
+        "hours",
+        OverridePolicy.@{overridePolicy},
+        ruleSetVersion,
+        $f.getEvidence() ) );
+end
+
+end template

@@ -1,0 +1,39 @@
+template header
+code
+condition
+severity
+overridePolicy
+message
+
+package ca.shiftcircle.rules.tables.shiftlengths
+
+import ca.shiftcircle.rules.facts.ShiftLengthFact;
+import ca.shiftcircle.rules.facts.RuleOutcome;
+import ca.shiftcircle.rules.facts.RuleResult;
+import ca.shiftcircle.rules.model.OverridePolicy;
+
+global java.util.List ruleResults;
+global String ruleSetVersion;
+
+// One row = one shift-length rule: L-01 allows only 8, 12 and 16 hours; S-03 requires the unit's
+// local agreement for 12- and 16-hour patterns. The condition is built from the row's own columns.
+template "shift_lengths"
+
+rule "@{code} row @{row.rowNumber}"
+when
+    $f : ShiftLengthFact( @{condition} )
+then
+    ruleResults.add( new RuleResult(
+        "@{code}",
+        "SHIFT_LENGTHS",
+        RuleOutcome.@{severity},
+        "@{message}",
+        0,
+        $f.getDurationMinutes(),
+        "minutes",
+        OverridePolicy.@{overridePolicy},
+        ruleSetVersion,
+        $f.getEvidence() ) );
+end
+
+end template

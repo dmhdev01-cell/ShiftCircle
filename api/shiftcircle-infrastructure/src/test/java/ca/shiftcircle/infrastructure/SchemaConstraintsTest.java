@@ -69,7 +69,7 @@ class SchemaConstraintsTest {
   void migrationsApplyAndSeedTheReferenceData() throws Exception {
     assertThat(queryInt("SELECT max(version) FROM rule_set_version")).isEqualTo(1);
     assertThat(queryInt("SELECT count(*) FROM rule_table")).isEqualTo(8);
-    assertThat(queryInt("SELECT count(*) FROM rule_row")).isEqualTo(19);
+    assertThat(queryInt("SELECT count(*) FROM rule_row")).isEqualTo(20);
     assertThat(queryInt("SELECT count(*) FROM shift_template")).isEqualTo(6);
     assertThat(queryInt("SELECT count(*) FROM unit")).isEqualTo(6);
     assertThat(queryInt("SELECT count(*) FROM unit_requirement")).isEqualTo(18);
@@ -262,8 +262,12 @@ class SchemaConstraintsTest {
         () ->
             exec(
                 "INSERT INTO override (reason, rule_set_version_id)"
-                    + " VALUES ('too short', '00000000-0000-0000-0000-000000000001')"));
+                    + " VALUES ('123456789', '00000000-0000-0000-0000-000000000001')"));
 
+    // Exactly the minimum is allowed: the check is inclusive.
+    exec(
+        "INSERT INTO override (reason, rule_set_version_id)"
+            + " VALUES ('1234567890', '00000000-0000-0000-0000-000000000001')");
     exec(
         "INSERT INTO override (reason, rule_set_version_id)"
             + " VALUES ('Emergency lockdown staffing', '00000000-0000-0000-0000-000000000001')");

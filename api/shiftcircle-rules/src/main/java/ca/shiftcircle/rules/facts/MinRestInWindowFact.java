@@ -11,13 +11,19 @@ public class MinRestInWindowFact {
   private final String shiftKind;
   private final int windowHours;
   private final double minRestHours;
+  private final double previousExtensionMinutes;
   private final String evidence;
 
   public MinRestInWindowFact(
-      String shiftKind, int windowHours, double minRestHours, String evidence) {
+      String shiftKind,
+      int windowHours,
+      double minRestHours,
+      double previousExtensionMinutes,
+      String evidence) {
     this.shiftKind = shiftKind;
     this.windowHours = windowHours;
     this.minRestHours = minRestHours;
+    this.previousExtensionMinutes = previousExtensionMinutes;
     this.evidence = evidence;
   }
 
@@ -33,6 +39,10 @@ public class MinRestInWindowFact {
     return minRestHours;
   }
 
+  public double getPreviousExtensionMinutes() {
+    return previousExtensionMinutes;
+  }
+
   public String getEvidence() {
     return evidence;
   }
@@ -45,6 +55,8 @@ public class MinRestInWindowFact {
         + windowHours
         + ", minRestHours="
         + minRestHours
+        + ", previousExtensionMinutes="
+        + previousExtensionMinutes
         + "]";
   }
 }

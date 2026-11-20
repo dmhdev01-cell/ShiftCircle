@@ -68,17 +68,21 @@ FROM (
     VALUES
     -- A. Rest and fatigue
     ('REST', 'U-01',
-     '{"afterShiftKind":".*","windowHours":24,"minRestHours":8}',
+     '{"afterShiftKind":".*","windowHours":24,"minExtensionMinutes":0,"minRestHours":8}',
      'BLOCK', 'EMERGENCY',
      'Less than 8 hours rest in 24 hours (Employment Act minimum).', 'SEA', false, 10),
     ('REST', 'U-02',
-     '{"afterShiftKind":"REGULAR","windowHours":24,"minRestHours":12}',
+     '{"afterShiftKind":"(D8|E8|N8|A12|P12)","windowHours":24,"minExtensionMinutes":0,"minRestHours":12}',
      'WARN', 'ACKNOWLEDGE',
      'Less than the 12-hour rest target between shifts.', 'MOCK', true, 20),
     ('REST', 'U-03',
-     '{"afterShiftKind":"L16","windowHours":24,"minRestHours":12}',
+     '{"afterShiftKind":"L16","windowHours":24,"minExtensionMinutes":0,"minRestHours":12}',
      'BLOCK', 'EMERGENCY',
      'Needs 12 hours off after a 16-hour shift.', 'MOCK', true, 30),
+    ('REST', 'U-04',
+     '{"afterShiftKind":".*","windowHours":24,"minExtensionMinutes":240,"minRestHours":10}',
+     'WARN', 'ACKNOWLEDGE',
+     'Short rest after an overtime extension of 4 hours or more.', 'MOCK', true, 40),
     -- C. Hours over a period
     ('MAX_HOURS', 'U-05',
      '{"windowHours":24,"maxHours":16}',
@@ -141,7 +145,7 @@ FROM (
      'Officers who would break a block rule are skipped and not penalised.', 'MOCK', true, 190),
     -- G. Shift lengths and unit eligibility
     ('SHIFT_LENGTHS', 'L-01',
-     '{"allowedLengths":[8,12,16],"requireUnitFlagFor":[12,16]}',
+     '{"allowedLengths":[8,12,16]}',
      'BLOCK', 'NONE',
      'Only 8, 12 and 16-hour shifts; longer patterns need a local agreement on the unit.',
      'Lead direction; PSGE', false, 200),

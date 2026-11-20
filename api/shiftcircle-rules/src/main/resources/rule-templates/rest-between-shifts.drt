@@ -1,9 +1,10 @@
 template header
-ruleId
+code
 afterShiftKind
 windowHours
+minExtensionMinutes
 minRestHours
-outcome
+severity
 overridePolicy
 message
 
@@ -12,29 +13,34 @@ package ca.shiftcircle.rules.tables.rest
 import ca.shiftcircle.rules.facts.MinRestInWindowFact;
 import ca.shiftcircle.rules.facts.RuleOutcome;
 import ca.shiftcircle.rules.facts.RuleResult;
+import ca.shiftcircle.rules.model.OverridePolicy;
 
 // Provided by the rule evaluator: the result collector and the published rule-set version.
 global java.util.List ruleResults;
 global String ruleSetVersion;
 
+// One row = one rest rule (U-01 to U-04). afterShiftKind is a regex over the previous shift template
+// code; ".*" is the grid's "any shift". minExtensionMinutes is 0 for rows that apply after any
+// length of shift and 240 for the rule about extensions of 4 hours or more.
 template "rest_between_shifts"
 
-rule "@{ruleId} row @{row.rowNumber}"
+rule "@{code} row @{row.rowNumber}"
 when
     $f : MinRestInWindowFact(
             windowHours == @{windowHours},
             shiftKind matches "@{afterShiftKind}",
+            previousExtensionMinutes >= @{minExtensionMinutes},
             minRestHours < @{minRestHours} )
 then
     ruleResults.add( new RuleResult(
-        "@{ruleId}",
-        "rest-between-shifts",
-        RuleOutcome.@{outcome},
+        "@{code}",
+        "REST",
+        RuleOutcome.@{severity},
         "@{message}",
         @{minRestHours},
         $f.getMinRestHours(),
         "hours",
-        "@{overridePolicy}",
+        OverridePolicy.@{overridePolicy},
         ruleSetVersion,
         $f.getEvidence() ) );
 end

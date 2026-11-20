@@ -1,0 +1,57 @@
+template header
+code
+windowHours
+firstThreshold
+maxHours
+severity
+overridePolicy
+message
+
+package ca.shiftcircle.rules.tables.hours
+
+import ca.shiftcircle.rules.facts.MaxHoursInWindowFact;
+import ca.shiftcircle.rules.facts.RuleOutcome;
+import ca.shiftcircle.rules.facts.RuleResult;
+import ca.shiftcircle.rules.model.OverridePolicy;
+
+global java.util.List ruleResults;
+global String ruleSetVersion;
+
+// One row = one hours ceiling (U-05 16 h in 24 h, U-14 weekly, U-15 overtime status). A row can carry
+// a lower warning level: match at the lower level, then choose the outcome in the consequence.
+template "max_hours_in_window"
+
+rule "@{code} row @{row.rowNumber}"
+when
+    $f : MaxHoursInWindowFact(
+            windowHours == @{windowHours},
+            hours > @{firstThreshold} )
+then
+    if ($f.getHours() > @{maxHours}) {
+        ruleResults.add( new RuleResult(
+            "@{code}",
+            "MAX_HOURS",
+            RuleOutcome.@{severity},
+            "@{message}",
+            @{maxHours},
+            $f.getHours(),
+            "hours",
+            OverridePolicy.@{overridePolicy},
+            ruleSetVersion,
+            $f.getEvidence() ) );
+    } else {
+        ruleResults.add( new RuleResult(
+            "@{code}",
+            "MAX_HOURS",
+            RuleOutcome.WARN,
+            "@{message}",
+            @{maxHours},
+            $f.getHours(),
+            "hours",
+            OverridePolicy.ACKNOWLEDGE,
+            ruleSetVersion,
+            $f.getEvidence() ) );
+    }
+end
+
+end template
