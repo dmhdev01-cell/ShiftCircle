@@ -39,7 +39,7 @@ Every schedule-changing endpoint runs the rules engine. Clients use the same bod
    - If any **Block**: `422` with `type: .../blocked-by-rules`.
 3. **Override:** resend with `"override": { "reason": "Lockdown, no relief available" }` (supervisor only, and only for rules whose override policy is `EMERGENCY`). Creates an `override` row and an audit event.
 
-**Preview request:**
+**Preview request** (the same body is sent to `/assignments`; `type` is `ASSIGN` or `EXTRA`):
 ```json
 POST /api/v1/rule-checks
 {
@@ -49,9 +49,16 @@ POST /api/v1/rule-checks
     "unitId": "a2b9…",
     "shiftTemplate": "D8",
     "startAt": "2026-11-21T07:00:00-06:00"
-  }
+  },
+  "acknowledgeWarnings": ["U-14"],
+  "override": { "reason": "Lockdown, relief unavailable" }
 }
 ```
+
+Each rule result carries `ruleCode`, `outcome`, `message`, `facts` (`{ "required", "actual", "unit" }`),
+`evidence` (`[ { "label": "…" } ]`) and `overridePolicy` (`EMERGENCY`, `ACKNOWLEDGE`, `NONE`). The
+outcome body has `outcome`, `ruleSetVersion` (number) and `overridable`. The browser contract in
+`web/src/api/types.ts` is the implementation reference.
 
 **Blocked response:**
 ```json
@@ -108,14 +115,18 @@ Content-Type: application/problem+json
 | POST | `/schedule-periods/{id}/publish` | Publish a period | SUPERVISOR |
 | POST | `/absences` | Record sick, vacation or other (type only) | SUPERVISOR |
 
-**Coverage per block (ADR-013 revised, ADR-017):** coverage is hourly, so one number per block can hide a short hour. Each block in `GET /schedule` and `GET /display/today` carries:
+**Coverage per block (ADR-013 revised, ADR-017):** coverage is hourly, so one number per block can hide a short hour. `GET /schedule` returns a flat `coverage` array (one entry per block per day); `GET /display/today` uses the same block shape. Each entry carries:
 
 ```json
 { "block": "EVENING", "date": "2026-11-20", "required": 5,
   "scheduled": { "lowestHourly": 4, "shortHours": [ { "from": "15:00", "to": "17:00", "count": 4 } ], "maxHourly": 6 },
-  "actual":    { "lowestHourly": 5, "shortHours": [] },
+  "actual":    { "lowestHourly": 5, "shortHours": [], "maxHourly": 6 },
   "covered": false }
 ```
+
+The payload also has `unit { id, name }`, `days` (ISO dates), `asOf` (the demo today), `officers`
+(rows with day cells of `SHIFT` items), `warnings`, `overridesThisPeriod` and
+`publishedState { published, unpublishedChanges }`, matching `web/src/api/types.ts`.
 
 `lowestHourly` is the minimum headcount over the block's hours; `shortHours` lists merged hour ranges below `required` (`to` is exclusive); `covered` is true when `shortHours` is empty. `actual` is present for past hours only. The display version has the same shape and still **no names**.
 
