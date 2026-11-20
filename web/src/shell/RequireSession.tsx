@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useRef, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
@@ -14,12 +14,16 @@ import { getSession, subscribeSession } from '../api/session';
  * the api for data with no token: four 401s and page errors instead of the
  * sign-in screen (D11).
  *
- * The signed-out visitor is sent to /login with the route they asked for, so
- * signing in returns them there instead of to their role's landing page.
+ * A visitor who never had a session is sent to /login with the route they asked
+ * for, so signing in returns them there. Someone who signed out - or whose
+ * session expired - is sent to sign-in without it: they get their own role's
+ * landing page, which matters when the next person to sign in is someone else.
  */
 export function RequireSession({ children }: { children: ReactNode }) {
   const session = useSyncExternalStore(subscribeSession, getSession);
   const location = useLocation();
+  const hadSession = useRef(session.user !== null);
+  if (session.user !== null) hadSession.current = true;
 
   // The fixtures demo has no token by design; its screens are the demo.
   if (usingFixtures) return <>{children}</>;
@@ -31,7 +35,7 @@ export function RequireSession({ children }: { children: ReactNode }) {
     <Navigate
       to="/login"
       replace
-      state={{ from: `${location.pathname}${location.search}` }}
+      state={{ from: hadSession.current ? undefined : `${location.pathname}${location.search}` }}
     />
   );
 }

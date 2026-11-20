@@ -83,4 +83,27 @@ describe('the session guard', () => {
 
     expect(await screen.findByRole('heading', { name: 'Planning board', level: 1 })).toBeInTheDocument();
   });
+
+  it('sends a person who signed out to their own landing, not back to the route', async () => {
+    // A sign-out on a protected route must not leave "from" behind: the next
+    // person may be an employee who cannot open the supervisor's screen.
+    const { act } = await import('@testing-library/react');
+    const { setSession, signOut } = await import('../api/session');
+    setSession('a-token', {
+      id: 'user-ellis',
+      displayName: 'M. Ellis',
+      username: 'm.ellis',
+      roles: ['SUPERVISOR'],
+      units: ['unit-a'],
+      employeeId: null,
+    } as never);
+
+    renderAt('/reports/hours');
+    expect(await screen.findByRole('heading', { name: 'Reports', level: 1 })).toBeInTheDocument();
+
+    act(() => signOut());
+
+    expect(await screen.findByRole('heading', { name: 'Sign in', level: 1 })).toBeInTheDocument();
+    expect(screen.queryByText('Please sign in to continue.')).not.toBeInTheDocument();
+  });
 });
