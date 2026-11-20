@@ -16,7 +16,7 @@ test.describe('the week and the pay period fit a laptop', () => {
       await navTo(page, 'Planning board');
       const roster = page.getByRole('region', { name: 'Roster, scrolls sideways' });
       await expect(roster).toBeVisible();
-      await expect(page.getByRole('columnheader', { name: /Sun 22/ })).toBeInViewport();
+      await expect(roster.getByRole('columnheader').last()).toBeInViewport();
       const rosterSize = await roster.evaluate((element) => ({
         scrollWidth: element.scrollWidth,
         clientWidth: element.clientWidth,
@@ -26,7 +26,7 @@ test.describe('the week and the pay period fit a laptop', () => {
       await navTo(page, 'Time & attendance');
       const grid = page.getByRole('region', { name: 'Time entries, scrolls sideways' });
       await expect(grid).toBeVisible();
-      await expect(page.getByRole('columnheader', { name: /Su 22/ })).toBeInViewport();
+      await expect(grid.getByRole('columnheader').last()).toBeInViewport();
       const gridSize = await grid.evaluate((element) => ({
         scrollWidth: element.scrollWidth,
         clientWidth: element.clientWidth,
@@ -42,21 +42,21 @@ test.describe('the week and the pay period fit a laptop', () => {
     await navTo(page, 'Planning board');
     await expect(page.getByText('Scroll sideways to see the rest of the week.')).toBeVisible();
     const roster = page.getByRole('region', { name: 'Roster, scrolls sideways' });
-    const tara = roster.getByText('Tara Nakamura');
-    await tara.scrollIntoViewIfNeeded();
+    const firstColumn = roster.getByRole('row').nth(4).getByRole('cell').first();
+    await firstColumn.scrollIntoViewIfNeeded();
     await roster.evaluate((element) => {
       element.scrollLeft = element.scrollWidth;
     });
-    await expect(tara).toBeInViewport();
+    await expect(firstColumn).toBeInViewport();
 
     await navTo(page, 'Time & attendance');
     await expect(page.getByText('Scroll sideways for more days.')).toBeVisible();
     const grid = page.getByRole('region', { name: 'Time entries, scrolls sideways' });
-    const taraRow = grid.getByText('Tara Nakamura');
-    await taraRow.scrollIntoViewIfNeeded();
+    const firstOfficer = grid.getByRole('row').nth(1).getByRole('cell').first();
+    await firstOfficer.scrollIntoViewIfNeeded();
     await grid.evaluate((element) => {
       element.scrollLeft = element.scrollWidth;
     });
-    await expect(taraRow).toBeInViewport();
+    await expect(firstOfficer).toBeInViewport();
   });
 });
