@@ -34,20 +34,20 @@ Each line is at least three tests: just under, exactly at, just over. Times are 
 |---|---|---|---|
 | U-01 min 8 h rest in 24 h | 7 h 59 m rest → **BLOCK** | 8 h 00 m → **PASS** (inclusive) | 8 h 01 m → PASS |
 | U-02 target 12 h between regular shifts | 11 h 59 m → **WARN** | 12 h → PASS | 13 h → PASS |
-| U-03 12 h after a 16 h double | 11 h 59 m → **BLOCK** | 12 h → PASS | — |
+| U-03 12 h after a 16 h shift | 11 h 59 m → **BLOCK** | 12 h → PASS | — |
 | U-04 10 h after OT extension ≥ 4 h | extension 4 h + rest 9 h 59 m → **WARN**; extension 3 h 59 m + rest 8 h → PASS (rule not triggered) | 10 h → PASS | — |
-| U-05 max 16 h in any 24 h | 16 h 00 m → PASS | 16 h 01 m → **BLOCK** | — |
+| U-05 max 16 h in any 24 h | rostered 16 h shift (exactly 16 h) → PASS | 16 h shift + 15 min extension → **BLOCK** (emergency override only) | — |
 | U-08 max 7 consecutive work days (8 h) | 7 → PASS | 8th day scheduled → **BLOCK**; 8th day via overtime → **WARN** | — |
 | U-09 max 4 consecutive 12 h shifts | 4 → PASS | 5th scheduled → **BLOCK**; 5th via OT → **WARN** | — |
 | U-10 max 4 consecutive 12 h overnight (00–12) shifts | 4 → PASS | 5th → **WARN** | — |
-| U-11 doubles: 1 per 7 d, 2 per 28 d | 1 in 7 d → PASS | 2nd within 7 d → **WARN**; 3rd within 28 d → **WARN** | double exactly 7 d later → PASS (window boundary) |
+| U-11 16 h shifts: 3 per 7 d, 10 per 28 d | 3 in 7 d → PASS | 4th within 7 d → **WARN**; 11th within 28 d → **WARN** | 4th exactly 7 d after the 1st → PASS (window boundary) |
 | U-12 2 consecutive days off per 7 | 48 h off → PASS | 47 h 59 m off → **WARN** (a break of 24 h or less isn't a day of rest) | — |
 | U-14 weekly ceiling 48 warn / 60 block | 48 h → PASS | 48.25 h → **WARN**; 60.25 h → **BLOCK** | — |
-| P-01 OT on a regular day: first 4 h 1.5×, then 2× | 4 h OT → 4 × OT15 | 4.25 h → 4 × OT15 + 0.25 × OT20 | 6 h → 4 × OT15 + 2 × OT20 |
-| P-02 day of rest: 2×, min 2 h | 1 h worked → paid 2 h OT20 | 2 h → 2 h OT20 | 8 h → 8 h OT20 |
+| P-01 overtime by pay period (threshold 80 h) | 80 h worked → 80 REG | 80.5 h → 80 REG + 0.5 OT15 | 96 h incl. a picked-up 16 h shift → 80 REG + 16 OT15; rostered 16 h shifts within 80 h → all REG |
+| P-02 day of rest: 2×, min 2 h (off by default; test when switched on) | 1 h worked → paid 2 h OT20 | 2 h → 2 h OT20 | 8 h → 8 h OT20 |
 | P-04 OT under 30 min unpaid | 29 m → 0 | 30 m → 0.5 h | — |
-| L-01 16 h only as overtime | 16 h as REGULAR → **BLOCK** | 16 h as OVERTIME → PASS | — |
-| Time zones / midnight | Night 23:00–07:00 crossing midnight: `work_date` = start date; a 12:00–24:00 shift **ends at 00:00 the next day** (not 23:59); 00:00–12:00 shift belongs to its own date; double 20:00–12:00 spans two dates; rest maths correct across midnight and month end (31 Oct → 1 Nov) | | |
+| L-01 / S-03 16 h regular only where allowed | 16 h rostered on a unit with `allows_16h` → PASS | 16 h rostered on a unit without it → **BLOCK** | — |
+| Time zones / midnight | Night 23:00–07:00 crossing midnight: `work_date` = start date; a 12:00–24:00 shift **ends at 00:00 the next day** (not 23:59); 00:00–12:00 shift belongs to its own date; a 16 h shift 20:00–12:00 spans two dates; rest maths correct across midnight and month end (31 Oct → 1 Nov) | | |
 
 ## 4. Scenario library (named, reusable)
 
@@ -58,11 +58,11 @@ These are the verification cases. Pick 2–5 for the build record (recommended: 
 | T1 | Assign a day shift to a rested, qualified officer under the threshold | Saved; all rules PASS |
 | T2 | 12 h shift Fri 12:00–24:00; assign a Day 8 h shift Sat 07:00 (7 h rest; 17 h in 24 h) (planted **PC-01**) | **BLOCK** U-01 and U-05; message names both shifts; nothing saved |
 | T3 | **Boundary:** Night 8 h ends 07:00; Evening starts 15:00 (exactly 8 h) (planted **PC-02**) | U-01 PASS; U-02 WARN; saves after acknowledgement |
-| T4 | A 16 h double, then any shift within the same 24 h | **BLOCK** U-05 (and U-03 if under 12 h rest) |
+| T4 | A 16 h shift 20:00–12:00, then a shift starting 20:00 the same day (8 h rest) | U-01 PASS (exactly 8 h), **BLOCK** U-03 (needs 12 h after a 16 h shift) |
 | T5 | Fifth consecutive 12 h overnight 00–12 shift (planted **PC-04**) | WARN U-10; saves after acknowledgement |
 | T6 | Overtime candidates for planted open shift **PC-08** | Order matches fewest-OT-then-seniority; an officer with insufficient rest is SKIPPED and keeps their place; unqualified officer UNAVAILABLE for Control (**PC-09**) |
 | T7 | Rules admin lowers U-10 from 4 to 3 nights; build + dry run | Dry run lists the existing 4-night runs (**PC-06**) as new warnings; after approval and publish, the same check now warns; **no code change** |
-| T8 | Payroll export for locked period 26 Oct – 8 Nov (planted **PC-05**) | CSV equals the golden file; per-officer totals equal actual hours; OT split 1.5× / 2× correct |
+| T8 | Payroll export for locked period 26 Oct – 8 Nov (planted **PC-05**) | CSV equals the golden file; per-officer totals equal actual hours; overtime only for hours beyond the 80 h period threshold |
 | T9 | **Human judgment:** lockdown; supervisor needs an officer for 17 h (planted **PC-03**) | BLOCK without override; with a reason (≥ 10 chars) it saves, creates an override record, appears in the audit log and the overrides report |
 | T10 | Rules admin tries to approve their own draft | `403` from the API and rejected by the database check |
 | T11 | Supervisor edits an actual in a locked pay period | `409`; database trigger also refuses |
@@ -105,13 +105,16 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 | Escort & transport | 6 | 4 | 2 | all ESCORT |
 | **Total** | **27** | **24** | **19** | |
 
-All 12-hour patterns are allowed on Units A–C and Control (`allows_12h`); Admissions and Escort use 8-hour shifts only.
+12-hour patterns are allowed on Units A–C and Control (`allows_12h`); 16-hour patterns on Units A–C (`allows_16h`); Admissions and Escort use 8-hour shifts only.
 
 ### 6.3 Why these numbers produce realistic overtime
 
+- Overtime is counted **per pay period** (P-01): officers who pick up extra shifts go over 80 h; rostered 12 h and 16 h shifts alone don't.
+
 - 60 officers on 12 h "2 × 00–12, 2 × 12–24, 4 off" (4 crews of 15, each starting 2 days apart) → every day 15 officers work 00:00–12:00 and 15 work 12:00–24:00. (The order matters: a 12–24 shift can't be followed by a 00–12 shift the next day, which would be zero rest.)
-- 40 officers on 8 h "5 on, 2 off" rotations with staggered days off: 17 on days, 14 on evenings, 9 on nights → about 12 / 10 / 6–7 on duty per day.
-- On-duty supply before absences: 00–07 ≈ 21.4, 07–15 ≈ 27, 15–23 ≈ 25, 23–24 ≈ 21.4, against required 19 / 27 / 24 / 19. That matches requirements **only when nobody is absent**, so the ~8% absences create real gaps that overtime must fill. That's the point of the dataset.
+- 30 officers on 8 h "5 on, 2 off" rotations with staggered days off: 16 on days, 12 on evenings, 2 on nights → about 11.4 / 8.6 / 1.4 on duty per day.
+- 10 officers on 16 h shifts 20:00–12:00, "1 on, 2 off" (about 37 h a week) → about 3.3 on duty each day, covering evening, night and morning hours.
+- On-duty supply before absences: 00–07 ≈ 19.7, 07–12 ≈ 29.7, 12–15 ≈ 26.4, 15–20 ≈ 23.6, 20–23 ≈ 26.9, 23–24 ≈ 19.7, against required 19 / 27 / 27 / 24 / 24 / 19: about 585 staff-hours a day available against 560 required (≈ 4% spare), with some hours short and some over. That matches requirements **only when nobody is absent**, so the ~8% absences create real gaps that overtime must fill. That's the point of the dataset.
 - **Coverage is measured hourly** (ADR-013 revised): a block is covered when every hour in it meets the required headcount. A 00–12 shift therefore counts toward the end of the Night block and the first 5 hours of the Day block.
 
 ### 6.4 People
@@ -131,7 +134,7 @@ All 12-hour patterns are allowed on Units A–C and Control (`allows_12h`); Admi
 | Sick days | ~4% of past and near-future shifts, random (seeded); recorded as type SICK only |
 | Vacation | ~4% of shifts, as blocks of 3–7 consecutive days, booked in advance |
 | Gap filling | For each hour below requirement, create an open shift; fill using the **real** ranking and rules: candidates in O-02 order, skip any with a Block, voluntary acceptance with probability 0.7 (seeded). Leave ~1–2% of gaps unfilled so reports show imperfection. |
-| Actuals (past days) | Worked as scheduled, except: absences; ~3% of shifts extended by 0.5–2 h (overtime); a few early leaves. Time entries get pay codes from the pay-classification rules. |
+| Actuals (past days) | Worked as scheduled, except: absences; ~3% of shifts extended by 0.5–2 h (extra hours; overtime only if the officer ends the period over 80 h); a few early leaves. Time entries get pay codes from the pay-classification rules. |
 | Overrides | Exactly the planted ones (PC-03) plus 3 more emergency overrides spread over the window, each with a reason |
 | Audit | Every generated change writes an audit event with actor `system:generator` |
 
@@ -141,9 +144,9 @@ All 12-hour patterns are allowed on Units A–C and Control (`allows_12h`); Admi
 |---|---|---|
 | PC-01 | Nia Thompson: P12 Fri 20 Nov 12:00–24:00; a pending supervisor proposal to assign her D8 Sat 21 Nov 07:00 (7 h rest, 17 h in 24 h: blocked) | Unit B |
 | PC-02 | An officer with N8 ending Thu 26 Nov 07:00 and an E8 slot open at 15:00 (exactly 8 h) | Unit A |
-| PC-03 | Wed 4 Nov: an officer worked 17 h (16 h double 20:00–12:00 + 1 h extension to 13:00) with override reason "Lockdown, relief unavailable" | Unit C |
+| PC-03 | Wed 4 Nov: an officer worked 17 h (16 h shift 20:00–12:00 + 1 h extension to 13:00) with override reason "Lockdown, relief unavailable" | Unit C |
 | PC-04 | Piotr Kowalczyk: four consecutive A12 (00:00–12:00) ending Mon 23 Nov, with a fifth available | Control |
-| PC-05 | Pay period 26 Oct – 8 Nov, LOCKED, containing OT15, OT20, day-of-rest work and a 29-minute extension (unpaid) | All |
+| PC-05 | Pay period 26 Oct – 8 Nov, LOCKED, with officers under, exactly at and over the 80 h threshold, and a 29-minute extension (unpaid) | All |
 | PC-06 | At least three 4-night runs in the published roster (for the dry-run test T7) | Mixed |
 | PC-07 | Two officers with identical OT hours this quarter, different seniority | Unit A |
 | PC-08 | Open shift Sat 21 Nov Unit B Days with candidates matching the UI's Overtime board | Unit B |

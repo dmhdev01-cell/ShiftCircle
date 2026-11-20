@@ -26,7 +26,7 @@ Severity: **Block** = can't be saved (override only where marked) · **Warn** = 
 |---|---|---|---|---|
 | U-01 | At least **8 consecutive hours** of rest in any 24-hour period | 8 h | Block (emergency override) | **SEA** (statutory floor) |
 | U-02 | **Target 12 hours** between the end of one regular shift and the start of the next | 12 h | Warn | **MOCK**, aimed above the floor. CX makes 8 h a "reasonable effort" target |
-| U-03 | After a **16-hour shift (double)**, at least 12 hours off before the next shift | 12 h | Block (emergency override) | **MOCK**. No public rule found. CX gives 12 h rest after court attendance, which is an analogous concept |
+| U-03 | After a **16-hour shift**, at least 12 hours off before the next shift | 12 h | Block (emergency override) | **MOCK**. No public rule found. CX gives 12 h rest after court attendance, which is an analogous concept |
 | U-04 | After an **overtime extension of 4 h or more**, at least 10 hours off before the next shift | 10 h | Warn | **MOCK** |
 | U-05 | No more than **16 hours worked in any 24-hour period** | 16 h | Block (emergency override) | **SEA** |
 | U-06 | No more than **16 consecutive hours** on duty, and no more than **2 shifts back-to-back** | 16 h / 2 | Block (emergency override) | **NU** |
@@ -39,7 +39,7 @@ Severity: **Block** = can't be saved (override only where marked) · **Warn** = 
 | U-08 | Maximum **consecutive work days** (8-hour pattern) | 7 | Block (scheduled); Warn (overtime-caused) | **NWT**, **NU** (7); CX allows up to 8 |
 | U-09 | Maximum **consecutive 12-hour shifts** | 4 | Block (scheduled); Warn (overtime-caused) | **MOCK**, matching common "4 on, 4 off" patterns |
 | U-10 | Maximum **consecutive 12-hour overnight shifts** (00:00–12:00) | 4 | Warn | **MOCK** (fatigue) |
-| U-11 | Maximum **16-hour doubles**: 1 in any 7 days, 2 in any 28 days | 1 / 7 d · 2 / 28 d | Warn | **MOCK**, inspired by CX limits on 16-hour shifts within a work cycle |
+| U-11 | Maximum **16-hour shifts**: 3 in any 7 days, 10 in any 28 days | 3 / 7 d · 10 / 28 d | Warn | **MOCK**, inspired by CX limits on 16-hour shifts within a work cycle |
 | U-12 | At least **2 consecutive days of rest** in each 7-day period; a break of 24 h or less doesn't count as a day of rest | 2 days / 7 | Warn | **CX**, **PSGE** (two consecutive rest days normally), **NU** |
 
 ### C. Hours over a period
@@ -54,8 +54,9 @@ Severity: **Block** = can't be saved (override only where marked) · **Warn** = 
 
 | ID | Rule | Default | Severity | Based on |
 |---|---|---|---|---|
-| P-01 | Hours over the scheduled shift on a regular work day: **first 4 h at 1.5×, then 2×** | 4 h split | Pay | **PSGE** |
-| P-02 | Any hours on an **assigned day of rest**: **2×**, with a **2-hour minimum** | 2× / 2 h | Pay | **PSGE** |
+| P-01 | **Overtime is based on total hours in the period:** hours worked beyond the threshold (default **80 h per 2-week pay period**; a weekly 40 h threshold can be selected) are overtime. Rostered 12 h and 16 h shifts aren't overtime by themselves. | 80 h / pay period | Pay | Lead's direction; relies on an averaging / modified work arrangement (SEA, **PSGE** 9.3.5.2) |
+| P-01b | Overtime rate bands in a pay period: default **all overtime hours at 1.5×**; an optional band (e.g. 2× beyond a set number of overtime hours) can be switched on | 1.5× | Pay | **MOCK** (PSGE pays 1.5× for the first 4 h then 2× per occurrence; confirm local practice) |
+| P-02 | Any hours on an **assigned day of rest**: **2×**, with a **2-hour minimum** | 2× / 2 h · **off by default** | Pay | **PSGE**; confirm whether it applies alongside period-based overtime |
 | P-03 | **Call-back:** minimum 2 hours at overtime rates | 2 h | Pay | **PSGE** |
 | P-04 | Overtime under 30 minutes isn't paid | 0.5 h | Pay | **PSGE** |
 | P-05 | Shift changed on **short notice (under 96 h)**: first changed shift gets a premium (code `CHG`) | 96 h | Pay / Warn | **CX** (pays 1.75×; our rate is a placeholder) |
@@ -67,7 +68,7 @@ Severity: **Block** = can't be saved (override only where marked) · **Warn** = 
 |---|---|---|---|---|
 | S-01 | Schedules **posted at least 28 days** before they start | 28 d | Warn | **CX** |
 | S-02 | No more than **1 change of an officer's regular shift per cycle** without their consent (a change and a return count as one) | 1 | Warn | **CX** |
-| S-03 | 12-hour patterns allowed only on units flagged as having a **local agreement** | per unit | Block | **PSGE** |
+| S-03 | 12- and 16-hour patterns allowed only on units flagged as having a **local agreement** | per unit | Block | **PSGE** |
 | S-04 | Overtime must be **authorized** by a supervisor, recorded with name and time | — | Block (system-enforced) | **PSGE** (written authorization) |
 
 ### F. Overtime allocation
@@ -83,7 +84,7 @@ Severity: **Block** = can't be saved (override only where marked) · **Warn** = 
 
 | ID | Rule | Default | Severity | Based on |
 |---|---|---|---|---|
-| L-01 | Allowed lengths: **8 h and 12 h regular**; **16 h only as overtime** (default double 20:00–12:00) | — | Block | Your direction + **MOCK** |
+| L-01 | Allowed regular lengths: **8 h, 12 h and 16 h** (16 h default 20:00–12:00). 12 h and 16 h only on units with a local agreement (S-03). | — | Block | Lead's direction + **PSGE** (modified work patterns over 8 h need a local agreement) |
 | L-02 | Breaks: 2 × 15 min per 8-hour shift, 3 per 12-hour shift (shown only; not scheduled) | — | Info | **PSGE** |
 
 ## 3. What the prototype implements
@@ -92,7 +93,7 @@ To keep the build realistic, the prototype implements a core set and documents t
 
 | Implement (Must) | Document only (future) |
 |---|---|
-| U-01, U-02, U-03, U-05, U-08, U-09, U-10, U-11, U-12, U-14, U-15 · P-01, P-02, P-04 · S-04 · O-01, O-02, O-03 · L-01 | U-04, U-06, U-07, U-13 · P-03, P-05, P-06 · S-01, S-02, S-03 · O-04 · L-02 |
+| U-01, U-02, U-03, U-05, U-08, U-09, U-10, U-11, U-12, U-14, U-15 · P-01, P-01b, P-04 · S-03, S-04 · O-01, O-02, O-03 · L-01 | U-04, U-06, U-07, U-13 · P-02, P-03, P-05, P-06 · S-01, S-02 · O-04 · L-02 |
 
 ## 4. How these map onto the engine
 
@@ -126,7 +127,7 @@ rules:
     source: "SEA s.2-13"
   - code: U-03
     type: MinRestBetweenShifts
-    params: { afterShiftKind: Double16, minHours: 12 }
+    params: { afterShiftKind: Long16, minHours: 12 }
     severity: Block
     overridable: emergency
     source: "MOCK"
@@ -137,21 +138,21 @@ rules:
     source: "MOCK"
   - code: U-11
     type: MaxCountInPeriod
-    params: { event: Double16, limits: [ { days: 7, max: 1 }, { days: 28, max: 2 } ] }
+    params: { event: Long16, limits: [ { days: 7, max: 3 }, { days: 28, max: 10 } ] }
     severity: Warn
     source: "MOCK (cf. CX 16-hour limits in a cycle)"
   - code: P-01
     type: PayClassification
-    params: { context: RegularDayOvertime, bands: [ { hours: 4, code: OT15 }, { hours: null, code: OT20 } ], minimumUnpaidHours: 0.5 }
-    source: "PSGE 11.4.1"
+    params: { window: PayPeriod, thresholdHours: 80, countPaidLeave: false, bands: [ { hours: null, code: OT15 } ], minimumUnpaidHours: 0.5 }
+    source: "Lead's direction (period-based overtime)"
 ```
 
 ## 6. Questions to check against real practice
 
 1. What are the regular rotations: 12-hour "4 on, 4 off"? 2 days / 2 nights / 4 off? 8-hour rotations?
-2. Is there a **required rest after a 16-hour double**, or after an overtime extension?
-3. Maximum consecutive shifts or days, and any limit on **doubles** per week or month?
+2. Is there a **required rest after a 16-hour shift**, or after an overtime extension?
+3. Maximum consecutive shifts or days, and any limit on **16-hour shifts** per week or month?
 4. How is overtime **offered**: a seniority list, fewest hours, rotating? What happens when someone is skipped for insufficient rest?
 5. Is overtime **ordered** (mandatory) when nobody volunteers, and how often can one person be ordered?
-6. Overtime rates in practice: 1.5× for the first 4 h, then 2×? Double time on days off?
+6. Overtime is based on hours per week or pay period (confirmed by the lead). What's the threshold (80 h per 2 weeks?), is it 1.5× throughout or 2× after some hours, and does paid leave count toward it?
 7. How far ahead are schedules posted, and how much notice is given before a change?

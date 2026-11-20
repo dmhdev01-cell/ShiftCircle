@@ -141,6 +141,8 @@ Content-Type: application/problem+json
 | POST | `/pay-periods/{id}/unlock` | `{ "reason" }`; audited | SUPERVISOR |
 | GET | `/pay-periods/{id}/payroll-export` | `text/csv`; locked periods only; records a `payroll_export` row with the file hash | SUPERVISOR |
 
+**Overtime classification:** overtime is computed per pay period (P-01): hours beyond the threshold, in time order, get overtime codes. Any change to a period's actuals recalculates its codes; locking freezes them.
+
 **Payroll CSV columns:** `employee_no, pay_period_start, pay_period_end, work_date, pay_code, hours, unit_code, cost_centre`, with hours to 2 decimals in 15-minute increments. Totals per employee must equal the sum of actual time entries (tested).
 
 ### 4.6 Reports

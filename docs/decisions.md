@@ -74,6 +74,13 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 
 ## ADR-015 — Default shift times, configurable through the rules workflow
 **Status:** Accepted (2026-11-19)
-**Decision:** Defaults set by the project lead: 8 h shifts 07:00–15:00, 15:00–23:00, 23:00–07:00; 12 h shifts 00:00–12:00 and 12:00–24:00; 16 h double 20:00–12:00 (overtime only). Shift templates are configuration (`shift_template`), edited on a "Shift types" table in the Rules screen and published through the same draft → build → dry run → approve flow, because changing shift times changes rest and hours outcomes.
+**Decision:** Defaults set by the project lead: 8 h shifts 07:00–15:00, 15:00–23:00, 23:00–07:00; 12 h shifts 00:00–12:00 and 12:00–24:00; 16 h shifts 20:00–12:00 (regular, on units that allow them; revised the same day, they were first recorded as overtime-only doubles). Shift templates are configuration (`shift_template`), edited on a "Shift types" table in the Rules screen and published through the same draft → build → dry run → approve flow, because changing shift times changes rest and hours outcomes.
 **Consequences:** The 12 h rotation must run 00–12, 00–12, 12–24, 12–24, then 4 off; a 12–24 shift followed by a 00–12 shift would give zero rest. Existing assignments keep their own times when a template changes. The UI mockups still show the earlier 07–19 / 19–07 12 h times; the build uses the new defaults.
 **To confirm:** actual shift start times at the centre.
+
+## ADR-016 — Overtime is based on hours in the pay period, not on shift length
+**Status:** Accepted (2026-11-19)
+**Decision:** Overtime = hours worked beyond the threshold for the period (default 80 h per 2-week pay period; weekly 40 h selectable), in time order. Rostered 8, 12 and 16-hour shifts are regular hours. Shifts carry `ROSTERED` / `EXTRA`, not "overtime". Default rate: 1.5× for all overtime hours, with an optional higher band (MOCK). Day-of-rest double time (P-02) is off by default pending confirmation.
+**Why:** the lead's direction; matches averaging arrangements for long-shift rotations.
+**Governance note:** the Saskatchewan Employment Act's default overtime is daily/weekly; period averaging relies on a modified work arrangement or collective agreement provisions. Recorded as an assumption to confirm.
+**Consequences:** pay codes are recalculated for the whole period after any change and frozen on lock; the overtime ranking still uses overtime hours this quarter.

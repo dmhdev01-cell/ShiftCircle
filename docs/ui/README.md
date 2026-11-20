@@ -16,7 +16,7 @@
 
 **About the file format:** each `.dc.html` is a "Design Component": plain HTML markup plus a small `class Component extends DCLogic` script whose `renderVals()` returns the sample data. They're meant for the design canvas runtime (`support.js`, not included), so **they won't render on their own** in a browser. Treat them as an exact, readable reference for layout, copy, colours, sample data and interactions. Build the real screens in React (§7). Reading tips: `<sc-for list="{{x}}">` = a loop, `<sc-if value="{{x}}">` = a condition, `{{x}}` = a value from `renderVals()`, `<helmet><style>` = the screen's CSS.
 
-**Shift times changed after the mockups were drawn:** the mockups show 12 h shifts as 07–19 / 19–07 (`D12` / `N12`); the defaults are now 00–12 / 12–24 (`A12` / `P12`) and the double is 20:00–12:00 (ADR-015). Use the new times and chip codes when building. The sample data in these screens is **illustrative**. Where it differs from the generator configuration in `docs/10-testing.md` (e.g. unit staffing numbers), the generator configuration wins.
+**Shift times changed after the mockups were drawn:** the mockups show 12 h shifts as 07–19 / 19–07 (`D12` / `N12`); the defaults are now 00–12 / 12–24 (`A12` / `P12`) and 16 h shifts (20:00–12:00) are regular shifts (ADR-015). Overtime is a pay-period status, not a shift type (ADR-016), so the mockups' "OT" chips should read "extra". Use the new times and chip codes when building. The sample data in these screens is **illustrative**. Where it differs from the generator configuration in `docs/10-testing.md` (e.g. unit staffing numbers), the generator configuration wins.
 
 ## 2. Design basis: Government of Saskatchewan digital standard
 
@@ -60,13 +60,16 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 | 12 h afternoon–evening (12–24) | `P12` | bg `#D5E8F3`, text `#00558C` |
 | Evening 8 h (15–23) | `E` | bg `#D5E8F3`, text `#00558C` |
 | Night 8 h (23–07) / 12 h overnight–morning (00–12) | `N` / `A12` | bg `#00558C`, text `#FFFFFF` |
-| Overtime (incl. 16 h doubles, default 20:00–12:00) | `E · OT`, `16 h OT` | bg `#A4D65E`, text `#1F2A0A` |
+| 16 h shift (20:00–12:00), rostered | `L16` | bg `#E1E3E6`, text `#333333`, 1px border `#8E959C` |
+| Extra shift picked up beyond the roster | `E · extra`, `L16 · extra` | bg `#A4D65E`, text `#1F2A0A` |
 | Overtime offered (pending) | `E · offer` | white, 2px dashed `#64A70B`, text `#2F5206` |
 | Proposed but blocked | `! D proposed` | white, 2px dashed `#C40000`, text `#A30000` |
 | Sick | `Sick` | white, 1px dashed `#C2410C`, text `#9A3412` |
 | Vacation | `Vac` | bg `#E3F0E8`, text `#046A38` |
 | Off | `Off` | no fill, text `#666666` |
 | Worked (actual recorded) | prefix `✓ ` | — |
+
+**Overtime is shown per officer, not per shift:** the pay-period hours with the Under / Approaching / In overtime pill (threshold 80 h by default, P-01).
 
 ### 3.3 Typography, spacing, shape
 

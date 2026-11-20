@@ -83,7 +83,7 @@ The assessment notes that extra features don't automatically earn higher marks, 
 |---|---|---|
 | 8 h | Days / Evenings / Nights | 07:00–15:00 · 15:00–23:00 · 23:00–07:00 |
 | 12 h | Overnight-morning / Afternoon-evening | 00:00–12:00 · 12:00–24:00 |
-| 16 h | Double (overtime only) | 20:00–12:00 (next day) |
+| 16 h | Long shift (regular, where the unit allows it) | 20:00–12:00 (next day) |
 
 ## 9. Seven-day plan
 
@@ -117,7 +117,7 @@ This is tight for the Must list. If we slip, the Should items go first.
 2. **Pay period:** biweekly? Which pay codes matter (regular, overtime 1.5×, overtime 2×, statutory holiday, shift premium)?
 3. **Notice period** for supervisor-made schedule changes: placeholder of 48 h for a temporary change and 14 days for posting a schedule.
 4. **Posts:** how does the centre actually think about coverage: by named posts, by unit, or by a headcount per shift? (See §12; the prototype can work at any of the three levels.)
-5. **Rotations:** what shift patterns are common (e.g. 12-hour "2 × 00–12, 2 × 12–24, 4 off"; 8-hour rotations)? Are 16-hour shifts only ever overtime doubles?
+5. **Rotations:** what shift patterns are common (e.g. 12-hour "2 × 00–12, 2 × 12–24, 4 off"; 8-hour rotations)? Which units use 16-hour shifts, and on what rotation?
 
 ## 12. What "post" means (coverage level)
 
@@ -140,7 +140,7 @@ Posts matter to the prototype because they're what **coverage** (required vs. sc
 | Facility | "Prairie Provincial Correctional Centre" (fictional) |
 | Officers | **100**, fictional names, mixed qualifications (control-room, escort/transport, first aid), mock seniority dates |
 | Window | **90 days**: 1 October – 29 December 2026 (one quarter). Days before "today" have actuals; later days are planned only. "Today" can be configured for the demo. |
-| Rotations | About 60 officers on 12-hour rotations (2 × 00:00–12:00, 2 × 12:00–24:00, 4 off) and about 40 on 8-hour rotations (days / evenings / nights). 16-hour shifts appear only as overtime doubles. |
+| Rotations | About 60 officers on 12-hour rotations (2 × 00:00–12:00, 2 × 12:00–24:00, 4 off), 30 on 8-hour rotations (days / evenings / nights) and 10 on 16-hour shifts (20:00–12:00, 1 on, 2 off). Overtime comes from total hours in the pay period, not from shift length. |
 | Absences | About 8% of shifts become sick or vacation absences in the past portion, which creates the gaps that overtime fills |
 | Coverage sizing | Required staffing is set slightly above what 100 officers can cover once absences are counted, so overtime appears naturally (roughly 24 officers on at any given hour, against ~23 available on average) |
 | Planted cases | A few deliberate edge cases for the demo and tests: a short-rest violation, an exactly-8-hour boundary, a 17-hour emergency override, and an officer running long on consecutive nights |

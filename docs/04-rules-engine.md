@@ -22,7 +22,7 @@ flowchart LR
         T[Run regression scenarios<br/>+ dry run on current roster]
         P[Approve & publish<br/>maker / checker]
         K[(Live Drools KieBase<br/>hot-swapped)]
-        F[Fact builders (Java)<br/>rest gaps · rolling hours<br/>consecutive runs · doubles]
+        F[Fact builders (Java)<br/>rest gaps · rolling hours<br/>consecutive runs · 16 h shifts · period hours]
     end
     DB[(PostgreSQL<br/>rule tables + versions)]
     G --> V --> C --> T --> P --> K
@@ -36,7 +36,7 @@ flowchart LR
 
 | Layer | Written by | What it does |
 |---|---|---|
-| **Fact builders** (Java) | Developers | Build the after-change schedule and compute the **derived facts** a rule needs: `RestGap` (hours between two shifts, previous shift kind), `RollingHours` (hours in any 24 h / 7 d), `ConsecutiveRun` (days, 12 h shifts, nights), `DoubleCount` (16 h shifts in 7 / 28 days), `DaysOffRun`, `OvertimeSegment`. Time maths is hard to get right in rule syntax, so it lives in tested Java. |
+| **Fact builders** (Java) | Developers | Build the after-change schedule and compute the **derived facts** a rule needs: `RestGap` (hours between two shifts, previous shift kind), `RollingHours` (hours in any 24 h / 7 d), `ConsecutiveRun` (days, 12 h shifts, nights), `LongShiftCount` (16 h shifts in 7 / 28 days), `DaysOffRun`, `PeriodHours` (hours so far in the week and pay period, for overtime). Time maths is hard to get right in rule syntax, so it lives in tested Java. |
 | **Rule templates** (Drools) | Developers, once per rule table | The technical "when … then …" pattern for a kind of rule, e.g. *when a RestGap after shift kind X is less than N hours, record a result with severity S*. Hidden from non-technical users. |
 | **Decision-table rows** (data) | **Non-technical rules admins** | One row = one rule. Columns are plain-language fields: *After shift type · Minimum rest (hours) · Result · Override allowed · Message*. |
 
@@ -50,11 +50,11 @@ Each rule table is shown as a simple grid. Example, **Rest between shifts**:
 |---|---|---|---|---|---|
 | U-01 | Any shift (within any 24 h) | 8 | Block | Emergency only | Less than 8 hours' rest in 24 hours (Employment Act minimum). |
 | U-02 | Regular shift | 12 | Warn | — | Less than the 12-hour rest target between shifts. |
-| U-03 | 16-hour double | 12 | Block | Emergency only | Needs 12 hours off after a double. |
+| U-03 | 16-hour shift | 12 | Block | Emergency only | Needs 12 hours off after a 16-hour shift. |
 | U-04 | Overtime extension of 4 h or more | 10 | Warn | — | Short rest after a long overtime extension. |
 
 Under each row the screen shows a generated **plain-language sentence**:
-> *"After a 16-hour double, an officer must have at least 12 hours off before their next shift. If not, the change is **blocked**; a supervisor may override only in an emergency, with a reason."*
+> *"After a 16-hour shift, an officer must have at least 12 hours off before their next shift. If not, the change is **blocked**; a supervisor may override only in an emergency, with a reason."*
 
 The admin can change numbers, choose from dropdowns (shift kinds, Block / Warn / Info, override options), switch a row on or off, set an effective date, and add a row (e.g. a new rest rule after a 12-hour night). They **can't** edit the technical template. That's what keeps the system safe.
 
@@ -67,11 +67,11 @@ The admin can change numbers, choose from dropdowns (shift kinds, Block / Warn /
 | Rest between shifts | U-01 to U-04 | After shift kind · window · minimum hours · result · override · message |
 | Maximum hours | U-05, U-06, U-14 | Window (24 h / 7 d / consecutive) · max hours · result · override |
 | Consecutive work | U-08 to U-10 | What's counted (days / 12 h shifts / nights) · max · result when scheduled · result when overtime |
-| Doubles | U-11 | Window (days) · max doubles · result |
+| 16-hour shifts | U-11 | Window (days) · max 16 h shifts · result |
 | Days off | U-12 | Days off required · within how many days · minimum length of a day off |
-| Pay classification | P-01 to P-06 | Situation (regular day OT, day of rest, call-back…) · hours band · pay code · multiplier · minimum hours |
+| Pay classification | P-01 to P-06 | Threshold window (week / pay period) · threshold hours · whether paid leave counts · rate bands (hours, pay code, multiplier) · minimum hours |
 | Overtime ranking | O-01 to O-04 | Sort order (OT hours this quarter, seniority…) · skip if (rule result) · voluntary/ordered limits |
-| Shift lengths | L-01 | Shift kind · length · regular / overtime only |
+| Shift types | L-01, S-03 | Shift code · start time · length · units allowed (ADR-015) |
 
 Staffing and qualification checks (per unit) are maintained on the facility setup screen, not in the decision tables.
 

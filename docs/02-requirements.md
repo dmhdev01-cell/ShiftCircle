@@ -106,7 +106,7 @@ FR-40 and FR-41 (email/SMS outbox, message templates) are reserved for a later p
 | R-02 | Maximum hours in a window | `MaxHoursInWindow` | 16 h in any 24 h | Block (emergency override) | Sask. employment standards guidance |
 | R-03 | Post minimum staffing | `MinStaffing` | per post/block config | Block for the supervisor; shown as a warning on proposals | Synthetic facility |
 | R-04 | Required qualification | `RequiredQualification` | per post config | Block | Synthetic facility |
-| R-05 | Overtime threshold | `HoursThreshold` | daily: over the scheduled shift length; weekly: 40 h | Warn (marks hours as overtime) | Placeholder |
+| R-05 | Overtime threshold | `HoursThreshold` | hours beyond **80 h per 2-week pay period** (weekly 40 h selectable) | Info (marks hours as overtime) | Lead's direction (period-based) |
 | R-06 | Consecutive long shifts | `MaxConsecutive` | at most 4 consecutive 12 h overnight (00–12) shifts; at most 1 shift of 16 h in a row | Warn | Placeholder (CBA / fatigue policy) |
 | R-07 | Change notice | `MinNotice` | 48 h (temporary change) | Warn | Placeholder (CBA) |
 | R-08 | Trade limit | `MaxCountInPeriod` | — | — | Future (with trades) |
@@ -124,7 +124,7 @@ FR-40 and FR-41 (email/SMS outbox, message templates) are reserved for a later p
 | T1 | Assign a day shift to a rested, qualified officer under the threshold | Saved; all rules pass |
 | T2 | Night shift ends at 07:00, then a day shift starts at 11:00 the same day | Blocked by R-01, and the message names both shifts |
 | T3 | **Boundary:** night shift ends at 07:00, then a shift starts at 15:00 (exactly 8 h) | Passes R-01 (the limit is inclusive) |
-| T4 | A 16-hour double, then any shift starting within the same 24 h | Blocked by R-02 |
+| T4 | A 16-hour shift, then any shift starting within 12 h | Blocked (rest after a 16-hour shift) |
 | T5 | Assign a fifth consecutive 12-hour overnight (00–12) shift | Warning from R-06; can be saved once acknowledged |
 | T6 | Overtime open shift: the eligible list excludes an officer who'd break R-01 and orders the rest by OT hours | List matches the expected order |
 | T7 | A rules admin lowers R-06 from 4 to 3 consecutive nights; the dry run shows the existing 4-night runs that would now warn; after saving, they do | Behaviour changes **without a code change**; version is logged |
