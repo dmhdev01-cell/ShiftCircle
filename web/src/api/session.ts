@@ -20,9 +20,15 @@ export interface SessionState {
   user: DemoUser | null;
   /** True when the api answered 401 and the token has to be replaced. */
   ended: boolean;
+  /**
+   * True after a deliberate sign-out. The sign-in screen uses it to tell a
+   * person arriving at a protected route (a reload) from one who just left:
+   * only the first is sent back to the route they asked for (D11).
+   */
+  signedOut: boolean;
 }
 
-const EMPTY: SessionState = { token: null, user: null, ended: false };
+const EMPTY: SessionState = { token: null, user: null, ended: false, signedOut: false };
 
 let state: SessionState = EMPTY;
 const listeners = new Set<() => void>();
@@ -54,7 +60,7 @@ export function getToken(): string | null {
 
 /** A successful mock sign-in: keep the token and the user it belongs to. */
 export function setSession(token: string, user: DemoUser): void {
-  state = { token, user, ended: false };
+  state = { token, user, ended: false, signedOut: false };
   emit();
 }
 
@@ -63,19 +69,19 @@ export function setSession(token: string, user: DemoUser): void {
  * flow, so the screens can still show whose turn it is.
  */
 export function setActingUser(user: DemoUser | null): void {
-  state = { token: null, user, ended: false };
+  state = { token: null, user, ended: false, signedOut: false };
   emit();
 }
 
 /** A deliberate sign out. It is not an expired session, so no warning. */
 export function signOut(): void {
-  state = EMPTY;
+  state = { ...EMPTY, signedOut: true };
   emit();
 }
 
 /** The api answered 401: drop the token and mark the session as ended. */
 export function sessionExpired(): void {
-  state = { token: null, user: null, ended: true };
+  state = { token: null, user: null, ended: true, signedOut: false };
   emit();
 }
 
