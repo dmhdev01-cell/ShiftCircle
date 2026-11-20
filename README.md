@@ -126,7 +126,10 @@ line, no parameterised tests). Playwright against the real api: desktop 19 passe
 (`8c5d705`) adds `RuleSentenceTest` (2) and one HTTP check, so the count at `dc6890e` is
 **351 = 97 rules + 27 infrastructure + 227 api**; this author's full clean-worktree runs there are
 351, 0 failures/errors/skipped, in the default order and with random seed 20261121. dev-qa's
-independent run at that tip is pending. Earlier, as history:
+independent run at that tip is pending. The V12/V19/V5 fix (`c8c05cd`) adds one API test class, so
+the count is **352 = 97 rules + 27 infrastructure + 228 api**; this author's full clean-worktree
+runs at `c8c05cd` are 352, 0 failures/errors/skipped, in the default order and with random seed
+20261121. dev-qa's independent run at that tip is pending. Earlier, as history:
 301 = 91 + 27 + 183 at `5e7765f`, 296 = 91 + 22 + 183 at `dcee43b`, and default/random at
 `fe6487d`, reverse and random seeds at `22375d4`.
 

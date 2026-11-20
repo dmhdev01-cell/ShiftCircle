@@ -127,7 +127,7 @@ Content-Type: application/problem+json
       "ruleCode": "U-01", "outcome": "BLOCK",
       "message": "Only 7 hours' rest after the 12 h shift ending Fri 24:00. The minimum is 8 consecutive hours in any 24 hours.",
       "facts": { "restHours": 7, "minHours": 8 },
-      "evidence": [ { "assignmentId": "c41d…", "label": "Fri 20 P12 12:00–24:00" } ],
+      "evidence": [ { "label": "P12 ending Fri 20 Nov 24:00, next shift D8 starts Sat 21 Nov 07:00 (7.00 h rest)" } ],
       "source": "Saskatchewan Employment Act"
     },
     { "ruleCode": "U-05", "outcome": "BLOCK", "message": "17 hours of work in 24 hours (Fri 12:00 – Sat 12:00).", "facts": { "hours": 17, "maxHours": 16 } },
@@ -280,7 +280,7 @@ path (`POST /assignments`), so S-04 and the audit event still hold.
 | POST | `/pay-periods/{id}/unlock` | `{ "reason" }`; audited with actor and reason. Facility-wide (ADR-022). Concurrent unlocks apply once and write one audit row | SUPERVISOR |
 | GET | `/pay-periods/{id}/payroll-export` | `text/csv`; locked periods only; records a `payroll_export` row with the actor and file hash. Facility-wide: every officer in the period, not only the caller's units (ADR-022) | SUPERVISOR |
 
-**Time entries and pay periods (what the Time and attendance screen needs):** a time entry carries the officer's `employeeName` and the `unitId` / `unitName` it belongs to, so the grid needs no second call; when something was recorded it carries `actualStart` and `actualEnd`, and an extension under 30 minutes that is not paid is `unpaidExtensionMinutes` (P-04). A shift that has ended (`end_at ≤ now`) with no actual and no absence is `needsActual: true`. A pay period carries `overtimeThresholdHours` (80 h by default, ADR-016) and the totals the lock confirmation repeats: `totals.officers`, `totals.workedHours` and `totals.overtimeHours`.
+**Time entries and pay periods (what the Time and attendance screen needs):** a time entry carries the officer's `employeeName` and the `unitId` / `unitName` it belongs to, so the grid needs no second call; when something was recorded it carries `actualStart` and `actualEnd`, and an extension under 30 minutes that is not paid is `unpaidExtensionMinutes` (P-04). A shift that has ended (`end_at ≤ now`) with no actual and no absence is `needsActual: true`. A pay period carries `overtimeThresholdHours` (80 h by default, ADR-016) and the totals the lock confirmation repeats: `totals.officers`, `totals.workedHours` and `totals.overtimeHours`. A locked period also carries `lockedBy` (the supervisor's display name) and `lockedAt`, for both a period locked through the API and a period the demo dataset seeded as locked, so the screen names the actor instead of saying "a supervisor".
 
 **Overtime classification:** overtime is computed per pay period (P-01): hours beyond the threshold, in time order, get overtime codes. Any change to a period's actuals recalculates its codes; locking freezes them.
 
@@ -329,7 +329,9 @@ uses letters, digits and
 hyphens (for example `U-01` or `P-01b`). A message is a string of at most 500 characters; `result`
 is `BLOCK`, `WARN` or `INFO`; `override` is `EMERGENCY`, `ACKNOWLEDGE` or `NOT_ALLOWED`; anything
 else is `400` naming the column. Every numeric column has a documented range (docs/04 §5a) enforced
-at the PUT. The build's validation is total: a row stored with a bad value (for
+at the PUT. A refusal names the visible column label (for example "The At least (hours) off column
+must be between 8 and 24 hours"), never the params key; an unknown key still names itself, because
+there the client must fix the field. The build's validation is total: a row stored with a bad value (for
 example by a direct database edit) becomes a validation error, not a `500`, and a report shows at
 most 20 errors with a count of the rest.
 
