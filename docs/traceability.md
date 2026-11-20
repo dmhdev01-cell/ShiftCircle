@@ -1,10 +1,10 @@
 # ShiftCircle — requirement-to-proof traceability
 
 **Derived from the test sources, not from the prose.** Checked on 2026-11-20 against `main` at
-`dcee43b` by grepping `@Test`, Playwright `test(...)` titles and the Flyway migrations. The
-latest clean-worktree run is **91 rules + 22 infrastructure + 183 api = 296 tests, 0 failures**
-at `dcee43b`, run in the default class order and with a random seed (20261120). It is counted
-as `@Test` methods on their own line: 91 + 22 + 183 static annotations, and Surefire reports the
+`5e7765f` by grepping `@Test`, Playwright `test(...)` titles and the Flyway migrations. The
+latest clean-worktree run is **91 rules + 27 infrastructure + 183 api = 301 tests, 0 failures**
+at `5e7765f`, run in the default class order and with a random seed (20261120). It is counted
+as `@Test` methods on their own line: 91 + 27 + 183 static annotations, and Surefire reports the
 same total with 0 skipped. A proof below names the test class and method that makes the claim,
 not the document that hopes it exists.
 

@@ -53,11 +53,11 @@ Only the web publishes a port. Rule rows compile into a rule base that is swappe
 | **Blank page for the auditor:** the api sends a `null` the fixtures never had; now an error boundary plus real-api contract samples | real-api e2e, then dev-qa | R32 |
 | **Flaky web suite** under host load (2 of 6 runs red); fix author-reported, re-check pending | dev-qa | R34 |
 
-**Suggestions corrected or rejected:** the lead rejected a custom rule catalogue (Drools lets staff edit rules) and 16 h shifts as overtime-only (log #5, #13). The builder rejected a catch-all error handler that would turn `403`s into `500`s, then built it with that trap closed (log #68). Verifiers retracted two of their own claims (R16, R30).
+**Suggestions corrected or rejected:** the lead rejected a custom rule catalogue (Drools lets staff edit rules) and 16 h shifts as overtime-only (log #5, #13). The builder rejected a catch-all error handler that would turn `403`s into `500`s, then built it with that trap closed (log #69). Verifiers retracted two of their own claims (R16, R30).
 
 ## 4. Test cases and verified status
 
-**Counts.** At `a10688e` the author's runs give 91 rules + 22 infrastructure + 182 api = **295, 0 failures** (default and random order). dev-qa's rerun is pending: its first attempt was killed for memory on the shared host at 147 passed, 0 failed. Latest independent counts: **284** from a clean clone at `489b3e1` (R33) and **276** in three class orders at `22375d4` (R31). E2E (Playwright, axe on every screen) in R34: real api desktop 20 passed, tablet 19 + 1 skipped; fixtures 43 passed / 3 skipped. <!-- TODO: final api / web / e2e totals on the submission commit after the web-stable merge, with the command and the verifying round. -->
+**Counts.** At the merged tip `5e7765f`: 91 rules + 27 infrastructure + 183 api = **301 tests, 0 failures**, from a clean worktree in the default order and a random order (seed 20261120), under the heavy-run lock; dev-qa's independent orders at the pre-merge tip `dcee43b` agree on that tip's 296 = 91 + 22 + 183. Earlier, as history: 295 at `a10688e`, 284 from a clean clone at `489b3e1` (R33), 276 in three class orders at `22375d4` (R31). Web: vitest 195 in 21 files, 0 failures; lint 0 errors (2 pre-existing warnings); build clean. E2E (Playwright, axe on every screen) in R34: real api desktop 20 passed, tablet 19 + 1 skipped; fixtures 43 passed / 3 skipped; the final real-api re-run at the merged tip is dev-build2's.
 
 | ID | Case | Expected | Result |
 |---|---|---|---|
