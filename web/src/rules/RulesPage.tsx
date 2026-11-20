@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { api } from '../api/client';
@@ -65,6 +69,8 @@ export function RulesPage() {
   const [saving, setSaving] = useState(false);
   const [report, setReport] = useState<BuildReport | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [draftReason, setDraftReason] = useState('');
+  const [creatingDraft, setCreatingDraft] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -114,6 +120,7 @@ export function RulesPage() {
   }
 
   const live = versions.find((entry) => entry.live);
+  const hasDraft = versions.some((entry) => entry.status === 'DRAFT');
   // Keep showing the version that was picked, whatever its status is now.
   const shown = versions.find((entry) => entry.version === selectedVersion) ?? draft;
   const tableKey = table ? `${draft.version}:${table.code}:${table.rows.length}:${table.changed}` : '';
@@ -129,7 +136,18 @@ export function RulesPage() {
     if (!table) return;
     setEdits({
       key: tableKey,
-      rows: rows.map((row) => (row.ruleCode === ruleCode ? { ...row, ...patch } : row)),
+      rows: rows.map((row) => {
+        if (row.ruleCode !== ruleCode) return row;
+        const params = { ...(row.params ?? {}) };
+        // The api stores the real value in params; the grid edits a friendly field.
+        if (patch.minHours !== undefined && table.hoursParam) {
+          params[table.hoursParam] = patch.minHours;
+        }
+        if (patch.after !== undefined && table.afterParam) {
+          params[table.afterParam] = patch.after;
+        }
+        return { ...row, ...patch, params };
+      }),
       edited: { ...edited, [ruleCode]: true },
     });
   };
@@ -180,6 +198,56 @@ export function RulesPage() {
           </Box>
         </Box>
       </Box>
+
+      {role.id === 'RULES_ADMIN' && !hasDraft ? (
+        <Card>
+          <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
+              Start a draft
+            </Typography>
+            <Typography sx={{ fontSize: 13, color: colour.text.secondary }}>
+              A draft starts from the live version (v{live?.version ?? '—'}). Change the rule
+              tables, build and submit it, and a second approver can review and publish it.
+            </Typography>
+            <TextField
+              label="Why is this change needed?"
+              value={draftReason}
+              onChange={(event) => setDraftReason(event.target.value)}
+              size="small"
+            />
+            <Box>
+              <Button
+                variant="contained"
+                color="primary"
+                disabled={draftReason.trim().length === 0 || creatingDraft || !live}
+                onClick={() =>
+                  void (async () => {
+                    if (!live) return;
+                    setCreatingDraft(true);
+                    setMessage(null);
+                    try {
+                      const created = await api.createRuleSetDraft(live.version, draftReason.trim());
+                      setVersions((current) => [created, ...(current ?? [])]);
+                      setDraft(created);
+                      setSelectedVersion(created.version);
+                      setDraftReason('');
+                      setMessage(`Draft v${created.version} is ready to edit.`);
+                    } catch (error) {
+                      setMessage(
+                        error instanceof Error ? error.message : 'The draft could not be created.',
+                      );
+                    } finally {
+                      setCreatingDraft(false);
+                    }
+                  })()
+                }
+              >
+                Start a draft
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {message ? (
         <Box

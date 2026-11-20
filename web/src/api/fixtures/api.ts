@@ -507,6 +507,21 @@ export function createFixtureApi(): ShiftCircleApi {
       return demoRuleSets;
     },
 
+    async createRuleSetDraft(_basedOn: number, reason: string): Promise<RuleSetVersion> {
+      await wait(LATENCY_MS);
+      const next = Math.max(...demoRuleSets.map((entry) => entry.version)) + 1;
+      const draft: RuleSetVersion = {
+        version: next,
+        status: 'DRAFT',
+        live: false,
+        createdBy: 'L. Fraser',
+        createdAt: 'now',
+        reason,
+      };
+      demoRuleSets.push(draft);
+      return draft;
+    },
+
     async getRuleTable(_version: number, code: string): Promise<RuleTable> {
       await wait(LATENCY_MS);
       const table = demoRuleTables.find((entry) => entry.code === code);

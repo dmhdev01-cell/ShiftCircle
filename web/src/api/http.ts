@@ -257,6 +257,13 @@ export function createHttpApi(): ShiftCircleApi {
       return request<RuleSetVersion[]>('/rule-sets');
     },
 
+    createRuleSetDraft(basedOn: number, reason: string): Promise<RuleSetVersion> {
+      return request<RuleSetVersion>('/rule-sets/drafts', {
+        method: 'POST',
+        body: JSON.stringify({ basedOn, reason }),
+      });
+    },
+
     getRuleTable(version: number, code: string): Promise<RuleTable> {
       return request<RuleTable>(`/rule-sets/${version}/tables/${code}`);
     },

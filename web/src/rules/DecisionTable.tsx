@@ -48,6 +48,9 @@ export function DecisionTable({
   const [selectedCode, setSelectedCode] = useState(rows[0]?.ruleCode ?? '');
   const selected = rows.find((row) => row.ruleCode === selectedCode) ?? rows[0];
   const update = onUpdate;
+  // Unsaved edits are changes in the draft too; the api's number only catches
+  // what has been saved.
+  const changeCount = Math.max(table.changed, Object.keys(edited).length);
 
   return (
     <Box
@@ -78,9 +81,9 @@ export function DecisionTable({
             One row is one rule. Change the values; the wording below updates as you type.
           </Typography>
         </Box>
-        {table.changed > 0 ? (
+        {changeCount > 0 ? (
           <StatusPill tone="warn">
-            {table.changed} change{table.changed === 1 ? '' : 's'} in draft
+            {changeCount} change{changeCount === 1 ? '' : 's'} in draft
           </StatusPill>
         ) : null}
       </Box>

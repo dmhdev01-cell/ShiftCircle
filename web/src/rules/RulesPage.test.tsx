@@ -147,6 +147,24 @@ describe('Rules admin', () => {
     expect(submitted.rows.find((row) => row.ruleCode === 'U-02')?.minHours).toBe(16);
   });
 
+  it('starts a draft when the live version has none', async () => {
+    const user = userEvent.setup();
+    demoRuleSets[1].status = 'PUBLISHED';
+    renderRules();
+    await screen.findByRole('heading', { name: 'Rest between shifts' });
+    await actAsRulesAdmin(user);
+    await screen.findByRole('heading', { name: 'Start a draft' });
+
+    await user.type(
+      screen.getByLabelText('Why is this change needed?'),
+      'Raise the 16-hour rest to 14 hours',
+    );
+    await user.click(screen.getByRole('button', { name: 'Start a draft' }));
+
+    expect(await screen.findByText(/Draft v9 is ready to edit/)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Build and check' })).toBeInTheDocument();
+  });
+
   it('hides the approve action from the person who created the draft', async () => {
     const user = userEvent.setup();
     renderRules();

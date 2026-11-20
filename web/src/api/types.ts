@@ -515,11 +515,17 @@ export interface RuleTableRow {
   min?: number;
   /** The plain-language sentence for the row. */
   sentence: string;
+  /** The table's own columns, as the api stores them. */
+  params?: Record<string, unknown>;
 }
 
 export interface RuleTable {
   code: string;
   name: string;
+  /** The params key the single "hours" field edits, e.g. minRestHours. */
+  hoursParam?: string;
+  /** The params key the "after this shift" select edits, when the table has one. */
+  afterParam?: string;
   /** The plain-language column headings. */
   columns: { after: string; hours: string; result: string; override: string };
   rows: RuleTableRow[];
@@ -622,6 +628,7 @@ export interface ShiftCircleApi {
 
   // Rules administration.
   getRuleSets(): Promise<RuleSetVersion[]>;
+  createRuleSetDraft(basedOn: number, reason: string): Promise<RuleSetVersion>;
   getRuleTable(version: number, code: string): Promise<RuleTable>;
   saveRuleRows(version: number, code: string, rows: RuleTableRow[]): Promise<RuleTable>;
   buildRuleSet(version: number): Promise<BuildReport>;

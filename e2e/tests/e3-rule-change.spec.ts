@@ -9,12 +9,22 @@ import { expectAccessible, signIn, signInAgain, signOut } from './support';
  */
 
 test.describe('E3 rule change with maker/checker', () => {
-  test('@fixtures admin edits, builds and submits; approver approves and publishes', async ({ page }, testInfo) => {
+  test('admin edits, builds and submits; approver approves and publishes', async ({ page }, testInfo) => {
     // Fixture-only: it publishes a new live rule version (v8 in the fixtures).
     await signIn(page, 'L. Fraser');
     await expect(page.getByRole('heading', { name: 'Rules', level: 1 })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Rest between shifts' })).toBeVisible();
     await expectAccessible(page, testInfo, 'rules-admin');
+
+    // The real api starts with the live version and no draft; the screen creates one.
+    // The fixtures already have draft v8, so this step is skipped there.
+    if (await page.getByRole('button', { name: 'Start a draft' }).isVisible().catch(() => false)) {
+      await page
+        .getByLabel('Why is this change needed?')
+        .fill('Raise the 16-hour rest target to 14 hours');
+      await page.getByRole('button', { name: 'Start a draft' }).click();
+    }
+    await expect(page.getByRole('button', { name: 'Build and check' })).toBeVisible();
 
     const u03 = page.getByLabel('Minimum hours off for U-03');
     // A person clicks into the field, which selects the row.
@@ -49,9 +59,13 @@ test.describe('E3 rule change with maker/checker', () => {
     await expect(page.getByText('The version is approved. It can be published.')).toBeVisible();
     await page.getByRole('button', { name: 'Publish' }).click();
     await expect(page.getByText(/Version \d+ is live from/)).toBeVisible();
+
+    // The hot swap really happened: the version endpoint reports the new live rule set.
+    const version = await page.request.get('/api/v1/version');
+    expect((await version.json()).ruleSetVersion).not.toBe('v1');
   });
 
-  test('@fixtures a supervisor can read the rules but not build, submit, approve or publish', async ({ page }) => {
+  test('a supervisor can read the rules but not build, submit, approve or publish', async ({ page }) => {
     await signIn(page, 'M. Ellis');
     await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Rules' }).click();
     await expect(page.getByRole('heading', { name: 'Rest between shifts' })).toBeVisible();
