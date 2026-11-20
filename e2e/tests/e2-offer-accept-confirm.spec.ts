@@ -11,6 +11,9 @@ async function openPc08(page: import('@playwright/test').Page): Promise<void> {
   const unitB = page
     .getByRole('button', { name: /Sat 21 Nov · Days 07:00 – 15:00/ })
     .filter({ hasText: 'Unit B · Living unit' });
+  // Wait for the list before choosing: the first matching card can be the
+  // filled one, and offering on it is refused.
+  await expect(unitB.first()).toBeVisible();
   // The real api has both the filled and the open shift for that slot; the
   // fixtures have only the open one.
   const extra = unitB.filter({ hasText: 'Extra coverage' });
