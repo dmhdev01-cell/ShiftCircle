@@ -35,7 +35,7 @@ Only the web publishes a port. Rule rows compile into a rule base that is swappe
 | dev-build, dev-build2 | DeepSeek V4.1 Flash (dev-build2 MiniMax M3.1 Flash until 05:06Z) | Api, rules, generator; web |
 | dev-qa, review-r2 / review-r1 | GLM 5.3 / GLM 5.3 Flash | QA on clean checkouts; independent review and security probes |
 
-**Independence, honestly:** builders and verifiers are different model families, except from about **10:07Z to 11:30Z**. The OpenCode credit ran out, and all five OpenCode seats ran on MiniMax (M3.1 Flash building, M3 verifying). The rounds in that window (R31 items 6–7, R32–R34) have weaker independence. The original mapping was back from about 11:40Z.
+**Independence, honestly:** builders and verifiers are different model families, except from about **10:07Z to 11:30Z**. The OpenCode credit ran out, and all five OpenCode seats ran on MiniMax (M3.1 Flash building, M3 verifying). The rounds in that window (R32–R34) have weaker independence. The original mapping was back from about 11:40Z.
 
 **How it was verified:** 34 review and QA rounds, three e2e runs and two visual reviews, each recorded with what was checked, found and fixed (`docs/review-rounds.md`; narrative in `docs/ai-dev-log.md`). Fixes were proved by reverting them and watching their test fail.
 
