@@ -23,8 +23,9 @@ Internal note for the team; remove before submission (step 13) or fold into the 
 | 9 time/payroll merge | `1714f76`, `2b5f3fe` | dev-build2's `api-time-payroll` (T8 golden CSV, T11, T12, T14, CSV quoting); 200 tests from a clean worktree |
 | 8 review fixes | `7489cf7` | F1 gate on offer/confirm/assign, F3 row locks + status guards, F2/F4/F6, F7 demo clock, F5 docs; 31 targeted tests |
 | 11 rules admin | `2dc1b1b`, `3cc55e6`, `a46580b` | `RuleRowValidator` (T13 + Must rows), `RuleScenarioRunner` (T1-T5 + ranking), drafts/rows/build/dry run/submit/approve/publish, atomic hot-swap snapshot, boot-time published rows; 206 tests |
+| 12a wall display | `6649eb1`, `f191d07`, `6237258` | `GET /display/today` (ADR-017 hourly blocks, midnight-crossing night, no names, scope, roles); the `coverage/` ignore fix that a clean checkout caught; ignored-source guard script + README step; 209 tests from a clean worktree at `f191d07` |
 
-Latest full run: 83 rules + 20 infrastructure + 103 api = **206 tests**, all passing in Docker.
+Latest full run: 83 rules + 20 infrastructure + 106 api = **209 tests**, all passing in Docker from a clean worktree at `f191d07`.
 
 ## Next, in the lead's priority order
 
@@ -48,11 +49,12 @@ E3), validator 13, scenarios 3.
 
 ### c) Step 12 should-items (lead's order; step 10 reports is dev-build2's `api-reports`, do not redo)
 
-1. **Wall display** `GET /display/today` — counts only, ADR-017 blocks, open shifts and officers
-   in overtime, no names; a test scans the payload for every employee name/number. *In progress.*
-2. **Audit viewer API** `GET /audit-events` — AUDITOR and scoped SUPERVISOR, filters
-   (actor/action/date/entity), paginated, read-only; prove the append-only trigger still refuses
-   UPDATE/DELETE.
+1. **Wall display** `GET /display/today` — **done** (`6649eb1`): counts only, ADR-017 blocks
+   (night runs 23:00–07:00 across midnight), open shifts and officers in overtime, no names; the
+   test scans the payload for every employee name/number/id. Verified at `f191d07`.
+2. **Audit viewer API** `GET /audit-events` — **in progress**: AUDITOR and scoped SUPERVISOR,
+   filters (actor/action/date/entity), keyset pages, read-only; prove the append-only trigger
+   still refuses UPDATE/DELETE.
 3. **Absences** `POST /absences` (type only; affects coverage), then
    `POST /schedule-periods/{id}/publish`; `PATCH`/`DELETE /assignments` only if time remains
    (rules + locked-period gate; the web has no move/cancel screen now).
@@ -66,6 +68,9 @@ demo script/recording.
 - Tests only in Docker; Testcontainers needs the socket and `TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal`.
 - `sc.demo.generate=false` enables the demo profile in tests without generating 100 officers.
 - Verify counts from a clean worktree (`git worktree add /tmp/x HEAD`); working-tree passes hid files once.
+- `.gitignore` patterns must be anchored to the build output (`/web/build/`, `/web/coverage/`): the
+  unanchored forms each swallowed a Java package (`rules/build/`, `api/coverage/`). Run
+  `./scripts/check-ignored-sources.sh` before committing and again in the clean worktree.
 - Testcontainers 2.0 artifact names: `testcontainers-postgresql`, `testcontainers-junit-jupiter`.
 - Boot 4 needs `spring-boot-flyway` explicitly or the app reports readiness with no schema.
 - JdbcTemplate `query(String, RowCallbackHandler, Object...)` needs the rows handler cast and every
