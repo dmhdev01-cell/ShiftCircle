@@ -384,6 +384,41 @@ class AssignmentApiTest {
         .toList();
   }
 
+  @Test
+  void aShiftInsideALockedPayPeriodIsRefused() throws Exception {
+    jdbc.update(
+        "DELETE FROM time_entry WHERE pay_period_id IN (SELECT id FROM pay_period"
+            + " WHERE daterange(start_date, end_date, '[]')"
+            + " && daterange(DATE '2026-11-16', DATE '2026-11-22', '[]'))");
+    jdbc.update(
+        "DELETE FROM pay_period WHERE daterange(start_date, end_date, '[]')"
+            + " && daterange(DATE '2026-11-16', DATE '2026-11-22', '[]')");
+    UUID locked = UUID.fromString("77777777-7777-7777-7777-000000000001");
+    jdbc.update(
+        "INSERT INTO pay_period (id, start_date, end_date, status) VALUES"
+            + " (?, DATE '2026-11-16', DATE '2026-11-22', 'LOCKED')",
+        locked);
+    try {
+      String token = login("m.ellis");
+      String body = changeAt("D8", "2026-11-21T07:00:00-06:00");
+
+      HttpResponse<String> preview = post("/api/v1/rule-checks", body, token);
+      assertThat(preview.statusCode()).as("a preview inside a locked period says so").isEqualTo(409);
+      assertThat((String) mapper.readValue(preview.body(), Map.class).get("type"))
+          .endsWith("/pay-period-locked");
+
+      HttpResponse<String> save = post("/api/v1/assignments", body, token);
+      assertThat(save.statusCode()).isEqualTo(409);
+      assertThat((String) mapper.readValue(save.body(), Map.class).get("type"))
+          .endsWith("/pay-period-locked");
+      assertThat(count("SELECT count(*) FROM shift_assignment WHERE employee_id = '" + EMPLOYEE + "'"))
+          .as("nothing is saved into the closed period")
+          .isEqualTo(1);
+    } finally {
+      jdbc.update("DELETE FROM pay_period WHERE id = ?", locked);
+    }
+  }
+
   private int count(String sql) {
     Integer value = jdbc.queryForObject(sql, Integer.class);
     return value == null ? 0 : value;

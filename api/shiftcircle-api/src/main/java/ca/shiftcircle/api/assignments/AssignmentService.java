@@ -1,11 +1,14 @@
 package ca.shiftcircle.api.assignments;
 
+import ca.shiftcircle.api.payroll.LockedPeriodException;
 import ca.shiftcircle.api.rules.RuleCheckRequest;
 import ca.shiftcircle.api.rules.RuleCheckService;
 import ca.shiftcircle.api.rules.RuleViolationException;
 import ca.shiftcircle.api.security.AuthPrincipal;
 import ca.shiftcircle.api.security.ScopeGuard;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -54,6 +57,7 @@ public class AssignmentService {
         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found");
       }
     }
+    requireOpenPayPeriod(request.change().startAt());
     return ruleChecks.evaluate(change(request));
   }
 
@@ -62,6 +66,7 @@ public class AssignmentService {
     requireValidChange(request);
     String unitCode = unitCode(request.change().unitId());
     scopeGuard.requireUnit(principal, unitCode);
+    requireOpenPayPeriod(request.change().startAt());
 
     // Two supervisors (or a double click) must not both pass the rules against the same old roster:
     // the exclusion constraint catches true overlaps, but two saves close together can break rest
@@ -152,6 +157,20 @@ public class AssignmentService {
   private void lockOfficer(UUID employeeId) {
     long key = employeeId.getMostSignificantBits() ^ employeeId.getLeastSignificantBits();
     jdbc.queryForList("SELECT pg_advisory_xact_lock(?)", Object.class, key);
+  }
+
+  /**
+   * A shift whose work date falls in a locked pay period is read-only (docs/07 E4, ADR-017). The
+   * lock would otherwise strand it: the shift could be saved, but its actual never recorded.
+   */
+  private void requireOpenPayPeriod(Instant startAt) {
+    LocalDate workDate = startAt.atZone(ZoneId.of("America/Regina")).toLocalDate();
+    List<Map<String, Object>> periods =
+        jdbc.queryForList(
+            "SELECT status FROM pay_period WHERE ? BETWEEN start_date AND end_date", workDate);
+    if (!periods.isEmpty() && "LOCKED".equals(periods.get(0).get("status"))) {
+      throw new LockedPeriodException();
+    }
   }
 
   private List<String> warnCodes(RuleCheckService.OutcomeView outcome) {
