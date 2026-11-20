@@ -75,6 +75,16 @@ The admin can change numbers, choose from dropdowns (shift kinds, Block / Warn /
 
 Staffing and qualification checks (per unit) are maintained on the facility setup screen, not in the decision tables.
 
+## 5a. Publish-time validation the builders require (review F4)
+
+Some columns are only meaningful for the values the fact builders actually produce. A row whose
+`windowHours` is 48, for example, would never fire: the builders emit 24-hour, 168-hour and
+pay-period facts only. A rule that can never fire is worse than a broken one, because the admin
+believes it is protecting people. The build step (writer: rules publish pipeline, step 11) must
+reject such rows with a plain-language message ("Window must be 24 or 168 hours") before a version
+can be submitted, and the same validation belongs in `TemplateColumns` where it can be expressed
+there (for example, a warning level at or above the ceiling is refused).
+
 ## 6. Safe change pipeline
 
 1. **Edit**: a rules admin changes rows in a **draft** version (or uploads an Excel file).

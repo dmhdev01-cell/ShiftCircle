@@ -58,6 +58,7 @@ class ReferenceDataMatchesRuleRowsTest {
     for (RuleRow expected : fixture.values()) {
       Row actual = seeded.get(expected.code());
       assertThat(actual.table).as(expected.code() + " table").isEqualTo(expected.table().code());
+      assertThat(actual.enabled).as(expected.code() + " enabled").isEqualTo(expected.enabled());
       assertThat(actual.severity).as(expected.code() + " severity").isEqualTo(expected.severity().name());
       assertThat(actual.overridePolicy)
           .as(expected.code() + " override policy")
@@ -72,6 +73,7 @@ class ReferenceDataMatchesRuleRowsTest {
 
   private record Row(
       String table,
+      boolean enabled,
       String severity,
       String overridePolicy,
       String message,
@@ -86,8 +88,8 @@ class ReferenceDataMatchesRuleRowsTest {
     try (Connection connection = connect();
         PreparedStatement statement =
             connection.prepareStatement(
-                "SELECT r.code, t.code AS table_code, r.severity, r.override_policy, r.message,"
-                    + " r.source, r.is_placeholder, r.sort_order"
+                "SELECT r.code, t.code AS table_code, r.enabled, r.severity, r.override_policy,"
+                    + " r.message, r.source, r.is_placeholder, r.sort_order"
                     + " FROM rule_row r JOIN rule_table t ON t.id = r.rule_table_id"
                     + " WHERE r.rule_set_version_id = ? ORDER BY r.sort_order")) {
       statement.setObject(1, version);
@@ -98,6 +100,7 @@ class ReferenceDataMatchesRuleRowsTest {
               code,
               new Row(
                   result.getString("table_code"),
+                  result.getBoolean("enabled"),
                   result.getString("severity"),
                   result.getString("override_policy"),
                   result.getString("message"),
