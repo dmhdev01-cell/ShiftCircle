@@ -89,7 +89,9 @@ export function OvertimePage() {
         requestedUnit !== null &&
         requestedStart !== null &&
         shift.unit.id === requestedUnit &&
-        shift.startAt === requestedStart,
+        // The api writes instants as Z while the planning board writes an
+        // offset; compare the instant, not the string.
+        new Date(shift.startAt).getTime() === new Date(requestedStart).getTime(),
     ) ??
     null;
   // The requested shift is selected until the supervisor picks another.
