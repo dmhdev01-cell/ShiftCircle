@@ -24,7 +24,8 @@ test.describe('E1 blocked assignment (PC-01)', () => {
     // The reasons name the rules and say why, in plain words.
     await expect(page.getByText(/U-01 · Minimum rest/)).toBeVisible();
     await expect(page.getByText(/U-05/).first()).toBeVisible();
-    await expect(page.getByText(/Less than 8 hours rest/)).toBeVisible();
+    // The fixture's U-01 text says "7 hours' rest"; the api says "Less than 8 hours rest".
+    await expect(page.getByText(/Less than 8 hours rest|7 hours' rest/)).toBeVisible();
     // Safeguard: nothing to save and nothing to acknowledge past a Block.
     await expect(page.getByRole('button', { name: /^Assign shift$/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Acknowledge/ })).toHaveCount(0);

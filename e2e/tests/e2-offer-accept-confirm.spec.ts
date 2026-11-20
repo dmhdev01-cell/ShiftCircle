@@ -8,12 +8,14 @@ import { expectAccessible, navTo, signIn, signInAgain, signOut } from './support
  */
 
 async function openPc08(page: import('@playwright/test').Page): Promise<void> {
-  await page
+  const unitB = page
     .getByRole('button', { name: /Sat 21 Nov · Days 07:00 – 15:00/ })
-    .filter({ hasText: 'Unit B · Living unit' })
-    .filter({ hasText: 'Extra coverage' })
-    .first()
-    .click();
+    .filter({ hasText: 'Unit B · Living unit' });
+  // The real api has both the filled and the open shift for that slot; the
+  // fixtures have only the open one.
+  const extra = unitB.filter({ hasText: 'Extra coverage' });
+  const card = (await extra.count()) > 0 ? extra.first() : unitB.first();
+  await card.click();
   await expect(
     page.getByRole('heading', { name: /Sat 21 Nov · Days 07:00 – 15:00/, level: 2 }),
   ).toBeVisible();

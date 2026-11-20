@@ -20,6 +20,7 @@ cd "$(git rev-parse --show-toplevel)"
 leaks="$(
   git ls-files --others --ignored --exclude-standard \
     | grep -E '^(api/.*/src|web/src|e2e|docs)/' \
+    | grep -vE '(^|/)(node_modules|test-results|playwright-report)/' \
     || true
 )"
 
