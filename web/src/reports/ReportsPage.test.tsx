@@ -109,7 +109,7 @@ describe('the coverage report against the real api shape', () => {
 
     renderReports();
 
-    expect(await screen.findByRole('heading', { name: 'Reports' })).toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'Reports' });
     const table = await screen.findByRole('table');
     expect(within(table).getByText('16 – 22 Nov')).toBeInTheDocument();
     expect(within(table).getByText('—')).toBeInTheDocument();
