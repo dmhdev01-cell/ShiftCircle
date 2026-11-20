@@ -1,13 +1,13 @@
 # ShiftCircle — API Specification
 
-**Status:** Draft v1.0 · 2026-11-19 · REST + JSON · the generated OpenAPI document is the source of truth once code exists
+**Status:** Draft v1.0 · 2026-11-19 · REST + JSON · this document is the contract (no generated OpenAPI document exists in the prototype; docs/10 §8)
 
 ## 1. Conventions
 
 | Topic | Convention |
 |---|---|
 | Base path | `/api/v1` (nginx proxies `/api/` to the api container) |
-| Docs | OpenAPI 3 at `/api/v1/openapi.json`; Swagger UI at `/api/swagger-ui` (`demo` and `dev` profiles only) |
+| Docs | Planned: OpenAPI 3 at `/api/v1/openapi.json` and Swagger UI (`demo` and `dev` profiles only). **Not built** (NFR-09, docs/10 §8): this document is the contract |
 | Auth | `Authorization: Bearer <token>` from mock sign-in (see `09-access-control.md`) |
 | IDs | UUID strings |
 | Time | Instants as ISO-8601 with offset (`2026-11-21T07:00:00-06:00`); dates as `YYYY-MM-DD`; all in `America/Regina` |
