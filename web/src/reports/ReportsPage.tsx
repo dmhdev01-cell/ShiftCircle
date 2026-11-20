@@ -94,8 +94,9 @@ function tabFromPath(tab: string | undefined): Tab {
  */
 export function ReportsPage() {
   const navigate = useNavigate();
-  const routeTab = tabFromPath(useParams<{ tab?: string }>().tab);
-  const [tab, setTab] = useState<Tab>(routeTab);
+  // The address is the source of truth for which report is open, so a deep
+  // link, a reload and the back button all land on the report they name (D3).
+  const tab = tabFromPath(useParams<{ tab?: string }>().tab);
   const [coverage, setCoverage] = useState<CoverageReport | null>(null);
   const [hours, setHours] = useState<HoursReport | null>(null);
   const [overtime, setOvertime] = useState<OvertimeReport | null>(null);
@@ -104,16 +105,14 @@ export function ReportsPage() {
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
-  // The address is the source of truth for which report is open, so a deep
-  // link, a reload and the back button all land on the report they name (D3).
-  useEffect(() => {
-    setTab(routeTab);
-  }, [routeTab]);
-
   const showTab = (next: Tab) => {
-    setTab(next);
     setMessage(null);
     navigate(`/reports/${next}`, { replace: true });
+  };
+
+  const retry = () => {
+    setFailed(false);
+    setAttempt((value) => value + 1);
   };
 
   // The reports are read once; the tabs show what is already loaded. A failed
@@ -123,7 +122,6 @@ export function ReportsPage() {
     const fail = () => {
       if (active) setFailed(true);
     };
-    setFailed(false);
     void api.getCoverageReport({}).then((report) => {
       if (active) setCoverage(report);
     }, fail);
@@ -250,7 +248,7 @@ export function ReportsPage() {
               The reports did not arrive. Check the connection and try again.
             </Typography>
             <Box>
-              <Button variant="outlined" color="primary" onClick={() => setAttempt((value) => value + 1)}>
+              <Button variant="outlined" color="primary" onClick={retry}>
                 Try again
               </Button>
             </Box>

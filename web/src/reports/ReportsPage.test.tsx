@@ -163,14 +163,14 @@ describe('the coverage report against the real api shape', () => {
 
     await screen.findByRole('heading', { name: 'Reports' });
     const group = screen.getByRole('group', { name: 'Report' });
-    expect(within(group).getByRole('button', { name: 'Hours', exact: true })).toHaveAttribute(
+    expect(within(group).getByRole('button', { name: 'Hours' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
     expect(await screen.findByRole('heading', { name: /Hours by officer/ })).toBeInTheDocument();
 
-    await user.click(within(group).getByRole('button', { name: 'Coverage', exact: true }));
-    expect(within(group).getByRole('button', { name: 'Coverage', exact: true })).toHaveAttribute(
+    await user.click(within(group).getByRole('button', { name: 'Coverage' }));
+    expect(within(group).getByRole('button', { name: 'Coverage' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
