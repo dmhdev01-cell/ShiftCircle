@@ -11,6 +11,10 @@ import ca.shiftcircle.api.security.AuthPrincipal;
 import ca.shiftcircle.rules.RuleCompilationException;
 import ca.shiftcircle.rules.RuleSetCompiler;
 import ca.shiftcircle.rules.rows.RuleRowsV1;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
@@ -18,6 +22,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -59,9 +64,19 @@ class RuleSetServiceCompileFailureTest {
     RuleSetService service =
         new RuleSetService(jdbc, compiler, mock(PublishedRuleSet.class), rows);
 
-    RuleSetService.BuildReportView report =
-        service.build(
-            2, new AuthPrincipal("t.nakamura", "T. Nakamura", List.of("ADMIN"), List.of(), null));
+    Logger ruleSetLogger = (Logger) LoggerFactory.getLogger(RuleSetService.class);
+    ListAppender<ILoggingEvent> events = new ListAppender<>();
+    events.start();
+    ruleSetLogger.addAppender(events);
+    RuleSetService.BuildReportView report;
+    try {
+      report =
+          service.build(
+              2,
+              new AuthPrincipal("t.nakamura", "T. Nakamura", List.of("ADMIN"), List.of(), null));
+    } finally {
+      ruleSetLogger.detachAppender(events);
+    }
 
     assertThat(report.errors())
         .containsExactly(
@@ -73,6 +88,19 @@ class RuleSetServiceCompileFailureTest {
     assertThat(output)
         .as("the operator gets the compiler's detail")
         .contains("rule set v2 did not compile")
+        .contains("compile oracle")
+        .contains("org.drools.generated.Rules42");
+
+    ILoggingEvent compileFailure =
+        events.list.stream()
+            .filter(event -> event.getFormattedMessage().contains("did not compile"))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("no compile-failure log event"));
+    assertThat(compileFailure.getLevel())
+        .as("the refusal is a WARN, as docs/07 says, not INFO")
+        .isEqualTo(Level.WARN);
+    assertThat(compileFailure.getThrowableProxy().getMessage())
+        .as("the level comes with the compiler's detail")
         .contains("compile oracle")
         .contains("org.drools.generated.Rules42");
   }
