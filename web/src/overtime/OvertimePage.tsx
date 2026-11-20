@@ -44,6 +44,9 @@ function statusPill(openShift: OpenShift) {
   if (openShift.status === 'FILLED') {
     return { text: 'Filled', tone: 'pass' as const };
   }
+  if (openShift.status === 'CANCELLED') {
+    return { text: 'Cancelled', tone: 'block' as const };
+  }
   if (openShift.status === 'OFFERS_SENT') {
     return { text: 'Offers sent', tone: 'ot' as const };
   }
@@ -133,6 +136,9 @@ export function OvertimePage() {
 
   const activeShift = shifts.find((shift) => shift.id === activeId);
   const payload = candidatesState.kind === 'ready' ? candidatesState.payload : undefined;
+  // A filled or cancelled shift takes no offers and no direct assignment.
+  const offersClosed =
+    activeShift?.status === 'FILLED' || activeShift?.status === 'CANCELLED';
 
   const confirmOffer = async (offerId: string) => {
     try {
@@ -366,6 +372,7 @@ export function OvertimePage() {
                 candidates={payload.candidates}
                 selected={selected}
                 onToggle={toggleOfficer}
+                offersClosed={offersClosed}
               />
 
               <Box
@@ -384,24 +391,48 @@ export function OvertimePage() {
                   Ordered (mandatory) overtime is only offered once the voluntary list is used up, in
                   reverse order, at most once per officer every 14 days (O-04).
                 </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    disabled={selected.length !== 1}
-                    onClick={startDirectAssign}
+                {offersClosed ? (
+                  <Box
+                    role="status"
+                    sx={{
+                      p: '10px 12px',
+                      borderRadius: '8px',
+                      backgroundColor:
+                        activeShift?.status === 'CANCELLED'
+                          ? colour.status.block.bg
+                          : colour.status.info.bg,
+                      color:
+                        activeShift?.status === 'CANCELLED'
+                          ? colour.status.block.text
+                          : colour.status.info.text,
+                      fontSize: 13,
+                      fontWeight: 600,
+                    }}
                   >
-                    Assign directly…
-                  </Button>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    disabled={selected.length === 0}
-                    onClick={() => void offerToSelected()}
-                  >
-                    Offer to selected ({selected.length})
-                  </Button>
-                </Box>
+                    {activeShift?.status === 'CANCELLED'
+                      ? 'This shift was cancelled. No offers can be made.'
+                      : 'This shift is filled. No offers can be made.'}
+                  </Box>
+                ) : (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      disabled={selected.length !== 1}
+                      onClick={startDirectAssign}
+                    >
+                      Assign directly…
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      disabled={selected.length === 0}
+                      onClick={() => void offerToSelected()}
+                    >
+                      Offer to selected ({selected.length})
+                    </Button>
+                  </Box>
+                )}
               </Box>
             </>
           ) : null}

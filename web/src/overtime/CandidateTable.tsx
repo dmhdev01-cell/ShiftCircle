@@ -31,6 +31,8 @@ interface CandidateTableProps {
   /** The officers the supervisor ticked. */
   selected: string[];
   onToggle: (employeeId: string) => void;
+  /** A filled or cancelled shift takes no offers. */
+  offersClosed?: boolean;
 }
 
 /**
@@ -38,7 +40,12 @@ interface CandidateTableProps {
  * the api - the overtime-ranking rule table - and officers who would break a
  * Block rule are skipped without losing their place.
  */
-export function CandidateTable({ candidates, selected, onToggle }: CandidateTableProps) {
+export function CandidateTable({
+  candidates,
+  selected,
+  onToggle,
+  offersClosed = false,
+}: CandidateTableProps) {
   return (
     <Box sx={{ overflowX: 'auto' }}>
       <table
@@ -130,7 +137,11 @@ export function CandidateTable({ candidates, selected, onToggle }: CandidateTabl
                   </Box>
                 </td>
                 <td style={{ padding: 10, borderBottom: `1px solid ${colour.border.default}` }}>
-                  {offerable ? (
+                  {offersClosed ? (
+                    <Typography component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
+                      Offers closed
+                    </Typography>
+                  ) : offerable ? (
                     <Box
                       component="label"
                       sx={{

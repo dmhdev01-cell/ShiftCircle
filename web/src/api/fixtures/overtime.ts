@@ -44,6 +44,17 @@ export const demoOpenShifts: OpenShift[] = [
     status: 'FILLED',
     reason: 'Sick call',
   },
+  {
+    id: 'os-cancelled',
+    date: '2026-11-24',
+    startAt: '2026-11-24T07:00:00-06:00',
+    endAt: '2026-11-24T15:00:00-06:00',
+    unit: { id: 'unit-b', name: 'Unit B · Living unit' },
+    shiftTemplate: 'D8',
+    needs: 1,
+    status: 'CANCELLED',
+    reason: 'Coverage no longer needed',
+  },
 ];
 
 /**

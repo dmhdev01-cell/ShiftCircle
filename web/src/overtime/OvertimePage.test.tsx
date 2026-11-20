@@ -121,6 +121,33 @@ describe('the overtime board', () => {
     saveChange.mockRestore();
   });
 
+  it('closes offers and direct assignment on a filled shift', async () => {
+    const user = userEvent.setup();
+    renderBoard();
+
+    await user.click(
+      await screen.findByRole('button', { name: /Sun 22 Nov · Nights 23:00 – 07:00 \+1/ }),
+    );
+    expect(await screen.findByText('This shift is filled. No offers can be made.')).toBeVisible();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Offer to selected/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Assign directly…' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('Offers closed').length).toBeGreaterThan(0);
+  });
+
+  it('closes offers on a cancelled shift and shows it as cancelled', async () => {
+    const user = userEvent.setup();
+    renderBoard();
+
+    const list = await screen.findByRole('region', { name: 'Open shifts' });
+    expect(within(list).getByText('Cancelled')).toBeInTheDocument();
+    await user.click(within(list).getByRole('button', { name: /Tue 24 Nov · Days 07:00 – 15:00/ }));
+
+    expect(await screen.findByText('This shift was cancelled. No offers can be made.')).toBeVisible();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Offer to selected/ })).not.toBeInTheDocument();
+  });
+
   it('shows the offer history, with a confirm action for an accepted offer', async () => {
     renderBoard();
 

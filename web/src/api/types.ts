@@ -201,7 +201,7 @@ export interface ScheduleQuery {
 
 // --- Overtime (docs/07-api-spec.md §4.3) ---
 
-export type OpenShiftStatus = 'OPEN' | 'OFFERS_SENT' | 'FILLED';
+export type OpenShiftStatus = 'OPEN' | 'OFFERS_SENT' | 'FILLED' | 'CANCELLED';
 
 export interface OpenShift {
   id: string;
