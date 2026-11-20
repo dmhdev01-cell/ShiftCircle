@@ -13,17 +13,24 @@
 
 export type RuleOutcome = 'BLOCK' | 'WARN' | 'PASS' | 'INFO';
 
+/** What a supervisor may do about a rule result (docs/05 §2 severities). */
+export type OverridePolicy = 'EMERGENCY' | 'ACKNOWLEDGE' | 'NONE';
+
+/** The evidence the api sends: a human-readable label naming the shifts involved. */
 export interface RuleEvidence {
-  assignmentId?: string;
   label?: string;
 }
 
 export interface RuleResult {
   ruleCode: string;
+  /** The decision table the row belongs to, e.g. REST (docs/04 §5). */
+  ruleTable: string;
   outcome: RuleOutcome;
   message: string;
   facts?: Record<string, unknown>;
   evidence?: RuleEvidence[];
+  /** EMERGENCY rules alone can be overridden; ACKNOWLEDGE rules are warned about. */
+  overridePolicy: OverridePolicy;
   source?: string;
 }
 
@@ -60,16 +67,18 @@ export const MISSING_ACTUALS = 'https://shiftcircle.local/problems/missing-actua
 export const WARNINGS_NEED_ACKNOWLEDGEMENT =
   'https://shiftcircle.local/problems/warnings-need-acknowledgement';
 
-export type RuleCheckChange =
-  | {
-      type: 'ASSIGN';
-      employeeId: string;
-      unitId: string;
-      shiftTemplate: string;
-      startAt: string;
-    }
-  | { type: 'MOVE'; assignmentId: string; startAt: string }
-  | { type: 'CANCEL'; assignmentId: string };
+export type RuleCheckChange = {
+  /**
+   * ASSIGN is a rostered shift; EXTRA is one picked up beyond the roster
+   * (docs/07 §3). The api has no move or cancel endpoint yet, so the screens
+   * do not send one.
+   */
+  type: 'ASSIGN' | 'EXTRA';
+  employeeId: string;
+  unitId: string;
+  shiftTemplate: string;
+  startAt: string;
+};
 
 export interface RuleCheckRequest {
   change: RuleCheckChange;
@@ -533,28 +542,16 @@ export interface BuildReport {
 
 // --- Mock sign-in (docs/09-access-control.md §4) ---
 
+/** Exactly what the api sends for a demo user (AuthController's describe()). */
 export interface DemoUser {
   id: string;
-  name: string;
+  username: string;
+  displayName: string;
   roles: string[];
-  /** The scope in words, e.g. "Units A, B". */
-  scope: string;
-}
-
-export interface MockLoginResult {
-  token: string;
-  expiresAt: string;
-  user: DemoUser;
-}
-
-// --- Mock sign-in (docs/09-access-control.md §4) ---
-
-export interface DemoUser {
-  id: string;
-  name: string;
-  roles: string[];
-  /** The scope in words, e.g. "Units A, B". */
-  scope: string;
+  /** Unit codes the user may manage, e.g. ["A", "B"]. Empty for no scope. */
+  units: string[];
+  /** The linked officer, or "" when the account has none. */
+  employeeId: string;
 }
 
 export interface MockLoginResult {
@@ -603,10 +600,6 @@ export interface ShiftCircleApi {
   getMyOffers(): Promise<MyOffer[]>;
   respondToOffer(offerId: string, response: OfferResponse): Promise<MyOffer>;
   submitProposals(note: string, items: RuleCheckChange[]): Promise<{ id: string; accepted: number }>;
-
-  // Mock sign-in.
-  getDemoUsers(): Promise<DemoUser[]>;
-  mockLogin(userId: string): Promise<MockLoginResult>;
 
   // Mock sign-in.
   getDemoUsers(): Promise<DemoUser[]>;

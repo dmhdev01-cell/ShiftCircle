@@ -173,25 +173,13 @@ export function createHttpApi(): ShiftCircleApi {
     },
 
     saveChange(save: SaveRequest): Promise<SaveOutcome> {
-      const { change } = save;
       const body = JSON.stringify({
-        change,
+        change: save.change,
         ...(save.acknowledgeWarnings ? { acknowledgeWarnings: save.acknowledgeWarnings } : {}),
         ...(save.override ? { override: save.override } : {}),
       });
-
-      if (change.type === 'MOVE') {
-        return request<SaveOutcome>(`/assignments/${change.assignmentId}`, {
-          method: 'PATCH',
-          body,
-        });
-      }
-      if (change.type === 'CANCEL') {
-        return request<SaveOutcome>(`/assignments/${change.assignmentId}`, {
-          method: 'DELETE',
-          body,
-        });
-      }
+      // The api creates a rostered (ASSIGN) or extra (EXTRA) shift here. It has
+      // no move or cancel endpoint yet, so the screens never send one.
       return request<SaveOutcome>('/assignments', {
         method: 'POST',
         body,

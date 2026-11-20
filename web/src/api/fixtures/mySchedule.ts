@@ -111,7 +111,9 @@ export const demoMyOffers: MyOffer[] = [
     ruleResults: [
       {
         ruleCode: 'U-01',
+        ruleTable: 'REST',
         outcome: 'PASS',
+        overridePolicy: 'EMERGENCY',
         message: '56 hours of rest before the shift. The minimum is 8 consecutive hours.',
       },
     ],

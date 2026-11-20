@@ -71,22 +71,28 @@ function wait(ms: number): Promise<void> {
 const PC01_RESULTS: RuleResult[] = [
   {
     ruleCode: 'U-01',
+    ruleTable: 'REST',
     outcome: 'BLOCK',
+    overridePolicy: 'EMERGENCY',
     message:
       "Only 7 hours' rest after the 12 h shift ending Fri 24:00. The minimum is 8 consecutive hours in any 24 hours.",
     facts: { restHours: 7, minHours: 8 },
-    evidence: [{ assignmentId: 'a-nia-20', label: 'Fri 20 P12 12:00–24:00' }],
+    evidence: [{ label: 'Fri 20 P12 12:00–24:00' }],
     source: 'Saskatchewan Employment Act',
   },
   {
     ruleCode: 'U-05',
+    ruleTable: 'MAX_HOURS',
     outcome: 'BLOCK',
+    overridePolicy: 'EMERGENCY',
     message: '17 hours of work in 24 hours (Fri 12:00 – Sat 12:00).',
     facts: { hours: 17, maxHours: 16 },
   },
   {
     ruleCode: 'U-14',
+    ruleTable: 'MAX_HOURS',
     outcome: 'WARN',
+    overridePolicy: 'ACKNOWLEDGE',
     message: '52 hours this week, over the 48 h warning level.',
   },
 ];
@@ -98,7 +104,9 @@ const PC01_RESULTS: RuleResult[] = [
 const ZERO_REST_RESULTS: RuleResult[] = [
   {
     ruleCode: 'U-01',
+    ruleTable: 'REST',
     outcome: 'BLOCK',
+    overridePolicy: 'EMERGENCY',
     message:
       'No rest after the 12 h shift that ends Wed 25 Nov 24:00. The minimum is 8 consecutive hours in any 24 hours.',
     facts: { restHours: 0, minHours: 8 },
@@ -109,7 +117,9 @@ const ZERO_REST_RESULTS: RuleResult[] = [
 const WARN_ONLY_RESULTS: RuleResult[] = [
   {
     ruleCode: 'U-14',
+    ruleTable: 'MAX_HOURS',
     outcome: 'WARN',
+    overridePolicy: 'ACKNOWLEDGE',
     message: '52 hours this week, over the 48 h warning level.',
   },
 ];
@@ -180,7 +190,9 @@ function evaluate(request: RuleCheckRequest): RuleCheckOutcome {
     ruleResults: [
       {
         ruleCode: 'U-01',
+        ruleTable: 'REST',
         outcome: 'PASS',
+        overridePolicy: 'EMERGENCY',
         message:
           '12 hours of rest after the previous shift. The minimum is 8 consecutive hours in any 24 hours.',
         facts: { restHours: 12, minHours: 8 },
@@ -227,9 +239,6 @@ export function createFixtureApi(): ShiftCircleApi {
 
     async saveChange(request: SaveRequest): Promise<SaveOutcome> {
       await wait(LATENCY_MS);
-      if (request.change.type !== 'ASSIGN') {
-        throw new ApiError('The fixture api only answers an assignment.', 501);
-      }
       const outcome = evaluate({
         change: request.change,
         ...(request.acknowledgeWarnings ? { acknowledgeWarnings: request.acknowledgeWarnings } : {}),
@@ -457,7 +466,7 @@ export function createFixtureApi(): ShiftCircleApi {
       // It is about the signed-in identity, not about who created it: another
       // approver must be able to approve an L. Fraser draft.
       const actor = getSessionUser();
-      if (actor && actor.name === ruleSet.createdBy) {
+      if (actor && actor.displayName === ruleSet.createdBy) {
         throw new ApiError('You created this version. Another approver must review it.', 403);
       }
       ruleSet.status = 'APPROVED';

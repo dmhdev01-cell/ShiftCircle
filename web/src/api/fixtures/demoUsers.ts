@@ -1,6 +1,7 @@
 /**
  * The demo users for the mock sign-in (docs/09-access-control.md §4). They are
- * fictional, and the list is the one the api sends.
+ * fictional, and the list is the shape the api sends: units are codes, and an
+ * account without an officer has an empty employeeId.
  */
 
 import type { DemoUser } from '../types';
@@ -8,44 +9,58 @@ import type { DemoUser } from '../types';
 export const demoUsers: DemoUser[] = [
   {
     id: 'm-ellis',
-    name: 'M. Ellis',
+    username: 'm.ellis',
+    displayName: 'M. Ellis',
     roles: ['SUPERVISOR', 'EMPLOYEE'],
-    scope: 'Units A, B',
+    units: ['A', 'B'],
+    employeeId: '',
   },
   {
     id: 'j-chen',
-    name: 'J. Chen',
+    username: 'j.chen',
+    displayName: 'J. Chen',
     roles: ['SUPERVISOR', 'EMPLOYEE'],
-    scope: 'Admissions, Control, Escort & transport',
+    units: ['ADM', 'CTL', 'ESC'],
+    employeeId: '',
   },
   {
     id: 't-nakamura',
-    name: 'T. Nakamura',
+    username: 't.nakamura',
+    displayName: 'T. Nakamura',
     roles: ['EMPLOYEE'],
-    scope: 'No unit scope',
+    units: [],
+    employeeId: '',
   },
   {
     id: 'l-fraser',
-    name: 'L. Fraser',
+    username: 'l.fraser',
+    displayName: 'L. Fraser',
     roles: ['RULES_ADMIN'],
-    scope: 'No unit scope',
+    units: [],
+    employeeId: '',
   },
   {
     id: 'p-singh',
-    name: 'P. Singh',
+    username: 'p.singh',
+    displayName: 'P. Singh',
     roles: ['RULES_APPROVER'],
-    scope: 'No unit scope',
+    units: [],
+    employeeId: '',
   },
   {
     id: 'a-reviewer',
-    name: 'A. Reviewer',
+    username: 'a.reviewer',
+    displayName: 'A. Reviewer',
     roles: ['AUDITOR'],
-    scope: 'All units',
+    units: ['A', 'B', 'C', 'ADM', 'CTL', 'ESC'],
+    employeeId: '',
   },
   {
     id: 'unit-office-tv',
-    name: 'Unit office TV',
+    username: 'tv.display',
+    displayName: 'Unit office TV',
     roles: ['DISPLAY'],
-    scope: 'All units (counts only)',
+    units: ['A', 'B', 'C', 'ADM', 'CTL', 'ESC'],
+    employeeId: '',
   },
 ];

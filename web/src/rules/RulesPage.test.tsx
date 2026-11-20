@@ -203,9 +203,11 @@ describe('Rules admin', () => {
     demoRuleSets[1].status = 'SUBMITTED';
     setSession('test-token', {
       id: 'l-fraser',
-      name: 'L. Fraser',
+      username: 'l.fraser',
+      displayName: 'L. Fraser',
       roles: ['RULES_APPROVER'],
-      scope: 'No unit scope',
+      units: [],
+      employeeId: '',
     });
     renderRules();
 
@@ -219,17 +221,21 @@ describe('Rules admin', () => {
 
     setSession('test-token', {
       id: 'l-fraser',
-      name: 'L. Fraser',
+      username: 'l.fraser',
+      displayName: 'L. Fraser',
       roles: ['RULES_ADMIN'],
-      scope: 'No unit scope',
+      units: [],
+      employeeId: '',
     });
     await expect(api.approveRuleSet(8)).rejects.toThrow(/Another approver must review it/);
 
     setSession('test-token-2', {
       id: 'p-singh',
-      name: 'P. Singh',
+      username: 'p.singh',
+      displayName: 'P. Singh',
       roles: ['RULES_APPROVER'],
-      scope: 'No unit scope',
+      units: [],
+      employeeId: '',
     });
     const approved = await api.approveRuleSet(8);
     expect(approved.status).toBe('APPROVED');

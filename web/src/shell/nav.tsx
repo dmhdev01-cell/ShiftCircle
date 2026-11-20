@@ -20,7 +20,7 @@ const RoleContext = createContext<RoleContextValue | null>(null);
 
 function demoUserFor(roleId: Role): DemoUser | null {
   const name = DEMO_USER_FOR_ROLE[roleId];
-  return demoUsers.find((user) => user.name === name) ?? null;
+  return demoUsers.find((user) => user.displayName === name) ?? null;
 }
 
 /**
@@ -40,7 +40,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     const role = session.user ? roleForUser(session.user) : (roles.find((r) => r.id === chosenRoleId) ?? roles[0]);
     return {
       role,
-      userName: session.user?.name ?? role.user,
+      userName: session.user?.displayName ?? role.user,
       setRole: (next: Role) => {
         setChosenRoleId(next);
         if (usingFixtures) setActingUser(demoUserFor(next));

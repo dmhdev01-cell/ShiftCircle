@@ -19,22 +19,28 @@ const blockedOutcome: RuleCheckOutcome = {
   ruleResults: [
     {
       ruleCode: 'U-01',
+      ruleTable: 'REST',
       outcome: 'BLOCK',
+      overridePolicy: 'EMERGENCY',
       message:
         "Only 7 hours' rest after the 12 h shift ending Fri 24:00. The minimum is 8 consecutive hours in any 24 hours.",
       facts: { restHours: 7, minHours: 8 },
-      evidence: [{ assignmentId: 'a-nia-20', label: 'Fri 20 P12 12:00–24:00' }],
+      evidence: [{ label: 'Fri 20 P12 12:00–24:00' }],
       source: 'Saskatchewan Employment Act',
     },
     {
       ruleCode: 'U-05',
+      ruleTable: 'MAX_HOURS',
       outcome: 'BLOCK',
+      overridePolicy: 'EMERGENCY',
       message: '17 hours of work in 24 hours (Fri 12:00 – Sat 12:00).',
       facts: { hours: 17, maxHours: 16 },
     },
     {
       ruleCode: 'U-14',
+      ruleTable: 'MAX_HOURS',
       outcome: 'WARN',
+      overridePolicy: 'ACKNOWLEDGE',
       message: '52 hours this week, over the 48 h warning level.',
     },
   ],
@@ -105,14 +111,29 @@ describe('the rule-check panel', () => {
     expect(screen.getByText(/Rule tables v7/)).toBeInTheDocument();
   });
 
-  it('offers the emergency override only when the rules allow it', () => {
+  it('offers the emergency override only when every blocking rule allows one', () => {
     const { unmount } = renderPanel();
     expect(screen.getByRole('button', { name: 'Emergency override…' })).toBeInTheDocument();
     unmount();
 
+    // U-08 is a Block row whose override policy is acknowledge, not emergency
+    // (docs/05 §2), so the api refuses an override and the screen must not
+    // offer the dialog.
     renderPanel({
       ...blockedState,
-      outcome: { ...blockedOutcome, overridable: false },
+      outcome: {
+        ...blockedOutcome,
+        overridable: false,
+        ruleResults: [
+          {
+            ruleCode: 'U-08',
+            ruleTable: 'CONSECUTIVE',
+            outcome: 'BLOCK',
+            overridePolicy: 'ACKNOWLEDGE',
+            message: 'A 6th day in a row is not allowed.',
+          },
+        ],
+      },
     });
     expect(screen.queryByRole('button', { name: 'Emergency override…' })).not.toBeInTheDocument();
   });
@@ -132,7 +153,9 @@ describe('the rule-check panel', () => {
         ruleResults: [
           {
             ruleCode: 'U-01',
+            ruleTable: 'REST',
             outcome: 'PASS',
+            overridePolicy: 'EMERGENCY',
             message: '12 hours of rest after the previous shift.',
           },
         ],
@@ -149,7 +172,13 @@ describe('the rule-check panel', () => {
         ruleSetVersion: 7,
         overridable: true,
         ruleResults: [
-          { ruleCode: 'U-14', outcome: 'WARN', message: '52 hours this week, over the 48 h warning level.' },
+          {
+            ruleCode: 'U-14',
+            ruleTable: 'MAX_HOURS',
+            outcome: 'WARN',
+            overridePolicy: 'ACKNOWLEDGE',
+            message: '52 hours this week, over the 48 h warning level.',
+          },
         ],
       },
     });

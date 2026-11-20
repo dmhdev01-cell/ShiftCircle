@@ -108,6 +108,12 @@ export function RuleCheckPanel({
     (result) => !state.acknowledged.includes(result.ruleCode),
   );
 
+  // Only rules whose override policy is EMERGENCY can be overridden; if any
+  // blocking result is a plain acknowledgement, the api would refuse an
+  // override, so the screen does not offer one (docs/07 §3).
+  const canOverride =
+    blocking.length > 0 && blocking.every((result) => result.overridePolicy === 'EMERGENCY');
+
   // Only one yellow button on the screen.
   const showAcknowledge = unacknowledged.length > 0 && blocking.length === 0;
   const showSave =
@@ -214,7 +220,7 @@ export function RuleCheckPanel({
                   {[
                     result.source ? `Source: ${result.source}` : null,
                     result.evidence && result.evidence.length > 0
-                      ? `Evidence: ${result.evidence.map((item) => item.label ?? item.assignmentId ?? '').filter(Boolean).join(', ')}`
+                      ? `Evidence: ${result.evidence.map((item) => item.label ?? '').filter(Boolean).join(', ')}`
                       : null,
                   ]
                     .filter(Boolean)
@@ -260,7 +266,7 @@ export function RuleCheckPanel({
           </Button>
         )}
 
-        {blocking.length > 0 && outcome?.overridable ? (
+        {canOverride ? (
           <Button variant="outlined" color="error" onClick={onOverride}>
             Emergency override…
           </Button>

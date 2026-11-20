@@ -3,6 +3,7 @@ import { cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
 
 import { resetFixtures } from '../api/fixtures/api';
+import { resetSession } from '../api/session';
 import { invalidateVersionCache } from '../api/useVersion';
 
 /**
@@ -27,6 +28,7 @@ if (typeof URL.createObjectURL !== 'function') {
 beforeEach(() => {
   invalidateVersionCache();
   resetFixtures();
+  resetSession();
   vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({})));
 });
 

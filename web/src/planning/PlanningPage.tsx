@@ -361,21 +361,6 @@ export function PlanningPage() {
           officer={shiftActions.officer}
           item={shiftActions.item}
           onClose={() => setShiftActions(null)}
-          onMove={(startAt) => {
-            setShiftActions(null);
-            void mutation.preview({
-              type: 'MOVE',
-              assignmentId: shiftActions.item.assignmentId,
-              startAt,
-            });
-          }}
-          onCancelShift={() => {
-            setShiftActions(null);
-            void mutation.preview({
-              type: 'CANCEL',
-              assignmentId: shiftActions.item.assignmentId,
-            });
-          }}
         />
       ) : null}
 

@@ -14,6 +14,11 @@ import { colour } from '../theme/tokens';
 
 const MOCK_SIGN_IN_OFF = 'Mock sign-in is turned off in this environment.';
 
+/** The scope line the picker shows, in plain words from the unit codes. */
+function scopeLine(user: DemoUser): string {
+  return user.units.length === 0 ? 'No unit scope' : `Units ${user.units.join(', ')}`;
+}
+
 /**
  * The mock sign-in picker (docs/09-access-control.md §4,
  * docs/ui/build-notes.md §2.1). It lists the fictional demo users; picking
@@ -148,13 +153,13 @@ export function LoginPage() {
                   }}
                 >
                   <Box component="span" sx={{ fontSize: 15, fontWeight: 700 }}>
-                    {user.name}
+                    {user.displayName}
                   </Box>
                   <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
                     {user.roles.map((role) => ROLE_WORDS[role] ?? role).join(' · ')}
                   </Box>
                   <Box component="span" sx={{ fontSize: 12, color: colour.text.muted }}>
-                    {user.scope}
+                    {scopeLine(user)}
                   </Box>
                 </Box>
               ))
