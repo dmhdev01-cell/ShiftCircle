@@ -8,7 +8,7 @@ import { tabTo } from './support';
  */
 
 test.describe('keyboard only', () => {
-  test('E1: reach the PC-01 block, open the override, and back out', async ({ page }) => {
+  test('@fixtures E1: reach the PC-01 block, open the override, and back out', async ({ page }) => {
     await page.goto('/login');
     await tabTo(page, page.getByRole('button', { name: /M\. Ellis/ }));
     await page.keyboard.press('Enter');
@@ -33,7 +33,7 @@ test.describe('keyboard only', () => {
     await expect(page.getByRole('button', { name: 'Emergency override…' })).toBeFocused();
   });
 
-  test('E1: the skip link goes straight to the roster', async ({ page }) => {
+  test('@fixtures E1: the skip link goes straight to the roster', async ({ page }) => {
     await page.goto('/login');
     await tabTo(page, page.getByRole('button', { name: /M\. Ellis/ }));
     await page.keyboard.press('Enter');

@@ -51,7 +51,7 @@ test.describe('E3 rule change with maker/checker', () => {
     await expect(page.getByText(/Version \d+ is live from/)).toBeVisible();
   });
 
-  test('a supervisor can read the rules but not build, submit, approve or publish', async ({ page }) => {
+  test('@fixtures a supervisor can read the rules but not build, submit, approve or publish', async ({ page }) => {
     await signIn(page, 'M. Ellis');
     await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Rules' }).click();
     await expect(page.getByRole('heading', { name: 'Rest between shifts' })).toBeVisible();

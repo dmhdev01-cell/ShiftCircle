@@ -107,6 +107,21 @@ const OUTCOME_TEXT = {
  * What the api said about this offer. The screen never claims a check it was
  * not given: with no rule results there is nothing to claim.
  */
+/** The answer line for an offer, from this visit or from the api's status. */
+function answerFor(offer: MyOffer, answers: Record<string, string>): string | null {
+  if (answers[offer.id]) return answers[offer.id];
+  switch (offer.status) {
+    case 'ACCEPTED':
+      return 'Accepted. Your supervisor will confirm the assignment.';
+    case 'DECLINED':
+      return 'Declined. Thank you - your supervisor has been told.';
+    case 'CONFIRMED':
+      return 'Confirmed by your supervisor. The shift is on your schedule.';
+    default:
+      return null;
+  }
+}
+
 function offerCheck(offer: MyOffer) {
   const results = offer.ruleResults;
   if (!results || results.length === 0) {
@@ -512,7 +527,7 @@ export function MySchedulePage() {
                 ) : null}
               </Box>
 
-              {answers[offer.id] ? (
+              {answerFor(offer, answers) ? (
                 <Box
                   role="status"
                   sx={{
@@ -523,7 +538,7 @@ export function MySchedulePage() {
                     fontWeight: 600,
                   }}
                 >
-                  {answers[offer.id]}
+                  {answerFor(offer, answers)}
                 </Box>
               ) : (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>

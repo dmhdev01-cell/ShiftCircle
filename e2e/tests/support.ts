@@ -21,6 +21,11 @@ export async function signIn(page: Page, displayName: string): Promise<void> {
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeHidden();
 }
 
+/** Pick the unit a flow is about (the planning board defaults to the first in scope). */
+export async function selectUnit(page: Page, name: string): Promise<void> {
+  await page.getByLabel('Unit').first().selectOption({ label: name });
+}
+
 /** Sign out through the account menu; lands on the sign-in screen. */
 export async function signOut(page: Page, displayName: string): Promise<void> {
   await page.getByRole('button', { name: `Account menu for ${displayName}` }).click();

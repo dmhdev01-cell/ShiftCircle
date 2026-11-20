@@ -218,7 +218,8 @@ export function createHttpApi(): ShiftCircleApi {
     },
 
     getMyOffers(): Promise<MyOffer[]> {
-      return request<MyOffer[]>('/me/offers?status=OFFERED');
+      // All of this officer's offers, so an accepted or confirmed one stays visible.
+      return request<MyOffer[]>('/me/offers');
     },
 
     respondToOffer(offerId: string, response: OfferResponse): Promise<MyOffer> {

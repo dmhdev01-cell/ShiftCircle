@@ -57,7 +57,7 @@ These are the verification cases. Pick 2–5 for the build record (recommended: 
 | ID | Scenario | Expected |
 |---|---|---|
 | T1 | Assign a day shift to a rested, qualified officer under the threshold | Saved; all rules PASS |
-| T2 | 12 h shift Fri 12:00–24:00; assign a Day 8 h shift Sat 07:00 (7 h rest; 17 h in 24 h) (planted **PC-01**) | **BLOCK** U-01 and U-05; message names both shifts; nothing saved |
+| T2 | 12 h shift Fri 12:00–24:00; assign a Day 8 h shift Sat 07:00 (7 h rest; 17 h in 24 h) (planted **PC-01**) | **BLOCK** U-01 and U-05; message names both shifts; nothing saved. U-14 also blocks when the proposal takes the week over the 60 h ceiling (it does for the demo's Nia) |
 | T3 | **Boundary:** Night 8 h ends 07:00; Evening starts 15:00 (exactly 8 h) (planted **PC-02**) | U-01 PASS; U-02 WARN; saves after acknowledgement |
 | T4 | A 16 h shift 20:00–12:00, then a shift starting 20:00 the same day (8 h rest) | U-01 PASS (exactly 8 h), **BLOCK** U-03 (needs 12 h after a 16 h shift) |
 | T5 | Fifth consecutive 12 h overnight 00–12 shift (planted **PC-04**) | WARN U-10; saves after acknowledgement |
@@ -144,14 +144,14 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 
 | ID | What | Where |
 |---|---|---|
-| PC-01 | Nia Thompson: P12 Fri 20 Nov 12:00–24:00; a pending supervisor proposal to assign her D8 Sat 21 Nov 07:00 (7 h rest, 17 h in 24 h: blocked) | Unit B |
+| PC-01 | Nia Thompson: P12 Fri 20 Nov 12:00–24:00; assigning her D8 Sat 21 Nov 07:00 is blocked by U-01 (7 h rest), U-05 (17 h in 24 h) and U-14 (the week passes 60 h) | Unit B |
 | PC-02 | An officer with N8 ending Thu 26 Nov 07:00 and an E8 slot open at 15:00 (exactly 8 h) | Unit A |
 | PC-03 | Shift starting **Tue 3 Nov** 20:00 (`work_date` = 3 Nov, start-date convention) and ending **Wed 4 Nov** 13:00: an officer worked 17 h (16 h shift 20:00–12:00 + 1 h extension to 13:00) with override reason "Lockdown, relief unavailable" | Unit C |
 | PC-04 | Piotr Kowalczyk: four consecutive A12 (00:00–12:00) ending Mon 23 Nov, with a fifth available | Control |
 | PC-05 | Pay period 26 Oct – 8 Nov, LOCKED, with officers under, exactly at and over the 80 h threshold, and a 29-minute extension (unpaid) | All |
 | PC-06 | At least three 4-night runs in the published roster (for the dry-run test T7) | Mixed |
 | PC-07 | Two officers with identical OT hours this quarter, different seniority | Unit A |
-| PC-08 | Open shift Sat 21 Nov Unit B Days with candidates matching the UI's Overtime board | Unit B |
+| PC-08 | Open shift Sat 21 Nov Unit B Days with candidates matching the UI's Overtime board; Tara Nakamura (the demo employee account) is free to take it | Unit B |
 | PC-09 | An officer without CONTROL qualification ranked first for a Control open shift | Control |
 
 ### 6.7 Self-check (generator fails the build if any is false)

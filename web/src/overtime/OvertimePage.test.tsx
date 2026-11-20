@@ -138,6 +138,14 @@ describe('the overtime board', () => {
     expect(screen.queryByRole('heading', { name: /Sat 21 Nov · Days/ })).not.toBeInTheDocument();
   });
 
+  it('matches a link whose instant is written in UTC', async () => {
+    renderBoard(`/overtime?unit=unit-b&startAt=${encodeURIComponent('2026-11-21T13:00:00Z')}`);
+
+    expect(
+      await screen.findByRole('heading', { name: /Sat 21 Nov · Days/ }),
+    ).toBeInTheDocument();
+  });
+
   it('matches a link that names the unit and start instead of the shift id', async () => {
     renderBoard(
       `/overtime?unit=admissions&startAt=${encodeURIComponent('2026-11-22T23:00:00-06:00')}`,

@@ -63,7 +63,9 @@ public class OvertimeService {
       double overtimeHoursThisQuarter, String seniorityDate, String eligibility, String reason,
       List<RuleCheckService.ResultView> ruleResults) {}
 
-  public record OfferRecordView(String at, String employeeId, String employeeName, String status) {}
+  /** The offer id lets the supervisor's board confirm the exact offer the employee answered. */
+  public record OfferRecordView(
+      String id, String at, String employeeId, String employeeName, String status) {}
 
   public record CandidatesPayload(
       OpenShiftView openShift, List<CandidateView> candidates, int ruleSetVersion,
@@ -526,7 +528,11 @@ public class OvertimeService {
         "assignmentId", assignmentId.toString(), "employeeId", employeeId.toString()));
 
     return new OfferRecordView(
-        formatInstant(Instant.now()), employeeId.toString(), employeeName(employeeId), "CONFIRMED");
+        offerId.toString(),
+        formatInstant(Instant.now()),
+        employeeId.toString(),
+        employeeName(employeeId),
+        "CONFIRMED");
   }
 
   @Transactional
@@ -675,13 +681,14 @@ public class OvertimeService {
   private List<OfferRecordView> history(UUID openShiftId) {
     List<OfferRecordView> history = new ArrayList<>();
     jdbc.query(
-        "SELECT oo.employee_id, oo.status, oo.offered_at, e.first_name, e.last_name"
+        "SELECT oo.id, oo.employee_id, oo.status, oo.offered_at, e.first_name, e.last_name"
             + " FROM overtime_offer oo JOIN employee e ON e.id = oo.employee_id"
             + " WHERE oo.open_shift_id = ? ORDER BY oo.rank NULLS LAST, oo.offered_at",
         (org.springframework.jdbc.core.RowCallbackHandler)
             resultSet ->
                 history.add(
                     new OfferRecordView(
+                        resultSet.getObject("id").toString(),
                         OFFER_TIME.format(
                             resultSet.getTimestamp("offered_at").toInstant().atZone(REGINA)),
                         resultSet.getObject("employee_id").toString(),
