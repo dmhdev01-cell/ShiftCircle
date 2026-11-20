@@ -117,6 +117,11 @@ Content-Type: application/problem+json
 | POST | `/schedule-periods/{id}/publish` | Publish a period | SUPERVISOR |
 | POST | `/absences` | Record sick, vacation or other (type only) | SUPERVISOR |
 
+Publishing is one-way in the prototype: it sets the period to `PUBLISHED`, records `published_at` and
+`published_by`, writes a `publish_schedule_period` audit row and answers `{id, status, publishedAt}`.
+A second publish answers `409`; an unknown period is `404`, and another unit's period is also `404`
+so its existence is not revealed. The board's `publishedState.published` reads the same rows.
+
 **Coverage per block (ADR-013 revised, ADR-017):** coverage is hourly, so one number per block can hide a short hour. `GET /schedule` returns a flat `coverage` array (one entry per block per day); `GET /display/today` uses the same block shape. Each entry carries:
 
 ```json

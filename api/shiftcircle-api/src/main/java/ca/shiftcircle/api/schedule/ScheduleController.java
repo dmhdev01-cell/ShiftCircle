@@ -10,6 +10,8 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,12 +26,17 @@ public class ScheduleController {
 
   private final ScheduleQuery scheduleQuery;
   private final MyScheduleQuery myScheduleQuery;
+  private final SchedulePeriodService schedulePeriods;
   private final ScopeGuard scopeGuard;
 
   public ScheduleController(
-      ScheduleQuery scheduleQuery, MyScheduleQuery myScheduleQuery, ScopeGuard scopeGuard) {
+      ScheduleQuery scheduleQuery,
+      MyScheduleQuery myScheduleQuery,
+      SchedulePeriodService schedulePeriods,
+      ScopeGuard scopeGuard) {
     this.scheduleQuery = scheduleQuery;
     this.myScheduleQuery = myScheduleQuery;
+    this.schedulePeriods = schedulePeriods;
     this.scopeGuard = scopeGuard;
   }
 
@@ -38,6 +45,13 @@ public class ScheduleController {
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
     return myScheduleQuery.forEmployee(scopeGuard.principal(), from, to);
+  }
+
+  /** docs/07 §4.2: a supervisor publishes their unit's week; the board then shows it published. */
+  @PostMapping("/schedule-periods/{id}/publish")
+  @PreAuthorize("hasRole('SUPERVISOR')")
+  public SchedulePeriodService.PublishedPeriod publishPeriod(@PathVariable UUID id) {
+    return schedulePeriods.publish(id, scopeGuard.principal());
   }
 
   @GetMapping("/schedule")
