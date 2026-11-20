@@ -11,14 +11,14 @@ import {
 } from '../theme/tokens';
 import type { ChipStyle } from '../theme/tokens';
 
-function chipBox(style: ChipStyle) {
+function chipBox(style: ChipStyle, compact: boolean) {
   return {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 1,
-    minWidth: 52,
-    height: 30,
+    minWidth: compact ? 0 : 52,
+    height: compact ? 26 : 30,
     px: 2,
     borderRadius: '6px',
     backgroundColor: style.bg,
@@ -42,6 +42,8 @@ interface ShiftChipProps {
   offer?: boolean;
   /** Proposed, and the rules blocked it. */
   proposed?: boolean;
+  /** The smaller chip for the month calendar. */
+  compact?: boolean;
 }
 
 /**
@@ -56,6 +58,7 @@ export function ShiftChip({
   worked = false,
   offer = false,
   proposed = false,
+  compact = false,
 }: ShiftChipProps) {
   const text = chipTextFor(template);
 
@@ -78,7 +81,7 @@ export function ShiftChip({
   const what = shiftTemplates[template]?.label ?? template;
 
   return (
-    <Box component="span" title={`${what} · ${times}`} sx={chipBox(style)}>
+    <Box component="span" title={`${what} · ${times}`} sx={chipBox(style, compact)}>
       {worked ? '✓ ' : ''}
       {label}
     </Box>
@@ -91,7 +94,7 @@ export function AbsenceChip({ absenceType }: { absenceType: string }) {
   const label = absenceType === 'VACATION' ? 'Vac' : 'Sick';
 
   return (
-    <Box component="span" title={label} sx={chipBox(style)}>
+    <Box component="span" title={label} sx={chipBox(style, false)}>
       {label}
     </Box>
   );
@@ -100,7 +103,7 @@ export function AbsenceChip({ absenceType }: { absenceType: string }) {
 /** A day off. */
 export function OffChip() {
   return (
-    <Box component="span" title="Off" sx={chipBox(offChipStyle)}>
+    <Box component="span" title="Off" sx={chipBox(offChipStyle, false)}>
       Off
     </Box>
   );

@@ -257,6 +257,8 @@ export interface MyNextShift {
 }
 
 export interface MySchedulePayload {
+  /** The server's "today". Not in the contract yet. */
+  asOf?: string;
   employee: {
     id: string;
     name: string;

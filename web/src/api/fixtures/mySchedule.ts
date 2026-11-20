@@ -57,12 +57,13 @@ const shifts: DayCell[] = days.map((date) => {
 });
 
 export const demoMySchedule: MySchedulePayload = {
+  asOf: '2026-11-19',
   employee: {
     id: DEMO_EMPLOYEE_ID,
     name: 'Sam Abara',
     role: 'Correctional officer',
     unit: { id: 'unit-b', name: 'Unit B · Living unit' },
-    rotation: '8 h · Escort',
+    rotation: '8 h rotation',
     qualifications: ['ESCORT'],
   },
   nextShift: {

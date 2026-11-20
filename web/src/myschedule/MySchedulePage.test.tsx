@@ -1,0 +1,118 @@
+import { describe, expect, it } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
+import { ThemeProvider } from '@mui/material/styles';
+
+import { AppShellRoutes } from '../App';
+import { RoleProvider } from '../shell/nav';
+import { theme } from '../theme/theme';
+
+function renderMySchedule() {
+  return render(
+    <ThemeProvider theme={theme}>
+      <RoleProvider>
+        <MemoryRouter initialEntries={['/me/schedule']}>
+          <AppShellRoutes />
+        </MemoryRouter>
+      </RoleProvider>
+    </ThemeProvider>,
+  );
+}
+
+describe('the employee My schedule', () => {
+  it('shows the officer and their own hours', async () => {
+    renderMySchedule();
+
+    expect(await screen.findByRole('heading', { name: 'My schedule' })).toBeInTheDocument();
+    expect(await screen.findByText(/Sam Abara · Correctional officer/)).toBeInTheDocument();
+    expect(screen.getByText('72')).toBeInTheDocument();
+    expect(screen.getByText('of 80 h')).toBeInTheDocument();
+    expect(screen.getByText('60 h worked · 12 h still scheduled')).toBeInTheDocument();
+    expect(screen.getByText('8.0 h')).toBeInTheDocument();
+    expect(screen.getByText(/Rank 41 of 100 on the overtime list/)).toBeInTheDocument();
+  });
+
+  it('shows the next shift with the ADR-015 times', async () => {
+    renderMySchedule();
+
+    expect(await screen.findByText('Next shift')).toBeInTheDocument();
+    expect(screen.getByText(/23:00 – 07:00 \+1/)).toBeInTheDocument();
+    expect(screen.getByText(/Night 8 h · Unit B/)).toBeInTheDocument();
+  });
+
+  it('shows a month calendar with the weekday headings', async () => {
+    renderMySchedule();
+
+    expect(await screen.findByRole('button', { name: 'Previous month' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next month' })).toBeInTheDocument();
+    for (const day of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']) {
+      expect(screen.getAllByText(day).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('shows the overtime offer with Accept and Decline', async () => {
+    renderMySchedule();
+
+    const offer = await screen.findByRole('region', { name: 'Overtime offer' });
+    expect(within(offer).getByText('Sat 21 Nov · Evening 8 h 15:00 – 23:00')).toBeInTheDocument();
+    expect(within(offer).getByText(/offered by M. Ellis at 14:20/)).toBeInTheDocument();
+    expect(within(offer).getByText('Rules OK for you')).toBeInTheDocument();
+    expect(within(offer).getByRole('button', { name: 'Accept' })).toBeInTheDocument();
+    expect(within(offer).getByRole('button', { name: 'Decline' })).toBeInTheDocument();
+  });
+
+  it('records the acceptance and says the supervisor confirms it', async () => {
+    const user = userEvent.setup();
+    renderMySchedule();
+
+    const offer = await screen.findByRole('region', { name: 'Overtime offer' });
+    await user.click(within(offer).getByRole('button', { name: 'Accept' }));
+
+    expect(
+      await screen.findByText('Accepted. Your supervisor will confirm the assignment.'),
+    ).toBeInTheDocument();
+  });
+
+  it('records the decline', async () => {
+    const user = userEvent.setup();
+    renderMySchedule();
+
+    const offer = await screen.findByRole('region', { name: 'Overtime offer' });
+    await user.click(within(offer).getByRole('button', { name: 'Decline' }));
+
+    expect(await screen.findByText(/Declined/)).toBeInTheDocument();
+  });
+
+  it('checks the rules on a proposed shift and shows the block', async () => {
+    const user = userEvent.setup();
+    renderMySchedule();
+
+    const planner = await screen.findByRole('region', { name: 'Propose shifts' });
+    await user.click(within(planner).getByRole('button', { name: 'Add a shift' }));
+
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: /A12 · 12 h 00–12/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'Add and check the rules' }));
+
+    // The A12 the day after a P12 leaves no rest, so the rules block it.
+    expect(await screen.findByText('Blocked')).toBeInTheDocument();
+    expect(screen.getByText(/No rest after the 12 h shift that ends Wed 25 Nov 24:00/)).toBeInTheDocument();
+  });
+
+  it('will not send a proposal without a note to the supervisor', async () => {
+    renderMySchedule();
+
+    const planner = await screen.findByRole('region', { name: 'Propose shifts' });
+    expect(within(planner).getByRole('button', { name: 'Send to supervisor' })).toBeDisabled();
+  });
+
+  it('shows no colleague hours or absences', async () => {
+    renderMySchedule();
+
+    expect(await screen.findByText(/Sam Abara/)).toBeInTheDocument();
+    // Only the signed-in officer appears.
+    expect(screen.queryByText('Tara Nakamura')).not.toBeInTheDocument();
+    expect(screen.queryByText('Ruth Okafor')).not.toBeInTheDocument();
+  });
+});

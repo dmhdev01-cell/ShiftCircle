@@ -20,6 +20,10 @@ const OvertimePage = lazy(() =>
   import('./overtime/OvertimePage').then((module) => ({ default: module.OvertimePage })),
 );
 
+const MySchedulePage = lazy(() =>
+  import('./myschedule/MySchedulePage').then((module) => ({ default: module.MySchedulePage })),
+);
+
 function RouteFallback() {
   return (
     <Box sx={{ p: 4, fontSize: 14 }} role="status">
@@ -89,16 +93,7 @@ export function AppRoutes() {
             />
           }
         />
-        <Route
-          path="/me/schedule"
-          element={
-            <PlaceholderPage
-              title="My schedule"
-              subtitle="Employee · My schedule"
-              planned="The next shift card, pay-period hours, the month calendar, the overtime offer card and the shift proposals."
-            />
-          }
-        />
+        <Route path="/me/schedule" element={<MySchedulePage />} />
         <Route
           path="/me/propose"
           element={

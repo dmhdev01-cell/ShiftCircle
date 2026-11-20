@@ -63,6 +63,21 @@ const PC01_RESULTS: RuleResult[] = [
   },
 ];
 
+/**
+ * A proposal the rules block: an A12 the day after a P12 leaves no rest
+ * (docs/ui/build-notes.md 1.4).
+ */
+const ZERO_REST_RESULTS: RuleResult[] = [
+  {
+    ruleCode: 'U-01',
+    outcome: 'BLOCK',
+    message:
+      'No rest after the 12 h shift that ends Wed 25 Nov 24:00. The minimum is 8 consecutive hours in any 24 hours.',
+    facts: { restHours: 0, minHours: 8 },
+    source: 'Saskatchewan Employment Act',
+  },
+];
+
 const WARN_ONLY_RESULTS: RuleResult[] = [
   {
     ruleCode: 'U-14',
@@ -77,6 +92,16 @@ function isPc01(change: RuleCheckChange): boolean {
     change.employeeId === PC01_CHANGE.employeeId &&
     change.shiftTemplate === PC01_CHANGE.shiftTemplate &&
     change.startAt === PC01_CHANGE.startAt
+  );
+}
+
+/** An A12 the day after a P12: no rest, so the rules block it. */
+function isZeroRest(change: RuleCheckChange): boolean {
+  return (
+    change.type === 'ASSIGN' &&
+    change.employeeId === 'emp-sam' &&
+    change.shiftTemplate === 'A12' &&
+    change.startAt === '2026-11-26T00:00:00-06:00'
   );
 }
 
@@ -106,6 +131,10 @@ function evaluate(request: RuleCheckRequest): RuleCheckOutcome {
       };
     }
     return { ...base, outcome: 'BLOCK', ruleResults: PC01_RESULTS };
+  }
+
+  if (isZeroRest(request.change)) {
+    return { ...base, outcome: 'BLOCK', ruleResults: ZERO_REST_RESULTS };
   }
 
   if (isWarnOnly(request.change)) {
