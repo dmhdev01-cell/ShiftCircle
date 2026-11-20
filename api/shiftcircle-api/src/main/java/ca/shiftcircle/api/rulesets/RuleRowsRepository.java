@@ -31,20 +31,31 @@ public class RuleRowsRepository {
 
   /** The published rows, or the v1 fixture when the database has no published version yet. */
   public RuleSet publishedRuleSet() {
+    List<Map<String, Object>> published;
     try {
-      List<Map<String, Object>> published =
+      published =
           jdbc.queryForList(
               "SELECT id, version FROM rule_set_version WHERE status = 'PUBLISHED'"
                   + " ORDER BY effective_from DESC LIMIT 1");
-      if (published.isEmpty()) {
-        return RuleRowsV1.ruleSet();
-      }
-      return new RuleSet(
-          "v" + published.get(0).get("version"),
-          rows((UUID) published.get(0).get("id"), null));
-    } catch (RuntimeException e) {
+    } catch (RuntimeException beforeMigrations) {
       // A first boot before migrations should still start; readiness then reports the problem.
       return RuleRowsV1.ruleSet();
+    }
+    if (published.isEmpty()) {
+      return RuleRowsV1.ruleSet();
+    }
+    String label = "v" + published.get(0).get("version");
+    try {
+      return new RuleSet(label, rows((UUID) published.get(0).get("id"), null));
+    } catch (RuntimeException unreadable) {
+      // The rows exist but cannot be read back. Falling back to v1 here would silently serve a
+      // rule set nobody published, so stop the boot with a plain message instead.
+      throw new IllegalStateException(
+          "The published rule rows "
+              + label
+              + " could not be read, so ShiftCircle will not start: "
+              + unreadable.getMessage(),
+          unreadable);
     }
   }
 

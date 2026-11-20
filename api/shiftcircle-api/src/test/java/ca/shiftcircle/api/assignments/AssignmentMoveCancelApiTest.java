@@ -142,6 +142,11 @@ class AssignmentMoveCancelApiTest {
     assertThat(stale.statusCode()).isEqualTo(412);
     assertThat((String) mapper.readValue(stale.body(), Map.class).get("type"))
         .endsWith("/stale-version");
+
+    HttpResponse<String> weak =
+        send("DELETE", "/api/v1/assignments/" + id, "{\"reason\":\"Sick call, no relief\"}", token,
+            "W/\"0\"");
+    assertThat(weak.statusCode()).as("If-Match needs a strong validator").isEqualTo(400);
     assertThat(statusOf(id)).isEqualTo("PLANNED");
   }
 
