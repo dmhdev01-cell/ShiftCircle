@@ -62,6 +62,8 @@ import {
   demoOverrides,
 } from './reports';
 import { demoUsers } from './demoUsers';
+import { demoDisplayToday } from './display';
+import { toDisplayToday } from '../../display/displayPayload';
 import { demoBuildReport, demoRuleSets, demoRuleTables } from './rules';
 import { demoSchedule, PC01_CHANGE } from './schedule';
 import { demoPayPeriods, demoTimeEntries, unitCodeFor } from './timeAttendance';
@@ -482,6 +484,12 @@ export function createFixtureApi(): ShiftCircleApi {
           allows_16h: true,
         },
       ];
+    },
+
+    async getDisplayToday() {
+      await wait(LATENCY_MS);
+      // Through the same whitelist as the http client.
+      return toDisplayToday(demoDisplayToday(getSessionUser()));
     },
 
     async getDemoUsers(): Promise<DemoUser[]> {
