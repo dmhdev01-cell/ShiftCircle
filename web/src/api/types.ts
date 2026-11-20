@@ -558,6 +558,46 @@ export interface Unit {
   allows_16h: boolean;
 }
 
+// --- Audit log (docs/07-api-spec.md §4.8) ---
+
+export interface AuditActor {
+  username: string;
+  displayName: string;
+}
+
+/** One audit event, read only. The API keysets on the descending id. */
+export interface AuditEvent {
+  id: number;
+  /** ISO instant. */
+  occurredAt: string;
+  actor: AuditActor | null;
+  action: string;
+  entityType: string | null;
+  entityId: string | null;
+  before: unknown;
+  after: unknown;
+  ruleSetVersionId?: string | null;
+  overrideId?: string | null;
+  correlationId?: string | null;
+}
+
+export interface AuditPage {
+  items: AuditEvent[];
+  /** Pass back as beforeId for the next page; null on the last page. */
+  nextBeforeId: number | null;
+}
+
+export interface AuditQuery {
+  actor?: string;
+  action?: string;
+  entityType?: string;
+  entityId?: string;
+  from?: string;
+  to?: string;
+  beforeId?: number;
+  limit?: number;
+}
+
 // --- Mock sign-in (docs/09-access-control.md §4) ---
 
 /** Exactly what the api sends for a demo user (AuthController's describe()). */
@@ -621,6 +661,9 @@ export interface ShiftCircleApi {
 
   // Reference data.
   getUnits(): Promise<Unit[]>;
+
+  // Audit log.
+  getAuditEvents(query: AuditQuery): Promise<AuditPage>;
 
   // Mock sign-in.
   getDemoUsers(): Promise<DemoUser[]>;

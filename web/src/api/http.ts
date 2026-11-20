@@ -28,6 +28,8 @@ import type {
   RuleTableRow,
   SaveOutcome,
   SaveRequest,
+  AuditPage,
+  AuditQuery,
   SchedulePayload,
   ScheduleQuery,
   ShiftCircleApi,
@@ -241,6 +243,25 @@ export function createHttpApi(): ShiftCircleApi {
 
     getUnits(): Promise<Unit[]> {
       return request<Unit[]>('/units');
+    },
+
+    getAuditEvents(query: AuditQuery): Promise<AuditPage> {
+      const params = new URLSearchParams();
+      for (const key of [
+        'actor',
+        'action',
+        'entityType',
+        'entityId',
+        'from',
+        'to',
+        'beforeId',
+        'limit',
+      ] as const) {
+        const value = query[key];
+        if (value !== undefined && value !== '') params.set(key, String(value));
+      }
+      const suffix = params.toString();
+      return request<AuditPage>(`/audit-events${suffix ? '?' + suffix : ''}`);
     },
 
     async getDisplayToday() {

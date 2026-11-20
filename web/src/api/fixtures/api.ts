@@ -10,6 +10,8 @@
 import { ApiError } from '../http';
 import { getSessionUser } from '../session';
 import type {
+  AuditPage,
+  AuditQuery,
   BuildReport,
   CoverageReport,
   DemoUser,
@@ -61,6 +63,7 @@ import {
   demoOvertimeReport,
   demoOverrides,
 } from './reports';
+import { demoAuditEvents } from './audit';
 import { demoUsers } from './demoUsers';
 import { demoDisplayToday } from './display';
 import { toDisplayToday } from '../../display/displayPayload';
@@ -470,6 +473,45 @@ export function createFixtureApi(): ShiftCircleApi {
         throw new ApiError('A note to the supervisor is required.', 400);
       }
       return { id: `p-fixture-${items.length}`, accepted: items.length };
+    },
+
+    async getAuditEvents(query: AuditQuery): Promise<AuditPage> {
+      await wait(LATENCY_MS);
+      let items = demoAuditEvents;
+      if (query.actor) {
+        items = items.filter((entry) => entry.actor?.username === query.actor);
+      }
+      if (query.action) {
+        items = items.filter((entry) => entry.action === query.action);
+      }
+      if (query.entityType) {
+        items = items.filter((entry) => entry.entityType === query.entityType);
+      }
+      if (query.entityId) {
+        items = items.filter((entry) => entry.entityId === query.entityId);
+      }
+      const localDate = (occurredAt: string) =>
+        new Intl.DateTimeFormat('en-CA', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          timeZone: 'America/Regina',
+        }).format(new Date(occurredAt));
+      if (query.from) {
+        items = items.filter((entry) => localDate(entry.occurredAt) >= query.from!);
+      }
+      if (query.to) {
+        items = items.filter((entry) => localDate(entry.occurredAt) <= query.to!);
+      }
+      if (query.beforeId !== undefined) {
+        items = items.filter((entry) => entry.id < query.beforeId!);
+      }
+      const limit = query.limit ?? 50;
+      const page = items.slice(0, limit);
+      return {
+        items: page,
+        nextBeforeId: items.length > limit ? page[page.length - 1].id : null,
+      };
     },
 
     async getUnits(): Promise<Unit[]> {

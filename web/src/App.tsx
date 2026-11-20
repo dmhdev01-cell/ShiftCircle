@@ -39,6 +39,10 @@ const TimeAttendancePage = lazy(() =>
   })),
 );
 
+const AuditPage = lazy(() =>
+  import('./audit/AuditPage').then((module) => ({ default: module.AuditPage })),
+);
+
 const WallDisplayPage = lazy(() =>
   import('./display/WallDisplayPage').then((module) => ({ default: module.WallDisplayPage })),
 );
@@ -90,6 +94,7 @@ export function AppRoutes() {
         />
         <Route path="/me/hours" element={<PlaceholderPage title="My hours" subtitle="Employee · Hours and overtime" />} />
         <Route path="/time" element={<TimeAttendancePage />} />
+        <Route path="/audit" element={<AuditPage />} />
         <Route
           path="/proposals"
           element={
