@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { axisTicks } from './CoverageChart';
+import { axisTicks } from './coverageAxis';
 
 /**
  * V2: the labels used to be spread evenly down the side regardless of value,

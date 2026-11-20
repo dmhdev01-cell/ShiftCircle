@@ -3,34 +3,12 @@ import Typography from '@mui/material/Typography';
 
 import type { CoverageReport } from '../api/types';
 import { colour } from '../theme/tokens';
+import { axisTicks } from './coverageAxis';
 
 interface CoverageChartProps {
   report: CoverageReport;
 }
 
-/**
- * The ticks a linear axis shows: the bottom, 100 % (the required line), the top
- * and, when there is room, a midpoint in each half. `top` is the distance from
- * the top of the plot as a percentage, so a tick and a bar of the same value sit
- * on the same line.
- */
-export function axisTicks(from: number, to: number): { value: number; top: number }[] {
-  const span = to - from;
-  const values = [from, 100, ...(span >= 12 ? [Math.round((from + 100) / 2), Math.round((100 + to) / 2)] : []), to];
-  return [...new Set(values)]
-    .filter((value) => value >= from && value <= to)
-    .sort((left, right) => left - right)
-    .map((value) => ({ value, top: ((to - value) / span) * 100 }));
-}
-
-/**
- * The coverage chart (docs/ui/README.md §5.5): the share of required
- * staff-hours that were scheduled and that were actually worked, by week.
- *
- * The axis starts at 94% so small gaps are visible, and it says so. The chart
- * carries a text summary for a screen reader, and the figures are also in a
- * table below it.
- */
 export function CoverageChart({ report }: CoverageChartProps) {
   const { weeks, axisFrom, axisTo } = report;
   const span = axisTo - axisFrom;
