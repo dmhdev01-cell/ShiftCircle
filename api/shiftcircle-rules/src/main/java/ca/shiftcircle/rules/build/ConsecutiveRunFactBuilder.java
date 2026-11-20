@@ -70,10 +70,9 @@ public final class ConsecutiveRunFactBuilder {
         best <= 0
             ? "No shifts"
             : String.format(
-                "%d consecutive work days, ending %s (last shift %s)%s",
+                "%d consecutive work days, ending %s%s",
                 best,
                 bestEnd,
-                byDate.get(bestEnd).get(byDate.get(bestEnd).size() - 1).assignmentId(),
                 overtime ? " picked up outside the roster" : "");
     return new ConsecutiveRunFact("DAYS", best, overtime, evidence);
   }
@@ -121,10 +120,9 @@ public final class ConsecutiveRunFactBuilder {
         best <= 0
             ? "No 12-hour shifts"
             : String.format(
-                "%d consecutive %s12-hour shifts, last %s on %s%s",
+                "%d consecutive %s12-hour shifts, ending %s%s",
                 best,
                 nightOnly ? "overnight " : "",
-                bestLast.assignmentId(),
                 bestLast.start().atZone(BusinessTime.REGINA).toLocalDate(),
                 overtime ? " (picked up)" : "");
     return new ConsecutiveRunFact(mode, best, overtime, evidence);
