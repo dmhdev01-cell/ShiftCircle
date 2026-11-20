@@ -32,12 +32,14 @@ function clock(instant: string): string {
  * adjusted times, or absent.
  */
 export function RecordActualPanel({ entry, result, onSave, onCancel }: RecordActualPanelProps) {
-  const [choice, setChoice] = useState<Choice>('AS_SCHEDULED');
+  // No default: one hasty click must not record a full day of payroll hours.
+  const [choice, setChoice] = useState<Choice | null>(null);
   const [start, setStart] = useState(clock(entry.startAt));
   const [end, setEnd] = useState(clock(entry.endAt));
   const [absence, setAbsence] = useState<AbsenceType>('SICK');
 
   const save = () => {
+    if (choice === null) return;
     if (choice === 'AS_SCHEDULED') {
       onSave({ workedAsScheduled: true });
       return;
@@ -77,7 +79,10 @@ export function RecordActualPanel({ entry, result, onSave, onCancel }: RecordAct
 
       <FormControl>
         <FormLabel sx={{ fontSize: 13, fontWeight: 600 }}>What happened?</FormLabel>
-        <RadioGroup value={choice} onChange={(event) => setChoice(event.target.value as Choice)}>
+        <RadioGroup
+          value={choice ?? ''}
+          onChange={(event) => setChoice(event.target.value as Choice)}
+        >
           <FormControlLabel
             value="AS_SCHEDULED"
             control={<Radio />}
@@ -133,6 +138,25 @@ export function RecordActualPanel({ entry, result, onSave, onCancel }: RecordAct
         </TextField>
       ) : null}
 
+      <Box
+        role="status"
+        sx={{
+          p: '10px 12px',
+          borderRadius: '8px',
+          backgroundColor: colour.bg.subtle,
+          fontSize: 13,
+          color: colour.text.secondary,
+        }}
+      >
+        {choice === null
+          ? 'Choose what happened. Nothing is recorded until you do.'
+          : choice === 'AS_SCHEDULED'
+            ? `Will record: worked as scheduled, ${clock(entry.startAt)} – ${clock(entry.endAt)}.`
+            : choice === 'ABSENT'
+              ? `Will record: absent (${absence.toLowerCase()}), no hours.`
+              : `Will record: worked ${start} – ${end}.`}
+      </Box>
+
       {result ? (
         <Box
           role="status"
@@ -155,7 +179,7 @@ export function RecordActualPanel({ entry, result, onSave, onCancel }: RecordAct
       ) : null}
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-        <Button variant="outlined" color="primary" onClick={save}>
+        <Button variant="contained" color="primary" disabled={choice === null} onClick={save}>
           Save
         </Button>
         <Button variant="text" color="primary" onClick={onCancel}>

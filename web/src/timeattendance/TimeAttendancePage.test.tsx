@@ -39,6 +39,27 @@ describe('Time and attendance', () => {
     expect(screen.getByText('3 shifts with no actual recorded')).toBeInTheDocument();
   });
 
+  it('records nothing until the supervisor says what happened', async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    await screen.findByText('Tara Nakamura');
+    const cells = await screen.findAllByRole('button', { name: /needs actual/ });
+    await user.click(cells[0]);
+
+    const save = await screen.findByRole('button', { name: 'Save' });
+    expect(save).toBeDisabled();
+    expect(
+      screen.getByText('Choose what happened. Nothing is recorded until you do.'),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: 'Worked as scheduled' }));
+    expect(save).toBeEnabled();
+    expect(
+      screen.getByText(/Will record: worked as scheduled, 07:00 – 15:00/),
+    ).toBeInTheDocument();
+  });
+
   it('takes a missing-actual line to its cell and opens the actual panel', async () => {
     const user = userEvent.setup();
     renderScreen();
