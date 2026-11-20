@@ -1,10 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-import { signIn } from './support';
+import { DISCLAIMER, expectAccessible, navTo, signIn } from './support';
 
 /**
  * E5 (docs/10-testing.md section 5): the wall display shows counts only, no
- * names anywhere in the DOM, and refreshes.
+ * names anywhere in the page, refreshes, and says so when it is not live.
+ * Runs against the fixtures web and the real api; the one test that cuts the
+ * network is @api (the fixtures web makes no request to cut).
  */
 
 const DEMO_NAMES = [
@@ -12,26 +14,86 @@ const DEMO_NAMES = [
   'Sam Abara', 'Piotr Kowalczyk', 'Leah Morin', 'Devon Clarke', 'Aiden Bergeron',
 ];
 
-test.describe('E5 wall display', () => {
-  test.fixme(true, 'The wall display screen is not built yet (App.tsx renders a placeholder at /display).');
+/** 14:32 in Regina on the demo day. */
+const DEMO_TIME = new Date('2026-11-19T20:32:00Z');
 
-  test('shows counts only, with no officer names anywhere in the page', async ({ page }) => {
-    await signIn(page, 'Unit office TV');
-    await expect(page.getByText("Today's coverage")).toBeVisible();
+async function openAsDisplay(page: import('@playwright/test').Page): Promise<void> {
+  await signIn(page, 'Unit office TV');
+  await expect(page.getByRole('heading', { name: "Today's coverage", level: 1 })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Unit A · Living unit' })).toBeVisible();
+}
+
+async function updatedText(page: import('@playwright/test').Page): Promise<string> {
+  const status = page.getByRole('status').filter({ hasText: /updated \d{2}:\d{2}/ });
+  await expect(status).toBeVisible();
+  return (await status.textContent()) ?? '';
+}
+
+test.describe('E5 wall display', () => {
+  test('shows counts only, with no officer names or employee numbers anywhere in the page', async ({ page }, testInfo) => {
+    await openAsDisplay(page);
+    await expect(page.getByRole('region', { name: 'Facility today' })).toBeVisible();
+    await expect(page.getByText('Shared screen: counts only, no names')).toBeVisible();
+    await expect(page.getByText(DISCLAIMER)).toBeVisible();
+
     const html = await page.content();
     for (const name of DEMO_NAMES) {
       expect(html, `name in the wall display DOM: ${name}`).not.toContain(name);
     }
+    expect(html, 'an employee number in the wall display DOM').not.toMatch(/\bE-\d{3,}\b/);
+    await expectAccessible(page, testInfo, 'wall-display');
   });
 
-  test('refreshes the counts every 60 seconds', async ({ page }) => {
-    await page.clock.install();
-    await signIn(page, 'Unit office TV');
-    const requests: string[] = [];
-    page.on('request', (request) => {
-      if (request.url().includes('/display/today')) requests.push(request.url());
-    });
+  test('refreshes every 60 seconds and says when it last did', async ({ page }) => {
+    await page.clock.install({ time: DEMO_TIME });
+    await openAsDisplay(page);
+    const before = await updatedText(page);
+
     await page.clock.runFor(61_000);
-    expect(requests.length).toBeGreaterThan(0);
+    await expect
+      .poll(async () => updatedText(page), { message: 'the "updated" time moves after a refresh' })
+      .not.toBe(before);
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+
+  test('@api says it is not live when the api cannot be reached, and recovers', async ({ page }) => {
+    await page.clock.install({ time: DEMO_TIME });
+    await openAsDisplay(page);
+    await expect(page.getByRole('alert')).toHaveCount(0);
+
+    await page.route('**/api/v1/display/today', (route) => route.abort());
+    await page.clock.runFor(61_000);
+    await expect(page.getByRole('alert')).toContainText('Not live: no update since');
+    await expect(page.getByText(/^Last known: /).first()).toBeVisible();
+
+    await page.unroute('**/api/v1/display/today');
+    await page.clock.runFor(61_000);
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+
+  test('a supervisor sees only their own units', async ({ page }) => {
+    await signIn(page, 'M. Ellis');
+    await navTo(page, 'Wall display');
+    await expect(page.getByRole('heading', { name: "Today's coverage", level: 1 })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Unit A · Living unit' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Unit B · Living unit' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Unit C · Living unit' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Leave the wall display' })).toBeVisible();
+  });
+
+  test('fits a 1920×1080 TV and a 1366×768 screen without scrolling', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'TV sizes are checked once, in the desktop project');
+    for (const size of [
+      { width: 1920, height: 1080 },
+      { width: 1366, height: 768 },
+    ]) {
+      await page.setViewportSize(size);
+      await openAsDisplay(page);
+      const overflow = await page.evaluate(() => ({
+        vertical: Math.max(0, document.documentElement.scrollHeight - window.innerHeight),
+        horizontal: Math.max(0, document.documentElement.scrollWidth - window.innerWidth),
+      }));
+      expect(overflow, `overflow at ${size.width}×${size.height}`).toEqual({ vertical: 0, horizontal: 0 });
+    }
   });
 });

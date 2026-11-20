@@ -7,7 +7,7 @@ Specs find elements by role, label or text, never by CSS path. `BASE_URL` picks 
 ## Tags and skipped tests
 
 - **`@fixtures`**: the test relies on fixture-only data or writes state, such as publishing a rule version or saving an override. Against the real compose stack, skip these: `npx playwright test --grep-invert @fixtures`.
-- **`test.fixme`**: E5 (wall display) is written but skipped, because the screen isn't built yet (a placeholder at `/display`).
+- **`@api`**: the test needs the real api, for example because it cuts the network to `/display/today` (the fixtures web makes no request to cut). Against the fixtures web, skip these: `npx playwright test --grep-invert @api`.
 
 ## Run against the fixtures-mode web
 
