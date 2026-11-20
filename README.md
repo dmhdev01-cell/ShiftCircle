@@ -118,11 +118,12 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
   mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
 ```
 
-**Count:** a clean run is **91 rules + 22 infrastructure + 182 api = 295 tests**, counted as
+**Count:** a clean run is **91 rules + 22 infrastructure + 183 api = 296 tests**, counted as
 `@Test` methods; Surefire reports the same total with **0 skipped**. The order-proof runs on
-2026-11-20 (default order and random seed 20261120 at `a10688e`, the docs-only tip after the
-code at `5f426ce`; earlier, default and random order at `fe6487d` and reverse class order and
-random seeds 20261120 and 20261121 at `22375d4`) each gave the same total for their tip.
+2026-11-20 (default order and random seed 20261120 at `dcee43b`; the same total at `a10688e`,
+a docs-only tip after `5f426ce`; earlier, default and random order at `fe6487d` and reverse
+class order and random seeds 20261120 and 20261121 at `22375d4`) each gave the same total for
+their tip.
 
 **One viewport per fresh stack.** The real-api specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop`, then `docker compose down -v && docker compose up -d --wait`, then `--project tablet`.
 
