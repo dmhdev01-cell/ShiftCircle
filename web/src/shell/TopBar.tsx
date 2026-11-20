@@ -1,10 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 
 import { usingFixtures } from '../api/client';
+import { getSession, signOut, subscribeSession } from '../api/session';
 import { useVersion } from '../api/useVersion';
 import { colour } from '../theme/tokens';
 import { useRole } from './nav';
@@ -81,9 +86,18 @@ function FixturesBadge() {
 }
 
 export function TopBar() {
-  const { role, setRole } = useRole();
+  const { role, userName, setRole } = useRole();
+  const session = useSyncExternalStore(subscribeSession, getSession);
+  const navigate = useNavigate();
+  const location = useLocation();
   const [now, setNow] = useState(() => new Date());
+  const [accountAnchor, setAccountAnchor] = useState<HTMLElement | null>(null);
   const { state: version } = useVersion();
+
+  // A signed-in person has a token: their identity no longer comes from the
+  // demo switch. Without one, only the fixtures demo offers a switch.
+  const hasToken = session.token !== null;
+  const onSignInScreen = location.pathname === '/login';
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
@@ -124,55 +138,130 @@ export function TopBar() {
             {formatClock(day, now)}
           </Typography>
 
-          <Box
-            sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 2,
-              px: 3,
-              py: 1.5,
-              borderRadius: '16px',
-              backgroundColor: colour.brand.primaryDark,
-              fontSize: 13,
-            }}
-          >
-            <Typography component="span" sx={{ color: colour.text.onDark, fontSize: 13 }}>
-              {role.label} · {role.user}
-            </Typography>
-            <Typography component="span" sx={{ color: colour.text.onDarkMuted, fontSize: 13 }}>
-              (mock sign-in)
-            </Typography>
+          {onSignInScreen ? null : hasToken ? (
             <Box
-              component="label"
-              sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: colour.text.onDarkMuted }}
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 2,
+                pl: 3,
+                pr: 1,
+                py: 0.5,
+                borderRadius: '16px',
+                backgroundColor: colour.brand.primaryDark,
+                fontSize: 13,
+              }}
             >
-              <Box component="span" sx={{ fontSize: 12 }}>
-                Switch
-              </Box>
-              <Box
-                component="select"
-                aria-label="Mock sign-in: choose a role"
-                value={role.id}
-                onChange={(event: { target: { value: string } }) => setRole(event.target.value as Role)}
+              <Typography component="span" sx={{ color: colour.text.onDark, fontSize: 13 }}>
+                {role.label} · {userName}
+              </Typography>
+              <Typography component="span" sx={{ color: colour.text.onDarkMuted, fontSize: 13 }}>
+                (mock sign-in)
+              </Typography>
+              <Button
+                onClick={(event) => setAccountAnchor(event.currentTarget)}
+                aria-haspopup="menu"
+                aria-expanded={accountAnchor !== null}
+                aria-label={`Account menu for ${userName}`}
                 sx={{
                   minHeight: 44,
-                  px: 2,
-                  borderRadius: '2px',
-                  border: `1px solid ${colour.text.onDarkMuted}`,
-                  backgroundColor: 'transparent',
+                  minWidth: 44,
                   color: colour.text.onDark,
-                  fontFamily: 'inherit',
-                  fontSize: 13,
                 }}
               >
-                {roles.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
+                <span aria-hidden="true">▾</span>
+              </Button>
+              <Menu
+                anchorEl={accountAnchor}
+                open={accountAnchor !== null}
+                onClose={() => setAccountAnchor(null)}
+              >
+                <MenuItem
+                  onClick={() => {
+                    setAccountAnchor(null);
+                    signOut();
+                    navigate('/login');
+                  }}
+                >
+                  Sign out
+                </MenuItem>
+              </Menu>
+            </Box>
+          ) : !usingFixtures ? (
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 2,
+                px: 3,
+                py: 1.5,
+                borderRadius: '16px',
+                backgroundColor: colour.brand.primaryDark,
+                fontSize: 13,
+              }}
+            >
+              <Typography component="span" sx={{ color: colour.text.onDark, fontSize: 13 }}>
+                Not signed in
+              </Typography>
+              <Box
+                component={RouterLink}
+                to="/login"
+                sx={{ color: colour.text.onDark, fontSize: 13, display: 'inline-flex', minHeight: 44, alignItems: 'center' }}
+              >
+                Sign in
               </Box>
             </Box>
-          </Box>
+          ) : (
+            <Box
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 2,
+                px: 3,
+                py: 1.5,
+                borderRadius: '16px',
+                backgroundColor: colour.brand.primaryDark,
+                fontSize: 13,
+              }}
+            >
+              <Typography component="span" sx={{ color: colour.text.onDark, fontSize: 13 }}>
+                {role.label} · {userName}
+              </Typography>
+              <Typography component="span" sx={{ color: colour.text.onDarkMuted, fontSize: 13 }}>
+                (mock sign-in)
+              </Typography>
+              <Box
+                component="label"
+                sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, color: colour.text.onDarkMuted }}
+              >
+                <Box component="span" sx={{ fontSize: 12 }}>
+                  Switch
+                </Box>
+                <Box
+                  component="select"
+                  aria-label="Mock sign-in: choose a role"
+                  value={role.id}
+                  onChange={(event: { target: { value: string } }) => setRole(event.target.value as Role)}
+                  sx={{
+                    minHeight: 44,
+                    px: 2,
+                    borderRadius: '2px',
+                    border: `1px solid ${colour.text.onDarkMuted}`,
+                    backgroundColor: 'transparent',
+                    color: colour.text.onDark,
+                    fontFamily: 'inherit',
+                    fontSize: 13,
+                  }}
+                >
+                  {roles.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Box>
+              </Box>
+            </Box>
+          )}
         </Box>
       </Toolbar>
     </AppBar>

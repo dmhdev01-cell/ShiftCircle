@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
+import { api, ApiError } from '../api/client';
+import { sessionExpired } from '../api/session';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
@@ -53,5 +55,24 @@ describe('the mock sign-in', () => {
     await user.click(await screen.findByRole('button', { name: /M. Ellis/ }));
 
     expect(await screen.findByRole('heading', { name: 'Planning board' })).toBeInTheDocument();
+  });
+
+  it('says mock sign-in is turned off when the endpoint is missing', async () => {
+    vi.spyOn(api, 'getDemoUsers').mockRejectedValueOnce(new ApiError('Not found', 404));
+
+    renderLogin();
+
+    expect(
+      await screen.findByText('Mock sign-in is turned off in this environment.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /M. Ellis/ })).not.toBeInTheDocument();
+  });
+
+  it('explains an ended session', async () => {
+    sessionExpired();
+
+    renderLogin();
+
+    expect(await screen.findByText('Your session ended. Sign in again.')).toBeInTheDocument();
   });
 });

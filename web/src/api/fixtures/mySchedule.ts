@@ -2,8 +2,8 @@
  * Demo data for the employee's My schedule (docs/ui/README.md §5.2).
  *
  * The officer is Sam Abara, so the screen agrees with the overtime board:
- * he is eligible for the Saturday day shift and his pay-period hours are the
- * ones the board shows. The shift times follow ADR-015.
+ * their pay-period hours are the ones the board shows, and their Saturday day
+ * shift is the one they are eligible for. The shift times follow ADR-015.
  */
 
 import type { DayCell, MyOffer, MySchedulePayload } from '../types';

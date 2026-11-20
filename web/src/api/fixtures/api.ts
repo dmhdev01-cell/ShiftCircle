@@ -8,6 +8,7 @@
  */
 
 import { ApiError } from '../http';
+import { getSessionUser } from '../session';
 import type {
   BuildReport,
   CoverageReport,
@@ -452,8 +453,11 @@ export function createFixtureApi(): ShiftCircleApi {
       if (!ruleSet) {
         throw new ApiError('That rule set is not in the fixture.', 404);
       }
-      // The person who edited the change cannot approve it.
-      if (ruleSet.createdBy === 'L. Fraser') {
+      // The person who edited the change cannot approve it (maker/checker).
+      // It is about the signed-in identity, not about who created it: another
+      // approver must be able to approve an L. Fraser draft.
+      const actor = getSessionUser();
+      if (actor && actor.name === ruleSet.createdBy) {
         throw new ApiError('You created this version. Another approver must review it.', 403);
       }
       ruleSet.status = 'APPROVED';

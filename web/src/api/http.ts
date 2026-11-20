@@ -32,7 +32,7 @@ import type {
   ShiftCircleApi,
 } from './types';
 
-import { getToken } from './session';
+import { getToken, sessionExpired } from './session';
 
 export const API_BASE = '/api/v1';
 
@@ -91,6 +91,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const problem = await readProblem(response);
+    if (response.status === 401) {
+      // The token is gone or expired: end the session so the shell can send
+      // the person to the sign-in screen (docs/ui/build-notes.md §2.1).
+      sessionExpired();
+    }
     throw new ApiError(
       problem?.detail ?? problem?.title ?? `${response.status} ${response.statusText}`,
       response.status,
@@ -108,7 +113,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 async function requestCsv(path: string): Promise<{ fileName: string; content: string }> {
   let response: Response;
   try {
-    response = await fetch(`${API_BASE}${path}`, { headers: { Accept: 'text/csv' } });
+    response = await fetch(`${API_BASE}${path}`, {
+      headers: {
+        Accept: 'text/csv',
+        ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+      },
+    });
   } catch (cause) {
     throw new ApiError(
       cause instanceof Error ? cause.message : 'Could not reach the API.',
@@ -118,6 +128,9 @@ async function requestCsv(path: string): Promise<{ fileName: string; content: st
 
   if (!response.ok) {
     const problem = await readProblem(response);
+    if (response.status === 401) {
+      sessionExpired();
+    }
     throw new ApiError(
       problem?.detail ?? problem?.title ?? `${response.status} ${response.statusText}`,
       response.status,
