@@ -117,8 +117,7 @@ describe('the fixture api', () => {
     }
   });
 
-  it('asks for acknowledgement when a change only warns', async () => {
-    const warnOnly = {
+  it('asks for acknowledgement when a change only warns', async () => {    const warnOnly = {
       employeeId: 'emp-aiden',
       unitId: 'unit-b',
       shiftTemplate: 'D8',
@@ -139,6 +138,22 @@ describe('the fixture api', () => {
       acknowledgeWarnings: ['U-14'],
     });
     expect(acknowledged.ruleOutcome.outcome).toBe('WARN');
+  });
+
+  it('exports payroll in the documented CSV shape', async () => {
+    const file = await api.exportPayroll('period-2026-10-26');
+    const lines = file.content.split('\n');
+
+    expect(lines[0]).toBe(
+      'employee_no,pay_period_start,pay_period_end,work_date,pay_code,hours,unit_code,cost_centre',
+    );
+    expect(lines.length).toBeGreaterThan(1);
+    const cells = lines[1].split(',');
+    expect(cells).toHaveLength(8);
+    expect(cells[0]).toMatch(/^E-\d{3}$/);
+    expect(cells[1]).toBe('2026-10-26');
+    expect(cells[2]).toBe('2026-11-08');
+    expect(cells[5]).toMatch(/^\d+\.\d{2}$/);
   });
 
   it('keeps the demo data and the fixtures in step', () => {

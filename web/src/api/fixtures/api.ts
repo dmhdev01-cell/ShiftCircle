@@ -63,7 +63,7 @@ import {
 import { demoUsers } from './demoUsers';
 import { demoBuildReport, demoRuleSets, demoRuleTables } from './rules';
 import { demoSchedule, PC01_CHANGE } from './schedule';
-import { demoPayPeriods, demoTimeEntries } from './timeAttendance';
+import { demoPayPeriods, demoTimeEntries, unitCodeFor } from './timeAttendance';
 
 const LATENCY_MS = 120;
 const RULE_SET_VERSION = 7;
@@ -724,14 +724,51 @@ export function createFixtureApi(): ShiftCircleApi {
       if (period.status !== 'LOCKED') {
         throw new ApiError('Only a locked pay period can be exported.', 409);
       }
+      // docs/07 §4.5: one line per officer per day per pay code, with the
+      // columns the payroll system expects.
+      const employeeNumbers = new Map<string, string>();
+      [...new Set(demoTimeEntries.map((entry) => entry.employeeId))]
+        .sort()
+        .forEach((employeeId, index) => {
+          employeeNumbers.set(employeeId, `E-${String(index + 1).padStart(3, '0')}`);
+        });
+      const rows = demoTimeEntries
+        .filter((entry) => entry.date >= period.from && entry.date <= period.to)
+        .flatMap((entry) => {
+          const unitCode = unitCodeFor(entry.unitId);
+          const codes =
+            entry.payCodes && entry.payCodes.length > 0
+              ? entry.payCodes
+              : [
+                  {
+                    code:
+                      entry.absence === 'VACATION'
+                        ? 'VAC'
+                        : entry.absence === 'SICK'
+                          ? 'SICK'
+                          : 'REG',
+                    hours: shiftHours(entry),
+                  },
+                ];
+          return codes.map((code) => ({
+            sort: `${employeeNumbers.get(entry.employeeId) ?? entry.employeeId}|${entry.date}|${code.code}`,
+            line: [
+              employeeNumbers.get(entry.employeeId) ?? entry.employeeId,
+              period.from,
+              period.to,
+              entry.date,
+              code.code,
+              code.hours.toFixed(2),
+              unitCode,
+              unitCode,
+            ].join(','),
+          }));
+        })
+        .sort((left, right) => left.sort.localeCompare(right.sort))
+        .map((row) => row.line);
       const lines = [
-        'employee_id,period,regular_hours,overtime_hours,pay_code',
-        ...demoTimeEntries
-          .filter((entry) => entry.date >= period.from && entry.date <= period.to)
-          .map(
-            (entry) =>
-              `${entry.employeeId},${period.label},${(entry.payCodes?.[0]?.hours ?? 0).toFixed(2)},0.00,${entry.payCodes?.[0]?.code ?? 'REG'}`,
-          ),
+        'employee_no,pay_period_start,pay_period_end,work_date,pay_code,hours,unit_code,cost_centre',
+        ...rows,
       ];
       period.lastExport = { at: 'now', fileHash: '9f2c4b1e8a' };
       return { fileName: `payroll-${period.id}.csv`, content: lines.join('\n') };

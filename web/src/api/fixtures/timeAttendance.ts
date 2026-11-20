@@ -50,6 +50,12 @@ function payCodesFor(hours: number): PayCode[] {
   return [{ code: 'REG', hours, multiplier: 1 }];
 }
 
+/** The short unit code the payroll CSV uses, from the fixture's unit id. */
+export function unitCodeFor(unitId: string): string {
+  const codes: Record<string, string> = { 'unit-b': 'B', control: 'CTL', escort: 'ESC' };
+  return codes[unitId] ?? unitId.slice(0, 3).toUpperCase();
+}
+
 /** The shifts that have ended with nothing recorded. */
 const MISSING = new Set(['a-marc-16', 'a-kari-17', 'a-sam-18']);
 
@@ -190,18 +196,21 @@ export const demoTimeEntries: TimeEntry[] = demoSchedule.officers.flatMap((offic
         item.startAt,
         item.endAt,
       );
-      // The week before is the same rotation, so the period has two weeks.
-      const earlier = entryFor(
-        `${item.assignmentId}-w1`,
-        officer.employeeId,
-        officer.name,
-        unit,
-        shiftInstant(item.startAt, -7).slice(0, 10),
-        item.shiftTemplate,
-        shiftInstant(item.startAt, -7),
-        shiftInstant(item.endAt, -7),
+      // The weeks before are the same rotation, so both pay periods have data:
+      // 26 Oct – 1 Nov, 2 – 8 Nov, 9 – 15 Nov, then this week.
+      const earlier = [-21, -14, -7].map((days) =>
+        entryFor(
+          `${item.assignmentId}-w${Math.abs(days) / 7}`,
+          officer.employeeId,
+          officer.name,
+          unit,
+          shiftInstant(item.startAt, days).slice(0, 10),
+          item.shiftTemplate,
+          shiftInstant(item.startAt, days),
+          shiftInstant(item.endAt, days),
+        ),
       );
-      return [earlier, entry];
+      return [...earlier, entry];
     }),
   ),
 );
