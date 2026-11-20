@@ -113,6 +113,12 @@ docker run --rm --network host -v "$PWD/e2e":/work -w /work \
 - The web test command, which writes `web/node_modules` with Linux binaries, so use it on a clean clone.
 - The e2e run against the compose stack. The e2e suite **was** run against the fixtures-mode web (`e2e/README.md`; 25 passed, 3 failed on one real accessibility defect, 4 skipped), and it lives on branch `e2e-playwright` until merged.
 
+**Fixtures and the shared test database:** the API test classes share one PostgreSQL container. The
+schedule and display tests assert exact Unit A coverage for the demo day (19 Nov 2026), so a new
+fixture that adds, moves or cancels a shift on that day changes their numbers. Put new fixtures on
+dates after the demo day and delete them afterwards; a fixture on the demo day is a test-order bug
+waiting to happen.
+
 ### What is real and what is simulated
 
 | Real | Simulated |

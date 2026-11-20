@@ -3,7 +3,10 @@ package ca.shiftcircle.api.config;
 import ca.shiftcircle.api.rulesets.RuleRowsRepository;
 import ca.shiftcircle.rules.RuleSetCompiler;
 import ca.shiftcircle.rules.model.RuleSet;
+import ca.shiftcircle.rules.validate.RuleRowValidator;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import org.kie.api.KieBase;
 import org.springframework.stereotype.Component;
 
@@ -29,6 +32,18 @@ public class PublishedRuleSet {
   public PublishedRuleSet(RuleSetCompiler compiler, RuleRowsRepository rows) {
     this.compiler = compiler;
     RuleSet initial = rows.publishedRuleSet();
+    // The boot path is an entry point for stored rows, not just the publish path. A row edited
+    // directly in PostgreSQL (or a bad restore) must stop the app with a plain message rather than
+    // let it serve rules nobody validated. The publish path runs the same validator.
+    List<RuleRowValidator.Violation> violations = new RuleRowValidator().validate(initial);
+    if (!violations.isEmpty()) {
+      throw new IllegalStateException(
+          "The published rule set "
+              + initial.version()
+              + " is not valid, so ShiftCircle will not start. "
+              + violations.stream().map(Object::toString).collect(Collectors.joining("; "))
+              + ". Fix the rows or publish a valid version.");
+    }
     this.current.set(
         new Snapshot(versionOf(initial.version()), initial, compiler.compile(initial)));
   }

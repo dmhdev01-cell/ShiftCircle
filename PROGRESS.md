@@ -77,6 +77,9 @@ demo script/recording.
 - Host owns 8080/5432/5433: use `SC_WEB_PORT=18080 SC_API_PORT=28081 SC_DB_PORT=25432`.
 - Tests only in Docker; Testcontainers needs the socket and `TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal`.
 - `sc.demo.generate=false` enables the demo profile in tests without generating 100 officers.
+- Tests share one PostgreSQL container: a new fixture on the demo day (2026-11-19) can break
+  `DisplayApiTest`'s exact Unit A coverage and the schedule assertions. Fixtures go on dates after
+  the demo day and are deleted afterwards; the README says the same for humans.
 - Verify counts from a clean worktree (`git worktree add /tmp/x HEAD`); working-tree passes hid files once.
 - `.gitignore` patterns must be anchored to the build output (`/web/build/`, `/web/coverage/`): the
   unanchored forms each swallowed a Java package (`rules/build/`, `api/coverage/`). Run
