@@ -71,3 +71,9 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Status:** Accepted (2026-11-19)
 **Decision:** REST/JSON under `/api/v1`, OpenAPI generated from code, RFC 9457 Problem Details for errors, rule outcomes returned as `422` with a `ruleResults` extension, a separate preview endpoint (`/rule-checks`), explicit `acknowledgeWarnings` and `override.reason` fields, and optimistic locking with ETags.
 **Why:** predictable for reviewers and future integrators; makes "the rules said no" a first-class, explainable response rather than a generic error.
+
+## ADR-015 — Default shift times, configurable through the rules workflow
+**Status:** Accepted (2026-11-19)
+**Decision:** Defaults set by the project lead: 8 h shifts 07:00–15:00, 15:00–23:00, 23:00–07:00; 12 h shifts 00:00–12:00 and 12:00–24:00; 16 h double 20:00–12:00 (overtime only). Shift templates are configuration (`shift_template`), edited on a "Shift types" table in the Rules screen and published through the same draft → build → dry run → approve flow, because changing shift times changes rest and hours outcomes.
+**Consequences:** The 12 h rotation must run 00–12, 00–12, 12–24, 12–24, then 4 off; a 12–24 shift followed by a 00–12 shift would give zero rest. Existing assignments keep their own times when a template changes. The UI mockups still show the earlier 07–19 / 19–07 12 h times; the build uses the new defaults.
+**To confirm:** actual shift start times at the centre.

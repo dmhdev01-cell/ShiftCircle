@@ -68,12 +68,12 @@ Content-Type: application/problem+json
   "ruleResults": [
     {
       "ruleCode": "U-01", "outcome": "BLOCK",
-      "message": "No rest after the 12 h night ending Sat 07:00. The minimum is 8 consecutive hours in any 24 hours.",
-      "facts": { "restHours": 0, "minHours": 8 },
-      "evidence": [ { "assignmentId": "c41d…", "label": "Fri 20 N12 19:00–07:00" } ],
+      "message": "Only 7 hours' rest after the 12 h shift ending Fri 24:00. The minimum is 8 consecutive hours in any 24 hours.",
+      "facts": { "restHours": 7, "minHours": 8 },
+      "evidence": [ { "assignmentId": "c41d…", "label": "Fri 20 P12 12:00–24:00" } ],
       "source": "Saskatchewan Employment Act"
     },
-    { "ruleCode": "U-05", "outcome": "BLOCK", "message": "20 hours of work in 24 hours.", "facts": { "hours": 20, "maxHours": 16 } },
+    { "ruleCode": "U-05", "outcome": "BLOCK", "message": "17 hours of work in 24 hours (Fri 12:00 – Sat 12:00).", "facts": { "hours": 17, "maxHours": 16 } },
     { "ruleCode": "U-14", "outcome": "WARN", "message": "52 hours this week, over the 48 h warning level." }
   ]
 }

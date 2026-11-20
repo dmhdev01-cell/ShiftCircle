@@ -58,6 +58,7 @@ docs/ai-dev-log.md           AI-assisted development log (assessment requirement
 | **No AI at runtime**; rules engine decides; a supervisor approves every change | ADR-002, ADR-005 |
 | **Drools decision tables** edited by non-technical admins via an in-app grid (+ Excel round-trip); time maths in Java fact builders; maker/checker publish with tests and dry run | ADR-012, `04-rules-engine.md` |
 | Coverage **by unit and block**, measured **hourly** | ADR-013 (revised), `10-testing.md` §6.3 |
+| **Shift times (configurable defaults):** 8 h 07–15 / 15–23 / 23–07; 12 h 00–12 / 12–24; 16 h double 20:00–12:00 (overtime only). Edited as a "Shift types" table through the rules approval flow. | ADR-015 |
 | API: REST `/api/v1`, Problem Details, rule results as `422` with `ruleResults`, preview endpoint, ETags | ADR-014, `07-api-spec.md` |
 | Scope: planning board, employee view, overtime, time + payroll export, reports, rules admin, wall display. **Trades and notifications are future work.** | ADR-009, ADR-010 |
 | Data: **100 fictional officers, 90 days** (1 Oct – 29 Dec 2026), "today" = 19 Nov 2026, seed 20261001 | `10-testing.md` §6 |
@@ -90,7 +91,7 @@ Each step lists its "done when" check. If time runs short, cut from the bottom o
 | 8 | **Overtime:** open shifts, ranked candidates (O-01…O-03), offers, accept, confirm; employee **My schedule** with offer card | E1 + E2 pass; T6 passes |
 | 9 | **Time & attendance:** actuals, pay codes (P-01, P-02, P-04), lock/unlock, **payroll CSV** | T8 golden file passes; E4 passes |
 | 10 | **Reports:** coverage (hourly-based), hours, overtime, overrides; CSV export | Numbers reconcile with time entries; NFR-05 timings met |
-| 11 | **Rules admin:** decision-table grid, plain-language sentences, build (validate → compile → scenarios → dry run), submit, approve, publish (hot swap), version history | T7, T10, T13 and E3 pass |
+| 11 | **Rules admin** (incl. the **Shift types** table, ADR-015): decision-table grid, plain-language sentences, build (validate → compile → scenarios → dry run), submit, approve, publish (hot swap), version history | T7, T10, T13 and E3 pass |
 | 12 | Should items if time allows: **wall display** (E5), shift planner/proposals, Excel round-trip, audit viewer | Their tests pass |
 | 13 | **Submission:** `README.md` setup section, `BUILD_RECORD.md` (≤ 2 pages; architecture diagram, decisions, AI use with ≥ 1 rejected suggestion, 2–5 tests T2/T3/T7/T8/T9, governance and next steps), `docs/demo-script.md`, ≤ 5-minute recording | A clean clone + `docker compose up` works on a second machine; the recording shows working vs simulated parts and one safeguard |
 
@@ -109,7 +110,7 @@ Each step lists its "done when" check. If time runs short, cut from the bottom o
 ## 8. Open questions (ask the lead; some need a practitioner)
 
 1. Coverage model: is **by unit and block** right, or do centres staff by headcount or by named post?
-2. Common rotations: 12 h "2 days, 2 nights, 4 off"? 8 h patterns? Are 16 h shifts only ever overtime doubles?
+2. Shift times are the lead's best guess (ADR-015): confirm real start times. Common rotations: is 12 h "2 × 00–12, 2 × 12–24, 4 off" realistic? 8 h patterns? Are 16 h shifts only ever overtime doubles?
 3. Is there required rest after a double or after an overtime extension?
 4. How is overtime offered (fewest hours, seniority, rotating list)? What happens to someone skipped for insufficient rest?
 5. Is overtime ever ordered (mandatory), and how often per person?
@@ -121,6 +122,7 @@ Until answered, build with the documented defaults; they're all configuration (r
 
 ## 9. Known gaps and inconsistencies to tidy
 
+- **UI mockups show old 12 h times** (07–19 / 19–07, chips `D12`/`N12`). Build with the ADR-015 defaults (00–12 / 12–24, chips `A12`/`P12`; double 20:00–12:00).
 - **UI sample numbers vs generator:** the design files show illustrative staffing (e.g. Unit B needing 5/4/3; wall display Escort 7/6). The generator config in `10-testing.md` §6.2 is authoritative; align the UI's demo data to it when building.
 - **Not yet designed:** sign-in picker, time & attendance, proposals inbox, rule version review, tablet layouts (see `docs/ui/README.md` §6). Build them from the documented patterns.
 - `01-scope-and-plan.md` still has a day-by-day plan from before the Drools and spec work; **§6 of this note supersedes it**.

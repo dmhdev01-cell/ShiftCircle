@@ -24,9 +24,11 @@ Required by the assessment: tools used, tasks delegated, what was verified, and 
 | 9 | 2026-11-19 | Restyle to the Government of Saskatchewan digital standard | Colours and font taken from the published standard; contrast checked | **AI deviated from the standard deliberately:** its error red `#EE0000` fails 4.5:1 text contrast, so blocked messages use `#A30000`. **AI declined** to copy the government logo, wheat sheaf or coat of arms (would present the prototype as an official service). |
 | 10 | 2026-11-19 | Size the test dataset | Arithmetic: supply per hour vs requirement | **AI corrected its own earlier design.** The coverage rule "a shift counts toward a block if it covers half of it" double-counted 12 h shifts and distorted sizing. Replaced with hourly coverage (ADR-013 revised). |
 | 11 | 2026-11-19 | Create the GitHub repo and push | Repo checked in the browser | AI could create the repo through the browser but couldn't push (session lacked access); the lead pushed from their own terminal. |
+| 12 | 2026-11-19 | Apply the lead's shift times (8 h 07–15/15–23/23–07; 12 h 00–12/12–24; 16 h 20:00–12:00) | Re-ran the hourly supply vs requirement arithmetic; checked rest between consecutive 12 h shifts | **AI flagged a consequence:** a 12–24 shift followed by 00–12 gives zero rest, so the 12 h rotation was reordered (2 × 00–12, then 2 × 12–24, then 4 off). Planted case PC-01 and the API example were rewritten for the new times (7 h rest, 17 h in 24 h). |
 
 ## Still to verify (open)
 
+- Real shift start times (ADR-015 defaults are a best guess).
 - All MOCK collective-agreement values (`docs/05-union-rules.md` §6), with a practitioner.
 - Whether Drools 10 works with Spring Boot 4 on Java 21 (Day 1 spike).
 - Generated code: every rule must have boundary tests (`docs/10-testing.md` §3) **written or reviewed by a human**, not only generated.

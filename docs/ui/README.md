@@ -16,7 +16,7 @@
 
 **About the file format:** each `.dc.html` is a "Design Component": plain HTML markup plus a small `class Component extends DCLogic` script whose `renderVals()` returns the sample data. They're meant for the design canvas runtime (`support.js`, not included), so **they won't render on their own** in a browser. Treat them as an exact, readable reference for layout, copy, colours, sample data and interactions. Build the real screens in React (§7). Reading tips: `<sc-for list="{{x}}">` = a loop, `<sc-if value="{{x}}">` = a condition, `{{x}}` = a value from `renderVals()`, `<helmet><style>` = the screen's CSS.
 
-The sample data in these screens is **illustrative**. Where it differs from the generator configuration in `docs/10-testing.md` (e.g. unit staffing numbers), the generator configuration wins.
+**Shift times changed after the mockups were drawn:** the mockups show 12 h shifts as 07–19 / 19–07 (`D12` / `N12`); the defaults are now 00–12 / 12–24 (`A12` / `P12`) and the double is 20:00–12:00 (ADR-015). Use the new times and chip codes when building. The sample data in these screens is **illustrative**. Where it differs from the generator configuration in `docs/10-testing.md` (e.g. unit staffing numbers), the generator configuration wins.
 
 ## 2. Design basis: Government of Saskatchewan digital standard
 
@@ -56,10 +56,11 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 
 | Shift | Chip | Colours |
 |---|---|---|
-| Day 8 h (07–15) / Day 12 h (07–19) | `D` / `D12` | bg `#FDF1B0`, text `#333333` |
+| Day 8 h (07–15) | `D` | bg `#FDF1B0`, text `#333333` |
+| 12 h afternoon–evening (12–24) | `P12` | bg `#D5E8F3`, text `#00558C` |
 | Evening 8 h (15–23) | `E` | bg `#D5E8F3`, text `#00558C` |
-| Night 8 h (23–07) / Night 12 h (19–07) | `N` / `N12` | bg `#00558C`, text `#FFFFFF` |
-| Overtime (incl. 16 h doubles) | `E · OT`, `16 h OT` | bg `#A4D65E`, text `#1F2A0A` |
+| Night 8 h (23–07) / 12 h overnight–morning (00–12) | `N` / `A12` | bg `#00558C`, text `#FFFFFF` |
+| Overtime (incl. 16 h doubles, default 20:00–12:00) | `E · OT`, `16 h OT` | bg `#A4D65E`, text `#1F2A0A` |
 | Overtime offered (pending) | `E · offer` | white, 2px dashed `#64A70B`, text `#2F5206` |
 | Proposed but blocked | `! D proposed` | white, 2px dashed `#C40000`, text `#A30000` |
 | Sick | `Sick` | white, 1px dashed `#C2410C`, text `#9A3412` |
@@ -148,6 +149,7 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 
 | Screen | Route | Notes |
 |---|---|---|
+| Shift types (setup) | `/rules/{version}/shift-types` | Grid of shift templates (code, label, start, length, regular/overtime-only, chip style, active, effective date). Edited in a rule-set draft and published through the same build → approve flow (ADR-015). Shows a warning if a change would alter rest outcomes on the published roster (dry run). |
 | Sign-in (mock) | `/login` | List of demo users with roles; clear "mock sign-in, demo only" banner |
 | Time & attendance | `/time?period=` | Pay-period picker; table of scheduled vs actual per officer per day; mark worked / adjust times / absence type; "Lock pay period" (yellow) with confirmation; unlock needs a reason |
 | Proposals inbox | `/proposals` | Supervisor list of employee proposals; per-item accept/decline with rule results |
@@ -159,5 +161,5 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 - **Theme:** build one MUI theme from §3 (palette, typography with Source Sans 3, `shape.borderRadius` 2 for buttons via component overrides, chip and pill variants). Don't hard-code hex values in components.
 - **Components to create:** `AppShell` (top bar, nav, footer), `ShiftChip`, `StatusPill`, `RuleResultList`, `CoverageCell`, `KpiTile`, `RosterGrid`, `RankedCandidateTable`, `DecisionTableEditor`, `PublishChecklist`, `CoverageChart`.
 - **Data:** TanStack Query per endpoint in `docs/07-api-spec.md` §5; the preview → save → 422 → acknowledge/override flow should be one reusable hook (`useRuleCheckedMutation`).
-- **Copy:** keep the plain, specific wording from the mockups (e.g. "No rest after the 12 h night ending Sat 07:00"). Messages come from the API's rule results, not hard-coded in the UI.
+- **Copy:** keep the plain, specific wording from the mockups (e.g. "Only 7 hours' rest after the 12 h shift ending Fri 24:00"). Messages come from the API's rule results, not hard-coded in the UI.
 - **Accessibility:** real buttons, links and labelled inputs; status never shown by colour alone; focus visible; tables have header cells; target WCAG 2.1 AA. Run axe in tests (see `docs/10-testing.md`).

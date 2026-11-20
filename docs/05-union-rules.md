@@ -38,7 +38,7 @@ Severity: **Block** = can't be saved (override only where marked) · **Warn** = 
 |---|---|---|---|---|
 | U-08 | Maximum **consecutive work days** (8-hour pattern) | 7 | Block (scheduled); Warn (overtime-caused) | **NWT**, **NU** (7); CX allows up to 8 |
 | U-09 | Maximum **consecutive 12-hour shifts** | 4 | Block (scheduled); Warn (overtime-caused) | **MOCK**, matching common "4 on, 4 off" patterns |
-| U-10 | Maximum **consecutive 12-hour night shifts** | 4 | Warn | **MOCK** (fatigue) |
+| U-10 | Maximum **consecutive 12-hour overnight shifts** (00:00–12:00) | 4 | Warn | **MOCK** (fatigue) |
 | U-11 | Maximum **16-hour doubles**: 1 in any 7 days, 2 in any 28 days | 1 / 7 d · 2 / 28 d | Warn | **MOCK**, inspired by CX limits on 16-hour shifts within a work cycle |
 | U-12 | At least **2 consecutive days of rest** in each 7-day period; a break of 24 h or less doesn't count as a day of rest | 2 days / 7 | Warn | **CX**, **PSGE** (two consecutive rest days normally), **NU** |
 
@@ -83,7 +83,7 @@ Severity: **Block** = can't be saved (override only where marked) · **Warn** = 
 
 | ID | Rule | Default | Severity | Based on |
 |---|---|---|---|---|
-| L-01 | Allowed lengths: **8 h and 12 h regular**; **16 h only as overtime** (8 + 8, or 12 + 4) | — | Block | Your direction + **MOCK** |
+| L-01 | Allowed lengths: **8 h and 12 h regular**; **16 h only as overtime** (default double 20:00–12:00) | — | Block | Your direction + **MOCK** |
 | L-02 | Breaks: 2 × 15 min per 8-hour shift, 3 per 12-hour shift (shown only; not scheduled) | — | Info | **PSGE** |
 
 ## 3. What the prototype implements

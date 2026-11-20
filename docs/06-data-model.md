@@ -55,12 +55,12 @@ erDiagram
 | `unit` | `id`, `code` (unique), `name`, `kind` (`LIVING`, `ADMISSIONS`, `CONTROL`, `ESCORT`, `OTHER`), `allows_12h` bool, `active` | `allows_12h` implements rule S-03 (12-hour patterns need a local agreement). |
 | `qualification` | `id`, `code` (unique, e.g. `CONTROL`, `ESCORT`, `FIRST_AID`), `name` | |
 | `unit_requirement` | `id`, `unit_id`, `block` (`DAY` 07–15, `EVENING` 15–23, `NIGHT` 23–07), `min_staff`, `qualification_id` null, `min_with_qualification`, `effective_from`, `effective_to` | Coverage is measured **by unit and block** (ADR-013). Unique on (`unit_id`, `block`, `effective_from`). |
-| `shift_template` | `id`, `code` (`D8`, `E8`, `N8`, `D12`, `N12`, `DBL16D`, `DBL16E`), `label`, `start_time`, `duration_minutes` (480, 720, 960), `regular_allowed` bool | 16-hour templates have `regular_allowed = false` (rule L-01: overtime only). |
-| `rotation_pattern` | `id`, `code`, `name`, `cycle_days`, `pattern` jsonb (e.g. `["D12","D12","N12","N12",null,null,null,null]`), `anchor_date` | Drives the seed generator and future roster building. |
+| `shift_template` | `id`, `code`, `label`, `start_time`, `duration_minutes` (480, 720, 960), `regular_allowed` bool, `chip_style`, `active`, `effective_from`, `effective_to`, `rule_set_version_id` | **Configurable** (ADR-015). Defaults: `D8` 07:00–15:00, `E8` 15:00–23:00, `N8` 23:00–07:00, `A12` 00:00–12:00, `P12` 12:00–24:00, `DBL16` 20:00–12:00 (`regular_allowed = false`, rule L-01). Changing a template never alters existing assignments, which keep their own `start_at`/`end_at`. |
+| `rotation_pattern` | `id`, `code`, `name`, `cycle_days`, `pattern` jsonb (e.g. `["A12","A12","P12","P12",null,null,null,null]`), `anchor_date` | Drives the seed generator and future roster building. |
 | `employee` | `id`, `employee_no` (unique), `first_name`, `last_name`, `classification` (`CO`), `home_unit_id`, `rotation_pattern_id`, `fte` numeric(3,2), `seniority_date`, `active`, `is_synthetic` | |
 | `employee_qualification` | (`employee_id`, `qualification_id`) PK, `valid_from`, `valid_to` | Expiry supports "certification lapsed" checks later. |
 
-**Coverage rule (ADR-013, revised):** coverage is measured **hourly**. Each block's `min_staff` applies to every hour in the block; a block is covered when every hour meets it. A 12-hour day (07–19) therefore covers the whole Day block and the first 4 hours of the Evening block.
+**Coverage rule (ADR-013, revised):** coverage is measured **hourly**. Each block's `min_staff` applies to every hour in the block; a block is covered when every hour meets it. A 12-hour 00:00–12:00 shift therefore counts toward the last 7 hours of the Night block and the first 5 hours of the Day block.
 
 ### 3.2 Scheduling
 
