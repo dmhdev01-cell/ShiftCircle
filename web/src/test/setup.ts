@@ -2,6 +2,8 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
 
+import { resetFixtures } from '../api/fixtures/api';
+import { resetSession } from '../api/session';
 import { invalidateVersionCache } from '../api/useVersion';
 
 /**
@@ -17,8 +19,16 @@ function jsonResponse(body: unknown, status = 200) {
   } as unknown as Response;
 }
 
+// jsdom has no object URLs, and the reports download a CSV.
+if (typeof URL.createObjectURL !== 'function') {
+  URL.createObjectURL = () => 'blob:test';
+  URL.revokeObjectURL = () => undefined;
+}
+
 beforeEach(() => {
   invalidateVersionCache();
+  resetFixtures();
+  resetSession();
   vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({})));
 });
 

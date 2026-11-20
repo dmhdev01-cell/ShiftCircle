@@ -20,7 +20,7 @@ export function StatusPill({ tone, children }: { tone: StatusTone; children: Rea
         alignItems: 'center',
         height: 24,
         px: 2,
-        borderRadius: 12,
+        borderRadius: '12px',
         backgroundColor: palette.bg,
         color: palette.text,
         fontSize: 12,

@@ -28,17 +28,41 @@ function jsonResponse(body: unknown, status = 200) {
   } as unknown as Response;
 }
 
+/** The shape the api's VersionResponse actually sends. */
+const apiVersionBody = {
+  name: 'shiftcircle-api',
+  version: '0.1.0',
+  buildTime: '2026-11-20T03:04:11Z',
+  gitCommit: '502c434',
+  ruleSetVersion: '7',
+  profiles: 'demo',
+};
+
 describe('About page', () => {
-  it('shows the build information from /api/v1/version', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      jsonResponse({ buildVersion: '1.2.3', gitCommit: 'abc1234', ruleSetVersion: 7 }),
-    );
+  it('shows the build information the api sends', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(apiVersionBody));
 
     renderAbout();
 
-    expect(await screen.findByText('1.2.3')).toBeInTheDocument();
-    expect(screen.getByText('abc1234')).toBeInTheDocument();
+    expect(await screen.findByText('shiftcircle-api')).toBeInTheDocument();
+    expect(screen.getByText('0.1.0')).toBeInTheDocument();
+    expect(screen.getByText('2026-11-20T03:04:11Z')).toBeInTheDocument();
+    expect(screen.getByText('502c434')).toBeInTheDocument();
     expect(screen.getByText('7')).toBeInTheDocument();
+    expect(screen.getByText('demo')).toBeInTheDocument();
+  });
+
+  it('labels each build fact', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(apiVersionBody));
+
+    renderAbout();
+
+    expect(await screen.findByText('Application')).toBeInTheDocument();
+    expect(screen.getByText('Build version')).toBeInTheDocument();
+    expect(screen.getByText('Built')).toBeInTheDocument();
+    expect(screen.getByText('Git commit')).toBeInTheDocument();
+    expect(screen.getByText('Live rule set')).toBeInTheDocument();
+    expect(screen.getByText('Profiles')).toBeInTheDocument();
   });
 
   it('shows a clear error instead of a blank when the api cannot be reached', async () => {

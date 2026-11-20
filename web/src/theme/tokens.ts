@@ -1,8 +1,9 @@
 /**
- * ShiftCircle design tokens.
+ * Design tokens.
  *
  * Source of truth: docs/ui/README.md §3 (Government of Saskatchewan digital
- * standard). Components must not hard-code hex values - they read from here.
+ * standard) and docs/ui/build-notes.md §1. Components must not hard-code hex
+ * values - they read from here.
  *
  * Note: no government logo, wheat sheaf or coat of arms is used anywhere.
  */
@@ -54,26 +55,60 @@ export const colour = {
   },
 } as const;
 
-/**
- * Shift chips (docs/ui/README.md §3.2). Times follow ADR-015, so the 12 h
- * codes are A12 (00-12) and P12 (12-24) - not the mockups' D12/N12.
- */
-export type ShiftCode = 'D' | 'E' | 'N' | 'A12' | 'P12' | 'L16' | 'Sick' | 'Vac' | 'Off';
+export interface ChipStyle {
+  bg: string;
+  text: string;
+  border?: string;
+  borderStyle?: string;
+}
 
-export const shiftChips: Record<ShiftCode, { label: string; title: string; bg: string; text: string; border?: string; borderStyle?: string }> = {
-  D: { label: 'D', title: 'Day 07-15', bg: '#FDF1B0', text: '#333333' },
-  E: { label: 'E', title: 'Evening 15-23', bg: '#D5E8F3', text: '#00558C' },
-  N: { label: 'N', title: 'Night 23-07', bg: '#00558C', text: '#FFFFFF' },
-  A12: { label: 'A12', title: '12 h overnight-morning 00-12', bg: '#00558C', text: '#FFFFFF' },
-  P12: { label: 'P12', title: '12 h afternoon-evening 12-24', bg: '#D5E8F3', text: '#00558C' },
-  L16: { label: 'L16', title: '16 h 20:00-12:00 (regular)', bg: '#E1E3E6', text: '#333333', border: '#8E959C', borderStyle: 'solid' },
-  Sick: { label: 'Sick', title: 'Sick', bg: '#FFFFFF', text: '#9A3412', border: '#C2410C', borderStyle: 'dashed' },
-  Vac: { label: 'Vac', title: 'Vacation', bg: '#E3F0E8', text: '#046A38' },
-  Off: { label: 'Off', title: 'Off', bg: 'transparent', text: '#666666' },
+/**
+ * Shift chip styles, keyed by shift template code (docs/ui/build-notes.md
+ * §1.1). The three 8 hour defaults show a single letter; every other
+ * template shows its code.
+ */
+export const shiftChipStyles: Record<string, ChipStyle> = {
+  /** Day 8 h 07:00-15:00. */
+  D8: { bg: '#FDF1B0', text: '#333333' },
+  /** Evening 8 h 15:00-23:00. */
+  E8: { bg: '#D5E8F3', text: '#00558C' },
+  /** Night 8 h 23:00-07:00. */
+  N8: { bg: '#00558C', text: '#FFFFFF' },
+  /** 12 h 00:00-12:00. */
+  A12: { bg: '#00558C', text: '#FFFFFF' },
+  /** 12 h 12:00-24:00. */
+  P12: { bg: '#D5E8F3', text: '#00558C' },
+  /** 16 h 20:00-12:00, rostered. */
+  L16: { bg: '#E1E3E6', text: '#333333', border: '#8E959C', borderStyle: 'solid' },
 };
 
-/** Extra (overtime) shift styling - same code, picked up beyond the roster. */
-export const shiftChipExtra = { bg: colour.support.buffaloGrass, text: '#1F2A0A' } as const;
+/** An extra shift picked up beyond the roster. */
+export const extraChipStyle: ChipStyle = { bg: '#A4D65E', text: '#1F2A0A' };
+
+/** An overtime offer that has not been answered yet. */
+export const offerChipStyle: ChipStyle = {
+  bg: '#FFFFFF',
+  text: '#2F5206',
+  border: '#64A70B',
+  borderStyle: 'dashed',
+};
+
+/** A proposal the rules blocked. */
+export const proposedChipStyle: ChipStyle = {
+  bg: '#FFFFFF',
+  text: '#A30000',
+  border: '#C40000',
+  borderStyle: 'dashed',
+};
+
+/** An absence: sick or vacation. */
+export const absenceChipStyles: Record<string, ChipStyle> = {
+  SICK: { bg: '#FFFFFF', text: '#9A3412', border: '#C2410C', borderStyle: 'dashed' },
+  VACATION: { bg: '#E3F0E8', text: '#046A38' },
+};
+
+/** A day off. */
+export const offChipStyle: ChipStyle = { bg: 'transparent', text: '#666666' };
 
 /** Typography, spacing and shape (docs/ui/README.md §3.3). */
 export const fontFamily = "'Source Sans 3', 'Source Sans Pro', system-ui, -apple-system, 'Segoe UI', sans-serif";

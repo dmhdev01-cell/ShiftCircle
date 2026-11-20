@@ -17,5 +17,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // The tests read the typed fixtures, the same way the demo build does.
+    env: { VITE_API_MODE: 'fixtures' },
   },
 });
