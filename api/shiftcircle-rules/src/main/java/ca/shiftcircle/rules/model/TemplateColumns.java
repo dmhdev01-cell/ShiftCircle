@@ -80,19 +80,18 @@ public final class TemplateColumns {
 
   private static String shiftLengthCondition(RuleRow row) {
     if (row.params().containsKey("allowedLengths")) {
-      String allowed = csv(row.params().get("allowedLengths"));
+      // The grid edits hours; the fact carries minutes.
+      String allowed =
+          ((List<?>) row.params().get("allowedLengths"))
+              .stream()
+                  .map(item -> String.valueOf(((Number) item).intValue() * 60))
+                  .collect(Collectors.joining(", "));
       return "durationMinutes not in (" + allowed + ")";
     }
     // Rule S-03: 12- and 16-hour patterns need a local agreement on the unit.
     return "!allowedPatternByUnit";
   }
 
-  private static String csv(Object value) {
-    if (value instanceof List<?> list) {
-      return list.stream().map(item -> String.valueOf(item)).collect(Collectors.joining(", "));
-    }
-    return String.valueOf(value);
-  }
 
   private static double optionalNumber(RuleRow row, String key, double fallback) {
     Object value = row.params().get(key);
