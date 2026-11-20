@@ -39,11 +39,10 @@ public final class RestFactBuilder {
     double restHours = Duration.between(previous.end(), next.start()).toMinutes() / 60.0;
     String evidence =
         String.format(
-            "%s (%s) ends %s, next shift %s starts %s (%.2f h rest)",
+            "%s ending %s, next shift %s starts %s (%.2f h rest)",
             previous.templateCode(),
-            previous.assignmentId(),
             BusinessTime.evidence(previous.end()),
-            next.assignmentId(),
+            next.templateCode(),
             BusinessTime.evidence(next.start()),
             restHours);
 

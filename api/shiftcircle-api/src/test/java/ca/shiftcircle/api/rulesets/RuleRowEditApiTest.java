@@ -183,7 +183,9 @@ class RuleRowEditApiTest {
 
     HttpResponse<String> response = save(draft, "REST", table);
     assertThat(response.statusCode()).isEqualTo(400);
-    assertThat(problem(response).get("title").toString()).contains("(after)");
+    assertThat(problem(response).get("title").toString())
+        .contains("After this kind of shift")
+        .doesNotContain("(after)");
     assertThat(storedAfter(draft)).as("nothing was saved").isEqualTo(".*");
   }
 
@@ -421,7 +423,9 @@ class RuleRowEditApiTest {
 
     HttpResponse<String> response = save(draft, "REST", table);
     assertThat(response.statusCode()).isEqualTo(400);
-    assertThat(problem(response).get("title").toString()).contains("At least (hours) off");
+    assertThat(problem(response).get("title").toString())
+        .contains("At least (hours) off")
+        .doesNotContain("minRestHours");
   }
 
   @Test
