@@ -2,7 +2,7 @@ package ca.shiftcircle.api.config;
 
 import ca.shiftcircle.rules.RuleEvaluator;
 import ca.shiftcircle.rules.RuleSetCompiler;
-import ca.shiftcircle.rules.tables.RestBetweenShiftsRows;
+import ca.shiftcircle.rules.rows.RuleRowsV1;
 import org.kie.api.KieBase;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,8 +10,8 @@ import org.springframework.context.annotation.Configuration;
 /**
  * Wires the published rule set into the Spring context.
  *
- * <p>Day 1 spike scope: one decision table (rest between shifts, U-01) compiled at startup. The
- * rules publish pipeline replaces this with rows loaded from PostgreSQL and a hot-swapped KieBase.
+ * <p>Step 4 scope: rule set v1 from {@code RuleRowsV1} compiled at startup. Step 11 replaces this
+ * with rows loaded from PostgreSQL and a hot-swapped KieBase.
  */
 @Configuration
 public class RuleEngineConfig {
@@ -28,7 +28,6 @@ public class RuleEngineConfig {
 
   @Bean
   public KieBase publishedRuleBase(RuleSetCompiler compiler) {
-    return compiler.compileFromClasspath(
-        RestBetweenShiftsRows.TEMPLATE, RestBetweenShiftsRows.v1Defaults());
+    return compiler.compile(RuleRowsV1.ruleSet());
   }
 }

@@ -1,0 +1,40 @@
+template header
+code
+condition
+severity
+overridePolicy
+message
+
+package ca.shiftcircle.rules.tables.ranking
+
+import ca.shiftcircle.rules.facts.OvertimeRankingFact;
+import ca.shiftcircle.rules.facts.RuleOutcome;
+import ca.shiftcircle.rules.facts.RuleResult;
+import ca.shiftcircle.rules.model.OverridePolicy;
+
+global java.util.List ruleResults;
+global String ruleSetVersion;
+
+// The overtime ranking itself is computed in Java (sort by fewest overtime hours this quarter, ties
+// by seniority, skipped officers keep their place). The rule records the policy that produced a
+// ranked list, so the audit trail shows which rule-set version decided the order.
+template "overtime_ranking"
+
+rule "@{code} row @{row.rowNumber}"
+when
+    $f : OvertimeRankingFact( @{condition} )
+then
+    ruleResults.add( new RuleResult(
+        "@{code}",
+        "OT_RANKING",
+        RuleOutcome.@{severity},
+        "@{message}",
+        0,
+        $f.getRankedCount(),
+        "officers",
+        OverridePolicy.@{overridePolicy},
+        ruleSetVersion,
+        $f.getEvidence() ) );
+end
+
+end template

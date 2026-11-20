@@ -23,12 +23,14 @@ Only **web** publishes a port to the host (8080 by default; `SC_WEB_PORT` overri
 
 | | web | api | db |
 |---|---|---|---|
-| Build | Multi-stage: `node:24-alpine` (npm ci, vite build) → `nginx:stable-alpine` | Multi-stage: `maven:3.9-eclipse-temurin-21` (mvn verify) → `eclipse-temurin:21-jre-alpine` | `postgres:17-alpine` (official image) |
-| Runs as | nginx user (non-root) | `app` user (non-root), read-only root filesystem, `/tmp` tmpfs | postgres |
+| Build | Multi-stage: `node:24-alpine` (corepack pnpm, pinned by `packageManager`; `pnpm install --frozen-lockfile`, `pnpm build`) → `nginx:stable-alpine` | Multi-stage: `maven:3.9-eclipse-temurin-21` (mvn verify) → `eclipse-temurin:21-jre-alpine` | `postgres:17-alpine` (official image) |
+| Runs as | nginx master as **root**, workers as the `nginx` user (stock `nginx:stable-alpine`; known prototype deviation, see below and §9) | `app` user (non-root), read-only root filesystem, `/tmp` tmpfs | postgres |
 | Port | 80 (container), 8080 (published) | 8081 (internal) | 5432 (internal) |
 | Health check | `wget -qO- http://localhost:80/healthz` | `wget -qO- http://localhost:8081/actuator/health/readiness` | `pg_isready -U $POSTGRES_USER -d $POSTGRES_DB` |
 | Depends on | api (healthy) | db (healthy) | — |
 | Memory (guide) | 64 MB | 768 MB (`-XX:MaxRAMPercentage=75`) | 256 MB |
+
+**Known prototype deviation (web):** the stock `nginx:stable-alpine` image starts its master process as root so it can bind port 80; only the worker processes drop to the `nginx` user. The api container does run non-root. Hardening for a pilot: switch to `nginxinc/nginx-unprivileged`, which runs entirely as a non-root user and listens on **8080 inside the container** (so the port mapping, `listen` directive and health check move from 80 to 8080).
 
 Image versions are pinned to exact tags (and recorded in the build record) when the build is done.
 
@@ -83,7 +85,7 @@ All settings come from environment variables. The repo ships **`.env.example` on
 | Variable | Purpose | Example (local only) |
 |---|---|---|
 | `POSTGRES_DB` / `POSTGRES_USER` | Database name and user | `shiftcircle` / `shiftcircle` |
-| `POSTGRES_PASSWORD` | Database password | *(set by the reviewer; `make env` can generate one)* |
+| `POSTGRES_PASSWORD` | Database password | *(set by the reviewer: `cp .env.example .env`, then fill in a value)* |
 | `SC_JWT_SECRET` | Signing key for mock sign-in tokens (≥ 32 bytes) | *(generated)* |
 | `SC_PROFILE` | `demo` (seed data, mock sign-in, Swagger) or `prod-like` (no seed, no mock login) | `demo` |
 | `SC_DEMO_TODAY` | The "today" the demo pretends it is, so past and future data line up | `2026-11-19` |
@@ -134,5 +136,7 @@ Requirements: Docker Desktop or Docker Engine with Compose v2, about 2 GB free m
 | Transport | HTTP on localhost | TLS at the ingress; HSTS |
 | Identity | Mock sign-in | Government SSO over OIDC (e.g. Entra ID); roles from directory groups |
 | Secrets | `.env` file | Secrets manager / vault |
+| Container users | web: nginx master runs as root (stock image); api: non-root | web on `nginxinc/nginx-unprivileged` (non-root, listens on 8080 in the container); all containers non-root, read-only root filesystems |
+| Database roles | One database user (the image's owner/superuser) runs migrations and the app; audit log protected by triggers (ADR-018) | Separate migration-owner and application roles; the application role has `INSERT, SELECT` only on `audit_event` |
 | Logs | stdout | Central log platform; audit log retention per records schedule |
 | Releases | `docker compose up --build` | CI pipeline: tests, dependency and image scanning, signed images, staged environments |

@@ -95,3 +95,33 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Why:** (1) with hourly coverage (ADR-013) a single block number can read `5 / 5` while two hours are short; (2) exporting a period with unrecorded shifts would put wrong figures into payroll; (3) keeps the permission matrix true on every screen; (4) "not yet decided" must stay visible, and nothing auto-approves (HANDOFF guardrail 3).
 **Consequences:** extra fields in two endpoints; one new problem type; boundary test and scenario T14 in `10-testing.md`; generator self-check 8.
 
+## ADR-018 — Audit-log role grants deferred to a pilot; triggers are the prototype's proof
+**Status:** Accepted (2026-11-20, from review of `502c434`)
+**Decision:** `V1__schema.sql` creates no database roles or grants. The prototype runs migrations and the app as one database user (the `postgres` image's `POSTGRES_USER`). Append-only audit is enforced by triggers that raise an error on `UPDATE`, `DELETE` and `TRUNCATE` of `audit_event`, and repository tests prove them.
+**Why:** a separate application role needs a second set of credentials and a role-aware Flyway setup, which adds setup risk for the reviewer without changing what the demo can show. The triggers block every application path, including bugs.
+**Limit (stated honestly):** the single user owns the tables and is a superuser in the official image, so it could drop or disable the triggers. The trigger protects against application error and ordinary SQL, not against someone holding the database owner's credentials.
+**Pilot:** a migration-owner role and an application role with `INSERT, SELECT` only on `audit_event`; audit retention per the records schedule. Recorded in `08-deployment.md` §9.
+**Supersedes:** the earlier wording in `06-data-model.md` and `09-access-control.md` that the application role had `INSERT, SELECT` only.
+
+## ADR-019 — S-04 (overtime authorization) is enforced by the workflow, not a decision table
+**Status:** Accepted (2026-11-20, lead's decision)
+**Decision:** S-04 has no rule table and no `RequiresAuthorization` template. `EXTRA` shifts and overtime offers can be created or confirmed only by a `SUPERVISOR` (`POST /assignments`, `POST /open-shifts/{id}/offers|assign`, `POST /offers/{id}/confirm`, `POST /proposals/{id}/decision`), and each writes an `audit_event` with actor and time. An employee accepting an offer doesn't create the assignment; the supervisor's confirmation does.
+**Why:** "who may authorize" is a permission, already enforced by role and scope checks (`09-access-control.md` §3) and proven by the authorization tests; a configurable table would let an admin switch off a safeguard (HANDOFF guardrail 3).
+**Consequences:** `05-union-rules.md` §2E and §4 updated; S-04 is tested by the authorization tests (an `EMPLOYEE` creating or confirming an `EXTRA` shift gets `403`) and by checking the audit event, not by the rule boundary matrix.
+
+## ADR-020 — Demo data sizing correction: 2% sick + 2% vacation, overtime band 3–8%
+**Status:** Accepted (2026-11-20, `orch.lead` while the project lead was away; **to be confirmed by the project lead**). Found by the generator build (`docs/ai-dev-log.md` #27).
+**Decision:** the demo generator uses about **2% sick + 2% vacation** (was 4% + 4%), and self-check 4 accepts **3–8% overtime** of worked hours (was 3–6%).
+**Arithmetic (per 2-week pay period, 80 h threshold, ADR-016):**
+- 12 h crews, 60 officers on 2 × 00–12, 2 × 12–24, 4 off. That's 48 h per 8 days, so **84 h** per period, and 4 h of overtime each before any absence is covered: 60 × 4 = **240 h**.
+- 8 h staff, 30 officers on 5 on, 2 off: **80 h**, exactly at the threshold, so every extra shift they take is overtime.
+- 16 h staff, 10 officers on 1 on, 2 off: about **74.7 h**.
+- Worked hours with nobody absent: 60 × 84 + 30 × 80 + 10 × 74.7 ≈ **8,190 h**. Structural overtime alone is 240 / 8,190 ≈ **2.9%**.
+- Absent hours are refilled mostly by extra shifts, and almost everyone available is already at or over 80 h, so nearly every refilled hour is overtime:
+  - 8% absences: up to about 2.9% + 8% ≈ **11%** overtime, so the 3–6% band can't hold.
+  - 4% absences: up to about 2.9% + 4% ≈ **7%**, which fits inside 3–8%.
+
+  These are upper bounds: an absent 12 h officer also loses some of their own structural overtime.
+**Doesn't change:** HANDOFF §4's dataset decisions (100 fictional officers, 90 days 1 Oct – 29 Dec 2026, "today" 19 Nov, seed 20261001), the rotations, the staffing requirements, or the overtime rule. It changes only the absence rates and one self-check threshold.
+**Trade-off:** fewer absences mean fewer coverage gaps to demonstrate. Gap filling, unfilled gaps (self-check 3) and the planted cases are unaffected.
+

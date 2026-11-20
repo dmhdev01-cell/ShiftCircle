@@ -1,0 +1,43 @@
+template header
+code
+withinDays
+daysOff
+severity
+overridePolicy
+message
+
+package ca.shiftcircle.rules.tables.daysoff
+
+import ca.shiftcircle.rules.facts.DaysOffFact;
+import ca.shiftcircle.rules.facts.RuleOutcome;
+import ca.shiftcircle.rules.facts.RuleResult;
+import ca.shiftcircle.rules.model.OverridePolicy;
+
+global java.util.List ruleResults;
+global String ruleSetVersion;
+
+// One row = the days-off requirement (U-12), evaluated per 7-day window. A break of 24 hours or less
+// counts as no day off, so two consecutive days off needs 48 hours; the fact has already done that
+// arithmetic.
+template "min_consecutive_days_off"
+
+rule "@{code} row @{row.rowNumber}"
+when
+    $f : DaysOffFact(
+            windowDays == @{withinDays},
+            countedDaysOff < @{daysOff} )
+then
+    ruleResults.add( new RuleResult(
+        "@{code}",
+        "DAYS_OFF",
+        RuleOutcome.@{severity},
+        "@{message}",
+        @{daysOff},
+        $f.getCountedDaysOff(),
+        "days",
+        OverridePolicy.@{overridePolicy},
+        ruleSetVersion,
+        $f.getEvidence() ) );
+end
+
+end template

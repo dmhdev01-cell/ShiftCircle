@@ -1,22 +1,28 @@
 package ca.shiftcircle.rules;
 
+import ca.shiftcircle.rules.model.RuleRow;
+import ca.shiftcircle.rules.model.RuleSet;
+import ca.shiftcircle.rules.model.RuleTableCode;
+import ca.shiftcircle.rules.model.TemplateColumns;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import org.drools.template.ObjectDataCompiler;
+import org.kie.api.KieBase;
 import org.kie.api.builder.Message.Level;
 import org.kie.api.builder.Results;
 import org.kie.api.io.ResourceType;
-import org.kie.api.KieBase;
 import org.kie.internal.utils.KieHelper;
 
 /**
- * Compiles a Drools rule template plus its data rows into a {@link KieBase}.
+ * Compiles a rule set (templates plus rows) into a {@link KieBase}.
  *
- * <p>This is the path the rules publish pipeline uses: templates are developer-owned, rows are
- * data. Compilation errors are surfaced as {@link RuleCompilationException} so the admin screen can
- * translate them into "row 3, column Minimum rest: must be a number".
+ * <p>This is the path the publish pipeline uses: templates are developer-owned, rows are data. A
+ * compilation error surfaces as {@link RuleCompilationException} so the admin screen can translate
+ * it into "row 3, column Minimum rest: must be a number".
  */
 public final class RuleSetCompiler {
 
@@ -25,38 +31,47 @@ public final class RuleSetCompiler {
     return new ObjectDataCompiler().compile(rows, template);
   }
 
-  /** Generates and compiles the DRL, returning a ready-to-use rule base. */
-  public KieBase compile(InputStream template, Collection<Map<String, Object>> rows) {
-    String drl = generateDrl(template, rows);
+  /** Compiles every fireable row of the rule set, grouped by decision table. */
+  public KieBase compile(RuleSet ruleSet) {
+    Map<RuleTableCode, List<Map<String, Object>>> rowsByTable = new EnumMap<>(RuleTableCode.class);
+    for (RuleRow row : ruleSet.rows()) {
+      if (TemplateColumns.fireable(row)) {
+        rowsByTable
+            .computeIfAbsent(row.table(), table -> new ArrayList<>())
+            .add(TemplateColumns.of(row));
+      }
+    }
+
     KieHelper helper = new KieHelper();
-    helper.addContent(drl, ResourceType.DRL);
+    rowsByTable.forEach(
+        (table, rows) -> {
+          String drl;
+          try (InputStream template = open(table.templateResource())) {
+            drl = generateDrl(template, rows);
+          } catch (java.io.IOException e) {
+            throw new RuleCompilationException("Rule template could not be read: " + table.code());
+          }
+          helper.addContent(drl, ResourceType.DRL);
+        });
 
     Results results = helper.verify();
     if (results.hasMessages(Level.ERROR)) {
-      throw new RuleCompilationException("Rule template and rows did not compile: " + results.getMessages());
+      throw new RuleCompilationException(
+          "Rule set " + ruleSet.version() + " did not compile: " + results.getMessages());
     }
 
     KieBase kieBase = helper.build();
     if (kieBase == null) {
-      throw new RuleCompilationException("Rule base could not be built: " + drl);
+      throw new RuleCompilationException("Rule base could not be built for " + ruleSet.version());
     }
     return kieBase;
   }
 
-  /** Same as {@link #compile(InputStream, Collection)} but reads the template from the classpath. */
-  public KieBase compileFromClasspath(String templatePath, Collection<Map<String, Object>> rows) {
-    try (InputStream template = RuleSetCompiler.class.getResourceAsStream(templatePath)) {
-      if (template == null) {
-        throw new RuleCompilationException("Rule template not found on classpath: " + templatePath);
-      }
-      return compile(template, rows);
-    } catch (java.io.IOException e) {
-      throw new RuleCompilationException("Rule template could not be read: " + templatePath);
+  private InputStream open(String resource) {
+    InputStream stream = RuleSetCompiler.class.getResourceAsStream(resource);
+    if (stream == null) {
+      throw new RuleCompilationException("Rule template not found on classpath: " + resource);
     }
-  }
-
-  /** Convenience: compile from classpath with no rows (used by tests and dry runs). */
-  public KieBase compileFromClasspath(String templatePath, Map<String, Object> row) {
-    return compileFromClasspath(templatePath, List.of(row));
+    return stream;
   }
 }

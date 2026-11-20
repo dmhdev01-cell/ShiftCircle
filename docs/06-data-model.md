@@ -88,7 +88,7 @@ erDiagram
 | Table | Key columns | Notes and constraints |
 |---|---|---|
 | `rule_table` | `id`, `code` (`REST`, `MAX_HOURS`, `CONSECUTIVE`, `LONG_SHIFTS`, `DAYS_OFF`, `PAY`, `OT_RANKING`, `SHIFT_LENGTHS`), `name`, `template_ref`, `column_schema` jsonb | Defines the friendly columns an admin edits; `template_ref` points at the Drools template in the code. |
-| `rule_set_version` | `id`, `version` int unique, `status` (`DRAFT`, `SUBMITTED`, `APPROVED`, `PUBLISHED`, `SUPERSEDED`, `REJECTED`), `based_on_version`, `effective_from`, `change_reason`, `created_by`, `submitted_at`, `approved_by`, `approved_at`, `published_at`, `build_report` jsonb, `dry_run_report` jsonb, `drl_sha256` | **Maker/checker:** `CHECK (approved_by IS NULL OR approved_by <> created_by)`. Only one `PUBLISHED` row per effective date. |
+| `rule_set_version` | `id`, `version` int unique, `status` (`DRAFT`, `SUBMITTED`, `APPROVED`, `PUBLISHED`, `SUPERSEDED`, `REJECTED`), `based_on_version`, `effective_from`, `change_reason`, `created_by`, `submitted_at`, `approved_by`, `approved_at`, `published_at`, `build_report` jsonb, `dry_run_report` jsonb, `drl_sha256` | **Maker/checker:** `CHECK (approved_by IS NULL OR created_by IS NULL OR approved_by <> created_by)` (matches `V1__schema.sql`; the `created_by IS NULL` arm only makes explicit what a CHECK already allows, since a CHECK that evaluates to NULL passes; the API always sets `created_by`). Only one `PUBLISHED` row per effective date. |
 | `rule_row` | `id`, `rule_set_version_id`, `rule_table_id`, `code` (e.g. `U-03`), `enabled`, `params` jsonb, `severity` (`BLOCK`, `WARN`, `INFO`), `override_policy` (`EMERGENCY`, `ACKNOWLEDGE`, `NONE`), `message`, `source`, `is_placeholder`, `sort_order` | `params` validated against `rule_table.column_schema`. Unique on (`rule_set_version_id`, `code`). |
 | `rule_check` | `id`, `change_type`, `payload` jsonb, `rule_set_version_id`, `outcome` (`PASS`, `WARN`, `BLOCK`), `requested_by`, `created_at`, `saved` bool | Stored for every **saved** change (previews aren't stored). |
 | `rule_result` | `id`, `rule_check_id`, `rule_code`, `outcome`, `message`, `facts` jsonb, `evidence_assignment_ids` uuid[] | E.g. `facts = {"restHours": 0, "minHours": 8}`. |
@@ -100,7 +100,7 @@ erDiagram
 | `app_user` | `id`, `username` unique, `display_name`, `employee_id` null, `active` | Mock sign-in picks from this table (see `09-access-control.md`). |
 | `app_user_role` | (`user_id`, `role`) PK | Roles: `EMPLOYEE`, `SUPERVISOR`, `RULES_ADMIN`, `RULES_APPROVER`, `AUDITOR`, `DISPLAY`. |
 | `user_unit_scope` | (`user_id`, `unit_id`) PK | Which units a supervisor manages. |
-| `audit_event` | `id` bigint identity, `occurred_at`, `actor_user_id`, `action`, `entity_type`, `entity_id`, `before` jsonb, `after` jsonb, `rule_set_version_id` null, `override_id` null, `correlation_id` | **Append-only:** the application database role has `INSERT, SELECT` only; a trigger raises an error on `UPDATE` or `DELETE`. |
+| `audit_event` | `id` bigint identity, `occurred_at`, `actor_user_id`, `action`, `entity_type`, `entity_id`, `before` jsonb, `after` jsonb, `rule_set_version_id` null, `override_id` null, `correlation_id` | **Append-only:** triggers raise an error on `UPDATE`, `DELETE` and `TRUNCATE`. The prototype has one database user, so there are no role grants yet; a pilot adds an application role with `INSERT, SELECT` only (ADR-018). |
 
 ## 4. Indexes (beyond primary and unique keys)
 
@@ -126,7 +126,7 @@ Tiny for PostgreSQL. The performance targets (NFR-05) come down to sensible inde
 
 | Script | Contents |
 |---|---|
-| `V1__schema.sql` | Extensions (`btree_gist`, `pgcrypto`), types, tables, constraints, triggers, grants |
+| `V1__schema.sql` | Extensions (`btree_gist`, `pgcrypto`), types, tables, constraints, triggers (append-only audit, locked pay periods). **No role grants:** the prototype runs as one database user and the triggers are the proof of append-only audit; separate roles and grants are deferred to a pilot (ADR-018). |
 | `V2__reference_data.sql` | Shift templates, blocks, qualifications, rule tables, rule set **v1** from `05-union-rules.md` |
 | `V3__demo_units_and_users.sql` | Fictional units, unit requirements, demo users and roles |
-| Java `DemoDataGenerator` (`demo` profile) | 100 officers, rotations, 90 days of assignments, absences (~8%), overtime fills, actuals for days before "today", and the planted test cases. Fixed seed, so it's reproducible. Runs only if the database is empty. |
+| Java `DemoDataGenerator` (`demo` profile) | 100 officers, rotations, 90 days of assignments, absences (~4%: 2% sick, 2% vacation, ADR-020), overtime fills, actuals for days before "today", and the planted test cases. Fixed seed, so it's reproducible. Runs only if the database is empty. |

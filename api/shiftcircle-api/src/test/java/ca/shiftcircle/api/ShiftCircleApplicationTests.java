@@ -38,13 +38,14 @@ class ShiftCircleApplicationTests {
   @Test
   void firesU01InsideTheSpringContext() {
     MinRestInWindowFact fact =
-        new MinRestInWindowFact("ANY", 24, 4.0, "Shortest rest gap in the 24 h window was 4.0 h");
+        new MinRestInWindowFact(
+            "D8", 24, 4.0, 0, "D8 ends Thu 19 Nov 15:00, next shift starts 19:00 (4.00 h rest)");
 
     List<RuleResult> results = ruleEvaluator.evaluate(publishedRuleBase, "v1", fact);
 
-    assertThat(results).singleElement().satisfies(result -> {
-      assertThat(result.ruleId()).isEqualTo("U-01");
-      assertThat(result.outcome()).isEqualTo(RuleOutcome.BLOCK);
-    });
+    assertThat(results)
+        .filteredOn(result -> result.ruleId().equals("U-01"))
+        .singleElement()
+        .satisfies(result -> assertThat(result.outcome()).isEqualTo(RuleOutcome.BLOCK));
   }
 }

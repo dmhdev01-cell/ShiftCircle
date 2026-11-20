@@ -116,7 +116,7 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 - 60 officers on 12 h "2 × 00–12, 2 × 12–24, 4 off" (4 crews of 15, each starting 2 days apart) → every day 15 officers work 00:00–12:00 and 15 work 12:00–24:00. (The order matters: a 12–24 shift can't be followed by a 00–12 shift the next day, which would be zero rest.)
 - 30 officers on 8 h "5 on, 2 off" rotations with staggered days off: 16 on days, 12 on evenings, 2 on nights → about 11.4 / 8.6 / 1.4 on duty per day.
 - 10 officers on 16 h shifts 20:00–12:00, "1 on, 2 off" (about 37 h a week) → about 3.3 on duty each day, covering evening, night and morning hours.
-- On-duty supply before absences: 00–07 ≈ 19.7, 07–12 ≈ 29.7, 12–15 ≈ 26.4, 15–20 ≈ 23.6, 20–23 ≈ 26.9, 23–24 ≈ 19.7, against required 19 / 27 / 27 / 24 / 24 / 19: about 585 staff-hours a day available against 560 required (≈ 4% spare), with some hours short and some over. That matches requirements **only when nobody is absent**, so the ~8% absences create real gaps that overtime must fill. That's the point of the dataset.
+- On-duty supply before absences: 00–07 ≈ 19.7, 07–12 ≈ 29.7, 12–15 ≈ 26.4, 15–20 ≈ 23.6, 20–23 ≈ 26.9, 23–24 ≈ 19.7, against required 19 / 27 / 27 / 24 / 24 / 19: about 585 staff-hours a day available against 560 required (≈ 4% spare), with some hours short and some over. That matches requirements **only when nobody is absent**, so the ~4% absences (2% sick + 2% vacation, ADR-020) create real gaps that overtime must fill. That's the point of the dataset.
 - **Coverage is measured hourly** (ADR-013 revised): a block is covered when every hour in it meets the required headcount. A 00–12 shift therefore counts toward the end of the Night block and the first 5 hours of the Day block.
 
 ### 6.4 People
@@ -133,8 +133,8 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 
 | Event | Rule |
 |---|---|
-| Sick days | ~4% of past and near-future shifts, random (seeded); recorded as type SICK only |
-| Vacation | ~4% of shifts, as blocks of 3–7 consecutive days, booked in advance |
+| Sick days | ~2% of past and near-future shifts, random (seeded); recorded as type SICK only (ADR-020) |
+| Vacation | ~2% of shifts, as blocks of 3–7 consecutive days, booked in advance (ADR-020) |
 | Gap filling | For each hour below requirement, create an open shift; fill using the **real** ranking and rules: candidates in O-02 order, skip any with a Block, voluntary acceptance with probability 0.7 (seeded). Leave ~1–2% of gaps unfilled so reports show imperfection. |
 | Actuals (past days) | Worked as scheduled, except: absences; ~3% of shifts extended by 0.5–2 h (extra hours; overtime only if the officer ends the period over 80 h); a few early leaves. Time entries get pay codes from the pay-classification rules. |
 | Overrides | Exactly the planted ones (PC-03) plus 3 more emergency overrides spread over the window, each with a reason |
@@ -159,7 +159,7 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 1. No overlapping assignments for any officer.
 2. Apart from planted cases PC-01 to PC-04 and the logged overrides, **no saved assignment breaks a Block rule** of the rule set in force on its date.
 3. Coverage: ≥ 97.5% of hour-slots meet requirement across the window; at least 5 unfilled gaps exist.
-4. Overtime: total 3–6% of worked hours; at least 10 officers with zero overtime and at least 5 above 25 h this quarter (skew).
+4. Overtime: total 3–8% of worked hours (ADR-020); at least 10 officers with zero overtime and at least 5 above 25 h this quarter (skew).
 5. For every locked pay period: sum of actual time entries = sum of payroll export lines per officer.
 6. Every person row has `is_synthetic = true`; no name appears outside the fixed lists.
 7. Re-running with the same seed produces identical row counts and a matching checksum of assignments.

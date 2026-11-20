@@ -1,0 +1,42 @@
+template header
+code
+maxIn7Days
+maxIn28Days
+severity
+overridePolicy
+message
+
+package ca.shiftcircle.rules.tables.longshifts
+
+import ca.shiftcircle.rules.facts.LongShiftCountFact;
+import ca.shiftcircle.rules.facts.RuleOutcome;
+import ca.shiftcircle.rules.facts.RuleResult;
+import ca.shiftcircle.rules.model.OverridePolicy;
+
+global java.util.List ruleResults;
+global String ruleSetVersion;
+
+// One row = the 16-hour shift limits (U-11): 3 in any 7 days and 10 in any 28 days.
+template "long_shifts_in_window"
+
+rule "@{code} row @{row.rowNumber}"
+when
+    $f : LongShiftCountFact(
+            countIn7Days > @{maxIn7Days} || countIn28Days > @{maxIn28Days} )
+then
+    boolean sevenDayBreach = $f.getCountIn7Days() > @{maxIn7Days};
+
+    ruleResults.add( new RuleResult(
+        "@{code}",
+        "LONG_SHIFTS",
+        RuleOutcome.@{severity},
+        "@{message}",
+        sevenDayBreach ? @{maxIn7Days} : @{maxIn28Days},
+        sevenDayBreach ? $f.getCountIn7Days() : $f.getCountIn28Days(),
+        "shifts",
+        OverridePolicy.@{overridePolicy},
+        ruleSetVersion,
+        $f.getEvidence() ) );
+end
+
+end template

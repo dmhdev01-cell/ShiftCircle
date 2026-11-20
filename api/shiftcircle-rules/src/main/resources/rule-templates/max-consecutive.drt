@@ -1,0 +1,50 @@
+template header
+code
+counts
+max
+severity
+overtimeSeverity
+overridePolicy
+message
+
+package ca.shiftcircle.rules.tables.consecutive
+
+import ca.shiftcircle.rules.facts.ConsecutiveRunFact;
+import ca.shiftcircle.rules.facts.RuleOutcome;
+import ca.shiftcircle.rules.facts.RuleResult;
+import ca.shiftcircle.rules.model.OverridePolicy;
+
+global java.util.List ruleResults;
+global String ruleSetVersion;
+
+// One row = one consecutive-work limit (U-08 days, U-09 12-hour shifts, U-10 overnight 12-hour
+// shifts). A run caused by a shift picked up outside the roster warns instead of blocking.
+template "max_consecutive"
+
+rule "@{code} row @{row.rowNumber}"
+when
+    $f : ConsecutiveRunFact(
+            counts == "@{counts}",
+            runLength > @{max} )
+then
+    RuleOutcome outcome = $f.isCausedByOvertime()
+        ? RuleOutcome.@{overtimeSeverity}
+        : RuleOutcome.@{severity};
+    OverridePolicy policy = $f.isCausedByOvertime()
+        ? OverridePolicy.ACKNOWLEDGE
+        : OverridePolicy.@{overridePolicy};
+
+    ruleResults.add( new RuleResult(
+        "@{code}",
+        "CONSECUTIVE",
+        outcome,
+        "@{message}",
+        @{max},
+        $f.getRunLength(),
+        "shifts",
+        policy,
+        ruleSetVersion,
+        $f.getEvidence() ) );
+end
+
+end template
