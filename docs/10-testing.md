@@ -24,6 +24,21 @@
 | **Accessibility** | `@axe-core/playwright` in the E2E run | No serious/critical axe violations on each screen; keyboard-only run of flows E1 and E3 | Before submission |
 | **Performance smoke** | E2E timing + a JUnit timing test | Planning board (100 officers × 14 days) < 1 s; rule check < 200 ms; 90-day report < 2 s (NFR-05) | Before submission |
 
+### Measured performance (NFR-05, 2026-11-20)
+
+Full demo dataset (100 officers, 6,182 assignments, checksum `0f1ba078a793f450fbae1ddb31f70c6dcbe053b1f8c62415431973e2b71be6de`), PostgreSQL 17 in a Testcontainer, `PerformanceSmokeTest` in `maven:3.9-eclipse-temurin-21` on Docker Desktop for macOS. That is a VM, slower than the target host, so a pass here is pessimistic. Five warm-up calls, then 20 timed calls; the board range is four weeks (NFR-05 says 14 days, so this is stricter); the publish figures are single calls.
+
+| Case | Median | p95 | Limit |
+|---|---|---|---|
+| Planning board, Unit A, 4 weeks (`GET /schedule`) | 54 ms | 58 ms | 1,000 ms |
+| Rule check, busiest officer, 28-day look-back (`POST /rule-checks`) | 4 ms | 7 ms | 200 ms |
+| 90-day coverage report (`GET /reports/coverage`) | 7 ms | 15 ms | 2,000 ms |
+| Rule-set build (compile + scenarios + dry run) | 655 ms | — | recorded, no NFR |
+| Rule-set publish (compiles again, then swaps) | 516 ms | — | recorded, no NFR |
+
+A second run on the same machine gave 59/65, 3/4 and 8/24 ms and a 954 ms build; the host is
+shared, so expect this spread. The test asserts the median and the p95 against the NFR limits, so a regression fails the build rather than being noticed in the demo.
+
 **Definition of done for any feature:** its rule and use-case tests pass, its endpoints have authorization tests, and the demo flow touching it passes in Playwright.
 
 ## 3. Rule boundary matrix
