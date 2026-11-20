@@ -71,7 +71,7 @@ Checks once it's up (both checked):
 
 Stop with `docker compose down`; add `-v` to delete the database and start from the seeded data again.
 
-Set `SC_GIT_COMMIT=$(git rev-parse --short HEAD)` in `.env` before building if you want the version screen to show the commit.
+Optional, build information only: to show the commit at `/api/v1/version`, run `git rev-parse --short HEAD` and paste the value into `.env` (for example `SC_GIT_COMMIT=3a4bbbd`) **before** `docker compose up -d --build --wait`. Compose doesn't run `$(…)` in `.env`. The value is baked into the api image at build time, so recreating a container doesn't change it; only a rebuild does.
 
 ### 3. Sign in (mock)
 
