@@ -185,17 +185,18 @@ export interface ScheduleQuery {
 
 // --- The client the screens use ---
 
-export interface AssignRequest {
-  employeeId: string;
-  unitId: string;
-  shiftTemplate: string;
-  startAt: string;
+/** A change to save. The api runs the rules before it accepts the change. */
+export interface SaveRequest {
+  change: RuleCheckChange;
+  /** Rule codes the supervisor acknowledges, for Warn results. */
   acknowledgeWarnings?: string[];
+  /** Emergency override, with the written reason. Supervisor only. */
   override?: { reason: string };
 }
 
-export interface AssignOutcome {
-  assignmentId: string;
+export interface SaveOutcome {
+  /** The assignment that was created, moved or cancelled. */
+  assignmentId?: string;
   /** The rule outcome of the save. */
   ruleOutcome: RuleCheckOutcome;
 }
@@ -208,5 +209,5 @@ export interface AssignOutcome {
 export interface ShiftCircleApi {
   getSchedule(query: ScheduleQuery): Promise<SchedulePayload>;
   previewRuleCheck(request: RuleCheckRequest): Promise<RuleCheckOutcome>;
-  assignShift(request: AssignRequest): Promise<AssignOutcome>;
+  saveChange(request: SaveRequest): Promise<SaveOutcome>;
 }

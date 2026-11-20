@@ -73,10 +73,12 @@ describe('the fixture api', () => {
   });
 
   it('answers a blocked save with 422 and the Problem Details body', async () => {
-    await expect(api.assignShift(pc01)).rejects.toBeInstanceOf(ApiError);
+    const save = { change: { type: 'ASSIGN' as const, ...pc01 } };
+
+    await expect(api.saveChange(save)).rejects.toBeInstanceOf(ApiError);
 
     try {
-      await api.assignShift(pc01);
+      await api.saveChange(save);
     } catch (error) {
       const apiError = error as ApiError;
       expect(apiError.status).toBe(422);
@@ -87,8 +89,8 @@ describe('the fixture api', () => {
   });
 
   it('accepts the same save with an emergency override', async () => {
-    const outcome = await api.assignShift({
-      ...pc01,
+    const outcome = await api.saveChange({
+      change: { type: 'ASSIGN', ...pc01 },
       override: { reason: 'Lockdown, no relief available' },
     });
 
@@ -106,7 +108,7 @@ describe('the fixture api', () => {
     };
 
     try {
-      await api.assignShift(warnOnly);
+      await api.saveChange({ change: { type: 'ASSIGN', ...warnOnly } });
       throw new Error('the save should have been refused');
     } catch (error) {
       const apiError = error as ApiError;
@@ -114,8 +116,8 @@ describe('the fixture api', () => {
       expect(apiError.problem?.type).toBe(WARNINGS_NEED_ACKNOWLEDGEMENT);
     }
 
-    const acknowledged = await api.assignShift({
-      ...warnOnly,
+    const acknowledged = await api.saveChange({
+      change: { type: 'ASSIGN', ...warnOnly },
       acknowledgeWarnings: ['U-14'],
     });
     expect(acknowledged.ruleOutcome.outcome).toBe('WARN');

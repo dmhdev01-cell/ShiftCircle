@@ -9,13 +9,13 @@
 
 import { ApiError } from '../http';
 import type {
-  AssignOutcome,
-  AssignRequest,
   RuleCheckChange,
   RuleCheckOutcome,
   RuleCheckRequest,
   RuleResult,
   SchedulePayload,
+  SaveOutcome,
+  SaveRequest,
   ScheduleQuery,
   ShiftCircleApi,
 } from '../types';
@@ -133,16 +133,13 @@ export function createFixtureApi(): ShiftCircleApi {
       return evaluate(request);
     },
 
-    async assignShift(request: AssignRequest): Promise<AssignOutcome> {
+    async saveChange(request: SaveRequest): Promise<SaveOutcome> {
       await wait(LATENCY_MS);
+      if (request.change.type !== 'ASSIGN') {
+        throw new ApiError('The fixture api only answers an assignment.', 501);
+      }
       const outcome = evaluate({
-        change: {
-          type: 'ASSIGN',
-          employeeId: request.employeeId,
-          unitId: request.unitId,
-          shiftTemplate: request.shiftTemplate,
-          startAt: request.startAt,
-        },
+        change: request.change,
         ...(request.acknowledgeWarnings ? { acknowledgeWarnings: request.acknowledgeWarnings } : {}),
         ...(request.override ? { override: request.override } : {}),
       });

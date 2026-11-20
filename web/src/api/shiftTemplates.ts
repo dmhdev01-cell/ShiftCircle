@@ -24,8 +24,8 @@ export const shiftTemplates: Record<string, ShiftTemplate> = {
   D8: { code: 'D8', chipText: 'D', label: 'Day 8 h', start: '07:00', end: '15:00', endsNextDay: false, regular: true },
   E8: { code: 'E8', chipText: 'E', label: 'Evening 8 h', start: '15:00', end: '23:00', endsNextDay: false, regular: true },
   N8: { code: 'N8', chipText: 'N', label: 'Night 8 h', start: '23:00', end: '07:00', endsNextDay: true, regular: true },
-  A12: { code: 'A12', chipText: 'A12', label: '12 h 00-12', start: '00:00', end: '12:00', endsNextDay: false, regular: true },
-  P12: { code: 'P12', chipText: 'P12', label: '12 h 12-24', start: '12:00', end: '24:00', endsNextDay: false, regular: true },
+  A12: { code: 'A12', chipText: 'A12', label: '12 h 00–12', start: '00:00', end: '12:00', endsNextDay: false, regular: true },
+  P12: { code: 'P12', chipText: 'P12', label: '12 h 12–24', start: '12:00', end: '24:00', endsNextDay: false, regular: true },
   L16: { code: 'L16', chipText: 'L16', label: '16 h shift', start: '20:00', end: '12:00', endsNextDay: true, regular: true },
 };
 

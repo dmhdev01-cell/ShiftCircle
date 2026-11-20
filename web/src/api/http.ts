@@ -1,10 +1,10 @@
 import type {
-  AssignOutcome,
-  AssignRequest,
   ProblemDetails,
   RuleCheckOutcome,
   RuleCheckRequest,
   SchedulePayload,
+  SaveOutcome,
+  SaveRequest,
   ScheduleQuery,
   ShiftCircleApi,
 } from './types';
@@ -101,10 +101,29 @@ export function createHttpApi(): ShiftCircleApi {
       });
     },
 
-    assignShift(body: AssignRequest): Promise<AssignOutcome> {
-      return request<AssignOutcome>('/assignments', {
+    saveChange(save: SaveRequest): Promise<SaveOutcome> {
+      const { change } = save;
+      const body = JSON.stringify({
+        change,
+        ...(save.acknowledgeWarnings ? { acknowledgeWarnings: save.acknowledgeWarnings } : {}),
+        ...(save.override ? { override: save.override } : {}),
+      });
+
+      if (change.type === 'MOVE') {
+        return request<SaveOutcome>(`/assignments/${change.assignmentId}`, {
+          method: 'PATCH',
+          body,
+        });
+      }
+      if (change.type === 'CANCEL') {
+        return request<SaveOutcome>(`/assignments/${change.assignmentId}`, {
+          method: 'DELETE',
+          body,
+        });
+      }
+      return request<SaveOutcome>('/assignments', {
         method: 'POST',
-        body: JSON.stringify(body),
+        body,
       });
     },
   };
