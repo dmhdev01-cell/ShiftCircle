@@ -76,6 +76,12 @@ docs/ai-dev-log.md           AI-assisted development log (assessment requirement
 7. **Commits:** small and descriptive. The lead pushes to GitHub (`dmhdev01-cell/ShiftCircle01`, private).
 8. Keep the footer line on every screen: "Not an official Government of Saskatchewan service · fictional, synthetic data only".
 
+### Governance exceptions (recorded so the build record can't overstate them)
+
+| Guardrail | Exception | Status |
+|---|---|---|
+| 4: boundary tests reviewed by a human | **Waived by the project lead on 2026-11-20.** The rule boundary tests are reviewed by AI verifiers instead: `dev-qa` (GLM 5.3, with mutation spot-checks) and `review-r2` (GLM 5.3, independent of the DeepSeek author). **No human review of the boundary tests has taken place.** | A pilot should restore human review (a labour-relations or scheduling practitioner) before any rule set is relied on. See `docs/ai-dev-log.md` #23. |
+
 ## 6. Next steps for development (in order)
 
 Each step lists its "done when" check. If time runs short, cut from the bottom of the Should list (`01-scope-and-plan.md` §5), never from testing or governance.
@@ -94,7 +100,7 @@ Each step lists its "done when" check. If time runs short, cut from the bottom o
 | 10 | **Reports:** coverage (hourly-based), hours, overtime, overrides; CSV export | Numbers reconcile with time entries; NFR-05 timings met |
 | 11 | **Rules admin** (incl. the **Shift types** table, ADR-015): decision-table grid, plain-language sentences, build (validate → compile → scenarios → dry run), submit, approve, publish (hot swap), version history | T7, T10, T13 and E3 pass |
 | 12 | Should items if time allows: **wall display** (E5), shift planner/proposals, Excel round-trip, audit viewer | Their tests pass |
-| 13 | **Submission:** `README.md` setup section, `BUILD_RECORD.md` (≤ 2 pages; architecture diagram, decisions, AI use with ≥ 1 rejected suggestion, 2–5 tests T2/T3/T7/T8/T9, governance and next steps), `docs/demo-script.md`, ≤ 5-minute recording | A clean clone + `docker compose up` works on a second machine; the recording shows working vs simulated parts and one safeguard |
+| 13 | **Submission:** `README.md` setup section, `BUILD_RECORD.md` (≤ 2 pages; architecture diagram, decisions, AI use with ≥ 1 rejected suggestion, 2–5 tests T2/T3/T7/T8/T9, governance and next steps; governance must state the guardrail 4 exception in §5, and next steps must list restoring human review of the boundary tests), `docs/demo-script.md`, ≤ 5-minute recording | A clean clone + `docker compose up` works on a second machine; the recording shows working vs simulated parts and one safeguard |
 
 ## 7. Testing: what's required (summary of `docs/10-testing.md`)
 
