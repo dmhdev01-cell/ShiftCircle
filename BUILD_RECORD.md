@@ -29,9 +29,9 @@ Only the web publishes a port. A published rule version is compiled and swapped 
 - **Final security review:** review-r3, Claude Sonnet 5.5.
 - **Lead:** Claude Sonnet 5.5. **Design, e2e and docs:** Claude Opus 5.5.
 
-**Independence, honestly:** builders and verifiers are different model families, except from about **10:07Z to 11:30Z**. The OpenCode credit ran out, and all five OpenCode seats ran on MiniMax (M3.1 Flash building, M3 verifying). Those rounds (R32–R34) have weaker independence. **The final rounds (R38, R39, R41, R43–R46) were GLM 5.3 Flash**, a lower tier, still independent of the DeepSeek authors.
+**Independence, honestly:** builders and verifiers are different model families, except from about **10:07Z to 11:30Z**. The OpenCode credit ran out, and all five OpenCode seats ran on MiniMax (M3.1 Flash building, M3 verifying). Those rounds (R32–R34) have weaker independence. **The final rounds (R38, R39, R41, R43–R47) were GLM 5.3 Flash**, a lower tier, still independent of the DeepSeek authors.
 
-**How it was verified:** 46 review and QA rounds, three e2e runs and two visual reviews, each recorded with what was checked, found and fixed (`docs/review-rounds.md`; narrative in `docs/ai-dev-log.md`). Fixes were proved by reverting them and watching their test fail.
+**How it was verified:** 47 review and QA rounds, three e2e runs and two visual reviews, each recorded with what was checked, found and fixed (`docs/review-rounds.md`; narrative in `docs/ai-dev-log.md`). Fixes were proved by reverting them and watching their test fail.
 
 **What verification caught** that had passed the author's own tests:
 
@@ -49,7 +49,7 @@ Only the web publishes a port. A published rule version is compiled and swapped 
 
 ## 4. Test cases and verified status
 
-**Final (independent, R46):** api **356** at `f4496c6`; vitest 239; Playwright desktop 86, tablet 85 + 1 skipped, 0 failed. One review of the last api changes is pending.
+**Final (independent, R46):** api **356** at `f4496c6`; vitest 239; Playwright desktop 86, tablet 85 + 1 skipped, 0 failed. The last api change was reviewed: safe (R47).
 
 | ID | Case | Expected | Result |
 |---|---|---|---|
