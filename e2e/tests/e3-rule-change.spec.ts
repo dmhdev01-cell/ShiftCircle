@@ -61,8 +61,11 @@ test.describe('E3 rule change with maker/checker', () => {
     await expect(page.getByText(/Version \d+ is live from/)).toBeVisible();
 
     // The hot swap really happened: the version endpoint reports the new live rule set.
-    const version = await page.request.get('/api/v1/version');
-    expect((await version.json()).ruleSetVersion).not.toBe('v1');
+    // The fixtures have no version endpoint, so this check is real-api only.
+    if ((await page.getByText('Demo fixtures').count()) === 0) {
+      const version = await page.request.get('/api/v1/version');
+      expect((await version.json()).ruleSetVersion).not.toBe('v1');
+    }
   });
 
   test('a supervisor can read the rules but not build, submit, approve or publish', async ({ page }) => {
