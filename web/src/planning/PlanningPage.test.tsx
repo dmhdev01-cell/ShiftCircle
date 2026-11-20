@@ -71,7 +71,7 @@ describe('the planning board', () => {
   it('shows the officer pay-period hours with the overtime status pill', async () => {
     renderBoard();
 
-    expect((await screen.findAllByText('84 h')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('96 h')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('In overtime').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Approaching').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Under').length).toBeGreaterThan(0);

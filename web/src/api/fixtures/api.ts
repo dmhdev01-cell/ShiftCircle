@@ -11,6 +11,10 @@ import { ApiError } from '../http';
 import type {
   MyOffer,
   MySchedulePayload,
+  PayPeriod,
+  RecordActualInput,
+  RecordActualResult,
+  TimeEntry,
   OfferRecord,
   OfferResponse,
   OpenShift,
@@ -26,10 +30,15 @@ import type {
   ScheduleQuery,
   ShiftCircleApi,
 } from '../types';
-import { BLOCKED_BY_RULES, WARNINGS_NEED_ACKNOWLEDGEMENT } from '../types';
+import {
+  BLOCKED_BY_RULES,
+  MISSING_ACTUALS,
+  WARNINGS_NEED_ACKNOWLEDGEMENT,
+} from '../types';
 import { demoMyOffers, demoMySchedule } from './mySchedule';
 import { demoCandidates, demoOfferHistory, demoOpenShifts } from './overtime';
 import { demoSchedule, PC01_CHANGE } from './schedule';
+import { demoPayPeriods, demoTimeEntries } from './timeAttendance';
 
 const LATENCY_MS = 120;
 const RULE_SET_VERSION = 7;
@@ -155,6 +164,13 @@ function evaluate(request: RuleCheckRequest): RuleCheckOutcome {
       },
     ],
   };
+}
+
+/** The hours of a scheduled shift. */
+function shiftHours(entry: TimeEntry): number {
+  return Math.round(
+    (new Date(entry.endAt).getTime() - new Date(entry.startAt).getTime()) / 3_600_000,
+  );
 }
 
 let assignmentCounter = 0;
@@ -333,6 +349,126 @@ export function createFixtureApi(): ShiftCircleApi {
         throw new ApiError('A note to the supervisor is required.', 400);
       }
       return { id: `p-fixture-${items.length}`, accepted: items.length };
+    },
+
+    async getPayPeriods(): Promise<PayPeriod[]> {
+      await wait(LATENCY_MS);
+      return demoPayPeriods;
+    },
+
+    async getTimeEntries(payPeriodId: string): Promise<TimeEntry[]> {
+      await wait(LATENCY_MS);
+      const period = demoPayPeriods.find((entry) => entry.id === payPeriodId);
+      if (!period) {
+        throw new ApiError('That pay period is not in the fixture.', 404);
+      }
+      return demoTimeEntries.filter((entry) => entry.date >= period.from && entry.date <= period.to);
+    },
+
+    async recordActual(entryId: string, input: RecordActualInput): Promise<RecordActualResult> {
+      await wait(LATENCY_MS);
+      const entry = demoTimeEntries.find((candidate) => candidate.assignmentId === entryId);
+      if (!entry) {
+        throw new ApiError('That time entry is not in the fixture.', 404);
+      }
+      if (input.absence) {
+        entry.absence = input.absence;
+        entry.worked = false;
+        entry.needsActual = false;
+        entry.payCodes = [];
+      } else if (input.workedAsScheduled) {
+        entry.worked = true;
+        entry.needsActual = false;
+        entry.absence = undefined;
+        entry.actualStart = entry.startAt;
+        entry.actualEnd = entry.endAt;
+        entry.payCodes = [{ code: 'REG', hours: shiftHours(entry), multiplier: 1 }];
+      } else {
+        entry.worked = true;
+        entry.needsActual = false;
+        entry.absence = undefined;
+        entry.actualStart = input.actualStart ?? entry.startAt;
+        entry.actualEnd = input.actualEnd ?? entry.endAt;
+        entry.payCodes = [{ code: 'REG', hours: shiftHours(entry), multiplier: 1 }];
+      }
+      return {
+        entry,
+        payCodes: entry.payCodes ?? [],
+        periodHours: 82.5,
+      };
+    },
+
+    async lockPayPeriod(payPeriodId: string): Promise<PayPeriod> {
+      await wait(LATENCY_MS);
+      const period = demoPayPeriods.find((entry) => entry.id === payPeriodId);
+      if (!period) {
+        throw new ApiError('That pay period is not in the fixture.', 404);
+      }
+      const missing = demoTimeEntries
+        .filter((entry) => entry.needsActual && entry.date >= period.from && entry.date <= period.to)
+        .map((entry) => ({
+          assignmentId: entry.assignmentId,
+          employeeId: entry.employeeId,
+          start: entry.startAt,
+        }));
+
+      if (missing.length > 0) {
+        // ADR-017: the period cannot be locked while a past shift has no
+        // actual, and the api says which ones.
+        throw new ApiError(
+          `${missing.length} shifts in this period have no actual recorded.`,
+          409,
+          {
+            type: MISSING_ACTUALS,
+            title: `${missing.length} shifts have no actual recorded`,
+            status: 409,
+            detail: 'Record the actuals before locking the period.',
+            missing,
+          },
+        );
+      }
+
+      period.status = 'LOCKED';
+      period.lockedBy = 'M. Ellis';
+      period.lockedAt = 'now';
+      return period;
+    },
+
+    async unlockPayPeriod(payPeriodId: string, reason: string): Promise<PayPeriod> {
+      await wait(LATENCY_MS);
+      const period = demoPayPeriods.find((entry) => entry.id === payPeriodId);
+      if (!period) {
+        throw new ApiError('That pay period is not in the fixture.', 404);
+      }
+      if (reason.trim().length < 10) {
+        throw new ApiError('A reason of at least 10 characters is required.', 400);
+      }
+      period.status = 'OPEN';
+      period.lockedBy = undefined;
+      period.lockedAt = undefined;
+      return period;
+    },
+
+    async exportPayroll(payPeriodId: string): Promise<{ fileName: string; content: string }> {
+      await wait(LATENCY_MS);
+      const period = demoPayPeriods.find((entry) => entry.id === payPeriodId);
+      if (!period) {
+        throw new ApiError('That pay period is not in the fixture.', 404);
+      }
+      if (period.status !== 'LOCKED') {
+        throw new ApiError('Only a locked pay period can be exported.', 409);
+      }
+      const lines = [
+        'employee_id,period,regular_hours,overtime_hours,pay_code',
+        ...demoTimeEntries
+          .filter((entry) => entry.date >= period.from && entry.date <= period.to)
+          .map(
+            (entry) =>
+              `${entry.employeeId},${period.label},${(entry.payCodes?.[0]?.hours ?? 0).toFixed(2)},0.00,${entry.payCodes?.[0]?.code ?? 'REG'}`,
+          ),
+      ];
+      period.lastExport = { at: 'now', fileHash: '9f2c4b1e8a' };
+      return { fileName: `payroll-${period.id}.csv`, content: lines.join('\n') };
     },
   };
 }

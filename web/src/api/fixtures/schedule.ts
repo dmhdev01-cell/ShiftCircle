@@ -85,7 +85,20 @@ const WEEK = [
 
 const OFF: CellItem[] = [];
 
-const officers: OfficerRow[] = [
+/** The hours of each shift template. */
+const SHIFT_HOURS: Record<string, number> = {
+  D8: 8,
+  E8: 8,
+  N8: 8,
+  A12: 12,
+  P12: 12,
+  L16: 16,
+};
+
+/** The pay period's overtime threshold (ADR-016). */
+const OVERTIME_THRESHOLD = 80;
+
+const rawOfficers: OfficerRow[] = [
   {
     employeeId: 'emp-tara',
     name: 'Tara Nakamura',
@@ -317,6 +330,35 @@ const coverageRows: BlockCoverage[] = [
   coverage('NIGHT', '2026-11-21', 4, 4, 4),
   coverage('NIGHT', '2026-11-22', 4, 5, 5),
 ];
+
+/**
+ * The period hours come from the shifts themselves, so the planning board and
+ * the time and attendance screen count the same hours. The pay period is two
+ * weeks, and the board shows the second one.
+ */
+const officers: OfficerRow[] = rawOfficers.map((officer) => {
+  const week = officer.cells.reduce(
+    (total, cell) =>
+      total +
+      cell.items.reduce(
+        (sum, item) => sum + (item.type === 'SHIFT' ? (SHIFT_HOURS[item.shiftTemplate] ?? 0) : 0),
+        0,
+      ),
+    0,
+  );
+  const hours = week * 2;
+  return {
+    ...officer,
+    payPeriodHours: hours,
+    payPeriodThreshold: OVERTIME_THRESHOLD,
+    overtimeStatus:
+      hours > OVERTIME_THRESHOLD
+        ? ('IN_OVERTIME' as const)
+        : hours > OVERTIME_THRESHOLD - 8
+          ? ('APPROACHING' as const)
+          : ('UNDER' as const),
+  };
+});
 
 /** The demo planning board payload. */
 export const demoSchedule: SchedulePayload = {

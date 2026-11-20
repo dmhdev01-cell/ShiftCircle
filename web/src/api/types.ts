@@ -51,9 +51,12 @@ export interface ProblemDetails {
   overridable?: boolean;
   ruleResults?: RuleResult[];
   errors?: { field: string; message: string }[];
+  /** The shifts with no actual, when the api refuses to lock (ADR-017). */
+  missing?: MissingActual[];
 }
 
 export const BLOCKED_BY_RULES = 'https://shiftcircle.local/problems/blocked-by-rules';
+export const MISSING_ACTUALS = 'https://shiftcircle.local/problems/missing-actuals';
 export const WARNINGS_NEED_ACKNOWLEDGEMENT =
   'https://shiftcircle.local/problems/warnings-need-acknowledgement';
 
@@ -302,6 +305,85 @@ export interface MyOffer {
 
 export type OfferResponse = 'ACCEPT' | 'DECLINE';
 
+// --- Time and attendance (docs/07-api-spec.md §4.5, ADR-017) ---
+
+export type AbsenceType = 'SICK' | 'VACATION';
+
+export interface PayCode {
+  code: string;
+  hours: number;
+  multiplier: number;
+}
+
+export interface PayPeriod {
+  id: string;
+  label: string;
+  from: string;
+  to: string;
+  status: 'OPEN' | 'LOCKED';
+  /** Who locked it, and when. */
+  lockedBy?: string;
+  lockedAt?: string;
+  /** The last payroll export, with the file hash. */
+  lastExport?: { at: string; fileHash: string };
+  /** The totals the lock confirmation repeats. */
+  totals?: { officers: number; workedHours: number; overtimeHours: number };
+  /** The period's overtime threshold in hours (ADR-016). */
+  overtimeThresholdHours: number;
+}
+
+/** One scheduled shift and what was actually recorded for it. */
+export interface TimeEntry {
+  assignmentId: string;
+  employeeId: string;
+  /** The officer's name, so the grid needs no second call. */
+  employeeName: string;
+  /** The unit the shift is in, so the grid can be filtered by unit. */
+  unitId: string;
+  unitName: string;
+  date: string;
+  shiftTemplate: string;
+  startAt: string;
+  endAt: string;
+  /** The actual times, when they were recorded. */
+  actualStart?: string;
+  actualEnd?: string;
+  /** Worked as scheduled. */
+  worked: boolean;
+  /** The absence type, when the officer was absent. */
+  absence?: AbsenceType;
+  /** An extension under 30 minutes that is not paid (P-04). */
+  unpaidExtensionMinutes?: number;
+  /** The pay codes the api calculated for the entry. */
+  payCodes?: PayCode[];
+  /** The shift has ended and nothing was recorded. */
+  needsActual?: boolean;
+}
+
+export interface RecordActualInput {
+  /** Worked as scheduled. */
+  workedAsScheduled: boolean;
+  /** The adjusted times, when the officer's times were changed. */
+  actualStart?: string;
+  actualEnd?: string;
+  /** The absence type, when the officer was absent. */
+  absence?: AbsenceType;
+}
+
+export interface RecordActualResult {
+  entry: TimeEntry;
+  /** The officer's pay codes for the period, after the change. */
+  payCodes: PayCode[];
+  periodHours: number;
+}
+
+/** The shifts the api says are missing an actual (ADR-017). */
+export interface MissingActual {
+  assignmentId: string;
+  employeeId: string;
+  start: string;
+}
+
 // --- The client the screens use ---
 
 /** A change to save. The api runs the rules before it accepts the change. */
@@ -342,6 +424,14 @@ export interface ShiftCircleApi {
   getMyOffers(): Promise<MyOffer[]>;
   respondToOffer(offerId: string, response: OfferResponse): Promise<MyOffer>;
   submitProposals(note: string, items: RuleCheckChange[]): Promise<{ id: string; accepted: number }>;
+
+  // Time and attendance.
+  getPayPeriods(): Promise<PayPeriod[]>;
+  getTimeEntries(payPeriodId: string): Promise<TimeEntry[]>;
+  recordActual(entryId: string, input: RecordActualInput): Promise<RecordActualResult>;
+  lockPayPeriod(payPeriodId: string): Promise<PayPeriod>;
+  unlockPayPeriod(payPeriodId: string, reason: string): Promise<PayPeriod>;
+  exportPayroll(payPeriodId: string): Promise<{ fileName: string; content: string }>;
 }
 
 export interface OpenShiftQuery {

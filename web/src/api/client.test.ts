@@ -126,8 +126,8 @@ describe('the fixture api', () => {
   });
 
   it('keeps the demo data and the fixtures in step', () => {
-    expect(demoSchedule.officers.filter((o) => o.overtimeStatus === 'IN_OVERTIME')).toHaveLength(3);
-    expect(demoSchedule.officers.filter((o) => o.overtimeStatus === 'APPROACHING')).toHaveLength(2);
+    expect(demoSchedule.officers.filter((o) => o.overtimeStatus === 'IN_OVERTIME')).toHaveLength(5);
+    expect(demoSchedule.officers.filter((o) => o.overtimeStatus === 'APPROACHING')).toHaveLength(3);
     expect(demoSchedule.coverage.filter((block) => !block.covered)).toHaveLength(2);
   });
 });

@@ -1,6 +1,10 @@
 import type {
   MyOffer,
   MySchedulePayload,
+  PayPeriod,
+  RecordActualInput,
+  RecordActualResult,
+  TimeEntry,
   OfferRecord,
   OfferResponse,
   OpenShift,
@@ -84,6 +88,33 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     return undefined as T;
   }
   return (await response.json()) as T;
+}
+
+/** The payroll export is text/csv, not JSON. */
+async function requestCsv(path: string): Promise<{ fileName: string; content: string }> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, { headers: { Accept: 'text/csv' } });
+  } catch (cause) {
+    throw new ApiError(
+      cause instanceof Error ? cause.message : 'Could not reach the API.',
+      0,
+    );
+  }
+
+  if (!response.ok) {
+    const problem = await readProblem(response);
+    throw new ApiError(
+      problem?.detail ?? problem?.title ?? `${response.status} ${response.statusText}`,
+      response.status,
+      problem,
+    );
+  }
+
+  return {
+    fileName: path.split('/').pop() ?? 'payroll-export.csv',
+    content: await response.text(),
+  };
 }
 
 function queryString(query: {
@@ -188,6 +219,36 @@ export function createHttpApi(): ShiftCircleApi {
         method: 'POST',
         body: JSON.stringify({ note, items }),
       });
+    },
+
+    getPayPeriods(): Promise<PayPeriod[]> {
+      return request<PayPeriod[]>('/pay-periods');
+    },
+
+    getTimeEntries(payPeriodId: string): Promise<TimeEntry[]> {
+      return request<TimeEntry[]>(`/pay-periods/${payPeriodId}/time-entries`);
+    },
+
+    recordActual(entryId: string, input: RecordActualInput): Promise<RecordActualResult> {
+      return request<RecordActualResult>(`/time-entries/${entryId}`, {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      });
+    },
+
+    lockPayPeriod(payPeriodId: string): Promise<PayPeriod> {
+      return request<PayPeriod>(`/pay-periods/${payPeriodId}/lock`, { method: 'POST' });
+    },
+
+    unlockPayPeriod(payPeriodId: string, reason: string): Promise<PayPeriod> {
+      return request<PayPeriod>(`/pay-periods/${payPeriodId}/unlock`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      });
+    },
+
+    exportPayroll(payPeriodId: string): Promise<{ fileName: string; content: string }> {
+      return requestCsv(`/pay-periods/${payPeriodId}/payroll-export`);
     },
   };
 }

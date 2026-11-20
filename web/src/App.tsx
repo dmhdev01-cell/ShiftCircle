@@ -24,6 +24,12 @@ const MySchedulePage = lazy(() =>
   import('./myschedule/MySchedulePage').then((module) => ({ default: module.MySchedulePage })),
 );
 
+const TimeAttendancePage = lazy(() =>
+  import('./timeattendance/TimeAttendancePage').then((module) => ({
+    default: module.TimeAttendancePage,
+  })),
+);
+
 function RouteFallback() {
   return (
     <Box sx={{ p: 4, fontSize: 14 }} role="status">
@@ -105,16 +111,7 @@ export function AppRoutes() {
           }
         />
         <Route path="/me/hours" element={<PlaceholderPage title="My hours" subtitle="Employee · Hours and overtime" />} />
-        <Route
-          path="/time"
-          element={
-            <PlaceholderPage
-              title="Time & attendance"
-              subtitle="Supervisor · Actuals by pay period"
-              planned="A pay-period picker, scheduled against actual per officer per day, and Lock pay period."
-            />
-          }
-        />
+        <Route path="/time" element={<TimeAttendancePage />} />
         <Route
           path="/proposals"
           element={

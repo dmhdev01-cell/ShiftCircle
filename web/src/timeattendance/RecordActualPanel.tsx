@@ -1,0 +1,167 @@
+import { useState } from 'react';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import FormControl from '@mui/material/FormControl';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormLabel from '@mui/material/FormLabel';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+
+import { chipTextFor } from '../api/shiftTemplates';
+import type { AbsenceType, PayCode, RecordActualInput, TimeEntry } from '../api/types';
+import { colour } from '../theme/tokens';
+
+type Choice = 'AS_SCHEDULED' | 'ADJUSTED' | 'ABSENT';
+
+interface RecordActualPanelProps {
+  entry: TimeEntry;
+  /** The recalculated pay codes, after a save. */
+  result?: { periodHours: number; payCodes: PayCode[] | undefined };
+  onSave: (input: RecordActualInput) => void;
+  onCancel: () => void;
+}
+
+function clock(instant: string): string {
+  return instant.slice(11, 16);
+}
+
+/**
+ * The record-actual panel (docs/ui/build-notes.md §2.2): worked as scheduled,
+ * adjusted times, or absent.
+ */
+export function RecordActualPanel({ entry, result, onSave, onCancel }: RecordActualPanelProps) {
+  const [choice, setChoice] = useState<Choice>('AS_SCHEDULED');
+  const [start, setStart] = useState(clock(entry.startAt));
+  const [end, setEnd] = useState(clock(entry.endAt));
+  const [absence, setAbsence] = useState<AbsenceType>('SICK');
+
+  const save = () => {
+    if (choice === 'AS_SCHEDULED') {
+      onSave({ workedAsScheduled: true });
+      return;
+    }
+    if (choice === 'ABSENT') {
+      onSave({ workedAsScheduled: false, absence });
+      return;
+    }
+    onSave({
+      workedAsScheduled: false,
+      actualStart: `${entry.date}T${start}:00-06:00`,
+      actualEnd: `${entry.date}T${end}:00-06:00`,
+    });
+  };
+
+  return (
+    <Box
+      sx={{
+        backgroundColor: colour.bg.surface,
+        border: `1px solid ${colour.border.default}`,
+        borderRadius: '10px',
+        p: 4,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 3,
+      }}
+    >
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <Typography component="h2" sx={{ m: 0, fontSize: 17, fontWeight: 700 }}>
+          Record actual · {entry.employeeName}
+        </Typography>
+        <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
+          {entry.date} · {chipTextFor(entry.shiftTemplate)} · scheduled{' '}
+          {clock(entry.startAt)} – {clock(entry.endAt)}
+        </Box>
+      </Box>
+
+      <FormControl>
+        <FormLabel sx={{ fontSize: 13, fontWeight: 600 }}>What happened?</FormLabel>
+        <RadioGroup value={choice} onChange={(event) => setChoice(event.target.value as Choice)}>
+          <FormControlLabel
+            value="AS_SCHEDULED"
+            control={<Radio />}
+            label="Worked as scheduled"
+            slotProps={{ typography: { sx: { fontSize: 14 } } }}
+          />
+          <FormControlLabel
+            value="ADJUSTED"
+            control={<Radio />}
+            label="Adjusted times"
+            slotProps={{ typography: { sx: { fontSize: 14 } } }}
+          />
+          <FormControlLabel
+            value="ABSENT"
+            control={<Radio />}
+            label="Absent"
+            slotProps={{ typography: { sx: { fontSize: 14 } } }}
+          />
+        </RadioGroup>
+      </FormControl>
+
+      {choice === 'ADJUSTED' ? (
+        <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+          <TextField
+            label="Start"
+            type="time"
+            value={start}
+            onChange={(event) => setStart(event.target.value)}
+            slotProps={{ htmlInput: { step: 900 } }}
+            sx={{ width: 160 }}
+          />
+          <TextField
+            label="End"
+            type="time"
+            value={end}
+            onChange={(event) => setEnd(event.target.value)}
+            slotProps={{ htmlInput: { step: 900 } }}
+            sx={{ width: 160 }}
+          />
+        </Box>
+      ) : null}
+
+      {choice === 'ABSENT' ? (
+        <TextField
+          select
+          label="Absence type"
+          value={absence}
+          onChange={(event) => setAbsence(event.target.value as AbsenceType)}
+          sx={{ width: 220 }}
+        >
+          <option value="SICK">Sick</option>
+          <option value="VACATION">Vacation</option>
+        </TextField>
+      ) : null}
+
+      {result ? (
+        <Box
+          role="status"
+          sx={{
+            p: '10px 12px',
+            borderRadius: '8px',
+            backgroundColor: colour.status.pass.bg,
+            color: colour.status.pass.text,
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          Now {result.periodHours} h:{' '}
+          {result.payCodes && result.payCodes.length > 0
+            ? result.payCodes
+                .map((code) => `${code.hours} h at ${code.multiplier}×`)
+                .join(' · ')
+            : 'no pay code'}
+        </Box>
+      ) : null}
+
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+        <Button variant="outlined" color="primary" onClick={save}>
+          Save
+        </Button>
+        <Button variant="text" color="primary" onClick={onCancel}>
+          Cancel
+        </Button>
+      </Box>
+    </Box>
+  );
+}
