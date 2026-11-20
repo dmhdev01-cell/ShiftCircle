@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography';
 
 import { api, ApiError } from '../api/client';
 import type { RecordActualInput, TimeEntry } from '../api/types';
+import { useVersion } from '../api/useVersion';
 import { StatusPill } from '../components/StatusPill';
 import { KpiTile } from '../planning/KpiTile';
 import { colour } from '../theme/tokens';
@@ -27,9 +28,15 @@ function daysBetween(from: string, to: string): string[] {
   return days;
 }
 
-function hoursOf(entry: TimeEntry): number {
-  const start = new Date(entry.actualStart ?? entry.startAt).getTime();
-  const end = new Date(entry.actualEnd ?? entry.endAt).getTime();
+/**
+ * The hours actually worked. A shift with no recorded actual has worked none
+ * yet: falling back to the planned times made a future period read as if every
+ * hour had been worked (V3).
+ */
+export function workedOf(entry: TimeEntry): number {
+  if (!entry.actualStart || !entry.actualEnd) return 0;
+  const start = new Date(entry.actualStart).getTime();
+  const end = new Date(entry.actualEnd).getTime();
   return Math.round(((end - start) / 3_600_000) * 4) / 4;
 }
 
@@ -42,8 +49,15 @@ export function TimeAttendancePage() {
   const { state: periodsState, reload: reloadPeriods } = usePayPeriods();
   const periods = periodsState.kind === 'ready' ? periodsState.periods : [];
   const [periodId, setPeriodId] = useState<string | null>(null);
-  // The first pay period is used until the supervisor picks another one.
-  const activePeriodId = periodId ?? periods[0]?.id ?? null;
+  const { state: version } = useVersion();
+  const asOf = version.status === 'ready' ? version.info.asOf : undefined;
+  // The period that contains the demo day, not whichever one the api lists
+  // first: the list runs newest first, so the first is a future period (V3).
+  const defaultPeriod =
+    (asOf ? periods.find((entry) => asOf >= entry.from && asOf <= entry.to) : undefined) ??
+    periods.find((entry) => entry.status === 'OPEN') ??
+    periods[0];
+  const activePeriodId = periodId ?? defaultPeriod?.id ?? null;
   const { state: entriesState, reload: reloadEntries } = useTimeEntries(activePeriodId);
   const [unitId, setUnitId] = useState<string>('');
   const [picked, setPicked] = useState<TimeEntry | null>(null);
@@ -101,7 +115,7 @@ export function TimeAttendancePage() {
     new Map(visible.map((entry) => [entry.employeeId, entry])).values(),
   ).map((first) => {
     const own = visible.filter((entry) => entry.employeeId === first.employeeId);
-    const hours = own.reduce((total, entry) => total + hoursOf(entry), 0);
+    const hours = own.reduce((total, entry) => total + workedOf(entry), 0);
     const threshold = period?.overtimeThresholdHours ?? 80;
     const status =
       hours > threshold ? 'IN_OVERTIME' : hours > threshold - 8 ? 'APPROACHING' : 'UNDER';
@@ -126,7 +140,7 @@ export function TimeAttendancePage() {
       ) / 4,
     0,
   );
-  const workedHours = visible.reduce((total, entry) => total + hoursOf(entry), 0);
+  const workedHours = visible.reduce((total, entry) => total + workedOf(entry), 0);
   const needingActuals = visible.filter((entry) => entry.needsActual);
   // The shifts with no actual: the ones the screen knows about, plus any the
   // api names when it refuses to lock the period (ADR-017).

@@ -1,12 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
+import { api } from '../api/client';
+import type { PayPeriod, TimeEntry } from '../api/types';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
+import { workedOf } from './TimeAttendancePage';
 
 function renderScreen() {
   return render(
@@ -171,5 +174,74 @@ describe('Time and attendance', () => {
 
     expect(screen.getByText('Devon Clarke')).toBeInTheDocument();
     expect(screen.queryByText('Sam Abara')).not.toBeInTheDocument();
+  });
+
+  it('opens on the pay period that contains the demo day', async () => {
+    // V3: the list runs newest first, so the first period was 21 Dec - 3 Jan.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const body = String(input).includes('/api/v1/version')
+          ? { name: 'shiftcircle-api', asOf: '2026-11-19' }
+          : {};
+        return { ok: true, status: 200, statusText: 'OK', json: async () => body } as unknown as Response;
+      }),
+    );
+    const future: PayPeriod = {
+      id: 'period-2026-12-21',
+      label: '21 Dec – 3 Jan 2027',
+      from: '2026-12-21',
+      to: '2027-01-03',
+      status: 'OPEN',
+      totals: { officers: 10, workedHours: 0, overtimeHours: 0 },
+      overtimeThresholdHours: 80,
+    };
+    const current: PayPeriod = {
+      id: 'period-2026-11-09',
+      label: '9 – 22 Nov 2026',
+      from: '2026-11-09',
+      to: '2026-11-22',
+      status: 'OPEN',
+      totals: { officers: 10, workedHours: 801, overtimeHours: 31 },
+      overtimeThresholdHours: 80,
+    };
+    vi.spyOn(api, 'getPayPeriods').mockResolvedValue([future, current]);
+
+    renderScreen();
+
+    const select = await screen.findByLabelText('Pay period');
+    expect(select).toHaveValue('period-2026-11-09');
+    vi.restoreAllMocks();
+  });
+
+  it('counts no hours as worked until an actual is recorded', async () => {
+    // V3: a future period read "Worked h 2304 recorded" because the page used
+    // the planned times when no actual existed.
+    const planned: TimeEntry = {
+      assignmentId: 'assignment-planned',
+      employeeId: 'emp-tara',
+      employeeName: 'Tara Nakamura',
+      unitId: 'unit-b',
+      unitName: 'Unit B · Living unit',
+      date: '2026-11-20',
+      startAt: '2026-11-20T07:00:00-06:00',
+      endAt: '2026-11-20T15:00:00-06:00',
+      needsActual: false,
+    };
+    expect(workedOf(planned)).toBe(0);
+    expect(
+      workedOf({ ...planned, actualStart: planned.startAt, actualEnd: planned.endAt }),
+    ).toBe(8);
+
+    vi.spyOn(api, 'getTimeEntries').mockResolvedValue([planned]);
+
+    renderScreen();
+
+    await screen.findByText('Tara Nakamura');
+    const tile = screen.getByText('Worked h').closest('div') as HTMLElement;
+    expect(within(tile).getByText('0')).toBeInTheDocument();
+    const scheduled = screen.getByText('Scheduled h').closest('div') as HTMLElement;
+    expect(within(scheduled).getByText('8')).toBeInTheDocument();
+    vi.restoreAllMocks();
   });
 });
