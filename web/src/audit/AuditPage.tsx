@@ -9,6 +9,7 @@ import Typography from '@mui/material/Typography';
 import { api, ApiError } from '../api/client';
 import type { AuditEvent, AuditQuery } from '../api/types';
 import { colour } from '../theme/tokens';
+import { ScrollShadows } from '../components/ScrollShadows';
 import { ENTITY_FILTER_CHOICES } from './auditCodes';
 import { actionLabel, entityLabel, formatAt, summaryOf } from './auditText';
 
@@ -245,16 +246,17 @@ export function AuditPage() {
       ) : null}
 
       <Box
-        role="region"
-        aria-label="Audit events, scrolls sideways"
-        tabIndex={0}
         sx={{
           backgroundColor: colour.bg.surface,
           border: `1px solid ${colour.border.default}`,
           borderRadius: '10px',
-          overflowX: 'auto',
+          p: 1,
         }}
       >
+        <ScrollShadows
+          label="Audit events, scrolls sideways"
+          hint="Scroll sideways to read the whole event."
+        >
         <table
           style={{ width: '100%', minWidth: 980, borderCollapse: 'collapse', fontSize: 13 }}
           aria-label="Audit events"
@@ -325,6 +327,7 @@ export function AuditPage() {
             ))}
           </tbody>
         </table>
+        </ScrollShadows>
       </Box>
 
       {items.length === 0 ? (
