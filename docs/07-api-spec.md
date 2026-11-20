@@ -94,7 +94,7 @@ Content-Type: application/problem+json
 |---|---|---|---|
 | GET | `/auth/demo-users` | List users for the mock sign-in picker | public (demo profile only) |
 | POST | `/auth/mock-login` | `{ "userId" }` → `{ "token", "expiresAt", "user" }` | public (demo profile only) |
-| GET | `/me` | Current user, roles, unit scope, linked employee | any |
+| GET | `/me` | Current user, roles, unit scope, linked employee (`employeeId` is an empty string when the account has no officer) | any |
 | GET | `/units` | Units (filtered to scope for supervisors) | any |
 | GET | `/units/{id}/requirements` | Required staff per block | SUPERVISOR, AUDITOR |
 | GET | `/shift-templates` | 8, 12 and 16-hour templates | any |
