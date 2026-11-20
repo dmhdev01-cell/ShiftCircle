@@ -1,11 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
-import { api } from '../api/client';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
@@ -127,35 +126,15 @@ describe('the planning board', () => {
     expect(document.getElementById('roster')).not.toBeNull();
   });
 
-  it('B2: an emergency override acknowledges the warnings with it', async () => {
+  it('B2: a Block with an ACKNOWLEDGE policy offers no override', async () => {
     const user = userEvent.setup();
-    const saveChange = vi.spyOn(api, 'saveChange');
     renderBoard();
 
-    // PC-01 blocks on U-01 and U-05 and also warns on U-14.
     await user.click(await screen.findByRole('button', { name: /! D proposed for Nia Thompson/ }));
     expect(await screen.findByText('Blocked: 2 rules fail')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Emergency override…' }));
-    expect(
-      await screen.findByText(/The warnings are acknowledged with the override: U-14/),
-    ).toBeInTheDocument();
-
-    await user.type(
-      screen.getByLabelText('Why is this override needed?'),
-      'Unit B is short and no eligible officer is left tonight',
-    );
-    await user.click(screen.getByRole('button', { name: 'Emergency override' }));
-
-    expect(await screen.findByText('Saved')).toBeInTheDocument();
-    // The api refuses an override with an unacknowledged warning, so the save
-    // must carry U-14 as well as the reason (the fixture now enforces this).
-    expect(saveChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        override: { reason: 'Unit B is short and no eligible officer is left tonight' },
-        acknowledgeWarnings: ['U-14'],
-      }),
-    );
-    saveChange.mockRestore();
+    expect(screen.queryByRole('button', { name: 'Emergency override…' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Acknowledge/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Assign shift' })).not.toBeInTheDocument();
   });
 });

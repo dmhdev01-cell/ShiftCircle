@@ -109,19 +109,12 @@ const PC01_RESULTS: RuleResult[] = [
     source: 'Saskatchewan Employment Act',
   },
   {
-    ruleCode: 'U-05',
-    ruleTable: 'MAX_HOURS',
-    outcome: 'BLOCK',
-    overridePolicy: 'EMERGENCY',
-    message: '17 hours of work in 24 hours (Fri 12:00 – Sat 12:00).',
-    facts: { hours: 17, maxHours: 16 },
-  },
-  {
     ruleCode: 'U-14',
     ruleTable: 'MAX_HOURS',
-    outcome: 'WARN',
+    outcome: 'BLOCK',
     overridePolicy: 'ACKNOWLEDGE',
-    message: '52 hours this week, over the 48 h warning level.',
+    message: 'Weekly hours above the 60-hour ceiling.',
+    facts: { hours: 61, maxHours: 60 },
   },
 ];
 
@@ -189,18 +182,9 @@ function evaluate(request: RuleCheckRequest): RuleCheckOutcome {
   };
 
   if (isPc01(request.change)) {
-    // An emergency override does not make the rule pass: the api reports the
-    // overridden rule as INFO and accepts the change.
-    if (request.override?.reason) {
-      return {
-        ...base,
-        outcome: 'PASS',
-        ruleResults: PC01_RESULTS.map((result) =>
-          result.outcome === 'BLOCK' ? { ...result, outcome: 'INFO' as const } : result,
-        ),
-      };
-    }
-    return { ...base, outcome: 'BLOCK', ruleResults: PC01_RESULTS };
+    // PC-01 matches the real api: U-01 is an emergency block, U-14 is a block
+    // whose policy is ACKNOWLEDGE, so the change cannot be overridden.
+    return { ...base, overridable: false, outcome: 'BLOCK', ruleResults: PC01_RESULTS };
   }
 
   if (isZeroRest(request.change)) {

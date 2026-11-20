@@ -23,49 +23,34 @@ test.describe('E1 blocked assignment (PC-01)', () => {
     await expect(page.getByText('Blocked: 2 rules fail')).toBeVisible();
     // The reasons name the rules and say why, in plain words.
     await expect(page.getByText(/U-01 · Minimum rest/)).toBeVisible();
-    await expect(page.getByText(/U-05/).first()).toBeVisible();
+    await expect(page.getByText(/U-14/).first()).toBeVisible();
     // The fixture's U-01 text says "7 hours' rest"; the api says "Less than 8 hours rest".
     await expect(page.getByText(/Less than 8 hours rest|7 hours' rest/)).toBeVisible();
     // Safeguard: nothing to save and nothing to acknowledge past a Block.
     await expect(page.getByRole('button', { name: /^Assign shift$/ })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Acknowledge/ })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Emergency override…' })).toBeVisible();
+    // U-14 is a Block whose policy is ACKNOWLEDGE, so the api refuses an
+    // override; the screen must not offer one.
+    await expect(page.getByRole('button', { name: 'Emergency override…' })).toHaveCount(0);
     await expectAccessible(page, testInfo, 'planning-rule-check');
   });
 
-  test('@fixtures the emergency override needs a reason of at least 10 characters', async ({ page }, testInfo) => {
+  test('@fixtures a Block with an ACKNOWLEDGE policy offers no way past it', async ({ page }, testInfo) => {
     await signIn(page, 'M. Ellis');
     await page.getByRole('button', { name: PC01_CHIP }).click();
-    await page.getByRole('button', { name: 'Emergency override…' }).click();
 
-    const dialog = page.getByRole('dialog', { name: 'Emergency override' });
-    await expect(dialog).toBeVisible();
-    // The dialog names the broken rules and the warning it acknowledges.
-    await expect(dialog.getByText(/This overrides U-01, U-05/)).toBeVisible();
-    await expect(dialog.getByText(/warnings are acknowledged with the override: U-14/)).toBeVisible();
-    await expectAccessible(page, testInfo, 'override-dialog');
-
-    const reason = dialog.getByLabel('Why is this override needed?');
-    const confirm = dialog.getByRole('button', { name: 'Emergency override' });
-    await expect(confirm).toBeDisabled();
-    await reason.fill('Lockdown');          // 8 characters
-    await expect(confirm).toBeDisabled();
-    await reason.fill('          ');        // only spaces do not count
-    await expect(confirm).toBeDisabled();
-    await reason.fill('Lockdown!!');        // exactly 10
-    await expect(confirm).toBeEnabled();
-
-    // Cancel saves nothing.
-    await dialog.getByRole('button', { name: 'Cancel' }).click();
-    await expect(dialog).toBeHidden();
     await expect(page.getByText('Blocked: 2 rules fail')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Emergency override…' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Acknowledge/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Assign shift' })).toHaveCount(0);
     await expect(page.getByText('Saved', { exact: true })).toHaveCount(0);
+    await expectAccessible(page, testInfo, 'planning-rule-check');
   });
 
   // The real api has no proposals in the schedule payload yet (proposals are a
   // Should item), so the fixture's proposed chip is fixtures-only. Against the
   // real api the same PC-01 case is driven from Nia's empty Saturday cell.
-  test('@api PC-01 blocks from the empty cell, and the override and overtime links work', async ({ page }, testInfo) => {
+  test('@api PC-01 blocks from the empty cell and the overtime link works', async ({ page }, testInfo) => {
     await signIn(page, 'M. Ellis');
     await expect(page.getByRole('heading', { name: 'Planning board', level: 1 })).toBeVisible();
     // Fixtures have the proposed chip instead of an empty cell.
@@ -99,18 +84,6 @@ test.describe('E1 blocked assignment (PC-01)', () => {
     await expect(
       page.getByRole('heading', { name: /Sat 21 Nov · Days 07:00 – 15:00/, level: 2 }),
     ).toBeVisible();
-  });
-
-  test('@fixtures with a reason the override saves', async ({ page }) => {
-    // Fixture-only: against the real api this writes an override and an audit
-    // row, so it belongs in a disposable environment.
-    await signIn(page, 'M. Ellis');
-    await page.getByRole('button', { name: PC01_CHIP }).click();
-    await page.getByRole('button', { name: 'Emergency override…' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Emergency override' });
-    await dialog.getByLabel('Why is this override needed?').fill('Lockdown, relief unavailable');
-    await dialog.getByRole('button', { name: 'Emergency override' }).click();
-    await expect(page.getByText('Saved', { exact: true })).toBeVisible();
   });
 
   test('@fixtures Find eligible officer leads to the ranked list and offers to two officers', async ({ page }, testInfo) => {

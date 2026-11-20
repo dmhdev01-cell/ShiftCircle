@@ -8,7 +8,7 @@ import { tabTo } from './support';
  */
 
 test.describe('keyboard only', () => {
-  test('@fixtures E1: reach the PC-01 block, open the override, and back out', async ({ page }) => {
+  test('@fixtures E1: reach the PC-01 block and close the verdict by keyboard', async ({ page }) => {
     await page.goto('/login');
     await tabTo(page, page.getByRole('button', { name: /M\. Ellis/ }));
     await page.keyboard.press('Enter');
@@ -22,16 +22,9 @@ test.describe('keyboard only', () => {
     // Focus moves to the result, so a keyboard user is not left behind.
     await expect(page.getByRole('heading', { name: /Assign Nia Thompson/ })).toBeFocused();
 
-    await tabTo(page, page.getByRole('button', { name: 'Emergency override…' }), 10);
+    await tabTo(page, page.getByRole('button', { name: 'Close' }), 20);
     await page.keyboard.press('Enter');
-    const override = page.getByRole('dialog', { name: 'Emergency override' });
-    const reason = override.getByLabel('Why is this override needed?');
-    await expect(reason).toBeFocused();
-    await page.keyboard.type('Short');
-    await expect(override.getByRole('button', { name: 'Emergency override' })).toBeDisabled();
-    await page.keyboard.press('Escape');
-    await expect(override).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Emergency override…' })).toBeFocused();
+    await expect(page.getByRole('region', { name: 'Rule check' })).toBeHidden();
   });
 
   test('@fixtures E1: the skip link goes straight to the roster', async ({ page }) => {
