@@ -55,9 +55,8 @@ public final class LongShiftCountFactBuilder {
         bestAnchor == null
             ? "No 16-hour shifts"
             : String.format(
-                "%d 16-hour shifts in 7 days and %d in 28 days up to %s (%s)",
-                best7, best28, BusinessTime.evidence(bestAnchor.start()),
-                bestAnchor.assignmentId());
+                "%d 16-hour shifts in 7 days and %d in 28 days up to %s",
+                best7, best28, BusinessTime.evidence(bestAnchor.start()));
     return new LongShiftCountFact(best7, best28, evidence);
   }
 

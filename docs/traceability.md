@@ -1,14 +1,18 @@
 # ShiftCircle — requirement-to-proof traceability
 
 **Derived from the test sources, not from the prose.** Checked on 2026-11-20 against `main` at
-`8c5d705` by grepping `@Test`, Playwright `test(...)` titles and the Flyway migrations. The
-sources hold **97 rules + 27 infrastructure + 227 api = 351 tests**, counted as `@Test` methods
+`c8c05cd` by grepping `@Test`, Playwright `test(...)` titles and the Flyway migrations. The
+sources hold **97 rules + 27 infrastructure + 228 api = 352 tests**, counted as `@Test` methods
 on their own line (no parameterised tests). The last full clean-worktree runs are dev-qa's
 independent ones at `c0dcaf3`: **348 = 97 + 27 + 224, 0 failures, 0 skipped**, in the default order
 and with random seed 20261121; Playwright against the real api gives desktop 19 passed and tablet
-18 + 1 skipped, fixtures 43 passed / 3 skipped. The D6 fix adds three tests and its full re-run is
-pending. A proof below names the test class and method that makes the claim, not the document that
-hopes it exists.
+18 + 1 skipped, fixtures 43 passed / 3 skipped. The D6 fix adds three tests; this author's full
+clean-worktree runs at `dc6890e` are **351, 0 failures/errors/skipped** in the default order and
+with random seed 20261121, and dev-qa's independent run there is pending. The V12/V19/V5 fix adds
+one test; this author's full clean-worktree runs at `c8c05cd` are **352, 0 failures/errors/skipped**
+in the default order and with random seed 20261121, and dev-qa's independent run there is pending.
+A proof below names the test class and method that makes the claim, not the document that hopes it
+exists.
 
 **Path shorthand.** `RulesTest` = a class in `api/shiftcircle-rules/src/test/java/ca/shiftcircle/rules/`;
 `ApiTest` = a class in `api/shiftcircle-api/src/test/java/ca/shiftcircle/api/`;
@@ -138,7 +142,10 @@ reaches; E1 also calls `expectDisclaimer`. E2–E5 rely on the web shell test fo
 | One open shift is filled once, and one unlock is audited once | `OvertimePayrollConcurrencyApiTest#threeDifferentOfficersCannotFillOneOpenShift`, `#twoAcceptedOffersForOneShiftConfirmOnlyOnce`, `#twoShiftsAndTwoOfficersAssignInParallelWithoutDeadlock`, `#concurrentUnlocksWriteOneAuditRow` (all over HTTP, real threads) | PASS (dev-qa, `c0dcaf3`) |
 | The employee roster without a unit filter is scoped | `AuthorizationMatrixTest#theEmployeeListIsScopedWhenNoUnitIsGiven` (ellis A/B, chen ADM/CTL/ESC, auditor all, out-of-scope unit 404) | PASS (dev-qa, `c0dcaf3`) |
 | A rules-admin row edit is saved or refused, and a stored bad value is a validation error, not a 500 | `RuleRowEditApiTest#aRawAfterShiftKindEditIsSavedInsteadOfDropped`, `#aFriendlyAfterLabelStillMapsToTheStoredPattern`, `#aHostileAfterShiftKindIsRefusedAndNothingIsSaved`, `#anUnknownParamsKeyIsRefusedNamingIt`, `#aStringInANumericColumnIsRefusedNamingTheColumn`, `#aStringInTheExtensionColumnIsRefusedNamingTheColumn`, `#aStringAllowedLengthsIsRefused`, `#aNullAllowedLengthsIsRefused`, `#aHugeAllowedLengthsListIsRefusedAtTheCap`, `#minRestHoursOutsideTheRangeIsRefused`, `#anUnsafeRuleCodeIsRefusedInPlainWords`, `#aBuildWithAStoredWrongTypeAnswersValidationNotAFiveHundred`, `#aBuildWithAStoredAllowedLengthsStringAnswersValidationNotAFiveHundred`, `#aBuildWithAStoredAllowedLengthsNullAnswersValidationNotAFiveHundred`, `#aBuildRefusesAStoredRestAboveTheCeiling`, `#aBuildDoesNotReturnThousandsOfErrorsForOneHugeList`, `#aBuildCapsTheNumberOfErrorsItReturns` (all over HTTP); `RuleRowValidatorTest` (27 tests: null/empty/string/5/true params roots and the numeric bounds), `RuleRowEditApiTest` (31 @Test: the whole PUT refusal contract, including unknown top-level fields, the after conflict, the numeric ranges and the new-row extension column) | PASS (dev-qa, `c0dcaf3`) |
-| The rule sentence is plain language, never the stored pattern or enum | `RuleSentenceTest#everyShippedRowReadsAsPlainLanguage`, `#theRestSentenceNamesTheShiftAndTheOutcomeInWords` (all 97 shipped rows); `RuleSetApiTest#theRuleSentenceIsPlainLanguage` (the GET) | PASS (targeted; full re-run pending at `8c5d705`) |
+| The rule sentence is plain language, never the stored pattern or enum | `RuleSentenceTest#everyShippedRowReadsAsPlainLanguage`, `#theRestSentenceNamesTheShiftAndTheOutcomeInWords` (all 97 shipped rows); `RuleSetApiTest#theRuleSentenceIsPlainLanguage` (the GET) | PASS (author's full runs at `dc6890e`, default and random seed 20261121; dev-qa's independent run pending) |
+| A refusal names the visible column, not the params key | `RuleRowEditApiTest#minRestHoursOutsideTheRangeIsRefused`, `#aGarbageLabelIsRefusedNotIgnored` (the message keeps the label and drops `(minRestHours)` / `(after)`) | PASS (author's full runs at `c8c05cd`, default and random seed 20261121; dev-qa pending) |
+| Rule evidence reads in words, without internal ids | `RestRulesTest#u01BlocksWithSevenHoursFiftyNineMinutesRest` (no UUID pattern; "D8 ending ... next shift N8 starts") | PASS (author's full runs at `c8c05cd`) |
+| A locked pay period names its actor on the seeded and the API paths | `PayrollLockActorApiTest#theSeededLockedPeriodNamesItsActor` (generated demo, HTTP GET, "M. Ellis"); `PayrollApiTest#locksOnceEveryEndedShiftHasAnActualAndAuditsIt` (API lock) | PASS (author's full runs at `c8c05cd`) |
 | A change's `type` and `startAt` are validation problems, not conflicts | `AssignmentInputApiTest#aGarbageChangeTypeIsRefusedNamingTheField`, `#anAbsurdStartYearIsRefusedNamingTheField`, `#aValidPreviewIsStillAccepted` | PASS (dev-qa, `c0dcaf3`) |
 | A missing JWT secret answers the actionable message, not a raw placeholder | `JwtServiceTest#aMissingSecretExplainsWhatToDo`, `#aShortSecretExplainsWhatToDo`; `StartupSecretsTest` | PASS (dev-qa, `c0dcaf3`) |
 | Every error body is RFC 9457 problem+json, a database conflict is a 409 rather than a 500, and every hidden cause is logged server-side under the trace id the caller gets | `ConstraintProblemApiTest#anOverlappingEmergencyOverrideAnswersAConflictAndSavesNothing`, `#movingAShiftOntoAnotherOneAnswersAConflict`, `#anOvertimeConfirmThatWouldOverlapIsRefusedBeforeTheDatabaseIsAsked` (all over HTTP and pinning the WARN line); `ApiProblemAdviceTest#theExclusionConstraintNamesTheConflictWithoutTheSql`, `#aUniqueConstraintBecomesA409Problem`, `#aNumericOverflowIsABadRequestNotAServerError`, `#aCheckConstraintStaysAConflict`; `UnexpectedFailureApiTest#anUnexpectedFailureAnswersAProblemDocumentWithoutInternals` (body traceId matches the ERROR log), `#springWebFailuresKeepTheirOwnStatus`, `#aRoleRefusalKeepsItsStatusAndGetsAProblemBody`; `RuleSetServiceCompileFailureTest#aCompileFailureIsLoggedWithItsDetailAndRefusedInPlainWords`; `PublishedRuleSetBootTest#aDirectEditToAPublishedRowRefusesToStartAndNamesTheProblem`, `#aPublishedRowThatCannotBeReadRefusesToStartInsteadOfServingV1`; `ProblemDetailsApiTest` (404 and 400 over HTTP) | PASS |

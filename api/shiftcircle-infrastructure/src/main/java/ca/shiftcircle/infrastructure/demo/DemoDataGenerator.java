@@ -1123,7 +1123,8 @@ public class DemoDataGenerator implements ApplicationRunner {
     for (PayPeriod period : payPeriods) {
       if (period.locked()) {
         jdbc.update(
-            "UPDATE pay_period SET status = 'LOCKED', locked_at = now() WHERE id = ?",
+            "UPDATE pay_period SET status = 'LOCKED', locked_at = now(),"
+                + " locked_by = (SELECT id FROM app_user WHERE username = 'm.ellis') WHERE id = ?",
             period.id());
       }
     }

@@ -63,12 +63,11 @@ public final class RollingHoursFactBuilder {
 
     String evidence =
         String.format(
-            "%.2f h in the %d h window from %s (%d shifts: %s)",
+            "%.2f h in the %d h window from %s (%d shifts)",
             best,
             windowHours,
             BusinessTime.evidence(bestFrom),
-            bestContributors.size(),
-            String.join(", ", bestContributors.subList(0, Math.min(3, bestContributors.size()))));
+            bestContributors.size());
     return new MaxHoursInWindowFact(windowHours, best, evidence);
   }
 }

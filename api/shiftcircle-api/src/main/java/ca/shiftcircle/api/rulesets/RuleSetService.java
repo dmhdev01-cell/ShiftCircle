@@ -986,7 +986,7 @@ public class RuleSetService {
         && (rest.doubleValue() < 8 || rest.doubleValue() > 24)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
-          "The At least (hours) off column (minRestHours) must be between 8 and 24 hours");
+          "The At least (hours) off column must be between 8 and 24 hours");
     }
     for (Map.Entry<String, Object> entry : params.entrySet()) {
       String key = entry.getKey();
@@ -1086,9 +1086,14 @@ public class RuleSetService {
         .collect(java.util.stream.Collectors.joining(" or "));
   }
 
+  /**
+   * A refusal for a person: the visible column label and what is wrong. The params key is not in
+   * the message (V12): the screen only shows the message, and an internal field name is noise to a
+   * rules admin. Unknown keys still name themselves, because there the client must fix the field.
+   */
   private static ResponseStatusException columnProblem(String label, String key, String needs) {
     return new ResponseStatusException(
-        HttpStatus.BAD_REQUEST, "The " + label + " column (" + key + ") " + needs);
+        HttpStatus.BAD_REQUEST, "The " + label + " column " + needs);
   }
 
   /**
@@ -1123,10 +1128,10 @@ public class RuleSetService {
     String paramsValue = fromParams == null ? null : afterStored(fromParams);
     String labelValue = fromLabel == null ? null : afterStored(fromLabel);
     if (fromParams != null && paramsValue == null) {
-      throw afterProblem("afterShiftKind", fromParams);
+      throw afterProblem();
     }
     if (fromLabel != null && labelValue == null) {
-      throw afterProblem("after", fromLabel);
+      throw afterProblem();
     }
     if (paramsValue != null && labelValue != null && !paramsValue.equals(labelValue)) {
       throw new ResponseStatusException(
@@ -1155,10 +1160,10 @@ public class RuleSetService {
     return isShiftKind(value) ? value : null;
   }
 
-  private static ResponseStatusException afterProblem(String field, String value) {
+  private static ResponseStatusException afterProblem() {
     return new ResponseStatusException(
         HttpStatus.BAD_REQUEST,
-        "The After this kind of shift column (" + field + ") must be one of Any shift,"
+        "The After this kind of shift column must be one of Any shift,"
             + " Regular shift, 16 h shift, 12 h 00\u201312, 12 h 12\u201324, or shift codes"
             + " joined by | (for example D8|E8)");
   }

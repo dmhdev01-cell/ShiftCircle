@@ -33,9 +33,8 @@ public final class ShiftLengthFactBuilder {
 
     String evidence =
         String.format(
-            "%s (%s) of %d min%s on unit %s%s",
+            "%s of %d min%s on unit %s%s",
             shift.templateCode(),
-            shift.assignmentId(),
             nominal,
             shift.workedExtensionMinutes() > 0
                 ? " plus " + shift.workedExtensionMinutes() + " min"
