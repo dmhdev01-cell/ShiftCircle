@@ -964,72 +964,11 @@ public class RuleSetService {
   }
 
   private static String sentence(RuleRow row) {
-    Map<String, Object> p = row.params();
-    String override =
-        switch (row.overridePolicy()) {
-          case EMERGENCY -> " A supervisor may override only in an emergency, with a reason.";
-          case ACKNOWLEDGE -> " A supervisor must acknowledge it.";
-          case NONE -> " It cannot be overridden.";
-        };
-    return switch (row.table()) {
-      case REST -> "After "
-          + ("(D8|E8|N8|A12|P12)".equals(value(p.get("afterShiftKind"), ""))
-              ? "a regular shift"
-              : value(p.get("afterShiftKind"), "any shift"))
-          + ", an officer needs at least "
-          + number(p.get("minRestHours"))
-          + " hours off within "
-          + number(p.get("windowHours"))
-          + " hours. If not, the change is "
-          + row.severity().name().toLowerCase()
-          + "."
-          + override;
-      case MAX_HOURS -> "No more than "
-          + number(p.get("maxHours"))
-          + " hours in "
-          + number(p.get("windowHours"))
-          + " hours. If not, the change is "
-          + row.severity().name().toLowerCase()
-          + "."
-          + override;
-      case CONSECUTIVE -> "No more than "
-          + number(p.get("max"))
-          + " consecutive "
-          + value(p.get("counts"), "shifts")
-          + ". Scheduled: "
-          + row.severity().name().toLowerCase()
-          + "; caused by overtime: "
-          + value(p.get("overtimeSeverity"), "WARN").toLowerCase()
-          + ".";
-      case LONG_SHIFTS -> "No more than "
-          + number(p.get("maxIn7Days"))
-          + " sixteen-hour shifts in 7 days, and "
-          + number(p.get("maxIn28Days"))
-          + " in 28 days."
-          + override;
-      case DAYS_OFF -> "At least "
-          + number(p.get("daysOff"))
-          + " consecutive days off in every "
-          + number(p.get("withinDays"))
-          + " days; a break of 24 hours or less does not count."
-          + override;
-      case PAY -> row.message();
-      case OT_RANKING -> row.message();
-      case SHIFT_LENGTHS -> row.message();
-    };
+    return RuleSentence.of(row);
   }
 
   private static String value(Object value, String fallback) {
     return value == null ? fallback : String.valueOf(value);
-  }
-
-  private static String number(Object value) {
-    if (value instanceof Number number) {
-      return number.doubleValue() == Math.rint(number.doubleValue())
-          ? String.valueOf(number.intValue())
-          : String.valueOf(number.doubleValue());
-    }
-    return String.valueOf(value);
   }
 
   /**
