@@ -57,7 +57,7 @@ About 25 s of slack is left for transitions.
 | Do | Say (outline) | Status |
 |---|---|---|
 | As M. Ellis, open **Time & attendance** for pay period **26 Oct – 8 Nov** (Locked). Click **Payroll export (CSV)** and open the file | Overtime is classified per pay period. The CSV totals equal the recorded hours, and a golden-file test checks it. The payroll system itself is simulated: the CSV is the handoff. | TODO-VERIFY (step 9) |
-| Open **Reports → Coverage**, then **Overtime**. On the overrides list, point to **Wed 4 Nov, 17 h, "Lockdown, relief unavailable"** | Human judgment stays with people: the emergency override needed a reason and is reported and audited. | TODO-VERIFY (step 10; the overrides list must appear in Reports) |
+| Open **Reports → Coverage**, then **Overtime**. On the overrides list, point to **Tue 3 Nov (ended Wed 4 Nov 13:00), 17 h, "Lockdown, relief unavailable"** | Human judgment stays with people: the emergency override needed a reason and is reported and audited. | TODO-VERIFY (step 10; the overrides list must appear in Reports) |
 
 ## 6. Close (20 s)
 

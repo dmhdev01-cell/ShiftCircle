@@ -146,7 +146,7 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 |---|---|---|
 | PC-01 | Nia Thompson: P12 Fri 20 Nov 12:00–24:00; a pending supervisor proposal to assign her D8 Sat 21 Nov 07:00 (7 h rest, 17 h in 24 h: blocked) | Unit B |
 | PC-02 | An officer with N8 ending Thu 26 Nov 07:00 and an E8 slot open at 15:00 (exactly 8 h) | Unit A |
-| PC-03 | Wed 4 Nov: an officer worked 17 h (16 h shift 20:00–12:00 + 1 h extension to 13:00) with override reason "Lockdown, relief unavailable" | Unit C |
+| PC-03 | Shift starting **Tue 3 Nov** 20:00 (`work_date` = 3 Nov, start-date convention) and ending **Wed 4 Nov** 13:00: an officer worked 17 h (16 h shift 20:00–12:00 + 1 h extension to 13:00) with override reason "Lockdown, relief unavailable" | Unit C |
 | PC-04 | Piotr Kowalczyk: four consecutive A12 (00:00–12:00) ending Mon 23 Nov, with a fifth available | Control |
 | PC-05 | Pay period 26 Oct – 8 Nov, LOCKED, with officers under, exactly at and over the 80 h threshold, and a 29-minute extension (unpaid) | All |
 | PC-06 | At least three 4-night runs in the published roster (for the dry-run test T7) | Mixed |
@@ -160,8 +160,8 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 2. Apart from planted cases PC-01 to PC-04 and the logged overrides, **no saved assignment breaks a Block rule** of the rule set in force on its date.
 3. Coverage: ≥ 97.5% of hour-slots meet requirement across the window; at least 5 unfilled gaps exist.
 4. Overtime: total 3–8% of worked hours (ADR-020); at least 10 officers with zero overtime and at least 5 above 25 h this quarter (skew).
-5. For every locked pay period: sum of actual time entries = sum of payroll export lines per officer.
-6. Every person row has `is_synthetic = true`; no name appears outside the fixed lists.
+5. For every locked pay period: sum of actual time entries = sum of payroll export lines per officer. *(Checkable only once the payroll export exists, step 9; until then the self-check doesn't assert it.)*
+6. Every person row has `is_synthetic = true`; no name appears outside the fixed lists. *(Enforced by construction, since names are drawn only from the fixed lists, rather than by a separate assertion.)*
 7. Re-running with the same seed produces identical row counts and a matching checksum of assignments.
 8. Every assignment that ended before "today" has an actual time entry or an absence (so every past period can be locked, ADR-017).
 

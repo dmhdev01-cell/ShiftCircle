@@ -116,7 +116,7 @@ erDiagram
 |---|---|
 | Employees | 100 |
 | Shift assignments (90 days) | ~4,800 |
-| Time entries (scheduled + actual, past days) | ~5,500 |
+| Time entries (past days; the generator writes `ACTUAL` entries only, and scheduled hours come from the assignments) | ~3,400 (generator run, seed 20261001: 3,366) |
 | Overtime offers | ~400 |
 | Audit events | ~6,000 after seeding |
 
