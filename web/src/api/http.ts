@@ -1,6 +1,10 @@
 import type {
+  CoverageReport,
+  HoursReport,
   MyOffer,
   MySchedulePayload,
+  OvertimeReport,
+  OverrideRow,
   PayPeriod,
   RecordActualInput,
   RecordActualResult,
@@ -13,6 +17,7 @@ import type {
   ProblemDetails,
   RuleCheckChange,
   RuleCheckOutcome,
+  ReportQuery,
   RuleCheckRequest,
   SaveOutcome,
   SaveRequest,
@@ -219,6 +224,29 @@ export function createHttpApi(): ShiftCircleApi {
         method: 'POST',
         body: JSON.stringify({ note, items }),
       });
+    },
+
+    getCoverageReport(query: ReportQuery): Promise<CoverageReport> {
+      return request<CoverageReport>(`/reports/coverage${queryString(query)}`);
+    },
+
+    getHoursReport(query: ReportQuery): Promise<HoursReport> {
+      return request<HoursReport>(`/reports/hours${queryString(query)}`);
+    },
+
+    getOvertimeReport(query: ReportQuery): Promise<OvertimeReport> {
+      return request<OvertimeReport>(`/reports/overtime${queryString(query)}`);
+    },
+
+    getOverrides(query: ReportQuery): Promise<OverrideRow[]> {
+      return request<OverrideRow[]>(`/reports/overrides${queryString(query)}`);
+    },
+
+    exportReportCsv(
+      report: 'coverage' | 'hours' | 'overtime' | 'overrides',
+      query: ReportQuery,
+    ): Promise<{ fileName: string; content: string }> {
+      return requestCsv(`/reports/${report}${queryString(query)}`);
     },
 
     getPayPeriods(): Promise<PayPeriod[]> {

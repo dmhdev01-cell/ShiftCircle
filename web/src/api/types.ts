@@ -384,6 +384,83 @@ export interface MissingActual {
   start: string;
 }
 
+// --- Reports (docs/07-api-spec.md §4.6) ---
+
+export interface ReportQuery {
+  from?: string;
+  to?: string;
+  unitId?: string;
+  employeeId?: string;
+}
+
+/** One week of the coverage report. */
+export interface CoverageWeek {
+  label: string;
+  /** The share of required staff-hours that were scheduled, as a percentage. */
+  scheduledPercent: number;
+  /** The share that were actually worked. Absent for a planned week. */
+  actualPercent?: number;
+  /** True for a week that has not happened yet. */
+  planned: boolean;
+}
+
+export interface CoverageReport {
+  weeks: CoverageWeek[];
+  /** The axis starts here, and the screen says so. */
+  axisFrom: number;
+  axisTo: number;
+  requiredHours: number;
+  scheduledHours: number;
+  actualHours?: number;
+}
+
+export interface OvertimeByOfficer {
+  employeeId: string;
+  name: string;
+  hours: number;
+}
+
+export interface OvertimeReport {
+  rows: OvertimeByOfficer[];
+  /** The facility average per officer. */
+  averageHours: number;
+}
+
+export interface HoursByOfficer {
+  employeeId: string;
+  name: string;
+  scheduled: number;
+  worked: number;
+  regular: number;
+  overtime15: number;
+  /** The 2x band is off by default, so the column is hidden when it is empty. */
+  overtime20: number;
+  sick: number;
+  vacation: number;
+}
+
+export interface HoursReport {
+  period: {
+    id: string;
+    label: string;
+    status: 'OPEN' | 'LOCKED';
+    lockedBy?: string;
+    lockedAt?: string;
+  };
+  rows: HoursByOfficer[];
+  /** How many officers the report covers. */
+  totalOfficers: number;
+}
+
+export interface OverrideRow {
+  id: string;
+  at: string;
+  employeeName: string;
+  unitName: string;
+  reason: string;
+  ruleCode?: string;
+}
+
 // --- The client the screens use ---
 
 /** A change to save. The api runs the rules before it accepts the change. */
@@ -424,6 +501,16 @@ export interface ShiftCircleApi {
   getMyOffers(): Promise<MyOffer[]>;
   respondToOffer(offerId: string, response: OfferResponse): Promise<MyOffer>;
   submitProposals(note: string, items: RuleCheckChange[]): Promise<{ id: string; accepted: number }>;
+
+  // Reports.
+  getCoverageReport(query: ReportQuery): Promise<CoverageReport>;
+  getHoursReport(query: ReportQuery): Promise<HoursReport>;
+  getOvertimeReport(query: ReportQuery): Promise<OvertimeReport>;
+  getOverrides(query: ReportQuery): Promise<OverrideRow[]>;
+  exportReportCsv(
+    report: 'coverage' | 'hours' | 'overtime' | 'overrides',
+    query: ReportQuery,
+  ): Promise<{ fileName: string; content: string }>;
 
   // Time and attendance.
   getPayPeriods(): Promise<PayPeriod[]>;

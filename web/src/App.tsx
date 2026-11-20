@@ -24,6 +24,10 @@ const MySchedulePage = lazy(() =>
   import('./myschedule/MySchedulePage').then((module) => ({ default: module.MySchedulePage })),
 );
 
+const ReportsPage = lazy(() =>
+  import('./reports/ReportsPage').then((module) => ({ default: module.ReportsPage })),
+);
+
 const TimeAttendancePage = lazy(() =>
   import('./timeattendance/TimeAttendancePage').then((module) => ({
     default: module.TimeAttendancePage,
@@ -49,16 +53,7 @@ export function AppRoutes() {
         <Route path="/" element={<Navigate to="/planning" replace />} />
         <Route path="/planning" element={<PlanningPage />} />
         <Route path="/overtime" element={<OvertimePage />} />
-        <Route
-          path="/reports/:tab"
-          element={
-            <PlaceholderPage
-              title="Reports"
-              subtitle="Supervisor · Coverage, hours and overtime"
-              planned="Tabs for coverage, hours and overtime, with date, unit and officer filters and a CSV export."
-            />
-          }
-        />
+        <Route path="/reports/:tab" element={<ReportsPage />} />
         <Route
           path="/rules/:version/shift-types"
           element={

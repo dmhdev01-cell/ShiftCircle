@@ -9,8 +9,12 @@
 
 import { ApiError } from '../http';
 import type {
+  CoverageReport,
+  HoursReport,
   MyOffer,
   MySchedulePayload,
+  OvertimeReport,
+  OverrideRow,
   PayPeriod,
   RecordActualInput,
   RecordActualResult,
@@ -37,6 +41,12 @@ import {
 } from '../types';
 import { demoMyOffers, demoMySchedule } from './mySchedule';
 import { demoCandidates, demoOfferHistory, demoOpenShifts } from './overtime';
+import {
+  demoCoverageReport,
+  demoHoursReport,
+  demoOvertimeReport,
+  demoOverrides,
+} from './reports';
 import { demoSchedule, PC01_CHANGE } from './schedule';
 import { demoPayPeriods, demoTimeEntries } from './timeAttendance';
 
@@ -349,6 +359,67 @@ export function createFixtureApi(): ShiftCircleApi {
         throw new ApiError('A note to the supervisor is required.', 400);
       }
       return { id: `p-fixture-${items.length}`, accepted: items.length };
+    },
+
+    async getCoverageReport(): Promise<CoverageReport> {
+      await wait(LATENCY_MS);
+      return demoCoverageReport;
+    },
+
+    async getHoursReport(): Promise<HoursReport> {
+      await wait(LATENCY_MS);
+      return demoHoursReport;
+    },
+
+    async getOvertimeReport(): Promise<OvertimeReport> {
+      await wait(LATENCY_MS);
+      return demoOvertimeReport;
+    },
+
+    async getOverrides(): Promise<OverrideRow[]> {
+      await wait(LATENCY_MS);
+      return demoOverrides;
+    },
+
+    async exportReportCsv(
+      report: 'coverage' | 'hours' | 'overtime' | 'overrides',
+    ): Promise<{ fileName: string; content: string }> {
+      await wait(LATENCY_MS);
+      if (report === 'hours') {
+        const lines = [
+          'employee_id,name,scheduled,worked,regular,ot_1_5,sick,vacation',
+          ...demoHoursReport.rows.map(
+            (row) =>
+              `${row.employeeId},${row.name},${row.scheduled},${row.worked},${row.regular},${row.overtime15},${row.sick},${row.vacation}`,
+          ),
+        ];
+        return { fileName: 'hours-by-officer.csv', content: lines.join('\n') };
+      }
+      if (report === 'overtime') {
+        const lines = [
+          'employee_id,name,overtime_hours',
+          ...demoOvertimeReport.rows.map((row) => `${row.employeeId},${row.name},${row.hours}`),
+        ];
+        return { fileName: 'overtime-by-officer.csv', content: lines.join('\n') };
+      }
+      if (report === 'overrides') {
+        const lines = [
+          'id,at,employee,unit,rule_code,reason',
+          ...demoOverrides.map(
+            (row) =>
+              `${row.id},${row.at},${row.employeeName},${row.unitName},${row.ruleCode ?? ''},${row.reason}`,
+          ),
+        ];
+        return { fileName: 'emergency-overrides.csv', content: lines.join('\n') };
+      }
+      const lines = [
+        'week,scheduled_percent,actual_percent,planned',
+        ...demoCoverageReport.weeks.map(
+          (week) =>
+            `${week.label},${week.scheduledPercent},${week.actualPercent ?? ''},${week.planned}`,
+        ),
+      ];
+      return { fileName: 'coverage-by-week.csv', content: lines.join('\n') };
     },
 
     async getPayPeriods(): Promise<PayPeriod[]> {

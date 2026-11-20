@@ -17,6 +17,12 @@ function jsonResponse(body: unknown, status = 200) {
   } as unknown as Response;
 }
 
+// jsdom has no object URLs, and the reports download a CSV.
+if (typeof URL.createObjectURL !== 'function') {
+  URL.createObjectURL = () => 'blob:test';
+  URL.revokeObjectURL = () => undefined;
+}
+
 beforeEach(() => {
   invalidateVersionCache();
   vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({})));
