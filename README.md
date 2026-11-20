@@ -123,8 +123,10 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
 failures/errors/skipped; this author's static count agrees (97 + 27 + 224 `@Test` methods, one per
 line, no parameterised tests). Playwright against the real api: desktop 19 passed, tablet 18 passed
 + 1 skipped (the TV-size check is desktop-only); fixtures 43 passed / 3 skipped. The D6 sentence fix
-(`8c5d705`) adds `RuleSentenceTest` (2) and one HTTP check, so the static count at that tip is
-**351 = 97 rules + 27 infrastructure + 227 api**; its full run is pending. Earlier, as history:
+(`8c5d705`) adds `RuleSentenceTest` (2) and one HTTP check, so the count at `dc6890e` is
+**351 = 97 rules + 27 infrastructure + 227 api**; this author's full clean-worktree runs there are
+351, 0 failures/errors/skipped, in the default order and with random seed 20261121. dev-qa's
+independent run at that tip is pending. Earlier, as history:
 301 = 91 + 27 + 183 at `5e7765f`, 296 = 91 + 22 + 183 at `dcee43b`, and default/random at
 `fe6487d`, reverse and random seeds at `22375d4`.
 
