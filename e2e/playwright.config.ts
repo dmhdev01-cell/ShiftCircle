@@ -10,6 +10,36 @@ import { defineConfig, devices } from '@playwright/test';
  */
 const baseURL = process.env.BASE_URL ?? 'http://localhost:8080';
 
+// One run, one screenshot folder: the workers inherit this from the runner.
+process.env.RUN_ID ??= new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+
+/**
+ * CHROMIUM ONLY. Both projects use Desktop Chrome. Never add Firefox or
+ * WebKit projects: on the project lead's Mac they took the window server down.
+ * The guard below fails the run if a project ever names another browser.
+ */
+const projects = [
+  {
+    name: 'desktop',
+    use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
+  },
+  {
+    name: 'tablet',
+    use: {
+      ...devices['Desktop Chrome'],
+      viewport: { width: 768, height: 1024 },
+      hasTouch: true,
+    },
+  },
+];
+for (const project of projects) {
+  const use = project.use as { browserName?: string; defaultBrowserType?: string };
+  const browser = use.browserName ?? use.defaultBrowserType;
+  if (browser !== 'chromium') {
+    throw new Error(`Chromium only: project "${project.name}" uses ${browser ?? 'an unknown browser'}.`);
+  }
+}
+
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
@@ -25,18 +55,5 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  projects: [
-    {
-      name: 'desktop',
-      use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
-    },
-    {
-      name: 'tablet',
-      use: {
-        ...devices['Desktop Chrome'],
-        viewport: { width: 768, height: 1024 },
-        hasTouch: true,
-      },
-    },
-  ],
+  projects,
 });
