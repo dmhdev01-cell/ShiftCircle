@@ -59,7 +59,9 @@ class VersionEndpointTest {
 
   @Test
   void actuatorExposesOnlyHealthAndInfo() throws Exception {
-    assertThat(get("/actuator/env").statusCode()).isEqualTo(404);
-    assertThat(get("/actuator/beans").statusCode()).isEqualTo(404);
+    // Either "not exposed" (404) or "not signed in" (401, security runs first) is correct here:
+    // what must never happen is a 200 with the endpoint's content.
+    assertThat(get("/actuator/env").statusCode()).isIn(401, 404);
+    assertThat(get("/actuator/beans").statusCode()).isIn(401, 404);
   }
 }

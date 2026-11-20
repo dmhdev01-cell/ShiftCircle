@@ -36,6 +36,8 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @Profile("demo")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+    name = "sc.demo.generate", havingValue = "true", matchIfMissing = true)
 public class DemoDataGenerator implements ApplicationRunner {
 
   private static final Logger log = LoggerFactory.getLogger(DemoDataGenerator.class);
