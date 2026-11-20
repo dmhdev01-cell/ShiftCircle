@@ -27,11 +27,13 @@ Internal note for the team; remove before submission (step 13) or fold into the 
 | review nits | `874926b` | balanced-parens validation; TemplateColumns' re-checks throw RuleCompilationException (plain refusal, no 500) |
 | 12c schedule publish | `f300cd0` | `POST /schedule-periods/{id}/publish`: scope 404, employee/auditor 403, one-way 409, audit row, board publishedState; absences were already on main from step 9 |
 | 12d NFR-05 perf | `51a4cc5` | `PerformanceSmokeTest`: board 4 weeks 54/58 ms, rule check 4/7 ms, 90-day coverage 7/15 ms, rule build 655 ms, publish 516 ms; recorded in docs/10 |
+| boot validation | `062da95`, `62dd4fc` | `PublishedRuleSet` runs `RuleRowValidator` on the published rows at boot; unreadable rows stop the boot instead of falling back to v1; direct-edit tests restore the row |
+| 12e move/cancel | `c1dd6ad` | `PATCH`/`DELETE /assignments/{id}`: full rule pipeline on the target with own slot excluded, If-Match inside the officer lock, ETag/version, locked/started/actual/fills-open checks, audit before/after, 16 tests; POST and board items carry version too. Shapes handed to dev-build2 |
 | 12b audit viewer | `21af15c` | `GET /audit-events`: auditor facility-wide, supervisor scoped to their units, filters (actor/action/entity/date), keyset pages, read-only; 405s and the append-only trigger proven |
 | review S1-S5 | `e13ddeb`, `b572dff`, `444f685`, `03ceb19`, `35c225d` | DRL injection closed (codes/messages/regex validated before compile + escaped again), shift-kind bounded against ReDoS, message edits saved, Must policies pinned, limits capped + silent rule named, odd input 400/404 problems |
 | 12a wall display | `6649eb1`, `f191d07`, `6237258` | `GET /display/today` (ADR-017 hourly blocks, midnight-crossing night, no names, scope, roles); the `coverage/` ignore fix that a clean checkout caught; ignored-source guard script + README step; 209 tests from a clean worktree at `f191d07` |
 
-Latest full run: 91 rules + 20 infrastructure + 140 api = **251 tests**, all passing in Docker from a clean worktree at `51a4cc5`.
+Latest full run: 91 rules + 20 infrastructure + 158 api = **269 tests**, all passing in Docker from a clean worktree at `62dd4fc`.
 
 ## Next, in the lead's priority order
 
@@ -60,14 +62,16 @@ E3), validator 13, scenarios 3.
 3. **Absences** already on main from step 9 (`POST /absences`, assignment + type, tested in
    `PayrollApiTest`); **schedule publish** `POST /schedule-periods/{id}/publish` (`f300cd0`).
 4. **NFR-05 performance smoke** (`51a4cc5`, docs/10).
+5. **Boot validation** (`062da95`, `62dd4fc`): the published rows run the same validator as the
+   publish path, and unreadable rows stop the boot instead of falling back to v1.
 
 ### d) Submission work (HANDOFF step 13)
 
 - Playwright E1-E5 against the real api on main (`e2e/`, dev-build2's specs merged at `17308b7`).
 - README setup pass, `BUILD_RECORD.md`, demo script/recording.
-- Optional Should items still open: `PATCH`/`DELETE /assignments` (not built; the web removed
-  move/cancel), Excel round-trip for rule tables (not built). Both are documented in docs/07; tell
-  the lead if they are wanted rather than letting a reviewer think they exist.
+- `PATCH`/`DELETE /assignments` are built (`c1dd6ad`); the exact shapes went to dev-build2 so the
+  web can bring move/cancel back. Excel round-trip for rule tables remains **not built**, and
+  docs/10 §8 says so plainly.
 
 **Before submission:** Playwright E2E E1–E5 against the real api, README setup, BUILD_RECORD,
 demo script/recording.
