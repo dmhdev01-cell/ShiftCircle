@@ -603,12 +603,17 @@ public class OvertimeService {
   }
 
   private Map<String, Object> shiftRow(UUID id) {
-    return jdbc.queryForMap(
-        "SELECT o.id, o.unit_id, o.shift_template_id, u.code AS unit_code, u.name AS unit_name,"
-            + " u.kind AS unit_kind, t.code AS template_code, o.start_at, o.end_at, o.reason,"
-            + " o.status FROM open_shift o JOIN unit u ON u.id = o.unit_id"
-            + " JOIN shift_template t ON t.id = o.shift_template_id WHERE o.id = ?",
-        id);
+    List<Map<String, Object>> rows =
+        jdbc.queryForList(
+            "SELECT o.id, o.unit_id, o.shift_template_id, u.code AS unit_code, u.name AS unit_name,"
+                + " u.kind AS unit_kind, t.code AS template_code, o.start_at, o.end_at, o.reason,"
+                + " o.status FROM open_shift o JOIN unit u ON u.id = o.unit_id"
+                + " JOIN shift_template t ON t.id = o.shift_template_id WHERE o.id = ?",
+            id);
+    if (rows.isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Open shift not found");
+    }
+    return rows.get(0);
   }
 
   private OpenShiftView openShift(UUID id) {

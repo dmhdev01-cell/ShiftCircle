@@ -602,6 +602,25 @@ class OvertimeApiTest {
   }
 
   @Test
+  void anUnknownOrMalformedShiftIdIsANamedProblem() throws Exception {
+    String body = "{\"employeeIds\":[],\"ordered\":false}";
+
+    HttpResponse<String> unknown =
+        send(
+            "POST",
+            "/api/v1/open-shifts/" + UUID.randomUUID() + "/offers",
+            body,
+            "m.ellis");
+    assertThat(unknown.statusCode()).isEqualTo(404);
+    assertThat(json(unknown).get("title")).isEqualTo("Open shift not found");
+
+    HttpResponse<String> malformed =
+        send("POST", "/api/v1/open-shifts/not-a-uuid/offers", body, "m.ellis");
+    assertThat(malformed.statusCode()).isEqualTo(400);
+    assertThat(malformed.body()).contains("'id'");
+  }
+
+  @Test
   void creatingAnOpenShiftIsSupervisorOnlyAndAudited() throws Exception {
     String body =
         "{\"unitId\":\""
