@@ -132,13 +132,9 @@ test.describe('session and navigation', () => {
   });
 
   test('a signed-out visitor is not offered the supervisor navigation', async ({ page }) => {
-    // DEFECT D8 (found by this spec): the sign-in screen, before anyone signs
-    // in and after a sign-out, shows the full supervisor side navigation
-    // (Planning board ... Time & attendance): with no session the role falls
-    // back to the chosen role, SUPERVISOR by default (shell/nav.tsx:37, :40),
-    // a fixtures-mode switch that the real-api build keeps. The links lead back to
-    // sign-in, but the screen offers what the visitor cannot use.
-    test.fail(true, 'D8: the sign-in screen shows the supervisor navigation');
+    // D8 was here: the sign-in screen showed the full supervisor side
+    // navigation because the role fell back to SUPERVISOR when no session
+    // existed (shell/nav.tsx). A signed-out visitor now gets no role nav.
     await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible();
     await expect(
       page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Planning board' }),

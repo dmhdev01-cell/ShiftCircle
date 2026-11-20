@@ -38,6 +38,10 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<RoleContextValue>(() => {
     const role = session.user ? roleForUser(session.user) : (roles.find((r) => r.id === chosenRoleId) ?? roles[0]);
+    // Without a session the api build is signed out, and a signed-out visitor
+    // gets no role navigation: the demo switch that falls back to SUPERVISOR is
+    // a fixtures-only convenience (D8).
+    const signedOut = session.user === null && !usingFixtures;
     return {
       role,
       userName: session.user?.displayName ?? role.user,
@@ -45,7 +49,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         setChosenRoleId(next);
         if (usingFixtures) setActingUser(demoUserFor(next));
       },
-      nav: [...role.nav, aboutNavItem],
+      nav: signedOut ? [] : [...role.nav, aboutNavItem],
     };
   }, [chosenRoleId, session.user]);
 
