@@ -182,8 +182,10 @@ public final class RuleRowValidator {
               ));
     }
     double maximum = row.number("max");
-    if (maximum < 1) {
-      violations.add(new Violation(row.code(), "Maximum", "Maximum must be at least 1."));
+    if (maximum < 1 || maximum > 366) {
+      violations.add(
+          new Violation(
+              row.code(), "Maximum", "Maximum must be between 1 and 366 (a year of days)."));
     }
     String overtime = optionalText(row, "overtimeSeverity", "WARN");
     if (!overtime.equals("BLOCK") && !overtime.equals("WARN")) {
@@ -195,9 +197,15 @@ public final class RuleRowValidator {
   private static void validateLongShifts(RuleRow row, List<Violation> violations) {
     double in7 = row.number("maxIn7Days");
     double in28 = row.number("maxIn28Days");
-    if (in7 < 1) {
+    if (in7 < 1 || in7 > 28) {
       violations.add(
-          new Violation(row.code(), "Max in 7 days", "Maximum must be at least 1."));
+          new Violation(
+              row.code(), "Max in 7 days", "Maximum must be between 1 and 28 long shifts."));
+    }
+    if (in28 > 366) {
+      violations.add(
+          new Violation(
+              row.code(), "Max in 28 days", "Maximum can't exceed 366 long shifts."));
     }
     if (in28 < in7) {
       violations.add(
@@ -216,9 +224,10 @@ public final class RuleRowValidator {
               "Within how many days",
               "Days off are measured in a 7-day window; the value must be 7."));
     }
-    if (row.number("daysOff") < 1) {
+    double daysOff = row.number("daysOff");
+    if (daysOff < 1 || daysOff > 7) {
       violations.add(
-          new Violation(row.code(), "Days off required", "Must be at least 1 day."));
+          new Violation(row.code(), "Days off required", "Must be between 1 and 7 days."));
     }
   }
 
@@ -233,9 +242,11 @@ public final class RuleRowValidator {
                 "The prototype classifies overtime per pay period; a weekly threshold needs a"
                     + " per-week split first."));
       }
-      if (row.number("thresholdHours") <= 0) {
+      double threshold = row.number("thresholdHours");
+      if (threshold <= 0 || threshold > 168) {
         violations.add(
-            new Violation(row.code(), "Threshold hours", "Must be above 0 hours."));
+            new Violation(
+                row.code(), "Threshold hours", "Must be above 0 and no more than 168 hours."));
       }
     }
     if ("P-01b".equals(row.code())) {

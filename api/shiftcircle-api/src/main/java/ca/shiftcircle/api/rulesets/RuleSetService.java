@@ -359,18 +359,21 @@ public class RuleSetService {
           versionId, version, principal, steps, scenarioResults.size(), (int) passed, errors);
     }
 
-    // 4. Dry run on the current roster, counts only (ADR-017).
-    List<ImpactView> impact = dryRun(ruleSet);
+    // 4. Dry run on the current roster, counts only (ADR-017). A rule that used to fire and now
+    // fires nowhere is named: an absurd limit can make a safeguard silently disappear (S4).
+    DryRun dryRun = dryRun(ruleSet);
+    List<ImpactView> impact = dryRun.impact();
+    String dryRunDetail =
+        impact.isEmpty()
+            ? "No rule result changes on the current roster."
+            : impact.stream().mapToLong(ImpactView::count).sum()
+                + " result(s) change on the current roster.";
+    if (!dryRun.silent().isEmpty()) {
+      dryRunDetail +=
+          " No longer fires on the current roster: " + String.join(", ", dryRun.silent()) + ".";
+    }
     steps.add(
-        new BuildStepView(
-            "dryRun",
-            "Dry run on the published roster",
-            impact.isEmpty()
-                ? "No rule result changes on the current roster."
-                : impact.stream().mapToLong(ImpactView::count).sum()
-                    + " result(s) change on the current roster.",
-            true,
-            impact));
+        new BuildStepView("dryRun", "Dry run on the published roster", dryRunDetail, true, impact));
 
     return store(
         versionId, version, principal, steps, scenarioResults.size(), (int) passed, errors);
@@ -496,7 +499,10 @@ public class RuleSetService {
   // Dry run
   // ---------------------------------------------------------------------------------------------
 
-  private List<ImpactView> dryRun(RuleSet candidateRows) {
+  /** Counts of changed results, plus the rules that used to fire and now fire nowhere. */
+  public record DryRun(List<ImpactView> impact, List<String> silent) {}
+
+  private DryRun dryRun(RuleSet candidateRows) {
     KieBase candidate = compiler.compile(candidateRows);
     KieBase current = live.snapshot().kieBase();
 
@@ -531,6 +537,8 @@ public class RuleSetService {
             });
 
     Map<String, Long> counts = new LinkedHashMap<>();
+    Map<String, Integer> firedBefore = new LinkedHashMap<>();
+    Map<String, Integer> firedAfter = new LinkedHashMap<>();
     shiftsByOfficer.forEach(
         (employee, shifts) -> {
           List<Object> facts = factsFor(shifts);
@@ -538,6 +546,8 @@ public class RuleSetService {
               facts.toArray()));
           Map<String, RuleOutcome> after = worstByRule(evaluator.evaluate(candidate,
               candidateRows.version(), facts.toArray()));
+          before.keySet().forEach(rule -> firedBefore.merge(rule, 1, Integer::sum));
+          after.keySet().forEach(rule -> firedAfter.merge(rule, 1, Integer::sum));
           for (String rule : union(before.keySet(), after.keySet())) {
             RuleOutcome from = before.get(rule);
             RuleOutcome to = after.get(rule);
@@ -558,7 +568,16 @@ public class RuleSetService {
               String[] parts = entry.getKey().split("\\|", -1);
               impact.add(new ImpactView(parts[0], parts[1], parts[2], parts[3], entry.getValue()));
             });
-    return impact;
+    return new DryRun(impact, silentRules(firedBefore, firedAfter));
+  }
+
+  /** Rules that fired at least once before and fire nowhere after: a safeguard went quiet. */
+  static List<String> silentRules(Map<String, Integer> firedBefore, Map<String, Integer> firedAfter) {
+    return firedBefore.entrySet().stream()
+        .filter(entry -> entry.getValue() > 0 && firedAfter.getOrDefault(entry.getKey(), 0) == 0)
+        .map(Map.Entry::getKey)
+        .sorted()
+        .toList();
   }
 
   private static String name(RuleOutcome outcome) {

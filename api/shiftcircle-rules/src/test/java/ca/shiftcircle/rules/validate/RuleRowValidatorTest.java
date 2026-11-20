@@ -328,6 +328,26 @@ class RuleRowValidatorTest {
             });
   }
 
+  @Test
+  void anAbsurdLimitIsRefused() {
+    assertThat(validateWith("U-08", params("counts", "DAYS", "max", 999999,
+            "overtimeSeverity", "WARN")))
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.column()).isEqualTo("Maximum");
+              assertThat(violation.message()).contains("366");
+            });
+    assertThat(
+            validateWith(
+                "U-11",
+                params("maxIn7Days", 3, "maxIn28Days", 999999)))
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.column()).isEqualTo("Max in 28 days");
+              assertThat(violation.message()).contains("366");
+            });
+  }
+
   private static RuleRow withPolicy(
       RuleRow row, ca.shiftcircle.rules.model.OverridePolicy policy) {
     return new RuleRow(
