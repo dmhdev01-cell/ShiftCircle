@@ -78,6 +78,18 @@ class ApiProblemAdviceTest {
   }
 
   @Test
+  void aCheckConstraintStaysAConflict() {
+    // The locked-pay-period trigger raises a check violation: a state conflict, not a bad request.
+    ResponseEntity<Map<String, Object>> response =
+        advice.onConflict(
+            new DataIntegrityViolationException(
+                "pay period is locked", new SQLException("check", "23514")));
+
+    assertThat(response.getStatusCode().value()).isEqualTo(409);
+    assertThat(response.getBody().toString()).doesNotContain("23514");
+  }
+
+  @Test
   void theMakerCheckerConstraintStaysAForbidden() {
     ResponseEntity<Map<String, Object>> response =
         advice.onConflict(

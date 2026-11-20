@@ -2,6 +2,7 @@ package ca.shiftcircle.api.rules;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /** RFC 9457-style problem responses for rule refusals (docs/07 §2–3). */
+@Order(20)
 @RestControllerAdvice
 public class RuleProblemAdvice {
 

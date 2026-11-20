@@ -3,12 +3,16 @@ package ca.shiftcircle.api.problems;
 import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -21,7 +25,11 @@ import org.springframework.web.server.ResponseStatusException;
  * <p>Unknown or out-of-scope identifiers answer 404, a malformed or incomplete request answers 400,
  * and a database conflict answers 409. The body never carries a stack trace or an internal class
  * name; the detail is written for the person using the screen.
+ *
+ * <p>This advice is the last one consulted ({@code @Order}), because it holds the catch-all: the
+ * other advices own their own exception types and must answer first.
  */
+@Order(40)
 @RestControllerAdvice
 public class ApiProblemAdvice {
 
@@ -142,6 +150,44 @@ public class ApiProblemAdvice {
     }
     return problem(
         HttpStatus.BAD_REQUEST, "Bad request", "The request body or its values could not be read.");
+  }
+
+  /**
+   * A role or scope refusal from Spring Security. It answers a problem document here; without this
+   * handler the security filter would answer an empty body.
+   */
+  @ExceptionHandler(AccessDeniedException.class)
+  public ResponseEntity<Map<String, Object>> onAccessDenied() {
+    return problem(
+        HttpStatus.FORBIDDEN,
+        "Not allowed",
+        "This account may not do that. Ask a supervisor with the right scope.");
+  }
+
+  /**
+   * Not signed in. The security filter answers this one before the advice sees it; this is the
+   * backstop for an authentication failure raised further in.
+   */
+  @ExceptionHandler(AuthenticationException.class)
+  public ResponseEntity<Map<String, Object>> onUnauthenticated() {
+    return problem(HttpStatus.UNAUTHORIZED, "Not signed in", "Sign in and try again.");
+  }
+
+  /**
+   * Everything else. Spring's own web exceptions already know their status (405 for a wrong verb,
+   * 415 for a wrong media type), and they keep it. Anything left is a server failure: the answer
+   * says so and nothing else, so no internals reach the caller. The stack goes to the log.
+   */
+  @ExceptionHandler(Exception.class)
+  public ResponseEntity<Map<String, Object>> onUnexpected(Exception exception) {
+    if (exception instanceof ErrorResponse errorResponse) {
+      HttpStatus status = HttpStatus.valueOf(errorResponse.getStatusCode().value());
+      return problem(status, status.getReasonPhrase(), null);
+    }
+    return problem(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "Something went wrong",
+        "The request could not be completed. Try again.");
   }
 
   private ResponseEntity<Map<String, Object>> problem(

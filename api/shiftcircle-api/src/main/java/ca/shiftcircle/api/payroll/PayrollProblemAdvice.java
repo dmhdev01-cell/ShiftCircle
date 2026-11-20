@@ -2,6 +2,7 @@ package ca.shiftcircle.api.payroll;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * handler resolution and answered a raw 500 (dev-qa, 2026-11-20). The numeric overflow (SQLSTATE
  * 22003) is a bad request there, and the exclusion constraint is a conflict.
  */
+@Order(30)
 @RestControllerAdvice
 public class PayrollProblemAdvice {
 

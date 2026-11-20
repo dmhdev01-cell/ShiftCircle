@@ -53,6 +53,17 @@ numeric-overflow paths are not reachable through the current endpoints (the offe
 the actual window is validated before the hours are computed); they are mapped for defence in
 depth.
 
+**Everything else answers a problem document too.** One advice owns the catch-all, and it is the
+last one consulted (`@Order` 10 / 20 / 30 / 40 across the four advices), so it cannot shadow the
+rule, assignment or payroll advice:
+
+| Situation | Answer |
+|---|---|
+| A role or scope refusal from Spring Security | `403` with a problem body (before, it was an empty body) |
+| Not signed in | `401` with a problem body (the token filter answers it) |
+| Spring's own web failures (a wrong verb, a wrong media type) | Their own status (`405`, `415`) with a problem body |
+| Anything unexpected | `500` with a problem body that says nothing about the internals; the stack goes to the log |
+
 ## 3. Rule checks: preview, save, override
 
 Every schedule-changing endpoint runs the rules engine. Clients use the same body three ways:
