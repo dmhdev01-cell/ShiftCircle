@@ -3,6 +3,7 @@ package ca.shiftcircle.rules.validate;
 import ca.shiftcircle.rules.model.RuleRow;
 import ca.shiftcircle.rules.model.RuleSet;
 import ca.shiftcircle.rules.model.RuleTableCode;
+import ca.shiftcircle.rules.rows.RuleRowsV1;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +22,8 @@ public final class RuleRowValidator {
       Set.of("DAYS", "SHIFTS_12H", "SHIFTS_NIGHT_12H");
   private static final Set<String> SORT_KEYS = Set.of("OT_HOURS_QUARTER_ASC", "SENIORITY_ASC");
   private static final Set<Integer> SHIFT_LENGTHS = Set.of(8, 12, 16);
+  /** Every rule the mock agreement requires (docs/05 §3 says these are the Must set). */
+  private static final Set<String> REQUIRED = RuleRowsV1.ruleSet().ruleCodes();
 
   /** One plain-language problem with one row. */
   public record Violation(String code, String column, String message) {
@@ -32,6 +35,17 @@ public final class RuleRowValidator {
 
   public List<Violation> validate(RuleSet ruleSet) {
     List<Violation> violations = new ArrayList<>();
+    // Deleting a rule is not an edit: the Must set cannot disappear from a version.
+    for (String required : REQUIRED) {
+      if (!ruleSet.ruleCodes().contains(required)) {
+        violations.add(
+            new Violation(
+                required,
+                "Rule",
+                "This rule is required by the mock agreement (docs/05 §3); add it back before"
+                    + " publishing."));
+      }
+    }
     for (RuleRow row : ruleSet.rows()) {
       if (row.message() == null || row.message().isBlank()) {
         violations.add(new Violation(row.code(), "Message", "A rule needs a message to show."));

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.Environment;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -28,6 +29,7 @@ class VersionEndpointTest {
   }
 
   @Autowired private Environment environment;
+  @Autowired private JdbcTemplate jdbc;
 
   private HttpResponse<String> get(String path) throws Exception {
     String port = environment.getRequiredProperty("local.server.port");
@@ -42,10 +44,14 @@ class VersionEndpointTest {
     HttpResponse<String> response = get("/api/v1/version");
 
     assertThat(response.statusCode()).isEqualTo(200);
+    Integer published =
+        jdbc.queryForObject(
+            "SELECT version FROM rule_set_version WHERE status = 'PUBLISHED'", Integer.class);
     assertThat(response.body())
         .contains("\"name\":\"shiftcircle-api\"")
         .contains("\"gitCommit\":\"unknown\"")
-        .contains("\"ruleSetVersion\":\"v1\"")
+        .as("the live version, so a published v2 is reported without a code change")
+        .contains("\"ruleSetVersion\":\"v" + published + "\"")
         .contains("\"profiles\":")
         .contains("\"asOf\":\"2026-11-19\"");
   }

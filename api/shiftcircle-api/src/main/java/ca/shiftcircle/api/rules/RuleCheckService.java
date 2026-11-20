@@ -104,8 +104,9 @@ public class RuleCheckService {
     facts.addAll(new DaysOffFactBuilder().build(shifts));
     facts.addAll(new ShiftLengthFactBuilder().build(shifts));
 
+    PublishedRuleSet.Snapshot live = published.snapshot();
     List<RuleResult> results =
-        evaluator.evaluate(published.kieBase(), String.valueOf(ruleSetVersion), facts.toArray());
+        evaluator.evaluate(live.kieBase(), String.valueOf(ruleSetVersion), facts.toArray());
     return summarise(results, ruleSetVersion);
   }
 
