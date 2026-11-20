@@ -10,7 +10,7 @@ Rehearse every step anyway before recording.
 
 **Setup before recording:** a clean `docker compose up --build` on the `demo` profile with seed `20261001` and "today" fixed at **Thu 19 Nov 2026**. A browser at `http://localhost:8080` (or `SC_WEB_PORT`) at 1440×900, zoom 100%. A second browser profile or private window keeps two users signed in, which saves sign-in time. Have a text editor ready to open the payroll CSV.
 
-**Data used:** planted cases from `docs/10-testing.md` §6.6 and scenarios from §4: PC-01/T2, PC-08/T6, PC-03/T9, PC-05/T8. T3 and T7 are tests only and aren't shown on screen.
+**Data used:** planted cases from `docs/10-testing.md` §6.6 and scenarios from §4: PC-01/T2, PC-08/T6, PC-03/T9, PC-05/T8. T3 and T7 are tests only and aren't shown on screen. If PC-02 is shown at all, show it only as a rule result (U-01 silent at exactly 8 h, U-02 WARN): its officer is also blocked by U-08 (10 consecutive days in the base roster), so don't try to assign them.
 
 | Time | Segment |
 |---|---|
@@ -37,7 +37,7 @@ About 25 s of slack is left for transitions.
 |---|---|---|
 | Sign in as **M. Ellis** (Supervisor, Units A and B). The planning board opens on the first unit in scope; choose **Unit B · Living unit** in the Unit selector. Week of **16 Nov**. | Coverage per block, measured hourly, with each officer's pay-period hours and overtime status. | VERIFIED (board and unit switch) |
 | Point to the KPI tiles (coverage gaps, in overtime) and one coverage cell that names its short hours | Overtime is pay-period hours over 80 h, not a shift type. | TODO-VERIFY (no spec asserts the tiles or the ADR-017 cell text on the real api) |
-| On **Nia Thompson's** row, click her empty **Sat 21 Nov** cell ("Off"), then choose **D8 · Day 8 h** (07:00–15:00) | She works the 12 h shift Fri 12:00–24:00. | VERIFIED. The real api has no proposals in the schedule yet, so the fixtures' `! D proposed` chip doesn't appear; start from the empty cell |
+| On **Nia Thompson's** row, click her empty **Sat 21 Nov** cell ("Off"), then choose **D8 · Day 8 h** (07:00–15:00) | Nia works the 12 h shift Fri 12:00–24:00. | VERIFIED. The real api has no proposals in the schedule yet, so the fixtures' `! D proposed` chip doesn't appear; start from the empty cell |
 | Read the rule-check panel: **Blocked: 3 rules fail**: **U-01** (7 h rest; the minimum is 8 h in 24 h), **U-05** (17 h in 24 h) and **U-14** (the week passes the 60 h ceiling) | The rules engine decides and gives a plain reason with its source. **Safeguard:** there's no Save and **no Emergency override**. The weekly ceiling allows no override, so there is no way around this one: find someone else. | VERIFIED: the Block count, U-01's reason, no "Assign shift" and no "Emergency override…" button. TODO-VERIFY: read the U-05 and U-14 wording aloud at rehearsal (the spec doesn't assert it) |
 
 ## 3. Overtime (60 s) · T6, PC-08, E1/E2
@@ -62,8 +62,8 @@ About 25 s of slack is left for transitions.
 
 | Do | Say (outline) | Status |
 |---|---|---|
-| As M. Ellis, open **Time & attendance** and choose pay period **26 Oct – 8 Nov** (Locked). Click **Payroll export (CSV)** and open the file | Overtime is classified per pay period. The CSV totals equal the recorded hours, and a golden-file test checks it. The payroll system itself is simulated: the CSV is the handoff. | VERIFIED: the locked period is read-only, the CSV header follows docs/07 §4.5 and every row is in the period; "Unlock…" asks for a reason of ≥ 10 characters. TODO-VERIFY: the first click path, where the open period refuses to lock while actuals are missing (that spec is fixtures-only) |
-| Open **Reports → Coverage**, then **Overtime**. On the overrides list, point to **Tue 3 Nov (ended Wed 4 Nov 13:00), 17 h, "Lockdown, relief unavailable"** (PC-03) | **This is the legitimate override.** In a lockdown with no relief, a supervisor kept an officer on for 17 h. U-05 (16 h in 24 h) is a Block whose policy allows an emergency override, so the supervisor gave a written reason, and it is reported and audited. Compare Nia: no override existed. Human judgment stays with people, inside limits the rules set. | TODO-VERIFY (Reports is step 10; no e2e spec covers the overrides list yet) |
+| As M. Ellis, open **Time & attendance** and choose pay period **26 Oct – 8 Nov** (Locked). Click **Payroll export (CSV)** and open the file | Overtime is classified per pay period. The CSV totals equal the recorded hours, and a golden-file test checks it. The payroll system itself is simulated: the CSV is the handoff. | VERIFIED: the locked period is read-only, the CSV header follows docs/07 §4.5 and every row is in the period; "Unlock…" asks for a reason of ≥ 10 characters. TODO-VERIFY: locking the open period. On the real api it currently refuses with 44 missing actuals, because of a real-clock bug that dev-build2 is fixing; that spec is fixtures-only until then. Don't show a lock in the recording until this is verified |
+| Sign in as **A. Reviewer** (Auditor, facility-wide, read-only). Open **Reports → Coverage**, then **Overtime**. On the overrides list, point to **Tue 3 Nov (ended Wed 4 Nov 13:00), 17 h, "Lockdown, relief unavailable"** (PC-03) | **This is the legitimate override.** In a lockdown with no relief, a supervisor kept an officer on for 17 h. U-05 (16 h in 24 h) is a Block whose policy allows an emergency override, so the supervisor gave a written reason, and it is reported and audited. Compare Nia: no override existed. Human judgment stays with people, inside limits the rules set. | TODO-VERIFY. Use the auditor: PC-03 is in Unit C, which no demo supervisor has in scope, so M. Ellis's report doesn't show it. The auditor's overrides view currently shows the employee, unit and rule as empty; dev-build2 is fixing it. No e2e spec covers the overrides list yet |
 
 ## 6. Close (20 s)
 
@@ -77,6 +77,6 @@ Keep to that one sentence. The full list is in `BUILD_RECORD.md`.
 
 ---
 
-**Not in the recording:** E5, the wall display, is TODO-VERIFY. Its api is on `main` (`6649eb1`) but the screen isn't built yet. If it's ready in time, add a 10 s shot to segment 6 showing counts only, no names.
+**Not in the recording yet:** E5, the wall display. The screen is built on branch `web-display` (`a4b307e`, not merged). Its E5 specs pass against fixtures and a private real-api stack. Once it's merged, add a 10 s shot to segment 6: sign in as **Unit office TV** and show counts only, no names, and "updated hh:mm".
 
 **Fallbacks if a step fails while recording:** don't fake it. Cut the segment and say what isn't finished (CLAUDE.md: honest errors over graceful degradation).
