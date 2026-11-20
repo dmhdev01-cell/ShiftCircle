@@ -204,6 +204,26 @@ class HoursAndRunsRulesTest {
   }
 
   @Test
+  void u09BlocksWhenAFiveShiftScheduledRunTiesAnOvertimeRun() {
+    List<ShiftFact> shifts = new ArrayList<>();
+    // First run: five 12-hour shifts, the fifth picked up.
+    for (int i = 0; i < 5; i++) {
+      shifts.add(
+          shift("officer", "P12", LocalDate.parse("2026-11-01").plusDays(i).toString(), "12:00", 720,
+              i == 4 ? ShiftKind.EXTRA : ShiftKind.ROSTERED, 0, true, true));
+    }
+    // Second run, a week later: five scheduled 12-hour shifts — the worse finding.
+    for (int i = 0; i < 5; i++) {
+      shifts.add(
+          shift("officer", "P12", LocalDate.parse("2026-11-11").plusDays(i).toString(), "12:00", 720));
+    }
+
+    assertThat(results("U-09", cast(new ConsecutiveRunFactBuilder().build(shifts))))
+        .singleElement()
+        .satisfies(result -> assertThat(result.outcome()).isEqualTo(RuleOutcome.BLOCK));
+  }
+
+  @Test
   void u09WarnsWhenTheFifthShiftIsPickedUpOvertime() {
     List<ShiftFact> shifts = new ArrayList<>();
     for (int i = 0; i < 4; i++) {
