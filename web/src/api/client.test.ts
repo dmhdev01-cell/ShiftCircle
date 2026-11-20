@@ -19,10 +19,12 @@ describe('the fixture api', () => {
     const schedule = await api.getSchedule({ unitId: 'unit-b' });
 
     expect(schedule.unit.name).toBe('Unit B · Living unit');
+    expect(schedule.publishedState).toEqual({ published: true, unpublishedChanges: 3 });
+    expect(schedule.overridesThisPeriod).toBe(1);
     expect(schedule.days).toHaveLength(7);
     expect(schedule.coverage).toHaveLength(21);
     expect(schedule.officers).toHaveLength(10);
-    expect(schedule.today).toBe('2026-11-19');
+    expect(schedule.asOf).toBe('2026-11-19');
   });
 
   it('carries hourly coverage with the lowest count and the short hours (ADR-017)', async () => {

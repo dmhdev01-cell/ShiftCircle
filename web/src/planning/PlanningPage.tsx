@@ -38,10 +38,6 @@ function longDay(date: string): string {
   return `${dow} ${day} ${month}`;
 }
 
-function browserToday(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 interface Pending {
   officer: OfficerRow;
   date: string;
@@ -97,7 +93,7 @@ export function PlanningPage() {
   }
 
   const payload = state.payload;
-  const today = payload.today ?? browserToday();
+  const today = payload.asOf;
 
   const gapBlocks = payload.coverage.filter((block) => !block.covered);
   const gapNote = gapBlocks
@@ -133,28 +129,46 @@ export function PlanningPage() {
   const panelTitle = pending
     ? `Assign ${pending.officer.name} → ${template?.label ?? pending.template}`
     : '';
-  const panelDetail = pending && template
-    ? `${payload.unit.name} · ${longDay(pending.date)} · ${template.start} – ${template.end}${template.endsNextDay ? ' +1' : ''}`
-    : '';
+  const panelDetail =
+    pending && template
+      ? `${payload.unit.name} · ${longDay(pending.date)} · ${template.start} – ${template.end}${template.endsNextDay ? ' +1' : ''}`
+      : '';
 
   return (
     <>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 4 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'flex-end',
+          justifyContent: 'space-between',
+          gap: 4,
+        }}
+      >
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           <Typography variant="h1">Planning board</Typography>
           <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
             {payload.unit.name} · Week of {longDay(payload.from)} – {longDay(payload.to)} ·{' '}
             <strong style={{ color: colour.text.primary }}>
-              {payload.period?.published ? 'Published' : 'Draft'}
+              {payload.publishedState.published ? 'Published' : 'Draft'}
             </strong>
-            {payload.period?.unpublishedChanges
-              ? `, ${payload.period.unpublishedChanges} unpublished changes`
+            {payload.publishedState.unpublishedChanges
+              ? `, ${payload.publishedState.unpublishedChanges} unpublished changes`
               : ''}
           </Typography>
         </Box>
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2.5 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, fontSize: 12, fontWeight: 600, color: colour.text.secondary }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1,
+              fontSize: 12,
+              fontWeight: 600,
+              color: colour.text.secondary,
+            }}
+          >
             Unit
             <Box
               component="select"
@@ -175,86 +189,22 @@ export function PlanningPage() {
               <option value={payload.unit.id}>{payload.unit.name}</option>
             </Box>
           </Box>
-
-          <Box
-            role="group"
-            aria-label="Range"
-            sx={{ display: 'flex', gap: 0.5, p: 0.75, backgroundColor: colour.border.default, borderRadius: '6px' }}
-          >
-            <Box
-              component="button"
-              type="button"
-              sx={{
-                minHeight: 40,
-                px: 3.5,
-                border: 0,
-                borderRadius: '6px',
-                backgroundColor: colour.bg.surface,
-                color: colour.text.primary,
-                fontFamily: 'inherit',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Week
-            </Box>
-            <Box
-              component="button"
-              type="button"
-              disabled
-              title="The two-week range is not built yet."
-              sx={{
-                minHeight: 40,
-                px: 3.5,
-                border: 0,
-                borderRadius: '6px',
-                backgroundColor: 'transparent',
-                color: colour.text.muted,
-                fontFamily: 'inherit',
-                fontSize: 13,
-                fontWeight: 600,
-              }}
-            >
-              2 weeks
-            </Box>
-          </Box>
-
-          <Button
-            variant="outlined"
-            color="primary"
-            disabled={mutation.state.kind === 'idle' || mutation.state.kind === 'checking'}
-            onClick={() => {
-              if (mutation.state.change) void mutation.preview(mutation.state.change);
-            }}
-          >
-            Check all rules
-          </Button>
-
-          <Button
-            variant="contained"
-            color="primary"
-            disabled
-            title="Publishing a schedule period is not built yet (POST /schedule-periods/{id}/publish)."
-          >
-            Publish {payload.period?.unpublishedChanges ?? 0} changes
-          </Button>
         </Box>
       </Box>
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
         <KpiTile label="Coverage gaps" value={gapBlocks.length} note={gapNote} />
         <KpiTile label="In overtime" value={inOvertime.length} note="this pay period" />
-        <KpiTile label="Approaching overtime" value={approaching.length} note={`within 8 h of ${threshold} h`} />
+        <KpiTile
+          label="Approaching overtime"
+          value={approaching.length}
+          note={`within 8 h of ${threshold} h`}
+        />
         <KpiTile label="Rule warnings" value={payload.warnings} note="on the published week" />
         <KpiTile
           label="Overrides this period"
-          value={payload.overridesThisPeriod ?? '—'}
-          note={
-            payload.overridesThisPeriod === undefined
-              ? 'not in the api payload yet'
-              : 'emergency, with reason'
-          }
+          value={payload.overridesThisPeriod}
+          note="emergency, with reason"
         />
       </Box>
 
@@ -339,9 +289,11 @@ export function PlanningPage() {
 
       <OverrideDialog
         open={overrideOpen}
-        ruleCodes={mutation.state.outcome?.ruleResults
-          .filter((result) => result.outcome === 'BLOCK')
-          .map((result) => result.ruleCode) ?? []}
+        ruleCodes={
+          mutation.state.outcome?.ruleResults
+            .filter((result) => result.outcome === 'BLOCK')
+            .map((result) => result.ruleCode) ?? []
+        }
         onClose={() => setOverrideOpen(false)}
         onConfirm={(reason) => {
           setOverrideOpen(false);

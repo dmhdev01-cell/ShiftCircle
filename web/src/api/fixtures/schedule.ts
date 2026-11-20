@@ -324,16 +324,18 @@ export const demoSchedule: SchedulePayload = {
   from: WEEK[0],
   to: WEEK[WEEK.length - 1],
   days: WEEK,
-  today: DEMO_TODAY,
+  asOf: DEMO_TODAY,
   coverage: coverageRows,
   officers,
   warnings: 5,
   overridesThisPeriod: 1,
+  publishedState: {
+    published: true,
+    unpublishedChanges: 3,
+  },
   period: {
     id: 'period-2026-11-09',
     label: '9 – 22 Nov 2026',
-    published: true,
-    unpublishedChanges: 3,
   },
 };
 

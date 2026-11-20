@@ -161,19 +161,23 @@ export interface SchedulePayload {
   to: string;
   /** ISO dates of the days on the board. */
   days: string[];
-  /** The demo "today". Not in the contract yet; the browser date is used otherwise. */
-  today?: string;
+  /** The server's "today" (`SC_DEMO_TODAY` on the demo profile). */
+  asOf: string;
   coverage: BlockCoverage[];
   officers: OfficerRow[];
   /** Rule warnings on the published week. */
   warnings: number;
-  /** Emergency overrides this period. Not in the contract yet. */
-  overridesThisPeriod?: number;
+  /** Emergency overrides recorded in the pay period on the board. */
+  overridesThisPeriod: number;
+  /** Whether the period is published, and how many changes are not. */
+  publishedState: {
+    published: boolean;
+    unpublishedChanges: number;
+  };
+  /** The pay period the board shows. Not in the contract yet. */
   period?: {
     id: string;
     label: string;
-    published: boolean;
-    unpublishedChanges: number;
   };
 }
 
