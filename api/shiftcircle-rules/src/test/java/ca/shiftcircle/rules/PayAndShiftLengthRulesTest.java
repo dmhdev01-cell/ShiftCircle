@@ -133,6 +133,17 @@ class PayAndShiftLengthRulesTest {
   }
 
   @Test
+  void l01DoesNotBlockAnExtendedSixteenHourShift() {
+    // The allowed length is the template's, not the worked duration (F5).
+    List<ShiftFact> shifts =
+        schedule(
+            shift("officer", "L16", "2026-11-19", "20:00", 990,
+                ca.shiftcircle.rules.build.ShiftKind.ROSTERED, 30, true, true));
+
+    assertThat(evaluate(new ShiftLengthFactBuilder().build(shifts).toArray())).isEmpty();
+  }
+
+  @Test
   void s03BlocksASixteenHourShiftOnAUnitWithoutTheAgreement() {
     List<ShiftFact> shifts =
         schedule(

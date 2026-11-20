@@ -44,11 +44,31 @@ public record ShiftFact(
     return (int) Duration.between(start, end).toMinutes();
   }
 
+  /**
+   * The shift KIND is the pattern code, not the worked duration (review F5): a P12 extended by
+   * 30 minutes is still a 12-hour shift for the consecutive and long-shift rules.
+   */
   public boolean isTwelveHour() {
-    return durationMinutes() == 720;
+    return "A12".equals(templateCode) || "P12".equals(templateCode);
   }
 
   public boolean isSixteenHour() {
-    return durationMinutes() == 960;
+    return "L16".equals(templateCode);
+  }
+
+  /** Template length in minutes: 480, 720 or 960, before any extension. */
+  public int nominalMinutes() {
+    return switch (templateCode) {
+      case "D8", "E8", "N8" -> 480;
+      case "A12", "P12" -> 720;
+      case "L16" -> 960;
+      // An unknown code has no nominal length; reporting the worked duration lets L-01 reject it.
+      default -> durationMinutes();
+    };
+  }
+
+  /** Minutes worked beyond the template length, derived from the times. */
+  public int workedExtensionMinutes() {
+    return Math.max(extensionMinutes, durationMinutes() - nominalMinutes());
   }
 }

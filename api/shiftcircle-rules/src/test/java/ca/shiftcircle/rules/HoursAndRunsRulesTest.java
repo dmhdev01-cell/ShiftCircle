@@ -183,6 +183,25 @@ class HoursAndRunsRulesTest {
   }
 
   @Test
+  void u09BlocksAFifthTwelveHourShiftEvenWhenItIsExtended() {
+    // Kind comes from the pattern code: a P12 extended to 12 h 30 m is still a 12-hour shift (F5).
+    List<ShiftFact> shifts = new ArrayList<>();
+    for (int i = 0; i < 5; i++) {
+      shifts.add(
+          shift("officer", "P12", LocalDate.parse("2026-11-16").plusDays(i).toString(), "12:00",
+              i == 4 ? 750 : 720));
+    }
+
+    assertThat(results("U-09", cast(new ConsecutiveRunFactBuilder().build(shifts))))
+        .singleElement()
+        .satisfies(
+            result -> {
+              assertThat(result.outcome()).isEqualTo(RuleOutcome.BLOCK);
+              assertThat(result.actual()).isEqualTo(5.0);
+            });
+  }
+
+  @Test
   void u09WarnsWhenTheFifthShiftIsPickedUpOvertime() {
     List<ShiftFact> shifts = new ArrayList<>();
     for (int i = 0; i < 4; i++) {
@@ -251,6 +270,20 @@ class HoursAndRunsRulesTest {
               assertThat(result.required()).isEqualTo(3.0);
               assertThat(result.actual()).isEqualTo(4.0);
             });
+  }
+
+  @Test
+  void u11CountsAnExtendedSixteenHourShift() {
+    List<ShiftFact> shifts = new ArrayList<>();
+    for (int i = 0; i < 4; i++) {
+      shifts.add(
+          shift("officer", "L16", LocalDate.parse("2026-11-16").plusDays(i).toString(), "20:00",
+              i == 3 ? 990 : 960));
+    }
+
+    assertThat(results("U-11", cast(new LongShiftCountFactBuilder().build(shifts))))
+        .singleElement()
+        .satisfies(result -> assertThat(result.outcome()).isEqualTo(RuleOutcome.WARN));
   }
 
   @Test

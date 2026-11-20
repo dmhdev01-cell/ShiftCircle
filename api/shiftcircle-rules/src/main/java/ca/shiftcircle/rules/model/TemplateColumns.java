@@ -84,7 +84,7 @@ public final class TemplateColumns {
               .stream()
                   .map(item -> String.valueOf(((Number) item).intValue() * 60))
                   .collect(Collectors.joining(", "));
-      return "durationMinutes not in (" + allowed + ")";
+      return "nominalMinutes not in (" + allowed + ")";
     }
     // Rule S-03: 12- and 16-hour patterns need a local agreement on the unit.
     return "!allowedPatternByUnit";

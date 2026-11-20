@@ -19,12 +19,13 @@ public final class ShiftLengthFactBuilder {
   }
 
   private ShiftLengthFact fact(ShiftFact shift) {
+    int nominal = shift.nominalMinutes();
     boolean allowed;
-    if (shift.durationMinutes() == 480) {
+    if (nominal == 480) {
       allowed = true;
-    } else if (shift.isTwelveHour()) {
+    } else if (nominal == 720) {
       allowed = shift.unitAllows12h();
-    } else if (shift.isSixteenHour()) {
+    } else if (nominal == 960) {
       allowed = shift.unitAllows16h();
     } else {
       allowed = false;
@@ -32,12 +33,16 @@ public final class ShiftLengthFactBuilder {
 
     String evidence =
         String.format(
-            "%s (%s) of %d min on unit %s%s",
+            "%s (%s) of %d min%s on unit %s%s",
             shift.templateCode(),
             shift.assignmentId(),
-            shift.durationMinutes(),
+            nominal,
+            shift.workedExtensionMinutes() > 0
+                ? " plus " + shift.workedExtensionMinutes() + " min"
+                : "",
             shift.unitCode(),
             allowed ? "" : " (no local agreement for that pattern)");
-    return new ShiftLengthFact(shift.templateCode(), shift.durationMinutes(), allowed, evidence);
+    return new ShiftLengthFact(
+        shift.templateCode(), shift.durationMinutes(), nominal, allowed, evidence);
   }
 }
