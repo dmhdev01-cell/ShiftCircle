@@ -49,18 +49,23 @@ public final class ConsecutiveRunFactBuilder {
     int current = 0;
     LocalDate previous = null;
     LocalDate bestEnd = null;
+    boolean bestOvertime = false;
     for (LocalDate date : byDate.keySet().stream().sorted().toList()) {
       current = previous != null && previous.plusDays(1).equals(date) ? current + 1 : 1;
-      if (current > best) {
+      boolean overtimeToday =
+          byDate.get(date).stream().anyMatch(shift -> shift.kind() == ShiftKind.EXTRA);
+      // Equal-length runs are not equivalent: a scheduled run of the same length is the worse
+      // finding, so it must win the tie (review F2).
+      if (current > best
+          || (current == best && bestOvertime && !overtimeToday)) {
         best = current;
         bestEnd = date;
+        bestOvertime = overtimeToday;
       }
       previous = date;
     }
 
-    boolean overtime =
-        bestEnd != null
-            && byDate.get(bestEnd).stream().anyMatch(shift -> shift.kind() == ShiftKind.EXTRA);
+    boolean overtime = bestOvertime;
     String evidence =
         best <= 0
             ? "No shifts"
@@ -86,6 +91,7 @@ public final class ConsecutiveRunFactBuilder {
     int current = 0;
     LocalDate previousDate = null;
     ShiftFact bestLast = null;
+    boolean bestOvertime = false;
 
     for (ShiftFact shift : shifts) {
       boolean matches =
@@ -101,13 +107,15 @@ public final class ConsecutiveRunFactBuilder {
       current = nextDay ? current + 1 : 1;
       previousDate = date;
 
-      if (current > best) {
+      boolean overtimeHere = shift.kind() == ShiftKind.EXTRA;
+      if (current > best || (current == best && bestOvertime && !overtimeHere)) {
         best = current;
         bestLast = shift;
+        bestOvertime = overtimeHere;
       }
     }
 
-    boolean overtime = bestLast != null && bestLast.kind() == ShiftKind.EXTRA;
+    boolean overtime = bestOvertime;
     String mode = nightOnly ? "SHIFTS_NIGHT_12H" : "SHIFTS_12H";
     String evidence =
         best <= 0

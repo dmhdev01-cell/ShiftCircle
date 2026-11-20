@@ -138,6 +138,20 @@ class HoursAndRunsRulesTest {
         .satisfies(result -> assertThat(result.outcome()).isEqualTo(RuleOutcome.WARN));
   }
 
+  @Test
+  void u08BlocksWhenAnOvertimeRunTiesAScheduledRun() {
+    // Two eight-day runs: the first ends with a picked-up shift, the second is fully scheduled.
+    // The scheduled run is the worse finding and must not be hidden by the tie (review F2).
+    List<ShiftFact> shifts = new ArrayList<>(daily("officer", "D8", "2026-11-01", 7, 480));
+    shifts.add(
+        shift("officer", "D8", "2026-11-08", "07:00", 480, ShiftKind.EXTRA, 0, true, true));
+    shifts.addAll(daily("officer", "D8", "2026-11-11", 8, 480));
+
+    assertThat(results("U-08", cast(new ConsecutiveRunFactBuilder().build(shifts))))
+        .singleElement()
+        .satisfies(result -> assertThat(result.outcome()).isEqualTo(RuleOutcome.BLOCK));
+  }
+
   // U-09: at most 4 consecutive 12-hour shifts ------------------------------------------------
 
   @Test
