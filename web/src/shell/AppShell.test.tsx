@@ -101,7 +101,14 @@ describe('AppShell', () => {
   it('links only built screens in every role nav', async () => {
     const user = userEvent.setup();
     renderShell('/planning');
-    const placeholders = ['Propose shifts', 'My hours', 'Proposals inbox', 'Rule version review'];
+    const placeholders = [
+      'Propose shifts',
+      'My hours',
+      'Proposals inbox',
+      'Rule version review',
+      'Shift types',
+      'Supervisor view',
+    ];
 
     for (const role of ['SUPERVISOR', 'EMPLOYEE', 'RULES_ADMIN', 'RULES_APPROVER', 'AUDITOR']) {
       await user.selectOptions(screen.getByLabelText('Mock sign-in: choose a role'), role);
@@ -112,12 +119,14 @@ describe('AppShell', () => {
     }
   });
 
-  it('keeps a planned screen reachable by its route, with the not-built page', async () => {
-    renderShell('/proposals');
+  it.each(['/me/propose', '/me/hours', '/proposals', '/rules/7/review'])(
+    'keeps the planned screen at %s reachable, with the not-built page',
+    async (path) => {
+      renderShell(path);
 
-    expect(await screen.findByRole('heading', { name: 'Proposals inbox' })).toBeInTheDocument();
-    expect(screen.getByText('Not built yet')).toBeInTheDocument();
-  });
+      expect(await screen.findByText('Not built yet')).toBeInTheDocument();
+    },
+  );
 
   it('shows no role chip on the sign-in screen (build notes 2.1)', () => {
     renderShell('/login');

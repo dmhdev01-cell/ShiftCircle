@@ -64,7 +64,7 @@ export const roles: RoleDescriptor[] = [
       { label: 'Audit log', to: '/audit' },
       { label: 'Wall display', to: '/display' },
       { label: 'Employee view', to: '/me/schedule' },
-      { label: 'Time & attendance', to: '/time', muted: true },
+      { label: 'Time & attendance', to: '/time' },
     ],
   },
   {
@@ -73,7 +73,6 @@ export const roles: RoleDescriptor[] = [
     user: 'N. Thompson',
     nav: [
       { label: 'My schedule', to: '/me/schedule' },
-      { label: 'Supervisor view', to: '/planning' },
     ],
   },
   {
@@ -82,7 +81,6 @@ export const roles: RoleDescriptor[] = [
     user: 'L. Fraser',
     nav: [
       { label: 'Rules', to: '/rules' },
-      { label: 'Shift types', to: '/rules/7/shift-types', muted: true },
     ],
   },
   {
