@@ -6,6 +6,7 @@ import Typography from '@mui/material/Typography';
 
 import type { RuleTable, RuleTableRow } from '../api/types';
 import { StatusPill } from '../components/StatusPill';
+import { ScrollShadows } from '../components/ScrollShadows';
 import { colour } from '../theme/tokens';
 import { sentenceFor } from './sentences';
 
@@ -88,11 +89,9 @@ export function DecisionTable({
         ) : null}
       </Box>
 
-      <Box
-        role="region"
-        aria-label="Decision table, scrolls sideways"
-        tabIndex={0}
-        sx={{ overflowX: 'auto' }}
+      <ScrollShadows
+        label="Decision table, scrolls sideways"
+        hint="Scroll sideways to see every column."
       >
         <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
@@ -261,7 +260,7 @@ export function DecisionTable({
             ))}
           </tbody>
         </table>
-      </Box>
+      </ScrollShadows>
 
       {selected ? (
         <Box

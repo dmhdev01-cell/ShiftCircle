@@ -13,6 +13,7 @@ import type {
   OvertimeReport,
   OverrideRow,
 } from '../api/types';
+import { ScrollShadows } from '../components/ScrollShadows';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
 import { CoverageChart } from './CoverageChart';
@@ -52,7 +53,7 @@ function Table({
   children: React.ReactNode;
 }) {
   return (
-    <Box role="region" aria-label={label} tabIndex={0} sx={{ overflowX: 'auto' }}>
+    <ScrollShadows label={label} hint="Scroll sideways to see every column.">
       <table style={{ width: '100%', minWidth: 820, borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
           <tr>
@@ -77,7 +78,7 @@ function Table({
         </thead>
         <tbody>{children}</tbody>
       </table>
-    </Box>
+    </ScrollShadows>
   );
 }
 
