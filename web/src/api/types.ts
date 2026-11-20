@@ -646,6 +646,39 @@ export interface ShiftCircleApi {
   lockPayPeriod(payPeriodId: string): Promise<PayPeriod>;
   unlockPayPeriod(payPeriodId: string, reason: string): Promise<PayPeriod>;
   exportPayroll(payPeriodId: string): Promise<{ fileName: string; content: string }>;
+
+  // Wall display (counts only, no names).
+  getDisplayToday(): Promise<DisplayToday>;
+}
+
+/**
+ * One block of one unit on the wall display (docs/07 §4.8). Counts only.
+ * `actual` is null until the day has recorded actuals.
+ */
+export interface DisplayBlock {
+  block: Block;
+  required: number;
+  scheduled: HourlyCoverage;
+  actual: HourlyCoverage | null;
+  covered: boolean;
+}
+
+export interface DisplayUnit {
+  unit: { id: string; name: string };
+  coverage: DisplayBlock[];
+  openShifts: number;
+  officersInOvertime: number;
+}
+
+/** `GET /display/today`: no names, employee numbers or employee ids, by contract. */
+export interface DisplayToday {
+  /** The demo day the counts are for (YYYY-MM-DD). */
+  asOf: string;
+  /** When the api built the answer (an instant). */
+  generatedAt: string;
+  units: DisplayUnit[];
+  totalOpenShifts: number;
+  totalOfficersInOvertime: number;
 }
 
 export interface OpenShiftQuery {

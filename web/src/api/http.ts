@@ -34,6 +34,7 @@ import type {
 } from './types';
 
 import { getToken, sessionExpired } from './session';
+import { toDisplayToday } from '../display/displayPayload';
 
 export const API_BASE = '/api/v1';
 
@@ -240,6 +241,11 @@ export function createHttpApi(): ShiftCircleApi {
 
     getUnits(): Promise<Unit[]> {
       return request<Unit[]>('/units');
+    },
+
+    async getDisplayToday() {
+      // Only whitelisted fields reach the shared screen.
+      return toDisplayToday(await request<unknown>('/display/today'));
     },
 
     getDemoUsers(): Promise<DemoUser[]> {
