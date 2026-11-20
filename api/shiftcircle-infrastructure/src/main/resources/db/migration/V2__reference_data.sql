@@ -110,7 +110,7 @@ FROM (
      'WARN', 'ACKNOWLEDGE',
      'Too many 16-hour shifts in a rolling window.', 'MOCK', true, 110),
     ('DAYS_OFF', 'U-12',
-     '{"daysOff":2,"withinDays":7,"minBreakHours":24}',
+     '{"daysOff":2,"withinDays":7}',
      'WARN', 'ACKNOWLEDGE',
      'Fewer than 2 consecutive days off in 7 days.', 'CX; PSGE; NU', true, 120),
     -- D. Pay classification (docs/05 §2.D)

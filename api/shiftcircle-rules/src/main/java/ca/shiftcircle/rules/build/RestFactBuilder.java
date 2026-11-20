@@ -48,6 +48,6 @@ public final class RestFactBuilder {
             restHours);
 
     return new MinRestInWindowFact(
-        previous.templateCode(), 24, restHours, previous.extensionMinutes(), evidence);
+        previous.templateCode(), 24, restHours, previous.workedExtensionMinutes(), evidence);
   }
 }

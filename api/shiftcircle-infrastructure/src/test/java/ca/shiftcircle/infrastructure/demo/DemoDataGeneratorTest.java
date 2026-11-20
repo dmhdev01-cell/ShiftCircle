@@ -69,6 +69,61 @@ class DemoDataGeneratorTest {
     assertThat(byTemplate).containsKeys("D8", "E8", "N8", "A12", "P12", "L16");
     assertThat(byTemplate.get("L16")).isGreaterThan(0);
 
+    // Planted cases PC-01 to PC-09 (docs/10 §6.6) exist with their documented shape.
+    assertThat(
+            count(
+                "SELECT count(*) FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
+                    + " JOIN shift_template t ON t.id = s.shift_template_id"
+                    + " WHERE e.employee_no = 'E-002' AND t.code = 'P12'"
+                    + " AND s.work_date = DATE '2026-11-20'"))
+        .isEqualTo(1);
+    assertThat(
+            count(
+                "SELECT count(*) FROM open_shift o JOIN unit u ON u.id = o.unit_id"
+                    + " JOIN shift_template t ON t.id = o.shift_template_id"
+                    + " WHERE u.code = 'B' AND t.code = 'D8'"
+                    + " AND o.start_at::date = DATE '2026-11-21' AND o.status = 'OPEN'"))
+        .isEqualTo(1);
+    assertThat(
+            count(
+                "SELECT count(*) FROM shift_assignment WHERE override_id IS NOT NULL"
+                    + " AND work_date = DATE '2026-11-03'"
+                    + " AND end_at - start_at = interval '17 hours'"))
+        .isEqualTo(1);
+    assertThat(
+            count(
+                "SELECT count(*) FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
+                    + " JOIN shift_template t ON t.id = s.shift_template_id"
+                    + " WHERE e.employee_no = 'E-007' AND t.code = 'A12'"
+                    + " AND s.work_date BETWEEN DATE '2026-11-20' AND DATE '2026-11-23'"))
+        .isEqualTo(4);
+    assertThat(
+            count(
+                "SELECT count(*) FROM (SELECT e.id, sum(t.hours) AS h FROM time_entry t"
+                    + " JOIN employee e ON e.id = t.employee_id JOIN pay_period p"
+                    + " ON p.id = t.pay_period_id WHERE p.start_date = DATE '2026-10-26'"
+                    + " AND t.absence_type IS NULL GROUP BY e.id) x WHERE abs(h - 80.0) < 0.01"))
+        .isGreaterThanOrEqualTo(1);
+    assertThat(
+            count(
+                "SELECT count(*) FROM (SELECT e.id, sum(t.hours) AS h FROM time_entry t"
+                    + " JOIN employee e ON e.id = t.employee_id JOIN pay_period p"
+                    + " ON p.id = t.pay_period_id WHERE p.start_date = DATE '2026-10-26'"
+                    + " AND t.absence_type IS NULL GROUP BY e.id) x"
+                    + " WHERE abs(h - 80.4833) < 0.01"))
+        .isGreaterThanOrEqualTo(1);
+
+    // R1: a 16-hour shift is never extended past the legal ceiling, and the extension rate does not
+    // quietly create 16.5-18 h days.
+    assertThat(
+            count(
+                "SELECT count(*) FROM time_entry t JOIN shift_assignment s"
+                    + " ON s.id = t.shift_assignment_id JOIN shift_template st"
+                    + " ON st.id = s.shift_template_id WHERE st.code = 'L16'"
+                    + " AND s.override_id IS NULL"
+                    + " AND t.end_at - t.start_at > interval '16 hours'"))
+        .isZero();
+
     // The locked period used by the payroll golden file exists.
     assertThat(
             count(

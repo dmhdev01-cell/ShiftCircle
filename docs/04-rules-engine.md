@@ -68,7 +68,7 @@ The admin can change numbers, choose from dropdowns (shift kinds, Block / Warn /
 | Maximum hours | U-05, U-06, U-14 | Window (24 h / 7 d / consecutive) · max hours · result · override |
 | Consecutive work | U-08 to U-10 | What's counted (days / 12 h shifts / nights) · max · result when scheduled · result when overtime |
 | 16-hour shifts | U-11 | Window (days) · max 16 h shifts · result |
-| Days off | U-12 | Days off required · within how many days · minimum length of a day off |
+| Days off | U-12 | Days off required · within how many days (the "a break of 24 h or less does not count" clause is fixed at 24 h in the fact builder) |
 | Pay classification | P-01 to P-06 | Threshold window (week / pay period) · threshold hours · whether paid leave counts · rate bands (hours, pay code, multiplier) · minimum hours |
 | Overtime ranking | O-01 to O-04 | Sort order (OT hours this quarter, seniority…) · skip if (rule result) · voluntary/ordered limits |
 | Shift types | L-01, S-03 | Shift code · start time · length · units allowed (ADR-015) |

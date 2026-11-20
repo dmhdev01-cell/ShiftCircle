@@ -183,7 +183,7 @@ public final class RuleRowsV1 {
         "U-12",
         RuleTableCode.DAYS_OFF,
         true,
-        Map.of("daysOff", 2, "withinDays", 7, "minBreakHours", 24),
+        Map.of("daysOff", 2, "withinDays", 7),
         RuleOutcome.WARN,
         OverridePolicy.ACKNOWLEDGE,
         "Fewer than 2 consecutive days off in 7 days.",

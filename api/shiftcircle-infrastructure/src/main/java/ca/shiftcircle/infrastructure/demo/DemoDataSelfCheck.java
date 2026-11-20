@@ -53,6 +53,7 @@ public final class DemoDataSelfCheck {
     checkLockedPeriods(violations);
     checkSyntheticOnly(violations);
     checkPastShiftsHaveActuals(violations);
+    checkPlantedCases(violations);
 
     if (!violations.isEmpty()) {
       throw new DemoDataSelfCheckException(violations);
@@ -115,11 +116,17 @@ public final class DemoDataSelfCheck {
 
   private List<ShiftFact> loadShifts() {
     List<ShiftFact> shifts = new ArrayList<>();
+    // Evaluate ACTUAL times where a worked actual exists, so an extension that breaks a ceiling is
+    // visible to the check (review R1). Absent shifts keep their scheduled times (nothing worked).
     jdbc.query(
         "SELECT s.id, e.employee_no, u.code AS unit_code, u.allows_12h, u.allows_16h,"
-            + " t.code AS template_code, s.start_at, s.end_at, s.kind"
+            + " t.code AS template_code, coalesce(actual.start_at, s.start_at) AS start_at,"
+            + " coalesce(actual.end_at, s.end_at) AS end_at, s.kind"
             + " FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
             + " JOIN unit u ON u.id = s.unit_id JOIN shift_template t ON t.id = s.shift_template_id"
+            + " LEFT JOIN LATERAL (SELECT te.start_at, te.end_at FROM time_entry te"
+            + "   WHERE te.shift_assignment_id = s.id AND te.absence_type IS NULL"
+            + "   ORDER BY te.start_at LIMIT 1) actual ON TRUE"
             + " WHERE s.status <> 'CANCELLED' ORDER BY s.start_at",
         (org.springframework.jdbc.core.RowCallbackHandler) resultSet -> {
           shifts.add(
@@ -313,6 +320,117 @@ public final class DemoDataSelfCheck {
             java.sql.Timestamp.from(now));
     if (missing != null && missing > 0) {
       violations.add(missing + " ended shifts without an actual or absence (ADR-017)");
+    }
+  }
+
+  /** PC-01 to PC-09 must exist with a stable shape; a broken plant must fail the build. */
+  private void checkPlantedCases(List<String> violations) {
+    int openUnitBDay =
+        count(
+            "SELECT count(*) FROM open_shift o JOIN unit u ON u.id = o.unit_id"
+                + " JOIN shift_template t ON t.id = o.shift_template_id"
+                + " WHERE u.code = 'B' AND t.code = 'D8' AND o.start_at::date = DATE '2026-11-21'"
+                + " AND o.status = 'OPEN'");
+    if (openUnitBDay < 1) {
+      violations.add("PC-01/PC-08: no open Unit B day shift on Sat 21 Nov");
+    }
+
+    int nia =
+        count(
+            "SELECT count(*) FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
+                + " JOIN shift_template t ON t.id = s.shift_template_id"
+                + " WHERE e.employee_no = 'E-002' AND t.code = 'P12'"
+                + " AND s.work_date = DATE '2026-11-20'");
+    if (nia != 1) {
+      violations.add("PC-01: Nia Thompson has no P12 on Fri 20 Nov");
+    }
+
+    int eightHourRest =
+        count(
+            "SELECT count(*) FROM shift_assignment s JOIN shift_template t"
+                + " ON t.id = s.shift_template_id WHERE t.code = 'N8'"
+                + " AND s.end_at = TIMESTAMPTZ '2026-11-26 07:00:00-06'");
+    if (eightHourRest < 1) {
+      violations.add("PC-02: no night shift ending 07:00 on Thu 26 Nov");
+    }
+
+    int override =
+        count(
+            "SELECT count(*) FROM shift_assignment s JOIN override o ON o.id = s.override_id"
+                + " WHERE o.reason LIKE 'Lockdown%' AND s.work_date = DATE '2026-11-03'"
+                + " AND s.end_at - s.start_at = interval '17 hours'");
+    if (override != 1) {
+      violations.add("PC-03: the 17-hour override on Wed 4 Nov is missing");
+    }
+
+    int piotrNights =
+        count(
+            "SELECT count(*) FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
+                + " JOIN shift_template t ON t.id = s.shift_template_id"
+                + " WHERE e.employee_no = 'E-007' AND t.code = 'A12'"
+                + " AND s.work_date BETWEEN DATE '2026-11-20' AND DATE '2026-11-23'");
+    if (piotrNights != 4) {
+      violations.add("PC-04: Piotr does not have four consecutive A12 shifts");
+    }
+
+    int at80 =
+        count(
+            "SELECT count(*) FROM (SELECT e.id, sum(t.hours) AS h FROM time_entry t"
+                + " JOIN employee e ON e.id = t.employee_id JOIN pay_period p"
+                + " ON p.id = t.pay_period_id WHERE p.start_date = DATE '2026-10-26'"
+                + " AND t.absence_type IS NULL GROUP BY e.id) x WHERE abs(h - 80.0) < 0.01");
+    if (at80 < 1) {
+      violations.add("PC-05: no officer is exactly at 80 h in the 26 Oct period");
+    }
+    int twentyNine =
+        count(
+            "SELECT count(*) FROM (SELECT e.id, sum(t.hours) AS h FROM time_entry t"
+                + " JOIN employee e ON e.id = t.employee_id JOIN pay_period p"
+                + " ON p.id = t.pay_period_id WHERE p.start_date = DATE '2026-10-26'"
+                + " AND t.absence_type IS NULL GROUP BY e.id) x"
+                + " WHERE abs(h - 80.4833) < 0.01");
+    if (twentyNine < 1) {
+      violations.add("PC-05: no officer is 29 minutes over 80 h in the 26 Oct period");
+    }
+
+    int fourNightRuns =
+        count(
+            "SELECT count(*) FROM (SELECT employee_id, work_date -"
+                + " (row_number() OVER (PARTITION BY employee_id ORDER BY work_date))::int AS grp"
+                + " FROM shift_assignment s JOIN shift_template t ON t.id = s.shift_template_id"
+                + " WHERE t.code = 'A12') runs"
+                + " GROUP BY employee_id, grp HAVING count(*) >= 4");
+    if (fourNightRuns < 3) {
+      violations.add("PC-06: fewer than three four-night runs in the roster");
+    }
+
+    int ties =
+        count(
+            "SELECT count(*) FROM (SELECT ot FROM"
+                + " (SELECT e.id, min(e.seniority_date) AS seniority, coalesce(sum(CASE WHEN"
+                + " t.pay_code = 'OT15' THEN t.hours ELSE 0 END), 0) AS ot FROM employee e"
+                + " LEFT JOIN time_entry t ON t.employee_id = e.id GROUP BY e.id) x"
+                + " GROUP BY ot HAVING count(*) > 1 AND count(DISTINCT seniority) > 1) y");
+    if (ties < 1) {
+      violations.add("PC-07: no two officers share overtime hours with different seniority");
+    }
+
+    int controlShift =
+        count(
+            "SELECT count(*) FROM open_shift o JOIN unit u ON u.id = o.unit_id"
+                + " WHERE u.code = 'CTL' AND o.status = 'OPEN'");
+    if (controlShift < 1) {
+      violations.add("PC-09: no open Control shift");
+    }
+    int unqualifiedLeader =
+        count(
+            "SELECT count(*) FROM (SELECT e.id FROM employee e LEFT JOIN time_entry t"
+                + " ON t.employee_id = e.id GROUP BY e.id ORDER BY coalesce(sum(CASE WHEN"
+                + " t.pay_code = 'OT15' THEN t.hours ELSE 0 END), 0), e.seniority_date LIMIT 1) leader"
+                + " JOIN employee_qualification eq ON eq.employee_id = leader.id"
+                + " JOIN qualification q ON q.id = eq.qualification_id WHERE q.code = 'CONTROL'");
+    if (unqualifiedLeader != 0) {
+      violations.add("PC-09: the officer with the fewest overtime hours holds CONTROL");
     }
   }
 

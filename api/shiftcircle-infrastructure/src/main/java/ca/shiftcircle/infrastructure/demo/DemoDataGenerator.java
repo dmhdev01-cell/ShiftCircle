@@ -1,6 +1,10 @@
 package ca.shiftcircle.infrastructure.demo;
 
 import ca.shiftcircle.rules.build.BusinessTime;
+import ca.shiftcircle.rules.pay.PayClassification;
+import ca.shiftcircle.rules.pay.PayClassifier;
+import ca.shiftcircle.rules.pay.PayPolicy;
+import ca.shiftcircle.rules.rows.RuleRowsV1;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -119,8 +123,8 @@ public class DemoDataGenerator implements ApplicationRunner {
 
     Instant now = settings.today().atTime(LocalTime.NOON).atZone(BusinessTime.REGINA).toInstant();
     persistTimeEntries(settings, payPeriods, assignments, absences, now, random);
+    new DemoPlantedCases(jdbc).apply();
     assignPayCodes(payPeriods);
-    createOverrides(settings, random, assignments);
     lockPastPayPeriods(settings, payPeriods);
     persistAuditEvents(settings);
 
@@ -793,6 +797,10 @@ public class DemoDataGenerator implements ApplicationRunner {
     existing.forEach(
         assignment -> intervals.add(new Instant[] {assignment.start(), assignment.end()}));
     intervals.add(new Instant[] {candidate.start(), candidate.end()});
+    return maxHoursInAnyWindow(intervals, windowHours);
+  }
+
+  private static double maxHoursInAnyWindow(List<Instant[]> intervals, int windowHours) {
 
     double best = 0;
     for (Instant[] anchor : intervals) {
@@ -868,6 +876,27 @@ public class DemoDataGenerator implements ApplicationRunner {
     Map<UUID, Absence> absenceByAssignment = new HashMap<>();
     absences.forEach(absence -> absenceByAssignment.put(absence.assignmentId(), absence));
 
+    // A worked extension must not eat the rest before the officer's next shift (U-01 blocks below
+    // 8 h, and 12 h after a 16-hour shift), so the next start is looked up before extending.
+    Map<String, List<Assignment>> byEmployee = new HashMap<>();
+    assignments.forEach(
+        assignment ->
+            byEmployee.computeIfAbsent(assignment.employeeNo(), key -> new ArrayList<>())
+                .add(assignment));
+    Map<UUID, Instant> nextStart = new HashMap<>();
+    Map<String, Double> weeklyHeadroom = new HashMap<>();
+    byEmployee.forEach(
+        (employee, list) -> {
+          list.sort(Comparator.comparing(Assignment::start));
+          for (int i = 0; i < list.size() - 1; i++) {
+            nextStart.put(list.get(i).id(), list.get(i + 1).start());
+          }
+          List<Instant[]> intervals = new ArrayList<>();
+          list.forEach(a -> intervals.add(new Instant[] {a.start(), a.end()}));
+          // Extensions must not push a rolling 168 h window over the 60 h ceiling (U-14).
+          weeklyHeadroom.put(employee, 60.0 - maxHoursInAnyWindow(intervals, 168));
+        });
+
     List<Object[]> rows = new ArrayList<>();
     for (Assignment assignment : assignments) {
       if (assignment.end().isAfter(now)) {
@@ -901,8 +930,19 @@ public class DemoDataGenerator implements ApplicationRunner {
       Instant start = assignment.start();
       Instant end = assignment.end();
       double roll = random.nextDouble();
-      if (roll < 0.03) {
-        end = end.plusSeconds((30 + random.nextInt(91)) * 60L);
+      double maxExtensionHours =
+          Math.min(2.0, weeklyHeadroom.getOrDefault(assignment.employeeNo(), 0.0));
+      Instant candidateEnd = end.plusSeconds((int) (maxExtensionHours * 3600));
+      Instant next = nextStart.get(assignment.id());
+      long restNeeded = 8 * 3600L;
+      boolean canExtend =
+          !"L16".equals(assignment.templateCode())
+              && maxExtensionHours >= 0.5
+              && durationHours(start, end) + maxExtensionHours <= 16.0
+              && (next == null || !candidateEnd.plusSeconds(restNeeded).isAfter(next));
+      if (roll < 0.03 && canExtend) {
+        int maxMinutes = (int) (maxExtensionHours * 60);
+        end = end.plusSeconds((30 + random.nextInt(Math.max(1, maxMinutes - 29))) * 60L);
       } else if (roll < 0.04) {
         end = end.minusSeconds((30 + random.nextInt(31)) * 60L);
       }
@@ -941,6 +981,9 @@ public class DemoDataGenerator implements ApplicationRunner {
   }
 
   private void assignPayCodes(List<PayPeriod> payPeriods) {
+    PayClassifier classifier = new PayClassifier();
+    PayPolicy policy = classifier.policyFrom(RuleRowsV1.ruleSet());
+
     for (PayPeriod period : payPeriods) {
       List<Map<String, Object>> entries =
           jdbc.queryForList(
@@ -948,17 +991,28 @@ public class DemoDataGenerator implements ApplicationRunner {
                   + " AND absence_type IS NULL ORDER BY employee_id, start_at",
               period.id());
 
-      Map<UUID, Double> running = new HashMap<>();
+      Map<UUID, Double> totals = new java.util.LinkedHashMap<>();
+      for (Map<String, Object> entry : entries) {
+        totals.merge(
+            (UUID) entry.get("employee_id"),
+            ((Number) entry.get("hours")).doubleValue(),
+            Double::sum);
+      }
+
+      Map<UUID, Double> consumed = new java.util.HashMap<>();
       for (Map<String, Object> entry : entries) {
         UUID employee = (UUID) entry.get("employee_id");
         double hours = ((Number) entry.get("hours")).doubleValue();
-        double before = running.getOrDefault(employee, 0.0);
-        double regular = Math.max(0, Math.min(hours, 80 - before));
-        running.put(employee, before + hours);
-        // P-04: a period whose overtime is under 30 minutes is paid as regular time.
-        double periodOvertime = Math.max(0, running.get(employee) - 80);
-        boolean overtimePaid = periodOvertime >= 0.5;
-        String code = overtimePaid && regular < hours ? "OT15" : "REG";
+        PayClassification classification =
+            classifier.classify(totals.getOrDefault(employee, 0.0), policy);
+
+        double before = consumed.getOrDefault(employee, 0.0);
+        double regularPart = Math.max(0, Math.min(hours, policy.thresholdHours() - before));
+        consumed.put(employee, before + hours);
+
+        // P-04: a period whose overtime is under 30 minutes is paid as regular time; the classifier
+        // owns that decision, not this loop (review R3).
+        String code = classification.overtimeHours() > 0 && regularPart < hours ? "OT15" : "REG";
         jdbc.update("UPDATE time_entry SET pay_code = ? WHERE id = ?", code, entry.get("id"));
       }
     }
@@ -967,35 +1021,6 @@ public class DemoDataGenerator implements ApplicationRunner {
   // ---------------------------------------------------------------------------------------------
   // Overrides, locks, audit
   // ---------------------------------------------------------------------------------------------
-
-  private void createOverrides(DemoSettings settings, Random random, List<Assignment> assignments) {
-    List<Assignment> candidates =
-        assignments.stream()
-            .filter(assignment -> assignment.end().isBefore(
-                settings.today().atTime(LocalTime.NOON).atZone(BusinessTime.REGINA).toInstant()))
-            .sorted(Comparator.comparing(Assignment::start))
-            .toList();
-    if (candidates.isEmpty()) {
-      return;
-    }
-    String[] reasons = {
-      "Emergency lockdown, relief not available",
-      "Storm closure, relief could not reach the centre",
-      "Medical escort run overran, supervisor approved the extension"
-    };
-    for (int i = 0; i < reasons.length && i < candidates.size(); i++) {
-      Assignment assignment = candidates.get((i + 1) * (candidates.size() / (reasons.length + 1)));
-      UUID overrideId = id("override:" + i);
-      jdbc.update(
-          "INSERT INTO override (id, reason, rule_codes, rule_set_version_id) VALUES (?, ?, ?, ?)",
-          overrideId,
-          reasons[i],
-          new String[] {"U-05"},
-          publishedRuleSetVersion());
-      jdbc.update(
-          "UPDATE shift_assignment SET override_id = ? WHERE id = ?", overrideId, assignment.id());
-    }
-  }
 
   private void lockPastPayPeriods(DemoSettings settings, List<PayPeriod> payPeriods) {
     for (PayPeriod period : payPeriods) {
