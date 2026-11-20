@@ -37,20 +37,20 @@ public final class RollingHoursFactBuilder {
   private MaxHoursInWindowFact maxFor(List<ShiftFact> sorted, int windowHours) {
     double best = 0;
     Instant bestFrom = null;
-    int bestContributors = 0;
+    List<String> bestContributors = List.of();
 
     for (ShiftFact anchor : sorted) {
       Instant from = anchor.start();
       Instant to = from.plus(Duration.ofHours(windowHours));
       double hours = 0;
-      int contributors = 0;
+      List<String> contributors = new ArrayList<>();
 
       for (ShiftFact shift : sorted) {
         Instant overlapStart = shift.start().isAfter(from) ? shift.start() : from;
         Instant overlapEnd = shift.end().isBefore(to) ? shift.end() : to;
         if (overlapEnd.isAfter(overlapStart)) {
           hours += Duration.between(overlapStart, overlapEnd).toMinutes() / 60.0;
-          contributors++;
+          contributors.add(shift.assignmentId());
         }
       }
 
@@ -63,8 +63,12 @@ public final class RollingHoursFactBuilder {
 
     String evidence =
         String.format(
-            "%.2f h in the %d h window from %s (%d shifts)",
-            best, windowHours, BusinessTime.evidence(bestFrom), bestContributors);
+            "%.2f h in the %d h window from %s (%d shifts: %s)",
+            best,
+            windowHours,
+            BusinessTime.evidence(bestFrom),
+            bestContributors.size(),
+            String.join(", ", bestContributors.subList(0, Math.min(3, bestContributors.size()))));
     return new MaxHoursInWindowFact(windowHours, best, evidence);
   }
 }
