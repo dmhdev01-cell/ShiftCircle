@@ -4,6 +4,9 @@ import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
+// The route is lazy: importing the module here means React.lazy resolves it from
+// memory, so the waits below are event-loop turns and never file IO.
+import './WallDisplayPage';
 import { api, ApiError } from '../api/client';
 import { demoDisplayToday } from '../api/fixtures/display';
 import { demoSchedule } from '../api/fixtures/schedule';
@@ -49,12 +52,20 @@ function startAt(time: Date) {
   vi.setSystemTime(time);
 }
 
-/** Waits (in real event-loop turns, no fake time) until the route has loaded and the first answer arrived or failed. */
+/**
+ * Waits for the lazy route and its first answer.
+ *
+ * Counted in event-loop turns, not seconds on a clock: the lazy module and the
+ * first fetch need a number of turns, and how long those turns take is the
+ * machine's business. A wall-clock deadline here spun hot for its full 10 s on a
+ * loaded host and then failed a test that would have passed a moment later.
+ */
+const ROUTE_TURNS = 100;
+
 async function firstLoad() {
-  // performance.now() is not faked, so this is up to 10 s of real time on a loaded machine.
-  const deadline = performance.now() + 10_000;
-  while (performance.now() < deadline) {
+  for (let turn = 0; turn < ROUTE_TURNS; turn += 1) {
     if (screen.queryByRole('heading', { name: "Today's coverage" })) {
+      // The route is up; let the first answer land, then read the screen.
       await advance(500);
       return;
     }
