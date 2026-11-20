@@ -9,11 +9,11 @@ import { api } from '../api/client';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
-function renderReports() {
+function renderReports(path = '/reports/coverage') {
   return render(
     <ThemeProvider theme={theme}>
       <RoleProvider>
-        <MemoryRouter initialEntries={['/reports/coverage']}>
+        <MemoryRouter initialEntries={[path]}>
           <AppShellRoutes />
         </MemoryRouter>
       </RoleProvider>
@@ -113,5 +113,25 @@ describe('the coverage report against the real api shape', () => {
     const table = await screen.findByRole('table');
     expect(within(table).getByText('16 – 22 Nov')).toBeInTheDocument();
     expect(within(table).getByText('—')).toBeInTheDocument();
+  });
+
+  it('opens the report the address names, and keeps the address in step', async () => {
+    const user = userEvent.setup();
+    // D3: the route is /reports/:tab, but the page always opened on Coverage.
+    renderReports('/reports/hours');
+
+    await screen.findByRole('heading', { name: 'Reports' });
+    const group = screen.getByRole('group', { name: 'Report' });
+    expect(within(group).getByRole('button', { name: 'Hours', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(await screen.findByRole('heading', { name: /Hours by officer/ })).toBeInTheDocument();
+
+    await user.click(within(group).getByRole('button', { name: 'Coverage', exact: true }));
+    expect(within(group).getByRole('button', { name: 'Coverage', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 });

@@ -93,9 +93,8 @@ test.describe('reports', () => {
   });
 
   test('the report in the address opens that report', async ({ page }) => {
-    // DEFECT D3 (found by this spec): the route is /reports/:tab but the page
-    // always opens on Coverage (ReportsPage.tsx:75 ignores the parameter).
-    test.fail(true, 'D3: /reports/hours opens the Coverage report');
+    // D3 was here: the route is /reports/:tab but the page always opened on
+    // Coverage (ReportsPage.tsx ignored the parameter).
     await signIn(page, 'A. Reviewer');
     await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible();
     await page.evaluate(() => {

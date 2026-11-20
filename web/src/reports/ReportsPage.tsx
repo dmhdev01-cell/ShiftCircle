@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -67,17 +68,38 @@ function Table({ headings, children }: { headings: string[]; children: React.Rea
   );
 }
 
+const TAB_IDS = TABS.map((option) => option.id);
+
+/** The tab the address names, or Coverage when it names none we know. */
+function tabFromPath(tab: string | undefined): Tab {
+  return TAB_IDS.includes(tab as Tab) ? (tab as Tab) : 'coverage';
+}
+
 /**
  * Reports (docs/ui/README.md §5.5): coverage, hours by officer, overtime by
  * officer and the emergency overrides, each exportable as CSV.
  */
 export function ReportsPage() {
-  const [tab, setTab] = useState<Tab>('coverage');
+  const navigate = useNavigate();
+  const routeTab = tabFromPath(useParams<{ tab?: string }>().tab);
+  const [tab, setTab] = useState<Tab>(routeTab);
   const [coverage, setCoverage] = useState<CoverageReport | null>(null);
   const [hours, setHours] = useState<HoursReport | null>(null);
   const [overtime, setOvertime] = useState<OvertimeReport | null>(null);
   const [overrides, setOverrides] = useState<OverrideRow[] | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  // The address is the source of truth for which report is open, so a deep
+  // link, a reload and the back button all land on the report they name (D3).
+  useEffect(() => {
+    setTab(routeTab);
+  }, [routeTab]);
+
+  const showTab = (next: Tab) => {
+    setTab(next);
+    setMessage(null);
+    navigate(`/reports/${next}`, { replace: true });
+  };
 
   // The reports are read once; the tabs show what is already loaded.
   useEffect(() => {
@@ -157,10 +179,7 @@ export function ReportsPage() {
                 component="button"
                 type="button"
                 aria-pressed={tab === option.id}
-                onClick={() => {
-                  setTab(option.id);
-                  setMessage(null);
-                }}
+                onClick={() => showTab(option.id)}
                 sx={{
                   minHeight: 40,
                   px: 3.5,
