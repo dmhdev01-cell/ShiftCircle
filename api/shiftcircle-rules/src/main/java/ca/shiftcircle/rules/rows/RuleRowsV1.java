@@ -25,7 +25,7 @@ public final class RuleRowsV1 {
 
   public static RuleSet ruleSet() {
     return new RuleSet(VERSION, List.of(u01(), u02(), u03(), u04(), u05(), u08(), u09(), u10(),
-        u11(), u12(), u14(), u15(), p01(), p01b(), p04(), o01(), o02(), o03(), l01(), s03()));
+        u11(), u12(), u14(), p01(), p01b(), p04(), o01(), o02(), o03(), l01(), s03()));
   }
 
   // A. Rest and fatigue ------------------------------------------------------------------------
@@ -118,20 +118,6 @@ public final class RuleRowsV1 {
         "MOCK",
         true,
         60);
-  }
-
-  public static RuleRow u15() {
-    return new RuleRow(
-        "U-15",
-        RuleTableCode.MAX_HOURS,
-        true,
-        Map.of("windowHours", 160, "maxHours", 80),
-        RuleOutcome.INFO,
-        OverridePolicy.NONE,
-        "Overtime status for the pay period.",
-        "MOCK",
-        true,
-        70);
   }
 
   // B. Consecutive work ------------------------------------------------------------------------

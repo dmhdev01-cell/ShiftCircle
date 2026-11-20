@@ -113,10 +113,6 @@ FROM (
      '{"daysOff":2,"withinDays":7,"minBreakHours":24}',
      'WARN', 'ACKNOWLEDGE',
      'Fewer than 2 consecutive days off in 7 days.', 'CX; PSGE; NU', true, 120),
-    ('MAX_HOURS', 'U-15',
-     '{"windowHours":160,"maxHours":80}',
-     'INFO', 'NONE',
-     'Overtime status for the pay period.', 'MOCK', true, 130),
     -- D. Pay classification (docs/05 §2.D)
     ('PAY', 'P-01',
      '{"thresholdWindow":"PAY_PERIOD","thresholdHours":80,"paidLeaveCounts":false}',

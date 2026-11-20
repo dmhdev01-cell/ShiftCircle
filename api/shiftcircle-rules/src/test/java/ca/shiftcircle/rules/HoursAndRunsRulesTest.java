@@ -1,0 +1,298 @@
+package ca.shiftcircle.rules;
+
+import static ca.shiftcircle.rules.RuleTestSupport.evaluate;
+import static ca.shiftcircle.rules.RuleTestSupport.schedule;
+import static ca.shiftcircle.rules.RuleTestSupport.shift;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import ca.shiftcircle.rules.build.ConsecutiveRunFactBuilder;
+import ca.shiftcircle.rules.build.DaysOffFactBuilder;
+import ca.shiftcircle.rules.build.LongShiftCountFactBuilder;
+import ca.shiftcircle.rules.build.RollingHoursFactBuilder;
+import ca.shiftcircle.rules.build.ShiftFact;
+import ca.shiftcircle.rules.build.ShiftKind;
+import ca.shiftcircle.rules.facts.RuleOutcome;
+import ca.shiftcircle.rules.facts.RuleResult;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Boundary matrix for hours ceilings (U-05, U-14, U-15), consecutive work (U-08 to U-10), 16-hour
+ * shift counts (U-11) and days off (U-12) — docs/10-testing.md §3.
+ */
+class HoursAndRunsRulesTest {
+
+  private static List<RuleResult> results(String code, List<Object> facts) {
+    return evaluate(facts.toArray()).stream()
+        .filter(result -> result.ruleId().equals(code))
+        .toList();
+  }
+
+  private static List<Object> cast(List<?> facts) {
+    return new ArrayList<>(facts);
+  }
+
+  /** One shift on each consecutive day, starting at 07:00. */
+  private static List<ShiftFact> daily(
+      String employee, String template, String firstDate, int days, int minutes) {
+    List<ShiftFact> shifts = new ArrayList<>();
+    for (int i = 0; i < days; i++) {
+      shifts.add(
+          shift(employee, template, LocalDate.parse(firstDate).plusDays(i).toString(), "07:00", minutes));
+    }
+    return shifts;
+  }
+
+  // U-05: no more than 16 hours in any 24 hours ------------------------------------------------
+
+  @Test
+  void u05PassesForARosteredSixteenHourShift() {
+    List<ShiftFact> shifts = schedule(shift("officer", "L16", "2026-11-19", "20:00", 960));
+
+    assertThat(results("U-05", cast(new RollingHoursFactBuilder().build(shifts, 24)))).isEmpty();
+  }
+
+  @Test
+  void u05BlocksWithAFifteenMinuteExtension() {
+    List<ShiftFact> shifts = schedule(shift("officer", "L16", "2026-11-19", "20:00", 975));
+
+    assertThat(results("U-05", cast(new RollingHoursFactBuilder().build(shifts, 24))))
+        .singleElement()
+        .satisfies(
+            result -> {
+              assertThat(result.outcome()).isEqualTo(RuleOutcome.BLOCK);
+              assertThat(result.actual()).isEqualTo(16.25);
+              assertThat(result.required()).isEqualTo(16.0);
+            });
+  }
+
+  // U-14: weekly ceiling, warn at 48 h, block at 60 h ------------------------------------------
+
+  @Test
+  void u14PassesAtExactlyFortyEightHours() {
+    List<ShiftFact> shifts = daily("officer", "D8", "2026-11-16", 6, 480);
+
+    assertThat(results("U-14", cast(new RollingHoursFactBuilder().build(shifts, 168)))).isEmpty();
+  }
+
+  @Test
+  void u14WarnsAtFortyEightHoursFifteenMinutes() {
+    List<ShiftFact> shifts = daily("officer", "D8", "2026-11-16", 5, 480);
+    shifts.add(shift("officer", "D8", "2026-11-21", "07:00", 495));
+
+    assertThat(results("U-14", cast(new RollingHoursFactBuilder().build(shifts, 168))))
+        .singleElement()
+        .satisfies(
+            result -> {
+              assertThat(result.outcome()).isEqualTo(RuleOutcome.WARN);
+              assertThat(result.actual()).isEqualTo(48.25);
+            });
+  }
+
+  @Test
+  void u14BlocksAtSixtyHoursFifteenMinutes() {
+    List<ShiftFact> shifts = daily("officer", "D8", "2026-11-16", 6, 480);
+    shifts.add(shift("officer", "D8", "2026-11-22", "07:00", 735));
+
+    assertThat(results("U-14", cast(new RollingHoursFactBuilder().build(shifts, 168))))
+        .singleElement()
+        .satisfies(
+            result -> {
+              assertThat(result.outcome()).isEqualTo(RuleOutcome.BLOCK);
+              assertThat(result.actual()).isEqualTo(60.25);
+            });
+  }
+
+  // U-08: at most 7 consecutive work days ------------------------------------------------------
+
+  @Test
+  void u08PassesAtSevenConsecutiveDays() {
+    List<ShiftFact> shifts = daily("officer", "D8", "2026-11-16", 7, 480);
+
+    assertThat(results("U-08", cast(new ConsecutiveRunFactBuilder().build(shifts)))).isEmpty();
+  }
+
+  @Test
+  void u08BlocksAnEighthScheduledDay() {
+    List<ShiftFact> shifts = daily("officer", "D8", "2026-11-16", 8, 480);
+
+    assertThat(results("U-08", cast(new ConsecutiveRunFactBuilder().build(shifts))))
+        .singleElement()
+        .satisfies(
+            result -> {
+              assertThat(result.outcome()).isEqualTo(RuleOutcome.BLOCK);
+              assertThat(result.actual()).isEqualTo(8.0);
+            });
+  }
+
+  @Test
+  void u08WarnsWhenTheEighthDayIsPickedUpOvertime() {
+    List<ShiftFact> shifts = daily("officer", "D8", "2026-11-16", 7, 480);
+    shifts.add(
+        shift("officer", "D8", "2026-11-23", "07:00", 480, ShiftKind.EXTRA, 0, true, true));
+
+    assertThat(results("U-08", cast(new ConsecutiveRunFactBuilder().build(shifts))))
+        .singleElement()
+        .satisfies(result -> assertThat(result.outcome()).isEqualTo(RuleOutcome.WARN));
+  }
+
+  // U-09: at most 4 consecutive 12-hour shifts ------------------------------------------------
+
+  @Test
+  void u09PassesAtFourConsecutiveTwelveHourShifts() {
+    List<ShiftFact> shifts = new ArrayList<>();
+    for (int i = 0; i < 4; i++) {
+      shifts.add(
+          shift("officer", "P12", LocalDate.parse("2026-11-16").plusDays(i).toString(), "12:00", 720));
+    }
+
+    assertThat(results("U-09", cast(new ConsecutiveRunFactBuilder().build(shifts)))).isEmpty();
+  }
+
+  @Test
+  void u09BlocksAFifthScheduledTwelveHourShift() {
+    List<ShiftFact> shifts = new ArrayList<>();
+    for (int i = 0; i < 5; i++) {
+      shifts.add(
+          shift("officer", "P12", LocalDate.parse("2026-11-16").plusDays(i).toString(), "12:00", 720));
+    }
+
+    assertThat(results("U-09", cast(new ConsecutiveRunFactBuilder().build(shifts))))
+        .singleElement()
+        .satisfies(
+            result -> {
+              assertThat(result.outcome()).isEqualTo(RuleOutcome.BLOCK);
+              assertThat(result.actual()).isEqualTo(5.0);
+            });
+  }
+
+  @Test
+  void u09WarnsWhenTheFifthShiftIsPickedUpOvertime() {
+    List<ShiftFact> shifts = new ArrayList<>();
+    for (int i = 0; i < 4; i++) {
+      shifts.add(
+          shift("officer", "P12", LocalDate.parse("2026-11-16").plusDays(i).toString(), "12:00", 720));
+    }
+    shifts.add(
+        shift("officer", "P12", "2026-11-20", "12:00", 720, ShiftKind.EXTRA, 0, true, true));
+
+    assertThat(results("U-09", cast(new ConsecutiveRunFactBuilder().build(shifts))))
+        .singleElement()
+        .satisfies(result -> assertThat(result.outcome()).isEqualTo(RuleOutcome.WARN));
+  }
+
+  // U-10: at most 4 consecutive overnight 12-hour shifts --------------------------------------
+
+  @Test
+  void u10PassesAtFourOvernightShiftsAndWarnsAtFive() {
+    List<ShiftFact> four = new ArrayList<>();
+    List<ShiftFact> five = new ArrayList<>();
+    for (int i = 0; i < 5; i++) {
+      ShiftFact nightShift =
+          shift("officer", "A12", LocalDate.parse("2026-11-16").plusDays(i).toString(), "00:00", 720);
+      five.add(nightShift);
+      if (i < 4) {
+        four.add(nightShift);
+      }
+    }
+
+    assertThat(results("U-10", cast(new ConsecutiveRunFactBuilder().build(four)))).isEmpty();
+    assertThat(results("U-10", cast(new ConsecutiveRunFactBuilder().build(five))))
+        .singleElement()
+        .satisfies(
+            result -> {
+              assertThat(result.outcome()).isEqualTo(RuleOutcome.WARN);
+              assertThat(result.actual()).isEqualTo(5.0);
+            });
+  }
+
+  // U-11: 3 sixteen-hour shifts in 7 days, 10 in 28 days --------------------------------------
+
+  @Test
+  void u11PassesAtThreeSixteenHourShiftsInSevenDays() {
+    List<ShiftFact> shifts = new ArrayList<>();
+    for (int i = 0; i < 3; i++) {
+      shifts.add(
+          shift("officer", "L16", LocalDate.parse("2026-11-16").plusDays(i).toString(), "20:00", 960));
+    }
+
+    assertThat(results("U-11", cast(new LongShiftCountFactBuilder().build(shifts)))).isEmpty();
+  }
+
+  @Test
+  void u11WarnsAtAFourthSixteenHourShiftWithinSevenDays() {
+    List<ShiftFact> shifts = new ArrayList<>();
+    for (int i = 0; i < 4; i++) {
+      shifts.add(
+          shift("officer", "L16", LocalDate.parse("2026-11-16").plusDays(i).toString(), "20:00", 960));
+    }
+
+    assertThat(results("U-11", cast(new LongShiftCountFactBuilder().build(shifts))))
+        .singleElement()
+        .satisfies(
+            result -> {
+              assertThat(result.outcome()).isEqualTo(RuleOutcome.WARN);
+              assertThat(result.required()).isEqualTo(3.0);
+              assertThat(result.actual()).isEqualTo(4.0);
+            });
+  }
+
+  @Test
+  void u11PassesWhenTheFourthShiftIsExactlySevenDaysAfterTheFirst() {
+    List<ShiftFact> shifts = new ArrayList<>();
+    for (int day : new int[] {0, 1, 2, 7}) {
+      shifts.add(
+          shift("officer", "L16", LocalDate.parse("2026-11-16").plusDays(day).toString(), "20:00", 960));
+    }
+
+    assertThat(results("U-11", cast(new LongShiftCountFactBuilder().build(shifts)))).isEmpty();
+  }
+
+  @Test
+  void u11WarnsAtAnEleventhSixteenHourShiftWithinTwentyEightDays() {
+    List<ShiftFact> shifts = new ArrayList<>();
+    for (int i = 0; i < 11; i++) {
+      shifts.add(
+          shift("officer", "L16", LocalDate.parse("2026-11-01").plusDays(2L * i).toString(), "20:00", 960));
+    }
+
+    assertThat(results("U-11", cast(new LongShiftCountFactBuilder().build(shifts))))
+        .singleElement()
+        .satisfies(
+            result -> {
+              assertThat(result.outcome()).isEqualTo(RuleOutcome.WARN);
+              // Both limits can be breached at once; the evidence names both counts.
+              assertThat(result.evidence()).contains("11 in 28 days");
+            });
+  }
+
+  // U-12: two consecutive days off in seven ---------------------------------------------------
+
+  @Test
+  void u12PassesWithFortyEightHoursOff() {
+    List<ShiftFact> shifts =
+        schedule(
+            shift("officer", "D8", "2026-11-16", "07:00", 480),
+            shift("officer", "E8", "2026-11-18", "15:00", 480));
+
+    assertThat(results("U-12", cast(new DaysOffFactBuilder().build(shifts)))).isEmpty();
+  }
+
+  @Test
+  void u12WarnsWithFortySevenHoursFiftyNineMinutesOff() {
+    List<ShiftFact> shifts =
+        schedule(
+            shift("officer", "D8", "2026-11-16", "07:00", 480),
+            shift("officer", "E8", "2026-11-18", "14:59", 480));
+
+    assertThat(results("U-12", cast(new DaysOffFactBuilder().build(shifts))))
+        .singleElement()
+        .satisfies(
+            result -> {
+              assertThat(result.outcome()).isEqualTo(RuleOutcome.WARN);
+              assertThat(result.required()).isEqualTo(48.0);
+            });
+  }
+}

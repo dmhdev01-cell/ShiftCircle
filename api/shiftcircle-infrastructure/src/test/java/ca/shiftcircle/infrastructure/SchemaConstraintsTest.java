@@ -69,7 +69,7 @@ class SchemaConstraintsTest {
   void migrationsApplyAndSeedTheReferenceData() throws Exception {
     assertThat(queryInt("SELECT max(version) FROM rule_set_version")).isEqualTo(1);
     assertThat(queryInt("SELECT count(*) FROM rule_table")).isEqualTo(8);
-    assertThat(queryInt("SELECT count(*) FROM rule_row")).isEqualTo(20);
+    assertThat(queryInt("SELECT count(*) FROM rule_row")).isEqualTo(19);
     assertThat(queryInt("SELECT count(*) FROM shift_template")).isEqualTo(6);
     assertThat(queryInt("SELECT count(*) FROM unit")).isEqualTo(6);
     assertThat(queryInt("SELECT count(*) FROM unit_requirement")).isEqualTo(18);
