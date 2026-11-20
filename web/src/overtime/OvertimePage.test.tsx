@@ -148,6 +148,9 @@ describe('the overtime board', () => {
     expect(screen.queryByRole('button', { name: /Offer to selected/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Assign directly…' })).not.toBeInTheDocument();
     expect(screen.getAllByText('Offers closed').length).toBeGreaterThan(0);
+    // D5: a leftover accepted offer must not offer another Confirm on a filled
+    // shift; the api refuses it with 409 and the screen must not invite it.
+    expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
   });
 
   it('closes offers on a cancelled shift and shows it as cancelled', async () => {

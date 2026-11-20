@@ -134,16 +134,15 @@ test.describe('overtime: decline, and filled shifts', () => {
   });
 
   test('@api a filled shift offers no Confirm on a leftover accepted offer', async ({ page, request }) => {
-    // DEFECT D5 (found by this spec): OvertimePage.tsx:500 shows Confirm for an
-    // ACCEPTED offer even when the shift is filled; the api refuses it (409,
-    // F8), but the screen invites a second fill. Remove test.fail when fixed.
+    // D5 was here: OvertimePage.tsx showed Confirm for an ACCEPTED offer even
+    // when the shift was filled; the api refuses it (409, F8), but the screen
+    // invited a second fill.
     const filled = await filledWithAcceptedOffer(request);
     await signIn(page, 'M. Ellis');
     await navTo(page, 'Overtime');
     await openCard(page, filled);
     const officers = page.getByRole('region', { name: 'Eligible officers' });
     await expect(officers.getByText('This shift is filled. No offers can be made.')).toBeVisible();
-    test.fail(true, 'D5: a filled shift still shows Confirm on an accepted offer');
     await expect(officers.getByRole('button', { name: 'Confirm' })).toHaveCount(0, { timeout: 3_000 });
   });
 });

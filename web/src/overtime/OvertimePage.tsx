@@ -497,7 +497,7 @@ export function OvertimePage() {
                     {entry.employeeName}
                   </Box>
                   <StatusPill tone={OFFER_TONE[entry.status]}>{OFFER_TEXT[entry.status]}</StatusPill>
-                  {entry.status === 'ACCEPTED' ? (
+                  {entry.status === 'ACCEPTED' && !offersClosed ? (
                     <Button
                       variant="outlined"
                       color="primary"
