@@ -95,3 +95,11 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Why:** (1) with hourly coverage (ADR-013) a single block number can read `5 / 5` while two hours are short; (2) exporting a period with unrecorded shifts would put wrong figures into payroll; (3) keeps the permission matrix true on every screen; (4) "not yet decided" must stay visible, and nothing auto-approves (HANDOFF guardrail 3).
 **Consequences:** extra fields in two endpoints; one new problem type; boundary test and scenario T14 in `10-testing.md`; generator self-check 8.
 
+## ADR-018 — Audit-log role grants deferred to a pilot; triggers are the prototype's proof
+**Status:** Accepted (2026-11-20, from review of `502c434`)
+**Decision:** `V1__schema.sql` creates no database roles or grants. The prototype runs migrations and the app as one database user (the `postgres` image's `POSTGRES_USER`). Append-only audit is enforced by triggers that raise an error on `UPDATE`, `DELETE` and `TRUNCATE` of `audit_event`, and repository tests prove them.
+**Why:** a separate application role needs a second set of credentials and a role-aware Flyway setup, which adds setup risk for the reviewer without changing what the demo can show. The triggers block every application path, including bugs.
+**Limit (stated honestly):** the single user owns the tables and is a superuser in the official image, so it could drop or disable the triggers. The trigger protects against application error and ordinary SQL, not against someone holding the database owner's credentials.
+**Pilot:** a migration-owner role and an application role with `INSERT, SELECT` only on `audit_event`; audit retention per the records schedule. Recorded in `08-deployment.md` §9.
+**Supersedes:** the earlier wording in `06-data-model.md` and `09-access-control.md` that the application role had `INSERT, SELECT` only.
+

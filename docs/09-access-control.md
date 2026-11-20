@@ -50,7 +50,7 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 | API (role) | Spring Security method security: `@PreAuthorize("hasRole('SUPERVISOR')")` on each use case |
 | API (scope) | A `ScopeGuard` checks the target unit, or the target employee's unit, against the caller's `user_unit_scope`. Out-of-scope IDs return `404`, so they don't reveal what exists. "Own" checks compare against the caller's linked `employee_id`. |
 | Data queries | Repository methods for lists take the caller's scope as a parameter (no unfiltered list queries in controllers) |
-| Database | The app's DB role can't `UPDATE` or `DELETE` `audit_event`; `CHECK (approved_by <> created_by)` on rule versions; a trigger blocks changes to time entries in locked pay periods |
+| Database | Triggers refuse `UPDATE`, `DELETE` and `TRUNCATE` on `audit_event` (role grants deferred to a pilot, ADR-018); `CHECK (approved_by <> created_by)` on rule versions; a trigger blocks changes to time entries in locked pay periods |
 | Tests | One automated authorization test per matrix cell that says "—" or "scope", against real HTTP endpoints |
 
 ## 4. Mock sign-in (prototype)
