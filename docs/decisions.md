@@ -60,3 +60,14 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Decision:** Use Drools 10.x (Apache KIE), embedded in the API. Developers write rule **templates** and Java **fact builders** (the time-window maths). Non-technical admins edit **decision-table rows** in a friendly in-app grid, with plain-language previews and an Excel round-trip. Changes go through validate → compile → regression test → dry run → maker/checker approval → hot publish, with versioning and rollback.
 **Alternatives:** (a) a custom rule-type catalogue (ADR-007): simpler, but not a recognized engine; (b) raw DRL rule files: too technical for the target editors; (c) DMN with visual editors: standards-based, but needs tooling outside the three containers. Noted as a future option.
 **Consequences:** The Java target moves from 25 to **21 LTS**, because KIE's published support covers Java 21. Spring Boot 4.x compatibility is confirmed by a Day 1 spike; the fallback is Spring Boot 3.5.x (past free support, a recorded governance risk). Apache KIE is an incubating project, so its support model needs confirming before a pilot.
+
+## ADR-013 — Coverage measured by unit and block
+**Status:** Accepted (2026-11-19)
+**Decision:** Required staffing is defined per unit per block (Day 07–15, Evening 15–23, Night 23–07), optionally with a qualification minimum. A shift counts toward a block when it covers at least half of it, so a 12-hour day counts toward Day and Evening.
+**Alternatives:** headcount per shift only (too coarse for qualification checks); named posts (most realistic, but much more setup). Named posts remain a future extension of `unit_requirement`.
+**Status note:** to be confirmed against real practice.
+
+## ADR-014 — API conventions: REST, Problem Details, rule results in 422
+**Status:** Accepted (2026-11-19)
+**Decision:** REST/JSON under `/api/v1`, OpenAPI generated from code, RFC 9457 Problem Details for errors, rule outcomes returned as `422` with a `ruleResults` extension, a separate preview endpoint (`/rule-checks`), explicit `acknowledgeWarnings` and `override.reason` fields, and optimistic locking with ETags.
+**Why:** predictable for reviewers and future integrators; makes "the rules said no" a first-class, explainable response rather than a generic error.

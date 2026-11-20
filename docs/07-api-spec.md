@@ -1,0 +1,188 @@
+# ShiftCircle — API Specification
+
+**Status:** Draft v1.0 · 2026-11-19 · REST + JSON · the generated OpenAPI document is the source of truth once code exists
+
+## 1. Conventions
+
+| Topic | Convention |
+|---|---|
+| Base path | `/api/v1` (nginx proxies `/api/` to the api container) |
+| Docs | OpenAPI 3 at `/api/v1/openapi.json`; Swagger UI at `/api/swagger-ui` (`demo` and `dev` profiles only) |
+| Auth | `Authorization: Bearer <token>` from mock sign-in (see `09-access-control.md`) |
+| IDs | UUID strings |
+| Time | Instants as ISO-8601 with offset (`2026-11-21T07:00:00-06:00`); dates as `YYYY-MM-DD`; all in `America/Regina` |
+| Lists | `?page=0&size=50`; response `{ "items": [...], "page": 0, "size": 50, "total": 123 }` |
+| Concurrency | Editable resources return `ETag: "<version>"`; updates require `If-Match`. A stale version gets `412 Precondition Failed`. |
+| Errors | RFC 9457 Problem Details (`application/problem+json`), with a `ruleResults` extension when rules decide (see §3) |
+| CSV | Report and export endpoints also answer `Accept: text/csv` |
+| Correlation | `X-Correlation-Id` is accepted or generated, echoed back, and written to logs and audit |
+
+## 2. Status codes
+
+| Code | When |
+|---|---|
+| `200` / `201` | Success; `201` with `Location` for creates |
+| `400` | Malformed request or invalid values (field errors listed) |
+| `401` / `403` | Not signed in / role or unit scope doesn't allow it |
+| `404` | Not found, or outside the caller's scope (we don't reveal what exists) |
+| `409` | State conflict (e.g. pay period locked, offer already answered) |
+| `412` | Stale `If-Match` version |
+| `422` | **A rule blocked the change** (body includes `ruleResults`), or Warn results need acknowledgement |
+
+## 3. Rule checks: preview, save, override
+
+Every schedule-changing endpoint runs the rules engine. Clients use the same body three ways:
+
+1. **Preview:** `POST /rule-checks` with the proposed change → results, nothing saved.
+2. **Save:** the real endpoint (e.g. `POST /assignments`) → `201` if every result is Pass or Info.
+   - If any **Warn** results: `422` with `type: .../warnings-need-acknowledgement`; resend with `"acknowledgeWarnings": ["U-14"]`.
+   - If any **Block**: `422` with `type: .../blocked-by-rules`.
+3. **Override:** resend with `"override": { "reason": "Lockdown, no relief available" }` (supervisor only, and only for rules whose override policy is `EMERGENCY`). Creates an `override` row and an audit event.
+
+**Preview request:**
+```json
+POST /api/v1/rule-checks
+{
+  "change": {
+    "type": "ASSIGN",
+    "employeeId": "6f1c…",
+    "unitId": "a2b9…",
+    "shiftTemplate": "D8",
+    "startAt": "2026-11-21T07:00:00-06:00"
+  }
+}
+```
+
+**Blocked response:**
+```json
+HTTP/1.1 422 Unprocessable Content
+Content-Type: application/problem+json
+
+{
+  "type": "https://shiftcircle.local/problems/blocked-by-rules",
+  "title": "This change breaks 2 rules",
+  "status": 422,
+  "outcome": "BLOCK",
+  "ruleSetVersion": 7,
+  "overridable": true,
+  "ruleResults": [
+    {
+      "ruleCode": "U-01", "outcome": "BLOCK",
+      "message": "No rest after the 12 h night ending Sat 07:00. The minimum is 8 consecutive hours in any 24 hours.",
+      "facts": { "restHours": 0, "minHours": 8 },
+      "evidence": [ { "assignmentId": "c41d…", "label": "Fri 20 N12 19:00–07:00" } ],
+      "source": "Saskatchewan Employment Act"
+    },
+    { "ruleCode": "U-05", "outcome": "BLOCK", "message": "20 hours of work in 24 hours.", "facts": { "hours": 20, "maxHours": 16 } },
+    { "ruleCode": "U-14", "outcome": "WARN", "message": "52 hours this week, over the 48 h warning level." }
+  ]
+}
+```
+
+## 4. Endpoints
+
+### 4.1 Session and reference data
+
+| Method | Path | Purpose | Roles |
+|---|---|---|---|
+| GET | `/auth/demo-users` | List users for the mock sign-in picker | public (demo profile only) |
+| POST | `/auth/mock-login` | `{ "userId" }` → `{ "token", "expiresAt", "user" }` | public (demo profile only) |
+| GET | `/me` | Current user, roles, unit scope, linked employee | any |
+| GET | `/units` | Units (filtered to scope for supervisors) | any |
+| GET | `/units/{id}/requirements` | Required staff per block | SUPERVISOR, AUDITOR |
+| GET | `/shift-templates` | 8, 12 and 16-hour templates | any |
+| GET | `/qualifications` | Qualification list | any |
+| GET | `/employees?unitId=` | Officers in scope | SUPERVISOR, AUDITOR |
+| GET | `/employees/{id}` | Officer detail, qualifications, rotation | SUPERVISOR, AUDITOR, self |
+
+### 4.2 Schedule (planning board and My schedule)
+
+| Method | Path | Purpose | Roles |
+|---|---|---|---|
+| GET | `/schedule?unitId=&from=&to=` | **Planning board payload:** days, coverage per block (required / scheduled / actual), officer rows with assignments, overtime status per officer, warnings | SUPERVISOR, AUDITOR |
+| GET | `/me/schedule?from=&to=` | My shifts, hours this pay period, overtime this quarter, next shift | EMPLOYEE |
+| POST | `/rule-checks` | Preview any change (§3) | SUPERVISOR; EMPLOYEE for own proposals |
+| POST | `/assignments` | Assign a shift (§3 rules apply) | SUPERVISOR |
+| PATCH | `/assignments/{id}` | Move or change a shift (`If-Match`) | SUPERVISOR |
+| DELETE | `/assignments/{id}` | Cancel (sets `CANCELLED`; never hard-deletes) | SUPERVISOR |
+| POST | `/schedule-periods/{id}/publish` | Publish a period | SUPERVISOR |
+| POST | `/absences` | Record sick, vacation or other (type only) | SUPERVISOR |
+
+### 4.3 Overtime
+
+| Method | Path | Purpose | Roles |
+|---|---|---|---|
+| GET | `/open-shifts?unitId=&from=&to=&status=` | Open shifts | SUPERVISOR |
+| POST | `/open-shifts` | Create an open shift | SUPERVISOR |
+| GET | `/open-shifts/{id}/candidates` | **Ranked list:** order from the overtime-ranking rule table; each candidate has eligibility (`ELIGIBLE`, `WARN`, `SKIPPED`, `UNAVAILABLE`) and rule results | SUPERVISOR |
+| POST | `/open-shifts/{id}/offers` | `{ "employeeIds": [...], "ordered": false }` → offers recorded in-app | SUPERVISOR |
+| POST | `/open-shifts/{id}/assign` | Assign directly (§3 rules and overrides apply) | SUPERVISOR |
+| GET | `/me/offers?status=OFFERED` | My pending offers | EMPLOYEE |
+| POST | `/offers/{id}/accept` · `/offers/{id}/decline` | Respond. Accepting re-checks rules; the supervisor then confirms. | EMPLOYEE (own) |
+| POST | `/offers/{id}/confirm` | Confirm an accepted offer → creates the assignment | SUPERVISOR |
+
+### 4.4 Proposals (employee shift planner)
+
+| Method | Path | Purpose | Roles |
+|---|---|---|---|
+| POST | `/proposals` | Submit `{ "note", "items": [...] }`; each item is rule-checked and the results stored | EMPLOYEE |
+| GET | `/me/proposals` | My proposals and their status | EMPLOYEE |
+| GET | `/proposals?unitId=&status=SUBMITTED` | Supervisor inbox | SUPERVISOR |
+| POST | `/proposals/{id}/decision` | `{ "items": [ { "id", "accept": true } ] }`; accepted items become assignments (rules re-run) | SUPERVISOR |
+
+### 4.5 Time and payroll
+
+| Method | Path | Purpose | Roles |
+|---|---|---|---|
+| GET | `/pay-periods` | Periods with status | SUPERVISOR, AUDITOR |
+| GET | `/pay-periods/{id}/time-entries?employeeId=` | Scheduled vs actual entries with pay codes | SUPERVISOR, AUDITOR; EMPLOYEE (own) |
+| PUT | `/time-entries/{id}` | Record actuals (worked as scheduled / adjusted times / absence type) | SUPERVISOR |
+| POST | `/pay-periods/{id}/lock` | Lock: actuals become read-only | SUPERVISOR |
+| POST | `/pay-periods/{id}/unlock` | `{ "reason" }`; audited | SUPERVISOR |
+| GET | `/pay-periods/{id}/payroll-export` | `text/csv`; locked periods only; records a `payroll_export` row with the file hash | SUPERVISOR |
+
+**Payroll CSV columns:** `employee_no, pay_period_start, pay_period_end, work_date, pay_code, hours, unit_code, cost_centre`, with hours to 2 decimals in 15-minute increments. Totals per employee must equal the sum of actual time entries (tested).
+
+### 4.6 Reports
+
+| Method | Path | Purpose | Roles |
+|---|---|---|---|
+| GET | `/reports/coverage?from=&to=&unitId=&groupBy=day\|week` | Required vs scheduled vs actual staff-hours and fill rate | SUPERVISOR, AUDITOR |
+| GET | `/reports/hours?from=&to=&employeeId=` | Scheduled, worked, and hours by pay code per officer | SUPERVISOR, AUDITOR; EMPLOYEE (own only) |
+| GET | `/reports/overtime?from=&to=&top=` | Overtime hours by officer and unit | SUPERVISOR, AUDITOR |
+| GET | `/reports/overrides?from=&to=` | Emergency overrides with reasons | SUPERVISOR, AUDITOR |
+
+### 4.7 Rules administration
+
+| Method | Path | Purpose | Roles |
+|---|---|---|---|
+| GET | `/rule-sets` | Versions and status | RULES_ADMIN, RULES_APPROVER, AUDITOR, SUPERVISOR (read) |
+| GET | `/rule-sets/{version}/tables/{code}` | Rows, column schema and plain-language sentences | same |
+| POST | `/rule-sets/drafts` | `{ "basedOn": 7, "reason" }` → new draft (also used to roll back to an older version) | RULES_ADMIN |
+| PUT | `/rule-sets/{version}/tables/{code}/rows` | Replace a table's rows in a draft (`If-Match`) | RULES_ADMIN |
+| POST | `/rule-sets/{version}/build` | Validate → compile (Drools) → run test scenarios → dry run on the published roster; returns the report | RULES_ADMIN |
+| POST | `/rule-sets/{version}/submit` | Submit a successfully built draft for approval | RULES_ADMIN |
+| POST | `/rule-sets/{version}/approve` · `/reject` | Second-person decision (`approved_by ≠ created_by`) | RULES_APPROVER |
+| POST | `/rule-sets/{version}/publish` | Hot-swap the live rule base at the effective date | RULES_APPROVER |
+| GET | `/rule-sets/{version}/tables/{code}/export` | `.xlsx` Drools decision table | RULES_ADMIN, RULES_APPROVER |
+| POST | `/rule-sets/{version}/tables/{code}/import` | multipart `.xlsx` into a draft (then build as usual) | RULES_ADMIN |
+
+### 4.8 Wall display, audit, operations
+
+| Method | Path | Purpose | Roles |
+|---|---|---|---|
+| GET | `/display/today` | Counts per unit and block, open shifts and overtime counts. **No names.** | DISPLAY, SUPERVISOR |
+| GET | `/audit-events?entityType=&entityId=&from=&to=` | Audit trail | AUDITOR, SUPERVISOR (own units) |
+| GET | `/version` | Build version, git commit, live rule set version | any |
+| GET | `/actuator/health` | Liveness and readiness. Internal only, not proxied by nginx. | container network |
+
+## 5. Screen-to-endpoint map
+
+| Screen (UI canvas) | Main calls |
+|---|---|
+| Planning board | `GET /schedule`, `POST /rule-checks`, `POST/PATCH/DELETE /assignments`, `POST /schedule-periods/{id}/publish` |
+| My schedule | `GET /me/schedule`, `GET /me/offers`, `POST /offers/{id}/accept`, `POST /rule-checks`, `POST /proposals` |
+| Overtime board | `GET /open-shifts`, `GET /open-shifts/{id}/candidates`, `POST /open-shifts/{id}/offers`, `POST /open-shifts/{id}/assign` |
+| Rules | `GET /rule-sets…`, `PUT …/rows`, `POST …/build`, `…/submit`, `…/approve`, `…/publish`, export/import |
+| Reports | `GET /reports/*`, `GET /pay-periods/{id}/payroll-export` |
+| Wall display | `GET /display/today` every 60 s |

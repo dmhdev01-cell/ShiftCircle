@@ -2,6 +2,8 @@
 
 **Status:** Draft v0.5 · 2026-11-19 · Middle tier: Java + Spring Boot (ADR-011); rules engine: Drools decision tables (ADR-012).
 
+**Detailed specs:** data model `06-data-model.md` · API `07-api-spec.md` · deployment `08-deployment.md` · access control `09-access-control.md`. UI screens: ShiftCircle UI Design canvas.
+
 ## 1. Deployment: three containers
 
 ```mermaid

@@ -17,7 +17,13 @@ Three containers: **web** (nginx + React) · **api** (Java 21 + Spring Boot 4.x 
 | [docs/03-architecture.md](docs/03-architecture.md) | Containers, layers, change flow, frontend, security |
 | [docs/04-rules-engine.md](docs/04-rules-engine.md) | Rules engine design: Drools decision tables a non-technical admin can edit |
 | [docs/05-union-rules.md](docs/05-union-rules.md) | Mock collective-agreement rule set, with each rule's source |
+| [docs/06-data-model.md](docs/06-data-model.md) | PostgreSQL tables, constraints, ER diagram, migrations and seed |
+| [docs/07-api-spec.md](docs/07-api-spec.md) | REST endpoints, rule-check/override contract, error format, screen-to-endpoint map |
+| [docs/08-deployment.md](docs/08-deployment.md) | Docker Compose topology, configuration, startup, nginx, path to pilot |
+| [docs/09-access-control.md](docs/09-access-control.md) | Roles, permission matrix, enforcement, mock sign-in, privacy |
 | [docs/decisions.md](docs/decisions.md) | Decision log (ADRs) |
+
+**UI design:** the proposed screens are on the ShiftCircle UI Design canvas (Claude design artifact, private): planning board, my schedule, overtime board, rules admin, reports, wall display.
 
 ## Setup
 
