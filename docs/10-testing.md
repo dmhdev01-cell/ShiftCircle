@@ -137,7 +137,7 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 | Vacation | ~2% of shifts, as blocks of 3–7 consecutive days, booked in advance (ADR-020) |
 | Gap filling | For each hour below requirement, create an open shift; fill using the **real** ranking and rules: candidates in O-02 order, skip any with a Block, voluntary acceptance with probability 0.7 (seeded). Leave ~1–2% of gaps unfilled so reports show imperfection. |
 | Actuals (past days) | Worked as scheduled, except: absences; ~3% of shifts extended by 0.5–2 h (extra hours; overtime only if the officer ends the period over 80 h); a few early leaves. Time entries get pay codes from the pay-classification rules. |
-| Overrides | Exactly the planted ones (PC-03) plus 3 more emergency overrides spread over the window, each with a reason |
+| Overrides | Exactly one: the planted PC-03. (An earlier version also planted three decorative overrides; they were removed after review because they were audit records of events that never happened.) |
 | Audit | Every generated change writes an audit event with actor `system:generator` |
 
 ### 6.6 Planted cases (stable IDs, used by tests and the demo)
@@ -145,8 +145,8 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 | ID | What | Where |
 |---|---|---|
 | PC-01 | Nia Thompson: P12 Fri 20 Nov 12:00–24:00; assigning her D8 Sat 21 Nov 07:00 is blocked by U-01 (7 h rest), U-05 (17 h in 24 h) and U-14 (the week passes 60 h) | Unit B |
-| PC-02 | An officer with N8 ending Thu 26 Nov 07:00 and an E8 slot open at 15:00 (exactly 8 h) | Unit A |
-| PC-03 | Shift starting **Tue 3 Nov** 20:00 (`work_date` = 3 Nov, start-date convention) and ending **Wed 4 Nov** 13:00: an officer worked 17 h (16 h shift 20:00–12:00 + 1 h extension to 13:00) with override reason "Lockdown, relief unavailable" | Unit C |
+| PC-02 | An officer with N8 ending Thu 26 Nov 07:00 and an E8 slot open at 15:00 (exactly 8 h). **Caveat (dev-qa, 2026-11-20):** the planted officer (E-003) is also at 10 consecutive days in the base roster, so U-08 blocks the assignment too. Use PC-02 to show the boundary rule result (U-01 silent at exactly 8 h, U-02 WARN for 8 h against the 12 h target), not as an assignment to save | Unit A |
+| PC-03 | Shift starting **Tue 3 Nov** 20:00 (`work_date` = 3 Nov, start-date convention) and ending **Wed 4 Nov** 13:00: an officer worked 17 h (16 h shift 20:00–12:00 + 1 h extension to 13:00) with override reason "Lockdown, relief unavailable". Unit C is in no demo supervisor's scope, so it shows on the **auditor's** (facility-wide) overrides report, not a supervisor's | Unit C |
 | PC-04 | Piotr Kowalczyk: four consecutive A12 (00:00–12:00) ending Mon 23 Nov, with a fifth available | Control |
 | PC-05 | Pay period 26 Oct – 8 Nov, LOCKED, with officers under, exactly at and over the 80 h threshold, and a 29-minute extension (unpaid) | All |
 | PC-06 | At least three 4-night runs in the published roster (for the dry-run test T7) | Mixed |

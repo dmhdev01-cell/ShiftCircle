@@ -385,7 +385,19 @@ class RuleSetApiTest {
     assertThat(submit.statusCode())
         .as("a build that predates the current rows cannot be submitted")
         .isEqualTo(409);
-    assertThat(submit.body()).contains("rows changed since the last successful build");
+
+    // Saving rows also clears the report, so the fingerprint itself is proven the way a direct
+    // writer reaches it: rebuild, change one row underneath, then submit.
+    build(draft);
+    jdbc.update(
+        "UPDATE rule_row SET params = jsonb_set(params, '{minRestHours}', '13')"
+            + " WHERE rule_set_version_id ="
+            + " (SELECT id FROM rule_set_version WHERE version = ?) AND code = 'U-03'",
+        draft);
+    HttpResponse<String> stale =
+        send("POST", "/api/v1/rule-sets/" + draft + "/submit", null, "l.fraser");
+    assertThat(stale.statusCode()).isEqualTo(409);
+    assertThat(stale.body()).contains("rows changed since the last successful build");
   }
 
   @Test
@@ -451,6 +463,139 @@ class RuleSetApiTest {
             Integer.class,
             draft);
     assertThat(audits).as("the losing approval must not write a second audit row").isEqualTo(1);
+  }
+
+  @Test
+  @Order(8)
+  void aHostileShiftKindIsRefusedBeforeCompile() throws Exception {
+    int draft = createDraft(publishedVersion(), "S1: a hostile shift-kind regex");
+    Map<String, Object> rest = table(draft, "REST");
+    Map<String, Object> u01 =
+        ((List<Map<String, Object>>) rest.get("rows")).stream()
+            .filter(row -> "U-01".equals(row.get("ruleCode")))
+            .findFirst()
+            .orElseThrow();
+    // The screen sends the friendly label; a crafted request omits it so params is authoritative.
+    u01.put("after", null);
+    setParam(rest, "U-01", "afterShiftKind", ".*\"); System.setProperty(\"sc.pwn\", \"1\"); //");
+    saveRows(draft, "REST", rest);
+
+    Map<String, Object> report = build(draft);
+    List<Map<String, Object>> steps = (List<Map<String, Object>>) report.get("steps");
+    assertThat(steps)
+        .as("validation refuses the value and the compile step never runs")
+        .extracting(step -> step.get("key"))
+        .contains("validation")
+        .doesNotContain("compile");
+    assertThat(steps.get(0).get("done")).isEqualTo(false);
+    assertThat(report.get("errors").toString()).contains("shift codes");
+    assertThat(System.getProperty("sc.pwn")).as("no injected code ran at build time").isNull();
+
+    assertThat(send("POST", "/api/v1/rule-sets/" + draft + "/submit", null, "l.fraser").statusCode())
+        .as("a failed build cannot be submitted")
+        .isEqualTo(409);
+  }
+
+  @Test
+  @Order(9)
+  void aHostileRuleCodeIsRefusedBeforeCompile() throws Exception {
+    int draft = createDraft(publishedVersion(), "S1: a hostile rule code");
+    Map<String, Object> rest = table(draft, "REST");
+    List<Map<String, Object>> rows = (List<Map<String, Object>>) rest.get("rows");
+    Map<String, Object> renamed =
+        rows.stream()
+            .filter(row -> "U-01".equals(row.get("ruleCode")))
+            .findFirst()
+            .orElseThrow();
+    // Rename the rule: the code becomes the DRL rule name and, for a new row, its message.
+    renamed.put("ruleCode", "X\"); System.setProperty(\"sc.pwn2\", \"1\"); //");
+    String body = mapper.writeValueAsString(Map.of("rows", rows));
+    HttpResponse<String> saved =
+        send("PUT", "/api/v1/rule-sets/" + draft + "/tables/REST/rows", body, "l.fraser");
+    assertThat(saved.statusCode()).withFailMessage(saved.body() + "\nBODY=" + body).isEqualTo(200);
+
+    Map<String, Object> report = build(draft);
+    List<Map<String, Object>> steps = (List<Map<String, Object>>) report.get("steps");
+    assertThat(steps).extracting(step -> step.get("key")).doesNotContain("compile");
+    assertThat(report.get("errors").toString()).contains("Rule code");
+    assertThat(System.getProperty("sc.pwn2")).as("no injected code ran at build time").isNull();
+  }
+
+  @Test
+  @Order(10)
+  void savingRowsPersistsAnEditedMessage() throws Exception {
+    int draft = createDraft(publishedVersion(), "S2: an edited message");
+    Map<String, Object> rest = table(draft, "REST");
+    List<Map<String, Object>> rows = (List<Map<String, Object>>) rest.get("rows");
+    Map<String, Object> u01 =
+        rows.stream()
+            .filter(row -> "U-01".equals(row.get("ruleCode")))
+            .findFirst()
+            .orElseThrow();
+    ((Map<String, Object>) u01.get("params"))
+        .put("_message", "At least 8 hours of rest after any shift.");
+    saveRows(draft, "REST", rest);
+
+    String stored =
+        jdbc.queryForObject(
+            "SELECT message FROM rule_row WHERE rule_set_version_id ="
+                + " (SELECT id FROM rule_set_version WHERE version = ?) AND code = 'U-01'",
+            String.class,
+            draft);
+    assertThat(stored)
+        .as("an edited plain-language message must not be silently dropped")
+        .isEqualTo("At least 8 hours of rest after any shift.");
+  }
+
+  @Test
+  @Order(11)
+  void anUnknownTableAndOddInputAnswerProblemsNamingTheField() throws Exception {
+    int published = publishedVersion();
+    HttpResponse<String> unknownTable =
+        send("GET", "/api/v1/rule-sets/" + published + "/tables/NOT_A_TABLE", null, "l.fraser");
+    assertThat(unknownTable.statusCode()).isEqualTo(404);
+    assertThat(unknownTable.body()).contains("NOT_A_TABLE");
+
+    int draft = createDraft(published, "S5: odd input");
+    Map<String, Object> rest = table(draft, "REST");
+    Map<String, Object> u01 =
+        ((List<Map<String, Object>>) rest.get("rows")).stream()
+            .filter(row -> "U-01".equals(row.get("ruleCode")))
+            .findFirst()
+            .orElseThrow();
+    u01.put("after", null);
+    ((Map<String, Object>) u01.get("params")).put("minRestHours", "eight");
+    HttpResponse<String> oddNumber =
+        send(
+            "PUT",
+            "/api/v1/rule-sets/" + draft + "/tables/REST/rows",
+            mapper.writeValueAsString(Map.of("rows", rest.get("rows"))),
+            "l.fraser");
+    assertThat(oddNumber.statusCode()).isEqualTo(400);
+    assertThat(oddNumber.body()).contains("At least (hours) off");
+
+    Map<String, Object> original =
+        ((List<Map<String, Object>>) table(draft, "REST").get("rows")).stream()
+            .filter(row -> "U-01".equals(row.get("ruleCode")))
+            .findFirst()
+            .orElseThrow();
+    HttpResponse<String> duplicate =
+        send(
+            "PUT",
+            "/api/v1/rule-sets/" + draft + "/tables/REST/rows",
+            mapper.writeValueAsString(Map.of("rows", List.of(original, original))),
+            "l.fraser");
+    assertThat(duplicate.statusCode()).isEqualTo(400);
+    assertThat(duplicate.body()).contains("repeated");
+
+    HttpResponse<String> badDate =
+        send(
+            "POST",
+            "/api/v1/rule-sets/" + published + "/publish",
+            "{\"effectiveDate\":\"not-a-date\"}",
+            "p.singh");
+    assertThat(badDate.statusCode()).isEqualTo(400);
+    assertThat(badDate.body()).contains("effectiveDate");
   }
 
   private Integer publishedVersion() {

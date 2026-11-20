@@ -1,5 +1,6 @@
 package ca.shiftcircle.rules.validate;
 
+import ca.shiftcircle.rules.model.OverridePolicy;
 import ca.shiftcircle.rules.model.RuleRow;
 import ca.shiftcircle.rules.model.RuleSet;
 import ca.shiftcircle.rules.model.RuleTableCode;
@@ -8,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * The publish-time validation docs/04 §5a requires: reject row values the fact builders never
@@ -22,8 +24,29 @@ public final class RuleRowValidator {
       Set.of("DAYS", "SHIFTS_12H", "SHIFTS_NIGHT_12H");
   private static final Set<String> SORT_KEYS = Set.of("OT_HOURS_QUARTER_ASC", "SENIORITY_ASC");
   private static final Set<Integer> SHIFT_LENGTHS = Set.of(8, 12, 16);
+  /**
+   * A rule row is turned into DRL source, so a value is a code fragment, not data (review-r2 S1).
+   * Codes and the shift-kind regex are restricted to characters that cannot close a string literal
+   * or a constraint; messages may use ordinary prose but never a quote, backslash, newline or brace.
+   */
+  private static final Pattern CODE = Pattern.compile("[A-Za-z0-9-]{1,16}");
+
+  private static final Pattern SHIFT_KIND =
+      Pattern.compile("\\.\\*|\\(?[A-Za-z0-9]{1,8}(\\|[A-Za-z0-9]{1,8})*\\)?");
+  private static final Pattern UNSAFE_MESSAGE = Pattern.compile("[\"\\\\\r\n{}]");
   /** Every rule the mock agreement requires (docs/05 §3 says these are the Must set). */
   private static final Set<String> REQUIRED = RuleRowsV1.ruleSet().ruleCodes();
+
+  /**
+   * The override policy each Must rule was published with (docs/05 legend, ADR-023). Weakening a
+   * Block to "no override" removes the emergency path; strengthening an acknowledge to EMERGENCY
+   * adds one. Neither is an edit the pipeline may accept.
+   */
+  private static final Map<String, OverridePolicy> REQUIRED_POLICIES =
+      RuleRowsV1.ruleSet().rows().stream()
+          .collect(
+              java.util.stream.Collectors.toUnmodifiableMap(
+                  RuleRow::code, RuleRow::overridePolicy));
 
   /** One plain-language problem with one row. */
   public record Violation(String code, String column, String message) {
@@ -47,8 +70,31 @@ public final class RuleRowValidator {
       }
     }
     for (RuleRow row : ruleSet.rows()) {
+      if (row.code() == null || !CODE.matcher(row.code()).matches()) {
+        violations.add(
+            new Violation(
+                display(row.code()),
+                "Rule code",
+                "A rule code uses capital letters, digits and hyphens only (for example U-01)."));
+      }
+      OverridePolicy documented = REQUIRED_POLICIES.get(row.code());
+      if (documented != null && row.overridePolicy() != documented) {
+        violations.add(
+            new Violation(
+                row.code(),
+                "Override",
+                "The documented override policy for this rule is "
+                    + policyLabel(documented)
+                    + "; a Must rule cannot be changed."));
+      }
       if (row.message() == null || row.message().isBlank()) {
         violations.add(new Violation(row.code(), "Message", "A rule needs a message to show."));
+      } else if (UNSAFE_MESSAGE.matcher(row.message()).find()) {
+        violations.add(
+            new Violation(
+                row.code(),
+                "Message",
+                "The message can't contain a quote, backslash, newline or brace."));
       }
       switch (row.table()) {
         case REST -> validateRest(row, violations);
@@ -65,6 +111,18 @@ public final class RuleRowValidator {
   }
 
   private static void validateRest(RuleRow row, List<Violation> violations) {
+    String afterShiftKind = row.text("afterShiftKind");
+    if (afterShiftKind == null
+        || afterShiftKind.length() > 64
+        || !SHIFT_KIND.matcher(afterShiftKind).matches()) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "After this kind of shift",
+              "Use shift codes joined by | (for example D8|N8 or (D8|N8|A12)), or .* for any"
+                  + " shift. No other regex syntax: a quantifier like (a+)+ could hang the"
+                  + " build."));
+    }
     if (row.number("windowHours") != 24) {
       violations.add(
           new Violation(
@@ -124,8 +182,10 @@ public final class RuleRowValidator {
               ));
     }
     double maximum = row.number("max");
-    if (maximum < 1) {
-      violations.add(new Violation(row.code(), "Maximum", "Maximum must be at least 1."));
+    if (maximum < 1 || maximum > 366) {
+      violations.add(
+          new Violation(
+              row.code(), "Maximum", "Maximum must be between 1 and 366 (a year of days)."));
     }
     String overtime = optionalText(row, "overtimeSeverity", "WARN");
     if (!overtime.equals("BLOCK") && !overtime.equals("WARN")) {
@@ -137,9 +197,15 @@ public final class RuleRowValidator {
   private static void validateLongShifts(RuleRow row, List<Violation> violations) {
     double in7 = row.number("maxIn7Days");
     double in28 = row.number("maxIn28Days");
-    if (in7 < 1) {
+    if (in7 < 1 || in7 > 28) {
       violations.add(
-          new Violation(row.code(), "Max in 7 days", "Maximum must be at least 1."));
+          new Violation(
+              row.code(), "Max in 7 days", "Maximum must be between 1 and 28 long shifts."));
+    }
+    if (in28 > 366) {
+      violations.add(
+          new Violation(
+              row.code(), "Max in 28 days", "Maximum can't exceed 366 long shifts."));
     }
     if (in28 < in7) {
       violations.add(
@@ -158,9 +224,10 @@ public final class RuleRowValidator {
               "Within how many days",
               "Days off are measured in a 7-day window; the value must be 7."));
     }
-    if (row.number("daysOff") < 1) {
+    double daysOff = row.number("daysOff");
+    if (daysOff < 1 || daysOff > 7) {
       violations.add(
-          new Violation(row.code(), "Days off required", "Must be at least 1 day."));
+          new Violation(row.code(), "Days off required", "Must be between 1 and 7 days."));
     }
   }
 
@@ -175,9 +242,11 @@ public final class RuleRowValidator {
                 "The prototype classifies overtime per pay period; a weekly threshold needs a"
                     + " per-week split first."));
       }
-      if (row.number("thresholdHours") <= 0) {
+      double threshold = row.number("thresholdHours");
+      if (threshold <= 0 || threshold > 168) {
         violations.add(
-            new Violation(row.code(), "Threshold hours", "Must be above 0 hours."));
+            new Violation(
+                row.code(), "Threshold hours", "Must be above 0 and no more than 168 hours."));
       }
     }
     if ("P-01b".equals(row.code())) {
@@ -253,6 +322,22 @@ public final class RuleRowValidator {
         }
       }
     }
+  }
+
+  private static String policyLabel(OverridePolicy policy) {
+    return switch (policy) {
+      case EMERGENCY -> "an emergency override with a written reason";
+      case ACKNOWLEDGE -> "acknowledgement, not an override";
+      case NONE -> "no override";
+    };
+  }
+
+  /** A hostile value must not be echoed whole into a report; the column check already refuses it. */
+  private static String display(String code) {
+    if (code == null) {
+      return "";
+    }
+    return code.length() <= 24 ? code : code.substring(0, 24) + "\u2026";
   }
 
   private static double optional(RuleRow row, String key, double fallback) {

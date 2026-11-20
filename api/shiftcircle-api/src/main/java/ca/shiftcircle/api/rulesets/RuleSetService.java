@@ -35,6 +35,8 @@ import java.util.UUID;
 import org.kie.api.KieBase;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -52,6 +54,10 @@ import tools.jackson.databind.ObjectMapper;
  */
 @Service
 public class RuleSetService {
+
+  private static final Logger log = LoggerFactory.getLogger(RuleSetService.class);
+  private static final String COMPILE_FAILED =
+      "The rules did not compile. Fix the values in the table and build again.";
 
   private static final ZoneId REGINA = ZoneId.of("America/Regina");
 
@@ -127,7 +133,7 @@ public class RuleSetService {
 
   public TableView table(int version, String tableCode) {
     Map<String, Object> versionRow = versionRow(version);
-    RuleTableCode table = resolveTable(tableCode);
+    RuleTableCode table = resolveTableOr404(tableCode);
     Map<String, Object> tableRow =
         jdbc.queryForMap(
             "SELECT name, column_schema::text AS schema FROM rule_table WHERE code = ?",
@@ -194,18 +200,33 @@ public class RuleSetService {
       int version, String tableCode, List<RowView> rows, AuthPrincipal principal) {
     Map<String, Object> versionRow = versionRow(version);
     requireStatus(versionRow, "DRAFT", "Only a draft can be edited");
-    RuleTableCode table = resolveTable(tableCode);
+    RuleTableCode table = resolveTableOr404(tableCode);
     if (rows == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "rows is required");
     }
     Map<String, Object> tableRow =
-        jdbc.queryForMap("SELECT id FROM rule_table WHERE code = ?", table.code());
+        jdbc.queryForMap(
+            "SELECT id, column_schema::text AS schema FROM rule_table WHERE code = ?",
+            table.code());
+    Map<String, Object> schema = readMap((String) tableRow.get("schema"));
+    java.util.Set<String> codes = new java.util.LinkedHashSet<>();
+    for (RowView row : rows) {
+      if (row.ruleCode() == null || row.ruleCode().isBlank()) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Every row needs a rule code");
+      }
+      if (!codes.add(row.ruleCode())) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "A table lists each rule once; '" + row.ruleCode() + "' is repeated");
+      }
+    }
     UUID versionId = (UUID) versionRow.get("id");
 
     int order = 0;
     for (RowView row : rows) {
       order++;
       Map<String, Object> params = row.params() == null ? new LinkedHashMap<>() : row.params();
+      requireParamTypes(schema, params);
       // The web updates params[hoursParam] itself; the after select carries a friendly label,
       // so map that back to the stored pattern when it is one of the known labels.
       if (table == RuleTableCode.REST && row.after() != null) {
@@ -244,11 +265,13 @@ public class RuleSetService {
       } else {
         jdbc.update(
             "UPDATE rule_row SET enabled = ?, params = ?::jsonb, severity = ?, override_policy = ?,"
-                + " source = ?, sort_order = ? WHERE rule_set_version_id = ? AND code = ?",
+                + " message = ?, source = ?, sort_order = ?"
+                + " WHERE rule_set_version_id = ? AND code = ?",
             row.enabled(),
             mapper.writeValueAsString(params),
             severity,
             override,
+            message,
             source,
             order,
             versionId,
@@ -318,10 +341,13 @@ public class RuleSetService {
               "compile", "Compile the decision tables", "The staging rule base compiled.", true,
               List.of()));
     } catch (RuleCompilationException e) {
-      errors.add(e.getMessage());
+      // The compiler message names generated classes and source positions: a compile oracle.
+      // Keep the detail in the server log and give the admin a plain refusal (review-r2 S1).
+      log.warn("rule set v{} did not compile", version, e);
+      errors.add(COMPILE_FAILED);
       steps.add(
           new BuildStepView(
-              "compile", "Compile the decision tables", e.getMessage(), false, List.of()));
+              "compile", "Compile the decision tables", COMPILE_FAILED, false, List.of()));
       return store(versionId, version, principal, steps, 0, 0, errors);
     }
 
@@ -348,18 +374,22 @@ public class RuleSetService {
           versionId, version, principal, steps, scenarioResults.size(), (int) passed, errors);
     }
 
-    // 4. Dry run on the current roster, counts only (ADR-017).
-    List<ImpactView> impact = dryRun(ruleSet);
+    // 4. Dry run on the current roster, counts only (ADR-017). A rule that used to fire and now
+    // fires nowhere is named: an absurd limit can make a safeguard silently disappear (S4).
+    DryRun dryRun = dryRun(ruleSet);
+    List<ImpactView> impact = dryRun.impact();
+    String dryRunDetail =
+        impact.isEmpty()
+            ? "No rule result changes on the current roster."
+            : impact.stream().mapToLong(ImpactView::count).sum()
+                + " result(s) change on the current roster.";
+    if (!dryRun.silent().isEmpty()) {
+      dryRunDetail +=
+          " No longer fires on the current roster: " + String.join(", ", dryRun.silent()) + ".";
+    }
     steps.add(
         new BuildStepView(
-            "dryRun",
-            "Dry run on the published roster",
-            impact.isEmpty()
-                ? "No rule result changes on the current roster."
-                : impact.stream().mapToLong(ImpactView::count).sum()
-                    + " result(s) change on the current roster.",
-            true,
-            impact));
+            "dryRun", "Dry run on the published roster", dryRunDetail, true, impact));
 
     return store(
         versionId, version, principal, steps, scenarioResults.size(), (int) passed, errors);
@@ -430,8 +460,24 @@ public class RuleSetService {
     RuleSet ruleSet =
         new RuleSet("v" + version, rowsRepository.rows((UUID) versionRow.get("id"), null));
     requireFingerprint(versionRow, ruleSet);
+    // Validate before compiling and before touching the database, so a row that could never be
+    // generated (or could inject code) is refused even if it reached an approved version.
+    List<RuleRowValidator.Violation> violations = validator.validate(ruleSet);
+    if (!violations.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "The rows are no longer valid; rebuild the draft before publishing ("
+              + violations.get(0)
+              + ")");
+    }
     // Compile before touching the database, so a failure changes nothing.
-    compiler.compile(ruleSet);
+    try {
+      compiler.compile(ruleSet);
+    } catch (RuleCompilationException e) {
+      log.warn("approved rule set v{} no longer compiles", version, e);
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "The rules did not compile; rebuild the draft and publish again");
+    }
 
     LocalDate effective =
         effectiveDate == null
@@ -469,7 +515,10 @@ public class RuleSetService {
   // Dry run
   // ---------------------------------------------------------------------------------------------
 
-  private List<ImpactView> dryRun(RuleSet candidateRows) {
+  /** Counts of changed results, plus the rules that used to fire and now fire nowhere. */
+  public record DryRun(List<ImpactView> impact, List<String> silent) {}
+
+  private DryRun dryRun(RuleSet candidateRows) {
     KieBase candidate = compiler.compile(candidateRows);
     KieBase current = live.snapshot().kieBase();
 
@@ -504,6 +553,8 @@ public class RuleSetService {
             });
 
     Map<String, Long> counts = new LinkedHashMap<>();
+    Map<String, Integer> firedBefore = new LinkedHashMap<>();
+    Map<String, Integer> firedAfter = new LinkedHashMap<>();
     shiftsByOfficer.forEach(
         (employee, shifts) -> {
           List<Object> facts = factsFor(shifts);
@@ -511,6 +562,8 @@ public class RuleSetService {
               facts.toArray()));
           Map<String, RuleOutcome> after = worstByRule(evaluator.evaluate(candidate,
               candidateRows.version(), facts.toArray()));
+          before.keySet().forEach(rule -> firedBefore.merge(rule, 1, Integer::sum));
+          after.keySet().forEach(rule -> firedAfter.merge(rule, 1, Integer::sum));
           for (String rule : union(before.keySet(), after.keySet())) {
             RuleOutcome from = before.get(rule);
             RuleOutcome to = after.get(rule);
@@ -531,7 +584,16 @@ public class RuleSetService {
               String[] parts = entry.getKey().split("\\|", -1);
               impact.add(new ImpactView(parts[0], parts[1], parts[2], parts[3], entry.getValue()));
             });
-    return impact;
+    return new DryRun(impact, silentRules(firedBefore, firedAfter));
+  }
+
+  /** Rules that fired at least once before and fire nowhere after: a safeguard went quiet. */
+  static List<String> silentRules(Map<String, Integer> firedBefore, Map<String, Integer> firedAfter) {
+    return firedBefore.entrySet().stream()
+        .filter(entry -> entry.getValue() > 0 && firedAfter.getOrDefault(entry.getKey(), 0) == 0)
+        .map(Map.Entry::getKey)
+        .sorted()
+        .toList();
   }
 
   private static String name(RuleOutcome outcome) {
@@ -745,7 +807,7 @@ public class RuleSetService {
       String mapped = TABLE_SLUGS.get(code);
       if (mapped == null) {
         throw new ResponseStatusException(
-            HttpStatus.BAD_REQUEST, "Unknown rule table: " + code);
+            HttpStatus.NOT_FOUND, "Unknown rule table: " + code);
       }
       return RuleTableCode.fromCode(mapped);
     }
@@ -883,6 +945,45 @@ public class RuleSetService {
           : String.valueOf(number.doubleValue());
     }
     return String.valueOf(value);
+  }
+
+  /**
+   * A value the screen sends must match the column's declared type. Without this a string in a
+   * numeric column reached the validator as a ClassCastException, which surfaced as a 500.
+   */
+  private void requireParamTypes(Map<String, Object> schema, Map<String, Object> params) {
+    for (Map.Entry<String, Object> entry : params.entrySet()) {
+      Object value = entry.getValue();
+      if ("_message".equals(entry.getKey()) || value == null) {
+        continue;
+      }
+      if (!(schema.get(entry.getKey()) instanceof Map<?, ?> column)) {
+        continue;
+      }
+      String label = String.valueOf(column.get("label") == null ? entry.getKey() : column.get("label"));
+      String type = String.valueOf(column.get("type"));
+      if ("number".equals(type) && !(value instanceof Number)) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "The " + label + " column needs a number");
+      }
+      if ("boolean".equals(type) && !(value instanceof Boolean)) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "The " + label + " column needs true or false");
+      }
+      if (column.get("enum") instanceof List<?> allowed && !allowed.contains(String.valueOf(value))) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "The " + label + " column must be one of " + allowed);
+      }
+    }
+  }
+
+  private RuleTableCode resolveTableOr404(String tableCode) {
+    try {
+      return resolveTable(tableCode);
+    } catch (IllegalArgumentException unknown) {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_FOUND, "Unknown rule table '" + tableCode + "'");
+    }
   }
 
   private Map<String, Object> readMap(String json) {

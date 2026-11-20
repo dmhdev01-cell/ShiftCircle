@@ -344,21 +344,42 @@ class AssignmentApiTest {
   }
 
   @Test
-  void thePreviewReportsThePublishedRuleSetVersion() throws Exception {
-    Integer original =
+  void thePreviewReportsTheLiveRuleSetVersion() throws Exception {
+    // The label must come from the same snapshot the rules evaluate under (review, hot-swap
+    // window): a direct database relabel would be the mismatch this test used to accept.
+    String admin = login("l.fraser");
+    String approver = login("p.singh");
+    Integer published =
         jdbc.queryForObject(
-            "SELECT version FROM rule_set_version WHERE status = 'PUBLISHED'", Integer.class);
-    try {
-      jdbc.update("UPDATE rule_set_version SET version = 42 WHERE status = 'PUBLISHED'");
-      Map<?, ?> body =
-          mapper.readValue(
-              post("/api/v1/rule-checks", changeBody(null), login("m.ellis")).body(), Map.class);
-      assertThat(body.get("ruleSetVersion"))
-          .as("the version comes from the published rule set, not a constant")
-          .isEqualTo(42);
-    } finally {
-      jdbc.update("UPDATE rule_set_version SET version = ? WHERE status = 'PUBLISHED'", original);
-    }
+            "SELECT max(version) FROM rule_set_version WHERE status = 'PUBLISHED'", Integer.class);
+    HttpResponse<String> created =
+        post(
+            "/api/v1/rule-sets/drafts",
+            "{\"basedOn\":" + published + ",\"reason\":\"the preview reports what it ran\"}",
+            admin);
+    assertThat(created.statusCode()).isEqualTo(201);
+    int version = ((Number) mapper.readValue(created.body(), Map.class).get("version")).intValue();
+
+    assertThat(post("/api/v1/rule-sets/" + version + "/build", "{}", admin).statusCode())
+        .isEqualTo(200);
+    assertThat(post("/api/v1/rule-sets/" + version + "/submit", "{}", admin).statusCode())
+        .isEqualTo(200);
+    assertThat(post("/api/v1/rule-sets/" + version + "/approve", "{}", approver).statusCode())
+        .isEqualTo(200);
+    assertThat(
+            post(
+                    "/api/v1/rule-sets/" + version + "/publish",
+                    "{\"effectiveDate\":\"2026-11-23\"}",
+                    approver)
+                .statusCode())
+        .isEqualTo(200);
+
+    Map<?, ?> body =
+        mapper.readValue(
+            post("/api/v1/rule-checks", changeBody(null), login("m.ellis")).body(), Map.class);
+    assertThat(body.get("ruleSetVersion"))
+        .as("the preview reports the rules it actually evaluated")
+        .isEqualTo(version);
   }
 
   private void insertSixteenHourShift(LocalDate date) {
