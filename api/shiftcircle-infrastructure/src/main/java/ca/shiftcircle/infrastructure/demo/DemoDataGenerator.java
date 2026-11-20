@@ -60,6 +60,7 @@ public class DemoDataGenerator implements ApplicationRunner {
   private final JdbcTemplate jdbc;
   private final Environment environment;
 
+  @org.springframework.beans.factory.annotation.Autowired
   public DemoDataGenerator(JdbcTemplate jdbc, Environment environment) {
     this.jdbc = jdbc;
     this.environment = environment;
