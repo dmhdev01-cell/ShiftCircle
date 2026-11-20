@@ -643,6 +643,26 @@ class RuleSetApiTest {
     assertThat(badDate.body()).contains("effectiveDate");
   }
 
+  @Test
+  @Order(11)
+  @SuppressWarnings("unchecked")
+  void theRuleSentenceIsPlainLanguage() throws Exception {
+    Map<String, Object> rest = table(1, "REST");
+    List<Map<String, Object>> rows = (List<Map<String, Object>>) rest.get("rows");
+    assertThat(rows).isNotEmpty();
+    for (Map<String, Object> row : rows) {
+      String sentence = (String) row.get("sentence");
+      assertThat(sentence).as((String) row.get("ruleCode")).isNotBlank().endsWith(".");
+      assertThat(sentence)
+          .as((String) row.get("ruleCode"))
+          .doesNotContain(".*")
+          .doesNotContain("is block.")
+          .doesNotContain("is warn.")
+          .doesNotContain("is info.")
+          .doesNotContainPattern("\\b(is|are) (BLOCK|WARN|INFO|block|warn|info)\\b");
+    }
+  }
+
   private Integer publishedVersion() {
     return jdbc.queryForObject(
         "SELECT max(version) FROM rule_set_version WHERE status = 'PUBLISHED'", Integer.class);
