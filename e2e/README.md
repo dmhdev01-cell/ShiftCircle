@@ -32,10 +32,13 @@ docker run --rm -v "$PWD/e2e":/work -w /work \
 ## Run against the compose stack
 
 ```sh
-docker compose up -d --build
+docker compose up -d --build --wait
 docker run --rm --network host -v "$PWD/e2e":/work -w /work \
   -e BASE_URL=http://localhost:8080 \
   mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures
 ```
 
-`E2E_WORKERS` sets parallelism (default 2; the shared machine made 7 workers flaky). The HTML report is in `playwright-report/`.
+`--wait` is enough: the api's readiness stays DOWN until the demo dataset has finished generating,
+so the web container starts against a loaded board and no test needs a sleep. `E2E_WORKERS` sets
+parallelism (default 2; the shared machine made 7 workers flaky). The HTML report is in
+`playwright-report/`.

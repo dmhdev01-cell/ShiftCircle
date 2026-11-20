@@ -59,21 +59,32 @@ public class DemoDataGenerator implements ApplicationRunner {
 
   private final JdbcTemplate jdbc;
   private final Environment environment;
+  private final DemoDataReadiness readiness;
 
   @org.springframework.beans.factory.annotation.Autowired
-  public DemoDataGenerator(JdbcTemplate jdbc, Environment environment) {
+  public DemoDataGenerator(
+      JdbcTemplate jdbc, Environment environment, DemoDataReadiness readiness) {
     this.jdbc = jdbc;
     this.environment = environment;
+    this.readiness = readiness;
+  }
+
+  public DemoDataGenerator(JdbcTemplate jdbc, Environment environment) {
+    this(jdbc, environment, null);
   }
 
   /** For tests and tools that generate with explicit settings instead of environment defaults. */
   public DemoDataGenerator(JdbcTemplate jdbc) {
-    this(jdbc, null);
+    this(jdbc, null, null);
   }
 
   @Override
   public void run(ApplicationArguments args) {
     generateIfEmpty();
+    // A failed generation throws, so readiness stays DOWN instead of advertising an empty board.
+    if (readiness != null) {
+      readiness.markReady();
+    }
   }
 
   /** Generates the dataset when the database has no officers; returns true when it generated. */
