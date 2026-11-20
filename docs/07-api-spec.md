@@ -70,6 +70,12 @@ the rule-compile refusal at `WARN` with the compiler's detail, and a boot-valida
 `ERROR` before the app stops. None of that detail is in the response body; the body keeps plain
 words (and, for an unexpected `500`, the `traceId` to quote).
 
+**Known limits of the error contract.** A path rejected by Spring Security's HTTP firewall (an
+encoded traversal, a session-id suffix) is answered before the api advice, with Spring's default
+JSON rather than problem+json; and nginx answers an oversized body (`413`), a malformed request
+line or a traversal to a static path with its own HTML page. Neither response carries application
+internals. Tightening both is deployment work; the api's own failures are all problem+json.
+
 ## 3. Rule checks: preview, save, override
 
 Every schedule-changing endpoint runs the rules engine. Clients use the same body three ways:
@@ -82,7 +88,8 @@ Every schedule-changing endpoint runs the rules engine. Clients use the same bod
 
 **Locked pay periods are a wall, not a prompt.** A preview or save whose shift's work date falls in a `LOCKED` period is refused with `409 .../pay-period-locked` before any rule check (docs/07 E4, ADR-017). Otherwise a shift could be saved into a closed period and never get its actual.
 
-**Preview request** (the same body is sent to `/assignments`; `type` is `ASSIGN` or `EXTRA`):
+**Preview request** (the same body is sent to `/assignments`; `type` is `ASSIGN` or `EXTRA`, and any
+other value is `400` naming the field):
 ```json
 POST /api/v1/rule-checks
 {
@@ -155,6 +162,9 @@ Content-Type: application/problem+json
 | POST | `/assignments` | Assign a shift (§3 rules apply) | SUPERVISOR |
 | PATCH | `/assignments/{id}` | Move or change a shift (`If-Match`) | SUPERVISOR |
 | DELETE | `/assignments/{id}` | Cancel (sets `CANCELLED`; never hard-deletes) | SUPERVISOR |
+
+A change's `startAt` must be within **five years of the business "today"**; a date outside that
+range is `400` naming `startAt`, not a conflict. A `Locked pay period` refusal stays `409`.
 | POST | `/schedule-periods/{id}/publish` | Publish a period | SUPERVISOR |
 | POST | `/absences` | Record sick, vacation or other (type only) | SUPERVISOR |
 
@@ -301,8 +311,10 @@ path (`POST /assignments`), so S-04 and the audit event still hold.
 **A row edit is saved or refused, never silently dropped.** The PUT checks every `params` key
 against the table's column schema: an unknown key, a value of the wrong type, a list longer than 16
 values, or a missing value in a column that is not nullable answers `400` naming the column (and the
-key). A key the schema does not declare is still accepted when the stored row already carries it
-(the v1 REST rows store `minExtensionMinutes` that way); a key the row does not carry is refused.
+key). `minExtensionMinutes` is part of the REST table's contract even though the v1 column schema
+predates it, so a new row and a stored row behave the same; any other undeclared key is refused. An
+unknown top-level field on a row object is also `400`, naming the field (the request fails on unknown
+properties rather than ignoring them).
 `afterShiftKind` is the stored column for the rest table's "After this kind of shift" field:
 the friendly labels (`Any shift`, `Regular shift`, `16 h shift`, `12 h 00–12`, `12 h 12–24`) map to
 their patterns, and a raw pattern such as `D8|E8` or `(D8|N8|A12)` is accepted when it matches the
