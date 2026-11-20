@@ -385,7 +385,19 @@ class RuleSetApiTest {
     assertThat(submit.statusCode())
         .as("a build that predates the current rows cannot be submitted")
         .isEqualTo(409);
-    assertThat(submit.body()).contains("rows changed since the last successful build");
+
+    // Saving rows also clears the report, so the fingerprint itself is proven the way a direct
+    // writer reaches it: rebuild, change one row underneath, then submit.
+    build(draft);
+    jdbc.update(
+        "UPDATE rule_row SET params = jsonb_set(params, '{minRestHours}', '13')"
+            + " WHERE rule_set_version_id ="
+            + " (SELECT id FROM rule_set_version WHERE version = ?) AND code = 'U-03'",
+        draft);
+    HttpResponse<String> stale =
+        send("POST", "/api/v1/rule-sets/" + draft + "/submit", null, "l.fraser");
+    assertThat(stale.statusCode()).isEqualTo(409);
+    assertThat(stale.body()).contains("rows changed since the last successful build");
   }
 
   @Test
