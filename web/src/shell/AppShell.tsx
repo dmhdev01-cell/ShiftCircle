@@ -53,7 +53,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <SessionWatcher />
       <TopBar />
 
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', flex: 1 }}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', flex: 1 }}>
         <SideNav />
 
         <Box
