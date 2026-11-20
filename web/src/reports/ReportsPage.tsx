@@ -88,6 +88,8 @@ export function ReportsPage() {
   const [overtime, setOvertime] = useState<OvertimeReport | null>(null);
   const [overrides, setOverrides] = useState<OverrideRow[] | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   // The address is the source of truth for which report is open, so a deep
   // link, a reload and the back button all land on the report they name (D3).
@@ -101,25 +103,30 @@ export function ReportsPage() {
     navigate(`/reports/${next}`, { replace: true });
   };
 
-  // The reports are read once; the tabs show what is already loaded.
+  // The reports are read once; the tabs show what is already loaded. A failed
+  // read is a state of its own, with a way to try again (D4).
   useEffect(() => {
     let active = true;
+    const fail = () => {
+      if (active) setFailed(true);
+    };
+    setFailed(false);
     void api.getCoverageReport({}).then((report) => {
       if (active) setCoverage(report);
-    });
+    }, fail);
     void api.getHoursReport({}).then((report) => {
       if (active) setHours(report);
-    });
+    }, fail);
     void api.getOvertimeReport({}).then((report) => {
       if (active) setOvertime(report);
-    });
+    }, fail);
     void api.getOverrides({}).then((rows) => {
       if (active) setOverrides(rows);
-    });
+    }, fail);
     return () => {
       active = false;
     };
-  }, []);
+  }, [attempt]);
 
   const exportCsv = async () => {
     try {
@@ -220,7 +227,25 @@ export function ReportsPage() {
         </Box>
       ) : null}
 
-      {tab === 'coverage' ? (
+      {failed ? (
+        <Card>
+          <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Typography sx={{ fontWeight: 600, fontSize: 15, color: colour.status.block.text }}>
+              Could not load the reports
+            </Typography>
+            <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
+              The reports did not arrive. Check the connection and try again.
+            </Typography>
+            <Box>
+              <Button variant="outlined" color="primary" onClick={() => setAttempt((value) => value + 1)}>
+                Try again
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {tab === 'coverage' && !failed ? (
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'stretch' }}>
           <Box sx={{ flex: '3 1 520px', minWidth: 0 }}>
             {coverage ? <CoverageChart report={coverage} /> : null}
@@ -231,7 +256,7 @@ export function ReportsPage() {
         </Box>
       ) : null}
 
-      {tab === 'hours' ? (
+      {tab === 'hours' && !failed ? (
         <Box
           sx={{
             backgroundColor: colour.bg.surface,
@@ -320,7 +345,7 @@ export function ReportsPage() {
         </Box>
       ) : null}
 
-      {tab === 'overtime' ? (
+      {tab === 'overtime' && !failed ? (
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'stretch' }}>
           <Box sx={{ flex: '2 1 340px', minWidth: 0 }}>
             {overtime ? <OvertimeBars report={overtime} title="Overtime this quarter" /> : null}
@@ -363,7 +388,7 @@ export function ReportsPage() {
         </Box>
       ) : null}
 
-      {tab === 'overrides' ? (
+      {tab === 'overrides' && !failed ? (
         <Card>
           <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>

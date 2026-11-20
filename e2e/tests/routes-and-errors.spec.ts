@@ -83,10 +83,8 @@ test.describe('routes and error states', () => {
   });
 
   test('the reports screen says so when its data cannot be loaded', async ({ page }) => {
-    // DEFECT D4 (found by this spec): ReportsPage.tsx:85-96 loads the four
-    // reports with no error handling, so a failed request leaves an empty
-    // screen with no message. Remove test.fail when fixed.
-    test.fail(true, 'D4: the reports screen shows nothing when its data fails to load');
+    // D4 was here: ReportsPage.tsx loaded the four reports with no error
+    // handling, so a failed request left an empty screen with no message.
     await signIn(page, 'A. Reviewer');
     await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible();
     await page.route('**/api/v1/reports/**', (route) => route.abort());

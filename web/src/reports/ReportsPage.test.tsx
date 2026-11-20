@@ -126,6 +126,27 @@ describe('the coverage report against the real api shape', () => {
     expect(screen.getByRole('columnheader', { name: 'When' })).toBeInTheDocument();
   });
 
+  it('says so when the reports cannot be loaded, and tries again', async () => {
+    // D4: a failed load left an empty screen with no message and no way back.
+    const failed = () => Promise.reject(new TypeError('Failed to fetch'));
+    const coverage = vi.spyOn(api, 'getCoverageReport').mockImplementation(failed);
+    const hours = vi.spyOn(api, 'getHoursReport').mockImplementation(failed);
+    const overtime = vi.spyOn(api, 'getOvertimeReport').mockImplementation(failed);
+    const overrides = vi.spyOn(api, 'getOverrides').mockImplementation(failed);
+
+    const user = userEvent.setup();
+    renderReports();
+
+    expect(await screen.findByText(/could not load the reports/i)).toBeInTheDocument();
+    // The browser's raw words never reach the screen.
+    expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
+
+    for (const spy of [coverage, hours, overtime, overrides]) spy.mockRestore();
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findByRole('img', { name: /Weekly coverage/ })).toBeInTheDocument();
+  });
+
   it('opens the report the address names, and keeps the address in step', async () => {
     const user = userEvent.setup();
     // D3: the route is /reports/:tab, but the page always opened on Coverage.
