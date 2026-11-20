@@ -157,6 +157,45 @@ test.describe('session and navigation', () => {
     await expect(page.getByRole('status').filter({ hasText: 'Your session ended. Sign in again.' })).toBeVisible();
   });
 
+  // DEFECT D11 (found by dev-qa): the token lives only in memory, so a full
+  // reload or a deep link loses the session; the screen then fires 401s and
+  // page errors instead of going to sign-in. Whether to persist the token is
+  // the person's security decision; either way the reload must land on sign-in
+  // with a notice, without page errors, and return to the route asked for.
+  // Remove test.fail when fixed.
+  for (const [link, path, heading] of [
+    ['Reports', '/reports/coverage', 'Reports'],
+    ['Planning board', '/planning', 'Planning board'],
+  ] as const) {
+    test(`a reload on ${path} lands on sign-in with a notice and no page errors`, async ({ page }) => {
+      test.fail(true, 'D11: a reload loses the in-memory session and shows errors instead of sign-in');
+      const errors: string[] = [];
+      page.on('pageerror', (error) => errors.push(error.message));
+      await signIn(page, 'M. Ellis');
+      await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: link }).click();
+      await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible();
+      await expect(page).toHaveURL(new RegExp(`${path}$`));
+
+      await page.reload();
+      await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible({ timeout: 5_000 });
+      await expect(page.getByRole('status').filter({ hasText: /session|sign in again/i })).toBeVisible();
+      expect(errors, 'page errors after the reload').toEqual([]);
+    });
+
+    // M. Ellis lands on /planning anyway, so only another route can show a return.
+    if (path === '/planning') continue;
+    test(`after a reload on ${path}, signing in returns to that screen`, async ({ page }) => {
+      test.fail(true, 'D11: after the reload, sign-in goes to the role landing, not the asked route');
+      await signIn(page, 'M. Ellis');
+      await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: link }).click();
+      await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible();
+      await page.reload();
+      await page.getByRole('button', { name: /M\. Ellis/ }).click({ timeout: 5_000 });
+      await expect(page).toHaveURL(new RegExp(`${path}$`), { timeout: 5_000 });
+      await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible();
+    });
+  }
+
   test('About & version shows the build the stack runs', async ({ page, request }) => {
     const version = await (await request.get('/api/v1/version')).json();
     await signIn(page, 'P. Singh');

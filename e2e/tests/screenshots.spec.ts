@@ -24,6 +24,30 @@ async function goInApp(page: Page, path: string): Promise<void> {
   }, path);
 }
 
+/**
+ * A report tab has its content: the chart and its data table, or the tab's
+ * table with at least one data row. The reports load once on mount with no
+ * loading state (D4), so the capture waits for content, never for time.
+ * Overrides may legitimately be empty (D2): its table header is enough.
+ */
+async function reportLoaded(page: Page, tab: 'Coverage' | 'Hours' | 'Overtime' | 'Overrides'): Promise<void> {
+  const main = page.getByRole('main');
+  if (tab === 'Coverage') {
+    await expect(main.getByText('Coverage: share of required staff-hours')).toBeVisible();
+    await expect(main.getByRole('row').nth(1)).toBeVisible();
+    await expect(main.getByText(/Overtime this quarter/).first()).toBeVisible();
+  } else if (tab === 'Hours') {
+    await expect(main.getByRole('heading', { name: /Hours by officer · pay period \d/ })).toBeVisible();
+    await expect(main.getByRole('row').nth(1)).toBeVisible();
+  } else if (tab === 'Overtime') {
+    await expect(main.getByRole('heading', { name: 'Overtime by officer' })).toBeVisible();
+    await expect(main.getByRole('row').nth(1)).toBeVisible();
+  } else {
+    await expect(main.getByRole('heading', { name: 'Emergency overrides' })).toBeVisible();
+    await expect(main.getByRole('columnheader', { name: 'Reason' })).toBeVisible();
+  }
+}
+
 /** The screen has its heading and nothing is still loading. */
 async function settled(page: Page, heading: string | RegExp): Promise<void> {
   await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible();
@@ -54,9 +78,9 @@ test.describe('screenshots', () => {
 
     await navTo(page, 'Reports');
     await settled(page, 'Reports');
-    for (const tab of ['Coverage', 'Hours', 'Overtime', 'Overrides']) {
-      await page.getByRole('group', { name: 'Report' }).getByRole('button', { name: tab }).click();
-      await page.waitForLoadState('networkidle');
+    for (const tab of ['Coverage', 'Hours', 'Overtime', 'Overrides'] as const) {
+      await page.getByRole('group', { name: 'Report' }).getByRole('button', { name: tab, exact: true }).click();
+      await reportLoaded(page, tab);
       await shot(page, testInfo, 'supervisor', 'reports', tab);
     }
 
@@ -146,9 +170,12 @@ test.describe('screenshots', () => {
   test('auditor screens', async ({ page }, testInfo) => {
     await signIn(page, 'A. Reviewer');
     await settled(page, 'Reports');
+    await reportLoaded(page, 'Coverage');
     await shot(page, testInfo, 'auditor', 'reports', 'landing');
-    await page.getByRole('group', { name: 'Report' }).getByRole('button', { name: 'Overrides' }).click();
-    await page.waitForLoadState('networkidle');
+    await page.getByRole('group', { name: 'Report' }).getByRole('button', { name: 'Overrides', exact: true }).click();
+    await reportLoaded(page, 'Overrides');
+    // The auditor sees the planted PC-03 override, so wait for its row.
+    await expect(page.getByRole('row').filter({ hasText: 'Lockdown, relief unavailable' })).toBeVisible();
     await shot(page, testInfo, 'auditor', 'reports', 'Overrides');
 
     await navTo(page, 'Planning board');
