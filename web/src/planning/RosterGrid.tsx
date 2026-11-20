@@ -129,7 +129,7 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGr
                 Pay period
                 <br />
                 <span style={{ fontWeight: 500 }}>
-                  {payload.period?.label ?? 'Pay period'} · of {threshold} h
+                  of {threshold} h
                 </span>
               </th>
               {payload.days.map((date) => {

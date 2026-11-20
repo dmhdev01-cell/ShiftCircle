@@ -433,7 +433,11 @@ export interface CoverageWeek {
   /** The share of required staff-hours that were scheduled, as a percentage. */
   scheduledPercent: number;
   /** The share that were actually worked. Absent for a planned week. */
-  actualPercent?: number;
+  /**
+   * The share that was actually worked. The api sends null for a planned
+   * week, so the screen has to treat null and absent the same way.
+   */
+  actualPercent?: number | null;
   /** True for a week that has not happened yet. */
   planned: boolean;
 }
