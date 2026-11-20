@@ -63,7 +63,7 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 
 ## ADR-013 — Coverage measured by unit and block
 **Status:** Accepted (2026-11-19)
-**Decision:** Required staffing is defined per unit per block (Day 07–15, Evening 15–23, Night 23–07), optionally with a qualification minimum. A shift counts toward a block when it covers at least half of it, so a 12-hour day counts toward Day and Evening.
+**Decision:** Required staffing is defined per unit per block (Day 07–15, Evening 15–23, Night 23–07), optionally with a qualification minimum. **Revised the same day:** coverage is measured hourly: each block's requirement applies to every hour in it, and a block is covered when every hour meets it. (The first version, "a shift counts toward a block if it covers half of it", double-counted 12-hour shifts; see ai-dev-log #10.)
 **Alternatives:** headcount per shift only (too coarse for qualification checks); named posts (most realistic, but much more setup). Named posts remain a future extension of `unit_requirement`.
 **Status note:** to be confirmed against real practice.
 

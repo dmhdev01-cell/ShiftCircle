@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ShiftCircle · My schedule</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F5F5F5;color:#333333;font-family:'Source Sans 3',sans-serif}
+a{color:#00558C}a:hover{color:#003D66}
+.num{font-variant-numeric:tabular-nums}
+.nav a{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:8px;color:#333333;text-decoration:none;font-size:14px;font-weight:500}
+.nav a:hover{background:#E1E3E6;color:#333333}
+.nav a.on{background:#046A38;color:#FFFFFF}
+.chip{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:26px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600;box-sizing:border-box;white-space:nowrap}
+.k-D{background:#FDF1B0;color:#333333}
+.k-E{background:#D5E8F3;color:#00558C}
+.k-N{background:#00558C;color:#FFFFFF}
+.k-OT{background:#A4D65E;color:#1F2A0A}
+.k-OFFER{background:#FFFFFF;color:#2F5206;border:2px dashed #64A70B}
+.k-Off{background:transparent;color:#666666;font-weight:500}
+.k-SL{background:#FFFFFF;color:#9A3412;border:1px dashed #C2410C}
+.cal{display:flex;flex-direction:column;gap:6px;min-height:84px;padding:8px;box-sizing:border-box;background:#FFFFFF;border:1px solid #E1E3E6;border-radius:8px}
+.cal.dim{background:#F7F7F8}
+.cal.dim .dn{color:#666666}
+.cal.today{border:2px solid #00558C}
+.dn{font-size:12px;font-weight:600;color:#333333}
+.st{display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:12px;font-size:12px;font-weight:600;white-space:nowrap}
+.st-pass{background:#E3F0E8;color:#046A38}
+.st-near{background:#FDF1B0;color:#5A4500}
+.st-under{background:#E8F1F8;color:#00558C}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:2px;font:600 14px 'Source Sans 3',system-ui,sans-serif;cursor:pointer;text-decoration:none;box-sizing:border-box}
+.btn-p{background:#FBDD40;color:#00558C;border:1px solid #FBDD40}
+.btn-p:hover{background:#00558C;color:#FFFFFF;border-color:#00558C}
+.btn-s{background:#FFFFFF;color:#00558C;border:1px solid #00558C}
+.btn-s:hover{background:#E8F1F8;color:#00558C}
+.card{background:#FFFFFF;border:1px solid #E1E3E6;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 12px 24px; background: #046A38; color: #FFFFFF; border-bottom: 4px solid #FBDD40">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="12" stroke="#FBDD40" stroke-width="3" stroke-dasharray="56 20" stroke-linecap="round"></circle><circle cx="16" cy="16" r="4" fill="#FFFFFF"></circle></svg>
+      <div style="display: flex; flex-direction: column">
+        <span style="font-family: 'Source Sans 3', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: -0.01em">ShiftCircle</span>
+        <span style="font-size: 12px; color: #D6E9DE">Prairie Provincial Correctional Centre · prototype, fictional data</span>
+      </div>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 13px">
+      <span class="num" style="color: #FFFFFF">Thu 19 Nov 2026 · 14:32</span>
+      <span style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 16px; background: #03552D">Employee · T. Nakamura <span style="color: #D6E9DE">(mock sign-in)</span></span>
+    </div>
+  </header>
+
+  <div style="display: flex; flex-wrap: wrap; flex: 1">
+    <nav class="nav" aria-label="Main" style="flex: 1 1 220px; max-width: 100%; box-sizing: border-box; padding: 16px 12px; background: #FFFFFF; border-right: 1px solid #E1E3E6; display: flex; flex-direction: column; gap: 4px">
+      <a href="MySchedule.dc.html" class="on">My schedule</a>
+      <a href="#planner">Propose shifts</a>
+      <a href="Reports.dc.html">My hours</a>
+      <a href="Main.dc.html">Supervisor view</a>
+    </nav>
+
+    <main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <h1 style="margin: 0; font-family: 'Source Sans 3', sans-serif; font-size: 36px; font-weight: 300">My schedule</h1>
+        <p style="margin: 0; font-size: 14px; color: #555B61">Tara Nakamura · Correctional officer · Unit B · 12-hour rotation (2 days, 2 nights, 4 off) · Control-room certified</p>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 12px">
+        <div style="flex: 2 1 280px; display: flex; flex-direction: column; gap: 6px; padding: 16px; background: #00558C; color: #FFFFFF; border-radius: 10px">
+          <span style="font-size: 12px; font-weight: 600; color: #D6E9DE; text-transform: uppercase; letter-spacing: 0.04em">Next shift</span>
+          <span style="font-family: 'Source Sans 3', sans-serif; font-size: 24px; font-weight: 700">Tonight · 19:00 – 07:00</span>
+          <span style="font-size: 14px; color: #FFFFFF">Night 12 h · Unit B · then 4 days off</span>
+        </div>
+        <div style="flex: 1 1 200px; display: flex; flex-direction: column; gap: 8px; padding: 16px; background: #FFFFFF; border: 1px solid #E1E3E6; border-radius: 10px">
+          <span style="font-size: 12px; font-weight: 600; color: #555B61">This pay period (9 – 22 Nov)</span>
+          <span class="num" style="font-family: 'Source Sans 3', sans-serif; font-size: 24px; font-weight: 700">72 <span style="font-size: 15px; font-weight: 600; color: #555B61">of 80 h</span></span>
+          <div aria-hidden="true" style="height: 8px; border-radius: 4px; background: #E1E3E6; overflow: hidden"><div style="width: 90%; height: 8px; background: #00558C"></div></div>
+          <span style="font-size: 12px; color: #555B61">60 h worked · 12 h still scheduled</span>
+        </div>
+        <div style="flex: 1 1 200px; display: flex; flex-direction: column; gap: 8px; padding: 16px; background: #FFFFFF; border: 1px solid #E1E3E6; border-radius: 10px">
+          <span style="font-size: 12px; font-weight: 600; color: #555B61">Overtime this quarter</span>
+          <span class="num" style="font-family: 'Source Sans 3', sans-serif; font-size: 24px; font-weight: 700">18.5 h</span>
+          <span style="font-size: 12px; color: #555B61">Rank 41 of 100 on the overtime list</span>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+        <section aria-label="Calendar" class="card" style="flex: 999 1 600px; min-width: 0">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+            <h2 style="margin: 0; font-size: 18px; font-weight: 700">November 2026</h2>
+            <div style="display: flex; gap: 8px">
+              <button class="btn btn-s" aria-label="Previous month">‹ Oct</button>
+              <button class="btn btn-s" aria-label="Next month">Dec ›</button>
+            </div>
+          </div>
+          <div style="overflow-x: auto">
+            <div style="min-width: 640px; display: flex; flex-direction: column; gap: 6px">
+              <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; font-size: 12px; font-weight: 600; color: #555B61">
+                <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px">
+                <sc-for list="{{cal}}" as="c" hint-placeholder-count="42">
+                  <div class="cal {{c.cls}}">
+                    <span class="dn num">{{c.n}}</span>
+                    <span class="chip {{c.k}}">{{c.label}}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <span style="font-size: 12px; color: #555B61">✓ = worked (recorded by your supervisor) · dashed purple = overtime offered to you</span>
+        </section>
+
+        <aside style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+          <section class="card" aria-label="Overtime offer" style="border: 2px solid #64A70B">
+            <span style="font-size: 12px; font-weight: 600; color: #2F5206; text-transform: uppercase; letter-spacing: 0.04em">Overtime offered to you</span>
+            <h2 style="margin: 0; font-size: 17px; font-weight: 700">Sat 21 Nov · Evening 15:00 – 23:00</h2>
+            <span style="font-size: 13px; color: #555B61">Unit B · offered by M. Ellis at 14:20 · paid at overtime rates</span>
+            <div style="display: flex; align-items: center; gap: 8px"><span class="st st-pass">Rules OK for you</span><span style="font-size: 12px; color: #555B61">32 h rest before · 84 h this pay period</span></div>
+            <sc-if value="{{pending}}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; flex-wrap: wrap; gap: 8px">
+                <button class="btn btn-p" onClick="{{accept}}">Accept</button>
+                <button class="btn btn-s" onClick="{{decline}}">Decline</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{answered}}" hint-placeholder-val="{{ false }}">
+              <div role="status" style="padding: 10px 12px; border-radius: 8px; background: #E8F1F8; font-size: 13px; font-weight: 600">{{answer}}</div>
+            </sc-if>
+          </section>
+
+          <section id="planner" class="card" aria-label="Propose shifts">
+            <div style="display: flex; flex-direction: column; gap: 4px">
+              <h2 style="margin: 0; font-size: 17px; font-weight: 700">Propose shifts</h2>
+              <span style="font-size: 13px; color: #555B61; line-height: 1.45">Draft the shifts you'd like. The rules are checked as you go, and your supervisor decides.</span>
+            </div>
+            <sc-for list="{{draft}}" as="d" hint-placeholder-count="2">
+              <div style="display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid #E1E3E6; border-radius: 8px">
+                <span style="font-size: 14px; font-weight: 600">{{d.what}}</span>
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap"><span class="st {{d.cls}}">{{d.outcome}}</span><span style="font-size: 12px; color: #555B61">{{d.why}}</span></div>
+              </div>
+            </sc-for>
+            <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600">Note to your supervisor
+              <textarea rows="3" style="padding: 10px 12px; border: 1px solid #8E959C; border-radius: 8px; font: 400 14px 'Source Sans 3', sans-serif; resize: vertical">Happy to take the Sat evening too if it helps cover the gap.</textarea>
+            </label>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px">
+              <button class="btn btn-p">Send to supervisor</button>
+              <button class="btn btn-s">Add a shift</button>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+  <footer style="padding: 20px 24px; background: #2C3136; color: #CCCCCC; font-size: 14px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px">
+    <span>ShiftCircle prototype · AI Solutions Architect assessment</span>
+    <span>Not an official Government of Saskatchewan service · fictional, synthetic data only</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1080}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { offer: 'pending' }; }
+  renderVals() {
+    const cycle = ['D12', 'D12', 'N12', 'N12', 'Off', 'Off', 'Off', 'Off'];
+    const K = { D12: 'k-D', N12: 'k-N', Off: 'k-Off' };
+    const cal = [];
+    for (let i = 0; i < 42; i++) {
+      const inNov = i >= 6 && i < 36;
+      const n = i < 6 ? 26 + i : (inNov ? i - 5 : i - 35);
+      let v = cycle[(((i - 21) % 8) + 8) % 8];
+      let label = v, k = K[v];
+      if (i === 9) { label = 'E · OT'; k = 'k-OT'; }
+      if (i === 15) { label = 'Sick'; k = 'k-SL'; }
+      if (i === 26) { label = 'E · offer'; k = 'k-OFFER'; }
+      const past = i < 24 && k !== 'k-Off' && label !== 'Sick';
+      if (past) label = '✓ ' + label;
+      let cls = inNov ? '' : 'dim';
+      if (i === 24) cls = 'today';
+      cal.push({ n: String(n), label, k, cls });
+    }
+    const draft = [
+      { what: 'Thu 26 Nov: change Night 12 h → Day 12 h', outcome: 'Passes', cls: 'st-pass', why: '12 h rest after Wed day shift · no new overtime' },
+      { what: 'Sat 28 Nov: add Evening 8 h (overtime)', outcome: 'Warning', cls: 'st-near', why: 'U-14: 52 h that week, over the 48 h warning level' }
+    ];
+    const o = this.state.offer;
+    return {
+      cal, draft,
+      pending: o === 'pending',
+      answered: o !== 'pending',
+      answer: o === 'yes' ? 'Accepted. Your supervisor will confirm the assignment.' : 'Declined. The offer moves to the next eligible officer.',
+      accept: () => this.setState({ offer: 'yes' }),
+      decline: () => this.setState({ offer: 'no' })
+    };
+  }
+}
+</script>
+</body>
+</html>

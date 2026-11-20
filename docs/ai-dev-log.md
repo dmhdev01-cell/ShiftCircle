@@ -1,0 +1,32 @@
+# AI-Assisted Development Log
+
+Required by the assessment: tools used, tasks delegated, what was verified, and AI suggestions that were corrected or rejected. **Keep adding entries as you build.** The build record (≤ 2 pages) will quote a few selected excerpts from here.
+
+## Tools
+
+| Tool | Used for |
+|---|---|
+| Claude (Opus 5.5) in the Claude app, linked to the project folder | Reading the assessment brief, scoping, requirements, architecture, research on Saskatchewan rules and design standards, the UI design canvas, documentation, git setup |
+| OpenRig (from 2026-11-20) | Implementation, per `HANDOFF.md`; add its entries below |
+
+## Log
+
+| # | Date | Task delegated to AI | How it was verified | Correction / rejection |
+|---|---|---|---|---|
+| 1 | 2026-11-19 | Read the assessment PDF and suggest how an existing app idea fits | Lead re-read the brief; rubric weights checked against the PDF | — |
+| 2 | 2026-11-19 | Propose scope | Lead reviewed | **AI recommendation partly overridden.** AI recommended one narrow workflow (safe shift swaps). The lead chose a broader scheduling prototype; AI then tiered features Must/Should/Could to manage the risk. Later the lead cut trades and notifications (ADR-010). |
+| 3 | 2026-11-19 | Research Saskatchewan rest and hours law | Cross-checked against saskatchewan.ca employment-standards pages (8 h rest in 24 h; 16 h max in 24 h, except emergencies) | — |
+| 4 | 2026-11-19 | Find or mock up collective-agreement rules | Sources labelled per rule (SEA, SGEU PS/GE 2022–2025, federal CX agreement, Nunavut, NWT, MOCK) | AI flagged that it could not read the full SGEU agreement text and that local letters of understanding aren't public: **all MOCK values need validation by someone who works in a correctional centre.** |
+| 5 | 2026-11-19 | Choose a rules engine | Lead reviewed options | **AI suggestion rejected.** AI recommended a custom rule-type catalogue (ADR-007). The lead chose Drools so non-technical staff can edit rules as decision tables (ADR-012). |
+| 6 | 2026-11-19 | Pick Java and Spring Boot versions | Checked Apache KIE release notes | **AI corrected itself.** First proposed Java 25 + Spring Boot 4.1; after checking that Apache KIE 10.2 lists Spring Boot 3.5 and Java 21 support, revised to Java 21 and added a Day 1 compatibility spike with a documented fallback. |
+| 7 | 2026-11-19 | Keep docs consistent after scope changes | Lead noticed while viewing the GitHub page | **AI error caught.** README still listed "trade limits" after trades were removed; fixed in commit `012dcab`. |
+| 8 | 2026-11-19 | Design the UI (design canvas) | Reviewed sample data for internal consistency | **AI error caught before publishing.** The overtime candidate list was out of order (21 h ranked after 34.5 h), contradicting the fair-distribution rule; reordered. A CSS class used in the first draft (`st-block`) was undefined; added. |
+| 9 | 2026-11-19 | Restyle to the Government of Saskatchewan digital standard | Colours and font taken from the published standard; contrast checked | **AI deviated from the standard deliberately:** its error red `#EE0000` fails 4.5:1 text contrast, so blocked messages use `#A30000`. **AI declined** to copy the government logo, wheat sheaf or coat of arms (would present the prototype as an official service). |
+| 10 | 2026-11-19 | Size the test dataset | Arithmetic: supply per hour vs requirement | **AI corrected its own earlier design.** The coverage rule "a shift counts toward a block if it covers half of it" double-counted 12 h shifts and distorted sizing. Replaced with hourly coverage (ADR-013 revised). |
+| 11 | 2026-11-19 | Create the GitHub repo and push | Repo checked in the browser | AI could create the repo through the browser but couldn't push (session lacked access); the lead pushed from their own terminal. |
+
+## Still to verify (open)
+
+- All MOCK collective-agreement values (`docs/05-union-rules.md` §6), with a practitioner.
+- Whether Drools 10 works with Spring Boot 4 on Java 21 (Day 1 spike).
+- Generated code: every rule must have boundary tests (`docs/10-testing.md` §3) **written or reviewed by a human**, not only generated.

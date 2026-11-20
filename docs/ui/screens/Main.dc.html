@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ShiftCircle · Planning board</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F5F5F5;color:#333333;font-family:'Source Sans 3',sans-serif}
+a{color:#00558C}a:hover{color:#003D66}
+.num{font-variant-numeric:tabular-nums}
+.nav a{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:8px;color:#333333;text-decoration:none;font-size:14px;font-weight:500}
+.nav a:hover{background:#E1E3E6;color:#333333}
+.nav a.on{background:#046A38;color:#FFFFFF}
+.chip{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-width:52px;height:30px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600;box-sizing:border-box;white-space:nowrap}
+.k-D{background:#FDF1B0;color:#333333}
+.k-E{background:#D5E8F3;color:#00558C}
+.k-N{background:#00558C;color:#FFFFFF}
+.k-OT{background:#A4D65E;color:#1F2A0A}
+.k-Off{background:transparent;color:#666666;font-weight:500}
+.k-SL{background:#FFFFFF;color:#9A3412;border:1px dashed #C2410C}
+.k-VAC{background:#E3F0E8;color:#046A38}
+.k-PROP{background:#FFFFFF;color:#A30000;border:2px dashed #C40000}
+.cov{display:flex;flex-direction:column;gap:2px;padding:6px 8px;border-radius:6px;font-size:12px;font-weight:600}
+.cov-ok{background:#E8F1F8;color:#00558C}
+.cov-gap{background:#FDF1B0;color:#5A4500}
+.cov-over{background:#EEF0F2;color:#333333}
+.cov small{font-weight:500;font-size:11px}
+.st{display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:12px;font-size:12px;font-weight:600;white-space:nowrap}
+.st-under{background:#E8F1F8;color:#00558C}
+.st-near{background:#FDF1B0;color:#5A4500}
+.st-ot{background:#E4F2CF;color:#2F5206}
+.st-block{background:#FDE8E8;color:#A30000}
+td.today,th.today{background:#EAF3F9}
+.roster td,.roster th{border-bottom:1px solid #E1E3E6;padding:8px;text-align:left;vertical-align:middle}
+.roster th{font-size:12px;font-weight:600;color:#555B61;background:#F7F7F8}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:2px;font:600 14px 'Source Sans 3',system-ui,sans-serif;cursor:pointer;text-decoration:none;box-sizing:border-box}
+.btn-p{background:#FBDD40;color:#00558C;border:1px solid #FBDD40}
+.btn-p:hover{background:#00558C;color:#FFFFFF;border-color:#00558C}
+.btn-s{background:#FFFFFF;color:#00558C;border:1px solid #00558C}
+.btn-s:hover{background:#E8F1F8;color:#00558C}
+.btn-d{background:#FFFFFF;color:#A30000;border:1px solid #C40000}
+.seg button{min-height:40px;padding:0 14px;border:0;background:transparent;font:600 13px 'Source Sans 3',system-ui,sans-serif;color:#333333;border-radius:6px;cursor:pointer}
+.seg button.on{background:#FFFFFF;color:#333333;box-shadow:0 1px 2px rgba(15,27,45,.15)}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 12px 24px; background: #046A38; color: #FFFFFF; border-bottom: 4px solid #FBDD40">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="12" stroke="#FBDD40" stroke-width="3" stroke-dasharray="56 20" stroke-linecap="round"></circle><circle cx="16" cy="16" r="4" fill="#FFFFFF"></circle></svg>
+      <div style="display: flex; flex-direction: column">
+        <span style="font-family: 'Source Sans 3', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: -0.01em">ShiftCircle</span>
+        <span style="font-size: 12px; color: #D6E9DE">Prairie Provincial Correctional Centre · prototype, fictional data</span>
+      </div>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 13px">
+      <span class="num" style="color: #FFFFFF">Thu 19 Nov 2026 · 14:32</span>
+      <span style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 16px; background: #03552D">Supervisor · M. Ellis <span style="color: #D6E9DE">(mock sign-in)</span></span>
+    </div>
+  </header>
+
+  <div style="display: flex; flex-wrap: wrap; flex: 1">
+    <nav class="nav" aria-label="Main" style="flex: 1 1 220px; max-width: 100%; box-sizing: border-box; padding: 16px 12px; background: #FFFFFF; border-right: 1px solid #E1E3E6; display: flex; flex-direction: column; gap: 4px">
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="6">
+        <a href="{{n.href}}" class="{{n.cls}}">{{n.label}}</a>
+      </sc-for>
+      <span style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; font-size: 14px; color: #666666">Time &amp; attendance</span>
+    </nav>
+
+    <main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h1 style="margin: 0; font-family: 'Source Sans 3', sans-serif; font-size: 36px; font-weight: 300">Planning board</h1>
+          <p style="margin: 0; font-size: 14px; color: #555B61">Unit B · Living unit · Week of 16 – 22 Nov 2026 · <strong style="color: #333333">Published</strong>, 3 unpublished changes</p>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: #555B61">Unit
+            <select style="min-height: 44px; padding: 0 12px; border: 1px solid #8E959C; border-radius: 8px; font: 500 14px 'Source Sans 3', sans-serif; color: #333333; background: #FFFFFF">
+              <option>Unit B · Living unit</option><option>Unit A · Living unit</option><option>Admissions</option><option>Control</option><option>Escort &amp; transport</option>
+            </select>
+          </label>
+          <div class="seg" role="group" aria-label="Range" style="display: flex; gap: 2px; padding: 3px; background: #E1E3E6; border-radius: 8px">
+            <button class="{{weekCls}}" onClick="{{showWeek}}">Week</button>
+            <button class="{{twoCls}}" onClick="{{showTwo}}">2 weeks</button>
+          </div>
+          <button class="btn btn-s">Check all rules</button>
+          <button class="btn btn-p">Publish 3 changes</button>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 12px">
+        <sc-for list="{{kpis}}" as="k" hint-placeholder-count="5">
+          <div style="flex: 1 1 170px; display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; background: #FFFFFF; border: 1px solid #E1E3E6; border-radius: 10px">
+            <span style="font-size: 12px; font-weight: 600; color: #555B61">{{k.label}}</span>
+            <span class="num" style="font-family: 'Source Sans 3', sans-serif; font-size: 28px; font-weight: 700">{{k.value}}</span>
+            <span style="font-size: 12px; color: #666666">{{k.note}}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+        <section aria-label="Roster" style="flex: 999 1 640px; min-width: 0; background: #FFFFFF; border: 1px solid #E1E3E6; border-radius: 10px">
+          <div style="overflow-x: auto">
+            <table class="roster" style="width: 100%; min-width: 900px; border-collapse: collapse; font-size: 13px">
+              <thead>
+                <tr>
+                  <th style="min-width: 190px">Officer</th>
+                  <th>Pay period<br><span style="font-weight: 500">9 – 22 Nov · of 80 h</span></th>
+                  <sc-for list="{{days}}" as="d" hint-placeholder-count="7">
+                    <th class="{{d.cls}}"><span style="display: block; color: #333333">{{d.dow}} {{d.date}}</span><span style="font-weight: 500">{{d.tag}}</span></th>
+                  </sc-for>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{coverage}}" as="r" hint-placeholder-count="3">
+                  <tr>
+                    <td colspan="2" style="font-weight: 600; background: #F7F7F8">{{r.label}}<br><span style="font-weight: 500; font-size: 12px; color: #555B61">{{r.sub}}</span></td>
+                    <sc-for list="{{r.cells}}" as="c" hint-placeholder-count="7">
+                      <td class="{{c.col}}"><div class="cov {{c.cls}}"><span class="num">{{c.main}}</span><small>{{c.sub}}</small></div></td>
+                    </sc-for>
+                  </tr>
+                </sc-for>
+                <sc-for list="{{officers}}" as="o" hint-placeholder-count="10">
+                  <tr>
+                    <td>
+                      <div style="display: flex; flex-direction: column; gap: 2px">
+                        <span style="font-weight: 600">{{o.name}}</span>
+                        <span style="font-size: 12px; color: #555B61">{{o.pattern}}</span>
+                      </div>
+                    </td>
+                    <td><div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start"><span class="num" style="font-weight: 600">{{o.hours}}</span><span class="st {{o.stCls}}">{{o.st}}</span></div></td>
+                    <sc-for list="{{o.cells}}" as="c" hint-placeholder-count="7">
+                      <td class="{{c.col}}"><span class="chip {{c.cls}}" title="{{c.title}}">{{c.label}}</span></td>
+                    </sc-for>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 12px 16px; border-top: 1px solid #E1E3E6; font-size: 12px; color: #555B61">
+            <span style="font-weight: 600; color: #333333">Key</span>
+            <span class="chip k-D">D</span>Day 07–15
+            <span class="chip k-E">E</span>Evening 15–23
+            <span class="chip k-N">N</span>Night 23–07
+            <span class="chip k-D">D12</span>/<span class="chip k-N">N12</span>12 h 07–19 / 19–07
+            <span class="chip k-OT">OT</span>Overtime
+            <span class="chip k-SL">Sick</span>
+            <span class="chip k-VAC">Vac</span>
+            <span>✓ = worked (actual recorded)</span>
+          </div>
+        </section>
+
+        <aside aria-label="Rule check" style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+          <section style="background: #FFFFFF; border: 1px solid #E1E3E6; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+            <div style="display: flex; flex-direction: column; gap: 4px">
+              <span style="font-size: 12px; font-weight: 600; color: #555B61; text-transform: uppercase; letter-spacing: 0.04em">Proposed change</span>
+              <h2 style="margin: 0; font-size: 17px; font-weight: 700">Assign Nia Thompson → Days</h2>
+              <span style="font-size: 13px; color: #555B61">Unit B · Sat 21 Nov · 07:00 – 15:00</span>
+            </div>
+            <div role="status" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px; background: #FDE8E8; color: #A30000; font-weight: 700; font-size: 14px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86"></polygon><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+              Blocked: 2 rules fail
+            </div>
+            <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px">
+              <sc-for list="{{results}}" as="r" hint-placeholder-count="3">
+                <li style="display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid #E1E3E6; border-radius: 8px">
+                  <div style="display: flex; align-items: center; gap: 8px">
+                    <span class="st {{r.cls}}">{{r.outcome}}</span>
+                    <span style="font-size: 12px; font-weight: 600; color: #555B61">{{r.code}} · {{r.name}}</span>
+                  </div>
+                  <span style="font-size: 13px; line-height: 1.45">{{r.msg}}</span>
+                  <span style="font-size: 12px; color: #555B61">{{r.evidence}}</span>
+                </li>
+              </sc-for>
+            </ul>
+            <span style="font-size: 12px; color: #555B61">9 other rules passed · Rule tables v7 (published 13:50)</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px">
+              <a class="btn btn-p" href="Overtime.dc.html">Find eligible officer</a>
+              <button class="btn btn-s">Cancel</button>
+              <button class="btn btn-d">Emergency override…</button>
+            </div>
+            <p style="margin: 0; font-size: 12px; color: #555B61; line-height: 1.5">An override needs a written reason. It is saved to the audit log and flagged in reports.</p>
+          </section>
+
+          <section style="background: #FFFFFF; border: 1px solid #E1E3E6; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+            <h2 style="margin: 0; font-size: 15px; font-weight: 700">Recent activity</h2>
+            <sc-for list="{{activity}}" as="a" hint-placeholder-count="3">
+              <div style="display: flex; gap: 10px; font-size: 13px; line-height: 1.45">
+                <span class="num" style="color: #555B61; min-width: 42px">{{a.t}}</span>
+                <span>{{a.text}}</span>
+              </div>
+            </sc-for>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+  <footer style="padding: 20px 24px; background: #2C3136; color: #CCCCCC; font-size: 14px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px">
+    <span>ShiftCircle prototype · AI Solutions Architect assessment</span>
+    <span>Not an official Government of Saskatchewan service · fictional, synthetic data only</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1080}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { range: 'week' }; }
+  renderVals() {
+    const days = [
+      { dow: 'Mon', date: '16', tag: 'Actual' }, { dow: 'Tue', date: '17', tag: 'Actual' }, { dow: 'Wed', date: '18', tag: 'Actual' },
+      { dow: 'Thu', date: '19', tag: 'Today' }, { dow: 'Fri', date: '20', tag: 'Planned' }, { dow: 'Sat', date: '21', tag: 'Planned' }, { dow: 'Sun', date: '22', tag: 'Planned' }
+    ].map((d, i) => ({ ...d, cls: i === 3 ? 'today' : '' }));
+    const col = (i) => (i === 3 ? 'today' : '');
+    const cov = (label, sub, arr) => ({ label, sub, cells: arr.map((c, i) => ({ main: c[0], sub: c[1], cls: 'cov-' + c[2], col: col(i) })) });
+    const coverage = [
+      cov('Days', 'needs 5', [['5 / 5', '✓ 5 worked', 'ok'], ['5 / 5', '✓ 5 (1 OT)', 'ok'], ['5 / 5', '✓ 5 worked', 'ok'], ['5 / 5', 'on shift', 'ok'], ['5 / 5', '', 'ok'], ['4 / 5', 'gap 1', 'gap'], ['5 / 5', '', 'ok']]),
+      cov('Evenings', 'needs 4', [['4 / 4', '✓ 4 worked', 'ok'], ['4 / 4', '✓ 4 worked', 'ok'], ['4 / 4', '✓ 4 worked', 'ok'], ['4 / 4', '', 'ok'], ['3 / 4', 'gap 1', 'gap'], ['4 / 4', 'OT filled', 'ok'], ['4 / 4', '', 'ok']]),
+      cov('Nights', 'needs 3', [['3 / 3', '✓ 3 worked', 'ok'], ['3 / 3', '✓ 3 worked', 'ok'], ['3 / 3', '✓ 3 worked', 'ok'], ['3 / 3', '', 'ok'], ['3 / 3', '', 'ok'], ['3 / 3', '', 'ok'], ['4 / 3', '+1 over', 'over']])
+    ];
+    const K = { D: 'k-D', E: 'k-E', N: 'k-N', D12: 'k-D', N12: 'k-N', Off: 'k-Off', Sick: 'k-SL', Vac: 'k-VAC' };
+    const cell = (v, i) => {
+      if (v === 'OT16') return { label: '16 h OT', cls: 'k-OT', title: 'Double: 07:00–23:00 (8 h overtime)', col: col(i) };
+      if (v === 'EOT') return { label: 'E · OT', cls: 'k-OT', title: 'Evening, overtime (open shift accepted)', col: col(i) };
+      if (v === 'PROP') return { label: '! D proposed', cls: 'k-PROP', title: 'Proposed: blocked by rules', col: col(i) };
+      const past = i < 3 && v !== 'Off' && v !== 'Sick' && v !== 'Vac';
+      return { label: (past ? '✓ ' : '') + v, cls: K[v], title: v, col: col(i) };
+    };
+    const st = { under: ['Under', 'st-under'], near: ['Approaching', 'st-near'], ot: ['In overtime', 'st-ot'] };
+    const off = (name, pattern, hours, s, cells) => ({ name, pattern, hours, st: st[s][0], stCls: st[s][1], cells: cells.map(cell) });
+    const officers = [
+      off('Tara Nakamura', '12 h · 2D 2N 4 off · Control', '72 h', 'under', ['D12', 'D12', 'N12', 'N12', 'Off', 'Off', 'Off']),
+      off('Ruth Okafor', '12 h · 2D 2N 4 off · Escort', '84 h', 'ot', ['Off', 'Off', 'D12', 'D12', 'N12', 'N12', 'Off']),
+      off('Marc Desjardins', '8 h · Control, First aid', '64 h', 'under', ['D', 'D', 'Sick', 'D', 'D', 'Off', 'Off']),
+      off('Kari Lindqvist', '8 h · First aid', '78 h', 'near', ['E', 'E', 'OT16', 'Off', 'E', 'E', 'Off']),
+      off('Sam Abara', '8 h · Escort', '72 h', 'under', ['N', 'N', 'N', 'N', 'Off', 'Off', 'N']),
+      off('Piotr Kowalczyk', '12 h · 2D 2N 4 off · Control', '80 h', 'near', ['N12', 'N12', 'Off', 'Off', 'D12', 'D12', 'Off']),
+      off('Leah Morin', '8 h · First aid', '56 h', 'under', ['D', 'D', 'D', 'Vac', 'Vac', 'Off', 'Off']),
+      off('Devon Clarke', '8 h · Control', '88 h', 'ot', ['Off', 'E', 'E', 'E', 'E', 'EOT', 'Off']),
+      off('Nia Thompson', '12 h · Escort, First aid', '84 h', 'ot', ['D12', 'Off', 'Off', 'D12', 'N12', 'PROP', 'Off']),
+      off('Aiden Bergeron', '8 h · General duty', '72 h', 'under', ['E', 'E', 'Off', 'Off', 'N', 'N', 'N'])
+    ];
+    const kpis = [
+      { label: 'Coverage gaps', value: '2', note: 'Fri evenings, Sat days' },
+      { label: 'In overtime', value: '3', note: 'this pay period' },
+      { label: 'Approaching overtime', value: '2', note: 'within 8 h of 80 h' },
+      { label: 'Rule warnings', value: '5', note: 'on the published week' },
+      { label: 'Overrides this period', value: '1', note: 'emergency, with reason' }
+    ];
+    const results = [
+      { outcome: 'Block', cls: 'st-ot', code: 'U-01', name: 'Minimum rest', msg: 'No rest after the 12 h night ending Sat 07:00. The minimum is 8 consecutive hours in any 24 hours.', evidence: 'Source: Saskatchewan Employment Act · Evidence: Fri 20 N12 19:00 – 07:00' },
+      { outcome: 'Block', cls: 'st-ot', code: 'U-05', name: 'Max 16 h in 24 h', msg: '20 hours of work in 24 hours (12 h night + 8 h day).', evidence: 'Source: Saskatchewan Employment Act' },
+      { outcome: 'Warn', cls: 'st-near', code: 'U-14', name: 'Weekly ceiling', msg: '52 hours this week, over the 48 h warning level.', evidence: 'Source: mock agreement (placeholder)' }
+    ];
+    results[0].cls = 'st-block'; results[1].cls = 'st-block';
+    const activity = [
+      { t: '14:05', text: 'M. Ellis assigned Devon Clarke to Sat evenings (overtime). All rules passed.' },
+      { t: '13:50', text: 'Rule table "Rest between shifts" v7 published by L. Fraser, approved by P. Singh.' },
+      { t: '11:12', text: 'Marc Desjardins marked sick for Wed 18 Nov days; gap filled by Kari Lindqvist (16 h double).' }
+    ];
+    const nav = [
+      { label: 'Planning board', href: 'Main.dc.html', cls: 'on' },
+      { label: 'Overtime', href: 'Overtime.dc.html', cls: '' },
+      { label: 'Reports', href: 'Reports.dc.html', cls: '' },
+      { label: 'Rules', href: 'Rules.dc.html', cls: '' },
+      { label: 'Wall display', href: 'WallDisplay.dc.html', cls: '' },
+      { label: 'Employee view', href: 'MySchedule.dc.html', cls: '' }
+    ];
+    return {
+      days, coverage, officers, kpis, results, activity, nav,
+      weekCls: this.state.range === 'week' ? 'on' : '',
+      twoCls: this.state.range === 'two' ? 'on' : '',
+      showWeek: () => this.setState({ range: 'week' }),
+      showTwo: () => this.setState({ range: 'two' })
+    };
+  }
+}
+</script>
+</body>
+</html>

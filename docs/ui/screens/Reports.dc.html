@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ShiftCircle · Reports</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F5F5F5;color:#333333;font-family:'Source Sans 3',sans-serif}
+a{color:#00558C}a:hover{color:#003D66}
+.num{font-variant-numeric:tabular-nums}
+.nav a{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:8px;color:#333333;text-decoration:none;font-size:14px;font-weight:500}
+.nav a:hover{background:#E1E3E6;color:#333333}
+.nav a.on{background:#046A38;color:#FFFFFF}
+.st{display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:12px;font-size:12px;font-weight:600;white-space:nowrap}
+.st-pass{background:#E3F0E8;color:#046A38}
+.st-info{background:#EEF0F2;color:#444A50}
+.seg button{min-height:40px;padding:0 14px;border:0;background:transparent;font:600 13px 'Source Sans 3',system-ui,sans-serif;color:#333333;border-radius:6px;cursor:pointer}
+.seg button.on{background:#FFFFFF;color:#333333;box-shadow:0 1px 2px rgba(15,27,45,.15)}
+.fl{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:#555B61}
+.fl select,.fl input{min-height:44px;padding:0 12px;border:1px solid #8E959C;border-radius:8px;font:500 14px 'Source Sans 3',sans-serif;color:#333333;background:#FFFFFF;box-sizing:border-box}
+.ht td,.ht th{border-bottom:1px solid #E1E3E6;padding:10px;text-align:right}
+.ht td:first-child,.ht th:first-child{text-align:left}
+.ht th{font-size:12px;font-weight:600;color:#555B61;background:#F7F7F8}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:2px;font:600 14px 'Source Sans 3',system-ui,sans-serif;cursor:pointer;text-decoration:none;box-sizing:border-box}
+.btn-p{background:#FBDD40;color:#00558C;border:1px solid #FBDD40}
+.btn-p:hover{background:#00558C;color:#FFFFFF;border-color:#00558C}
+.btn-s{background:#FFFFFF;color:#00558C;border:1px solid #00558C}
+.btn-s:hover{background:#E8F1F8;color:#00558C}
+.card{background:#FFFFFF;border:1px solid #E1E3E6;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 12px 24px; background: #046A38; color: #FFFFFF; border-bottom: 4px solid #FBDD40">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="12" stroke="#FBDD40" stroke-width="3" stroke-dasharray="56 20" stroke-linecap="round"></circle><circle cx="16" cy="16" r="4" fill="#FFFFFF"></circle></svg>
+      <div style="display: flex; flex-direction: column">
+        <span style="font-family: 'Source Sans 3', sans-serif; font-weight: 700; font-size: 20px; letter-spacing: -0.01em">ShiftCircle</span>
+        <span style="font-size: 12px; color: #D6E9DE">Prairie Provincial Correctional Centre · prototype, fictional data</span>
+      </div>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 13px">
+      <span class="num" style="color: #FFFFFF">Thu 19 Nov 2026 · 14:32</span>
+      <span style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 16px; background: #03552D">Supervisor · M. Ellis <span style="color: #D6E9DE">(mock sign-in)</span></span>
+    </div>
+  </header>
+
+  <div style="display: flex; flex-wrap: wrap; flex: 1">
+    <nav class="nav" aria-label="Main" style="flex: 1 1 220px; max-width: 100%; box-sizing: border-box; padding: 16px 12px; background: #FFFFFF; border-right: 1px solid #E1E3E6; display: flex; flex-direction: column; gap: 4px">
+      <a href="Main.dc.html">Planning board</a>
+      <a href="Overtime.dc.html">Overtime</a>
+      <a href="Reports.dc.html" class="on">Reports</a>
+      <a href="Rules.dc.html">Rules</a>
+      <a href="WallDisplay.dc.html">Wall display</a>
+      <a href="MySchedule.dc.html">Employee view</a>
+    </nav>
+
+    <main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 20px">
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h1 style="margin: 0; font-family: 'Source Sans 3', sans-serif; font-size: 36px; font-weight: 300">Reports</h1>
+          <p style="margin: 0; font-size: 14px; color: #555B61">Planned vs actual, for any date range · Employees see only their own hours</p>
+        </div>
+        <div class="seg" role="group" aria-label="Report" style="display: flex; gap: 2px; padding: 3px; background: #E1E3E6; border-radius: 8px">
+          <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+            <button class="{{t.cls}}" onClick="{{t.pick}}">{{t.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; padding: 14px 16px; background: #FFFFFF; border: 1px solid #E1E3E6; border-radius: 10px">
+        <label class="fl">From<input type="date" value="2026-10-01"></label>
+        <label class="fl">To<input type="date" value="2026-11-19"></label>
+        <label class="fl">Unit<select><option>All units</option><option>Unit A</option><option>Unit B</option><option>Admissions</option><option>Control</option></select></label>
+        <label class="fl">Officer<select><option>All 100 officers</option><option>Tara Nakamura</option><option>Ruth Okafor</option></select></label>
+        <span style="flex: 1 1 auto"></span>
+        <button class="btn btn-s">Export CSV</button>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 12px">
+        <sc-for list="{{kpis}}" as="k" hint-placeholder-count="5">
+          <div style="flex: 1 1 170px; display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; background: #FFFFFF; border: 1px solid #E1E3E6; border-radius: 10px">
+            <span style="font-size: 12px; font-weight: 600; color: #555B61">{{k.label}}</span>
+            <span class="num" style="font-family: 'Source Sans 3', sans-serif; font-size: 26px; font-weight: 700">{{k.value}}</span>
+            <span style="font-size: 12px; color: #555B61">{{k.note}}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: stretch">
+        <section class="card" aria-label="Coverage by week" style="flex: 3 1 520px; min-width: 0">
+          <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px">
+            <h2 style="margin: 0; font-size: 16px; font-weight: 700">Coverage: share of required staff-hours</h2>
+            <div style="display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: #333333">
+              <span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #B9D9EB"></span>Scheduled</span>
+              <span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #00558C"></span>Actual</span>
+              <span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 14px; border-top: 2px dashed #333333"></span>Required (100%)</span>
+            </div>
+          </div>
+          <div role="img" aria-label="Weekly coverage, scheduled and actual as a percentage of required. Actual ranges from 97.4% to 99.2%." style="position: relative; display: flex; gap: 6px; align-items: stretch">
+            <div aria-hidden="true" style="display: flex; flex-direction: column; justify-content: space-between; height: 220px; font-size: 11px; color: #555B61; text-align: right; min-width: 36px" class="num"><span>102%</span><span>100%</span><span>98%</span><span>96%</span><span>94%</span></div>
+            <div style="position: relative; flex: 1; height: 220px; border-left: 1px solid #8E959C; border-bottom: 1px solid #8E959C">
+              <div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 25%; border-top: 2px dashed #333333"></div>
+              <div style="position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: space-around; padding: 0 8px">
+                <sc-for list="{{weeks}}" as="w" hint-placeholder-count="8">
+                  <div style="display: flex; align-items: flex-end; gap: 3px; height: 100%">
+                    <div title="Scheduled {{w.s}}" style="width: 16px; height: {{w.sh}}; background: #B9D9EB; border-radius: 3px 3px 0 0"></div>
+                    <div title="Actual {{w.a}}" style="width: 16px; height: {{w.ah}}; background: #00558C; border-radius: 3px 3px 0 0"></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-around; padding-left: 50px; font-size: 11px; color: #555B61" class="num">
+            <sc-for list="{{weeks}}" as="w" hint-placeholder-count="8"><span>{{w.label}}</span></sc-for>
+          </div>
+          <span style="font-size: 12px; color: #555B61">The axis starts at 94% so small gaps are visible. The 23 Nov week is planned only.</span>
+        </section>
+
+        <section class="card" aria-label="Overtime by officer" style="flex: 2 1 340px; min-width: 0">
+          <h2 style="margin: 0; font-size: 16px; font-weight: 700">Overtime this quarter · top 8</h2>
+          <sc-for list="{{ot}}" as="o" hint-placeholder-count="8">
+            <div style="display: grid; grid-template-columns: 130px minmax(0, 1fr) 56px; align-items: center; gap: 10px; font-size: 13px">
+              <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{o.name}}</span>
+              <div aria-hidden="true" style="height: 14px; background: #EEF0F2; border-radius: 4px"><div style="height: 14px; width: {{o.w}}; background: #64A70B; border-radius: 4px"></div></div>
+              <span class="num" style="text-align: right; font-weight: 600">{{o.h}}</span>
+            </div>
+          </sc-for>
+          <span style="font-size: 12px; color: #555B61">Facility average: 12.4 h per officer · fair-distribution order uses these totals</span>
+        </section>
+      </div>
+
+      <section class="card" aria-label="Hours by officer">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <h2 style="margin: 0; font-size: 16px; font-weight: 700">Hours by officer · pay period 26 Oct – 8 Nov</h2>
+            <span style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #555B61"><span class="st st-pass">Locked</span> by M. Ellis on 9 Nov · totals in hours</span>
+          </div>
+          <button class="btn btn-p">Payroll export (CSV)</button>
+        </div>
+        <div style="overflow-x: auto">
+          <table class="ht" style="width: 100%; min-width: 820px; border-collapse: collapse; font-size: 13px">
+            <thead><tr><th>Officer</th><th>Scheduled</th><th>Worked</th><th>Regular</th><th>OT 1.5×</th><th>OT 2×</th><th>Sick</th><th>Vacation</th><th>Worked − scheduled</th></tr></thead>
+            <tbody>
+              <sc-for list="{{hours}}" as="h" hint-placeholder-count="6">
+                <tr>
+                  <td style="font-weight: 600">{{h.name}}</td>
+                  <td class="num">{{h.s}}</td><td class="num">{{h.w}}</td><td class="num">{{h.r}}</td><td class="num">{{h.o1}}</td><td class="num">{{h.o2}}</td><td class="num">{{h.sk}}</td><td class="num">{{h.v}}</td><td class="num" style="font-weight: 600">{{h.d}}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+        <span style="font-size: 12px; color: #555B61">Showing 6 of 100 officers · Pay codes follow the pay classification rule table (P-01, P-02) · The payroll system itself is simulated</span>
+      </section>
+    </main>
+  </div>
+  <footer style="padding: 20px 24px; background: #2C3136; color: #CCCCCC; font-size: 14px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px">
+    <span>ShiftCircle prototype · AI Solutions Architect assessment</span>
+    <span>Not an official Government of Saskatchewan service · fictional, synthetic data only</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1120}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { tab: 'Coverage' }; }
+  renderVals() {
+    const tabs = ['Coverage', 'Hours', 'Overtime'].map((l) => ({ label: l, cls: this.state.tab === l ? 'on' : '', pick: () => this.setState({ tab: l }) }));
+    const pct = (v) => Math.max(0, Math.min(100, ((v - 94) / 8) * 100)).toFixed(1) + '%';
+    const W = [['5 Oct', 100.4, 98.9], ['12 Oct', 100.2, 99.2], ['19 Oct', 99.6, 97.8], ['26 Oct', 100.1, 98.4], ['2 Nov', 100.3, 99.0], ['9 Nov', 99.4, 97.4], ['16 Nov', 99.8, 98.6], ['23 Nov', 99.4, 94]];
+    const weeks = W.map(([label, s, a], i) => ({ label, s: s + '%', a: i === 7 ? 'not yet' : a + '%', sh: pct(s), ah: i === 7 ? '0%' : pct(a) }));
+    const kpis = [
+      { label: 'Scheduled hours', value: '28,640', note: '1 Oct – 19 Nov · all units' },
+      { label: 'Worked hours', value: '28,105', note: '98.1% of scheduled' },
+      { label: 'Overtime hours', value: '1,240', note: '4.4% of hours worked' },
+      { label: 'Shift blocks fully covered', value: '98.6%', note: 'actual vs required' },
+      { label: 'Emergency overrides', value: '4', note: 'all with a written reason' }
+    ];
+    const O = [['Ruth Okafor', 34.5], ['Devon Clarke', 31.0], ['Piotr Kowalczyk', 21.0], ['Tara Nakamura', 18.5], ['Kari Lindqvist', 16.0], ['Nia Thompson', 14.5], ['Marc Desjardins', 9.5], ['Sam Abara', 8.0]];
+    const ot = O.map(([name, h]) => ({ name, h: h.toFixed(1) + ' h', w: ((h / 36) * 100).toFixed(0) + '%' }));
+    const hours = [
+      { name: 'Tara Nakamura', s: '80', w: '80', r: '80', o1: '0', o2: '0', sk: '0', v: '0', d: '0' },
+      { name: 'Ruth Okafor', s: '84', w: '92', r: '80', o1: '8', o2: '4', sk: '0', v: '0', d: '+8' },
+      { name: 'Devon Clarke', s: '80', w: '88', r: '80', o1: '4', o2: '4', sk: '0', v: '0', d: '+8' },
+      { name: 'Kari Lindqvist', s: '80', w: '84', r: '80', o1: '4', o2: '0', sk: '0', v: '0', d: '+4' },
+      { name: 'Marc Desjardins', s: '80', w: '72', r: '72', o1: '0', o2: '0', sk: '8', v: '0', d: '−8' },
+      { name: 'Leah Morin', s: '80', w: '56', r: '56', o1: '0', o2: '0', sk: '0', v: '24', d: '−24' }
+    ];
+    return { tabs, weeks, kpis, ot, hours };
+  }
+}
+</script>
+</body>
+</html>

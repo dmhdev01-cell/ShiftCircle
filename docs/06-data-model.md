@@ -60,7 +60,7 @@ erDiagram
 | `employee` | `id`, `employee_no` (unique), `first_name`, `last_name`, `classification` (`CO`), `home_unit_id`, `rotation_pattern_id`, `fte` numeric(3,2), `seniority_date`, `active`, `is_synthetic` | |
 | `employee_qualification` | (`employee_id`, `qualification_id`) PK, `valid_from`, `valid_to` | Expiry supports "certification lapsed" checks later. |
 
-**Coverage rule (assumption, ADR-013):** a shift counts toward a block when it covers at least half of that block. So a 12-hour day (07–19) counts toward DAY and EVENING, and a 12-hour night (19–07) toward EVENING and NIGHT.
+**Coverage rule (ADR-013, revised):** coverage is measured **hourly**. Each block's `min_staff` applies to every hour in the block; a block is covered when every hour meets it. A 12-hour day (07–19) therefore covers the whole Day block and the first 4 hours of the Evening block.
 
 ### 3.2 Scheduling
 
