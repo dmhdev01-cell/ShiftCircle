@@ -22,16 +22,36 @@ function renderBoard(path = '/overtime') {
 }
 
 describe('the overtime board', () => {
-  it('lists the open shifts with their status', async () => {
+  it('lists the current needs first and keeps filled shifts behind one button', async () => {
+    const user = userEvent.setup();
     renderBoard();
 
     const list = await screen.findByRole('region', { name: 'Open shifts' });
     expect(within(list).getByText('Sat 21 Nov · Days 07:00 – 15:00')).toBeInTheDocument();
     expect(within(list).getByText('Fri 20 Nov · Evenings 15:00 – 23:00')).toBeInTheDocument();
-    expect(within(list).getByText('Sun 22 Nov · Nights 23:00 – 07:00 +1')).toBeInTheDocument();
     expect(within(list).getByText('Open')).toBeInTheDocument();
     expect(within(list).getByText('Offers sent')).toBeInTheDocument();
+    // V7: the filled and cancelled shifts are history, not the job: they wait
+    // behind one button instead of pushing the current needs off the screen.
+    expect(within(list).queryByText('Sun 22 Nov · Nights 23:00 – 07:00 +1')).not.toBeInTheDocument();
+    const show = within(list).getByRole('button', { name: /Show filled and past shifts \(2\)/ });
+
+    await user.click(show);
+    expect(within(list).getByText('Sun 22 Nov · Nights 23:00 – 07:00 +1')).toBeInTheDocument();
     expect(within(list).getByText('Filled')).toBeInTheDocument();
+    expect(within(list).getByText('Cancelled')).toBeInTheDocument();
+  });
+
+  it('opens on the nearest current need, not on a filled shift', async () => {
+    // V7: the board used to open on the oldest shift in the data (1 Oct,
+    // filled) and the ranked table belonged to a shift nobody was choosing.
+    renderBoard();
+
+    const list = await screen.findByRole('region', { name: 'Open shifts' });
+    const nearest = within(list).getByRole('button', {
+      name: /Fri 20 Nov · Evenings 15:00 – 23:00/,
+    });
+    expect(nearest).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('keeps the officers who were skipped in their place in the ranking', async () => {
@@ -149,6 +169,9 @@ describe('the overtime board', () => {
     const user = userEvent.setup();
     renderBoard();
 
+    // V7: filled shifts sit behind the "Show filled and past shifts" button.
+    const list = await screen.findByRole('region', { name: 'Open shifts' });
+    await user.click(within(list).getByRole('button', { name: /Show filled and past shifts/ }));
     await user.click(
       await screen.findByRole('button', { name: /Sun 22 Nov · Nights 23:00 – 07:00 \+1/ }),
     );
@@ -167,6 +190,8 @@ describe('the overtime board', () => {
     renderBoard();
 
     const list = await screen.findByRole('region', { name: 'Open shifts' });
+    // V7: a cancelled shift is history; it waits behind the same button.
+    await user.click(within(list).getByRole('button', { name: /Show filled and past shifts/ }));
     expect(within(list).getByText('Cancelled')).toBeInTheDocument();
     await user.click(within(list).getByRole('button', { name: /Tue 24 Nov · Days 07:00 – 15:00/ }));
 
@@ -214,6 +239,13 @@ describe('the overtime board', () => {
     const user = userEvent.setup();
     const supervisor = renderBoard();
 
+    // V7 moved the default to the nearest current need (Friday evening), so the
+    // Saturday day shift is picked explicitly here.
+    const list = await screen.findByRole('region', { name: 'Open shifts' });
+    await user.click(within(list).getByRole('button', { name: /Sat 21 Nov · Days 07:00 – 15:00/ }));
+    // Wait for the ranked table to belong to that shift before picking an officer.
+    expect(await screen.findByRole('heading', { name: /Sat 21 Nov · Days/ })).toBeInTheDocument();
+
     // The supervisor offers the Saturday day shift to Sam.
     await user.click(
       await screen.findByRole('checkbox', { name: 'Select Sam Abara for this shift' }),
@@ -238,6 +270,12 @@ describe('the overtime board', () => {
 
     // The supervisor sees the answer and confirms it (S-04).
     renderBoard();
+    // The board opens on the nearest current need, so the Saturday shift is
+    // picked again to show its offer history.
+    const supervisorList = await screen.findByRole('region', { name: 'Open shifts' });
+    await user.click(
+      within(supervisorList).getByRole('button', { name: /Sat 21 Nov · Days 07:00 – 15:00/ }),
+    );
     const accepted = await screen.findByRole('group', { name: 'Sam Abara · Accepted' }, { timeout: 5000 });
     await user.click(within(accepted).getByRole('button', { name: 'Confirm' }));
     expect(

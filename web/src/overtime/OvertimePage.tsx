@@ -9,6 +9,7 @@ import Typography from '@mui/material/Typography';
 import { api } from '../api/client';
 import { shiftTemplates } from '../api/shiftTemplates';
 import type { OpenShift, RuleCheckChange } from '../api/types';
+import { useVersion } from '../api/useVersion';
 import { StatusPill } from '../components/StatusPill';
 import { OverrideDialog } from '../planning/OverrideDialog';
 import { RuleCheckPanel } from '../planning/RuleCheckPanel';
@@ -67,6 +68,30 @@ const OFFER_TEXT = {
   CONFIRMED: 'Confirmed',
 } as const;
 
+/** A shift still short of officers: what the board is for. */
+function isCurrentNeed(openShift: OpenShift, asOf: string | undefined): boolean {
+  const open = openShift.status === 'OPEN' || openShift.status === 'OFFERS_SENT';
+  return open && (asOf === undefined || openShift.date >= asOf);
+}
+
+/**
+ * The cards in the order a supervisor wants them: the current needs first by
+ * date, then everything else (filled, cancelled, past) newest first, so the
+ * history is still there without pushing the job off the screen (V7).
+ */
+export function orderOpenShifts(
+  shifts: OpenShift[],
+  asOf: string | undefined,
+): { current: OpenShift[]; others: OpenShift[] } {
+  const current = shifts
+    .filter((openShift) => isCurrentNeed(openShift, asOf))
+    .sort((left, right) => left.date.localeCompare(right.date));
+  const others = shifts
+    .filter((openShift) => !isCurrentNeed(openShift, asOf))
+    .sort((left, right) => right.date.localeCompare(left.date));
+  return { current, others };
+}
+
 /**
  * The overtime board (docs/ui/README.md §5.3). The open shifts come from the
  * api and the ranked list comes from the overtime-ranking rule table, so the
@@ -79,7 +104,11 @@ export function OvertimePage() {
   const { state: shiftsState } = useOpenShifts();
   const [searchParams] = useSearchParams();
   const [pickedId, setPickedId] = useState<string | null>(null);
+  const [showOthers, setShowOthers] = useState(false);
+  const { state: version } = useVersion();
+  const asOf = version.status === 'ready' ? version.info.asOf : undefined;
   const shifts = shiftsState.kind === 'ready' ? shiftsState.shifts : [];
+  const { current, others } = orderOpenShifts(shifts, asOf);
   // "Find eligible officer" names the shift it came from, so the board opens
   // on that shift rather than whatever happens to be first.
   const requestedId = searchParams.get('shift');
@@ -97,8 +126,10 @@ export function OvertimePage() {
         new Date(shift.startAt).getTime() === new Date(requestedStart).getTime(),
     ) ??
     null;
-  // The requested shift is selected until the supervisor picks another.
-  const activeId = pickedId ?? requested?.id ?? shifts[0]?.id ?? null;
+  // The requested shift is selected until the supervisor picks another; with
+  // no request the board opens on the nearest current need, not on the oldest
+  // filled shift in the data (V7).
+  const activeId = pickedId ?? requested?.id ?? current[0]?.id ?? others[0]?.id ?? null;
   const { state: candidatesState, reload: reloadCandidates } = useOpenShiftCandidates(activeId);
   const [selected, setSelected] = useState<string[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -202,13 +233,63 @@ export function OvertimePage() {
       ? `Assign ${payload?.candidates.find((c) => c.employeeId === selected[0])?.name ?? 'this officer'}`
       : '';
 
+  const renderCard = (openShift: OpenShift) => {
+    const pill = statusPill(openShift);
+    const isActive = openShift.id === activeId;
+    return (
+      <Box
+        key={openShift.id}
+        component="button"
+        type="button"
+        aria-pressed={isActive}
+        onClick={() => {
+          setPickedId(openShift.id);
+          setSelected([]);
+          setMessage(null);
+          mutation.reset();
+        }}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1.5,
+          width: '100%',
+          minHeight: 44,
+          p: '12px 14px',
+          textAlign: 'left',
+          backgroundColor: isActive ? '#EAF3F9' : colour.bg.surface,
+          border: isActive ? `2px solid ${colour.brand.link}` : `1px solid #D5DDE7`,
+          borderRadius: '10px',
+          fontFamily: 'inherit',
+          color: colour.text.primary,
+          cursor: 'pointer',
+          '&:hover': { borderColor: colour.brand.link },
+        }}
+      >
+        <Box component="span" sx={{ fontSize: 15, fontWeight: 700 }}>
+          {openShiftTitle(openShift)}
+        </Box>
+        <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
+          {openShift.unit.name}
+        </Box>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
+          <StatusPill tone={pill.tone}>{pill.text}</StatusPill>
+          {openShift.reason ? (
+            <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
+              {openShift.reason}
+            </Box>
+          ) : null}
+        </Box>
+      </Box>
+    );
+  };
+
   return (
     <>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         <Typography variant="h1">Overtime board</Typography>
         <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
-          Open shifts for 16 – 22 Nov · Offers are recorded in ShiftCircle (email and text alerts are
-          future work)
+          Current needs first · filled and past shifts are kept below · offers are recorded in
+          ShiftCircle (email and text alerts are future work)
         </Typography>
       </Box>
 
@@ -228,75 +309,65 @@ export function OvertimePage() {
         </Box>
       ) : null}
 
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'flex-start' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          // Below md the ranked table would sit under a stack of cards, so the
+          // selected shift's table comes first on a tablet (V7).
+          flexDirection: { xs: 'column-reverse', md: 'row' },
+          flexWrap: { md: 'wrap' },
+          gap: 5,
+          alignItems: 'flex-start',
+        }}
+      >
         <Box
           component="section"
           aria-label="Open shifts"
-          sx={{ flex: '1 1 300px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2.5 }}
+          sx={{
+            flex: { xs: '1 1 auto', md: '1 1 300px' },
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2.5,
+          }}
         >
           <Typography component="h2" sx={{ m: 0, fontSize: 15, fontWeight: 700 }}>
             Open shifts{' '}
             <Box component="span" className="num" sx={{ color: colour.text.secondary, fontWeight: 600 }}>
-              ({shifts.length})
+              ({current.length})
             </Box>
           </Typography>
 
-          {shifts.map((openShift) => {
-            const pill = statusPill(openShift);
-            const isActive = openShift.id === activeId;
-            return (
-              <Box
-                key={openShift.id}
-                component="button"
-                type="button"
-                aria-pressed={isActive}
-                onClick={() => {
-                  setPickedId(openShift.id);
-                  setSelected([]);
-                  setMessage(null);
-                  mutation.reset();
-                }}
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 1.5,
-                  width: '100%',
-                  minHeight: 44,
-                  p: '12px 14px',
-                  textAlign: 'left',
-                  backgroundColor: isActive ? '#EAF3F9' : colour.bg.surface,
-                  border: isActive ? `2px solid ${colour.brand.link}` : `1px solid #D5DDE7`,
-                  borderRadius: '10px',
-                  fontFamily: 'inherit',
-                  color: colour.text.primary,
-                  cursor: 'pointer',
-                  '&:hover': { borderColor: colour.brand.link },
-                }}
-              >
-                <Box component="span" sx={{ fontSize: 15, fontWeight: 700 }}>
-                  {openShiftTitle(openShift)}
-                </Box>
-                <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
-                  {openShift.unit.name}
-                </Box>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
-                  <StatusPill tone={pill.tone}>{pill.text}</StatusPill>
-                  {openShift.reason ? (
-                    <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
-                      {openShift.reason}
-                    </Box>
-                  ) : null}
-                </Box>
-              </Box>
-            );
-          })}
+          {current.map(renderCard)}
+
+          {current.length === 0 ? (
+            <Typography sx={{ fontSize: 13, color: colour.text.secondary }}>
+              No shift is short of officers right now.
+            </Typography>
+          ) : null}
+
+          {/* Filled, cancelled and past shifts stay on the page for the record,
+              behind one button, so they cannot bury the current need (V7). */}
+          {others.length > 0 ? (
+            <Button
+              variant="text"
+              color="primary"
+              aria-expanded={showOthers}
+              onClick={() => setShowOthers((value) => !value)}
+              sx={{ justifyContent: 'flex-start', px: 1, minHeight: 44 }}
+            >
+              {showOthers ? 'Hide' : 'Show'} filled and past shifts ({others.length})
+            </Button>
+          ) : null}
+
+          {showOthers ? others.map(renderCard) : null}
         </Box>
 
         <Box
           component="section"
           aria-label="Eligible officers"
           sx={{
-            flex: '999 1 640px',
+            flex: { xs: '1 1 auto', md: '999 1 640px' },
             minWidth: 0,
             backgroundColor: colour.bg.surface,
             border: `1px solid ${colour.border.default}`,

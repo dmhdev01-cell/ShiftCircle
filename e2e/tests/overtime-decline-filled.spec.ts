@@ -36,12 +36,18 @@ function shortDay(date: string): string {
 async function openCard(page: Page, shift: OpenShift): Promise<void> {
   // The card for that day and unit with the same status (a day can also have
   // a filled card for the same unit).
-  const card = page
-    .getByRole('region', { name: 'Open shifts' })
+  const region = page.getByRole('region', { name: 'Open shifts' });
+  const card = region
     .getByRole('button')
     .filter({ hasText: shortDay(shift.date) })
     .filter({ hasText: shift.unit.name })
     .filter({ hasText: shift.status === 'FILLED' ? 'Filled' : /Open|Offers sent/ });
+  // V7 keeps filled and past shifts behind one button so they cannot bury the
+  // current needs. The button only exists for the shifts in that section, so a
+  // target that is not on screen after a moment means: open the section.
+  if (shift.status !== 'OPEN' && shift.status !== 'OFFERS_SENT') {
+    await region.getByRole('button', { name: /Show filled and past shifts/ }).click().catch(() => undefined);
+  }
   await expect(card.first()).toBeVisible();
   await card.first().click();
   await expect(card.first()).toHaveAttribute('aria-pressed', 'true');
