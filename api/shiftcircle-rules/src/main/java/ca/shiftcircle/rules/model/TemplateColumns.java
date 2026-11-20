@@ -50,9 +50,7 @@ public final class TemplateColumns {
       }
       case DAYS_OFF -> {
         columns.put("withinDays", row.number("withinDays"));
-        // "2 consecutive days off" is 48 hours without a shift.
-        columns.put("minimumBreakHours",
-            row.number("daysOff") * Math.max(24, row.number("minBreakHours")));
+        columns.put("daysOff", row.number("daysOff"));
       }
       case PAY -> {
         columns.put("condition", "overtimeHours > 0");

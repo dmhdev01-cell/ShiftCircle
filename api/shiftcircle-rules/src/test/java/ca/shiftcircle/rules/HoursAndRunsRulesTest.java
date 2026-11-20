@@ -295,18 +295,60 @@ class HoursAndRunsRulesTest {
   }
 
   @Test
-  void u12WarnsWithFortySevenHoursFiftyNineMinutesOff() {
-    List<ShiftFact> shifts =
-        schedule(
-            shift("officer", "D8", "2026-11-16", "07:00", 480),
-            shift("officer", "E8", "2026-11-18", "14:59", 480));
+  void u12CountsABreakOfTwentyFourHoursAsNoDayOff() {
+    // A dense week with one 24 h break: that break is not even one day off.
+    List<ShiftFact> shifts = new ArrayList<>(daily("officer", "D8", "2026-11-10", 7, 480));
+    shifts.set(1, shift("officer", "D8", "2026-11-11", "15:00", 480));
+
+    assertThat(new DaysOffFactBuilder().build(shifts))
+        .singleElement()
+        .satisfies(fact -> assertThat(fact.getCountedDaysOff()).isZero());
+  }
+
+  @Test
+  void u12CountsABreakOfTwentyFourHoursOneMinuteAsOneDay() {
+    List<ShiftFact> shifts = new ArrayList<>(daily("officer", "D8", "2026-11-10", 7, 480));
+    shifts.set(1, shift("officer", "D8", "2026-11-11", "15:01", 480));
+
+    assertThat(new DaysOffFactBuilder().build(shifts))
+        .singleElement()
+        .satisfies(fact -> assertThat(fact.getCountedDaysOff()).isEqualTo(1));
+  }
+
+  @Test
+  void u12IgnoresALongBreakFromAnEarlierWeek() {
+    // A 6-day break before the run cannot satisfy a window that is inside seven straight work days.
+    List<ShiftFact> shifts = new ArrayList<>(schedule(shift("officer", "D8", "2026-11-01", "07:00", 480)));
+    shifts.addAll(daily("officer", "D8", "2026-11-05", 7, 480));
 
     assertThat(results("U-12", cast(new DaysOffFactBuilder().build(shifts))))
         .singleElement()
-        .satisfies(
-            result -> {
-              assertThat(result.outcome()).isEqualTo(RuleOutcome.WARN);
-              assertThat(result.required()).isEqualTo(48.0);
-            });
+        .satisfies(result -> assertThat(result.outcome()).isEqualTo(RuleOutcome.WARN));
+  }
+
+  @Test
+  void u12CountsLeadingAndTrailingBreaksInTheWindow() {
+    // One shift, with the rest of its 7-day window free: that is a real break, not zero.
+    List<ShiftFact> shifts = schedule(shift("officer", "D8", "2026-11-10", "07:00", 480));
+
+    assertThat(results("U-12", cast(new DaysOffFactBuilder().build(shifts)))).isEmpty();
+  }
+
+  @Test
+  void u12WarnsWithFortySevenHoursFiftyNineMinutesOff() {
+    List<ShiftFact> shifts = new ArrayList<>(daily("officer", "D8", "2026-11-10", 7, 480));
+    shifts.add(shift("officer", "E8", "2026-11-18", "14:59", 480));
+
+    assertThat(results("U-12", cast(new DaysOffFactBuilder().build(shifts))))
+        .singleElement()
+        .satisfies(result -> assertThat(result.outcome()).isEqualTo(RuleOutcome.WARN));
+  }
+
+  @Test
+  void u12CountsDaysOffAtTheBreakBoundary() {
+    assertThat(DaysOffFactBuilder.countedDaysOff(24.0)).isZero();
+    assertThat(DaysOffFactBuilder.countedDaysOff(24.02)).isEqualTo(1);
+    assertThat(DaysOffFactBuilder.countedDaysOff(47.98)).isEqualTo(1);
+    assertThat(DaysOffFactBuilder.countedDaysOff(48.0)).isEqualTo(2);
   }
 }

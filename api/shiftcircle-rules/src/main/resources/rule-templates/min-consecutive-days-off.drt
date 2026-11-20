@@ -1,7 +1,7 @@
 template header
 code
 withinDays
-minimumBreakHours
+daysOff
 severity
 overridePolicy
 message
@@ -16,25 +16,25 @@ import ca.shiftcircle.rules.model.OverridePolicy;
 global java.util.List ruleResults;
 global String ruleSetVersion;
 
-// One row = the days-off requirement (U-12). Two consecutive days off is 48 hours without a shift;
-// minimumBreakHours comes from the days-off count, not from the "a break of 24 h or less does not
-// count" note, which only says a single short break cannot be counted as a day.
+// One row = the days-off requirement (U-12), evaluated per 7-day window. A break of 24 hours or less
+// counts as no day off, so two consecutive days off needs 48 hours; the fact has already done that
+// arithmetic.
 template "min_consecutive_days_off"
 
 rule "@{code} row @{row.rowNumber}"
 when
     $f : DaysOffFact(
             windowDays == @{withinDays},
-            longestBreakHours < @{minimumBreakHours} )
+            countedDaysOff < @{daysOff} )
 then
     ruleResults.add( new RuleResult(
         "@{code}",
         "DAYS_OFF",
         RuleOutcome.@{severity},
         "@{message}",
-        @{minimumBreakHours},
-        $f.getLongestBreakHours(),
-        "hours",
+        @{daysOff},
+        $f.getCountedDaysOff(),
+        "days",
         OverridePolicy.@{overridePolicy},
         ruleSetVersion,
         $f.getEvidence() ) );

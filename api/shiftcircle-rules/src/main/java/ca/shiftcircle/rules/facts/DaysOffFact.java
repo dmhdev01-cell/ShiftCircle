@@ -1,18 +1,25 @@
 package ca.shiftcircle.rules.facts;
 
 /**
- * Derived fact for rule U-12: the longest break without a shift inside the 7-day window. Two
- * consecutive days off is 48 hours, so a 47 h 59 m break fails the row.
+ * Derived fact for rule U-12: the worst 7-day window's longest break without a shift, and how many
+ * days off that break counts as.
+ *
+ * <p>"A break of 24 hours or less does not count as a day of rest" (docs/05 §2.B), so a 24 h break
+ * counts as zero days, 24 h 01 m as one, 48 h as two. Two consecutive days off therefore needs 48
+ * hours.
  */
 public class DaysOffFact {
 
   private final int windowDays;
   private final double longestBreakHours;
+  private final int countedDaysOff;
   private final String evidence;
 
-  public DaysOffFact(int windowDays, double longestBreakHours, String evidence) {
+  public DaysOffFact(
+      int windowDays, double longestBreakHours, int countedDaysOff, String evidence) {
     this.windowDays = windowDays;
     this.longestBreakHours = longestBreakHours;
+    this.countedDaysOff = countedDaysOff;
     this.evidence = evidence;
   }
 
@@ -24,12 +31,22 @@ public class DaysOffFact {
     return longestBreakHours;
   }
 
+  public int getCountedDaysOff() {
+    return countedDaysOff;
+  }
+
   public String getEvidence() {
     return evidence;
   }
 
   @Override
   public String toString() {
-    return "DaysOffFact[windowDays=" + windowDays + ", longestBreakHours=" + longestBreakHours + "]";
+    return "DaysOffFact[windowDays="
+        + windowDays
+        + ", longestBreakHours="
+        + longestBreakHours
+        + ", countedDaysOff="
+        + countedDaysOff
+        + "]";
   }
 }
