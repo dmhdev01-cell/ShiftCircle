@@ -54,6 +54,7 @@ public final class DemoDataSelfCheck {
     checkSyntheticOnly(violations);
     checkPastShiftsHaveActuals(violations);
     checkPlantedCases(violations);
+    checkSchedulePeriods(violations);
 
     if (!violations.isEmpty()) {
       throw new DemoDataSelfCheckException(violations);
@@ -434,8 +435,71 @@ public final class DemoDataSelfCheck {
     }
   }
 
+  /**
+   * The roster weeks every unit can publish (docs/10 §6.1): one Monday-to-Sunday period per unit
+   * and week, past weeks published, the current week and the weeks after it still drafts, and every
+   * shift attached to the period that covers its work date.
+   */
+  private void checkSchedulePeriods(List<String> violations) {
+    LocalDate today = now.atZone(DemoSettings.REGINA).toLocalDate();
+
+    int units = count("SELECT count(DISTINCT unit_id) FROM schedule_period");
+    int unitCount = count("SELECT count(*) FROM unit");
+    if (units != unitCount) {
+      violations.add(units + " of " + unitCount + " units have schedule periods");
+    }
+
+    int shape =
+        count(
+            "SELECT count(*) FROM schedule_period WHERE extract(isodow FROM start_date) <> 1"
+                + " OR end_date <> start_date + 6");
+    if (shape > 0) {
+      violations.add(shape + " schedule periods are not Monday-to-Sunday weeks");
+    }
+
+    int overlaps =
+        count(
+            "SELECT count(*) FROM schedule_period a JOIN schedule_period b"
+                + " ON a.unit_id = b.unit_id AND a.id <> b.id"
+                + " AND a.start_date <= b.end_date AND b.start_date <= a.end_date");
+    if (overlaps > 0) {
+      violations.add(overlaps + " overlapping schedule periods in one unit");
+    }
+
+    int pastWrong =
+        count(
+            "SELECT count(*) FROM schedule_period WHERE end_date < ?"
+                + " AND (status <> 'PUBLISHED' OR published_at IS NULL)",
+            today);
+    if (pastWrong > 0) {
+      violations.add(pastWrong + " past schedule periods are not published");
+    }
+
+    int futureWrong =
+        count(
+            "SELECT count(*) FROM schedule_period WHERE end_date >= ? AND status <> 'DRAFT'", today);
+    if (futureWrong > 0) {
+      violations.add(futureWrong + " current or future schedule periods are not drafts");
+    }
+
+    int unlinked =
+        count(
+            "SELECT count(*) FROM shift_assignment s WHERE s.schedule_period_id IS NULL"
+                + " OR NOT EXISTS (SELECT 1 FROM schedule_period p WHERE p.id = s.schedule_period_id"
+                + "   AND p.unit_id = s.unit_id AND s.work_date BETWEEN p.start_date AND p.end_date)");
+    if (unlinked > 0) {
+      violations.add(
+          unlinked + " shifts without the schedule period that covers their work date");
+    }
+  }
+
   private int count(String sql) {
     Integer value = jdbc.queryForObject(sql, Integer.class);
+    return value == null ? 0 : value;
+  }
+
+  private int count(String sql, Object... arguments) {
+    Integer value = jdbc.queryForObject(sql, Integer.class, arguments);
     return value == null ? 0 : value;
   }
 }

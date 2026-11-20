@@ -138,6 +138,7 @@ class DemoDataGeneratorTest {
     int firstAssignments = count("SELECT count(*) FROM shift_assignment");
     int firstEntries = count("SELECT count(*) FROM time_entry");
     int firstAbsences = count("SELECT count(*) FROM absence");
+    int firstPeriods = count("SELECT count(*) FROM schedule_period");
 
     resetSchema();
     new DemoDataGenerator(jdbc).generate(DemoSettings.defaults());
@@ -146,6 +147,63 @@ class DemoDataGeneratorTest {
     assertThat(count("SELECT count(*) FROM shift_assignment")).isEqualTo(firstAssignments);
     assertThat(count("SELECT count(*) FROM time_entry")).isEqualTo(firstEntries);
     assertThat(count("SELECT count(*) FROM absence")).isEqualTo(firstAbsences);
+    assertThat(count("SELECT count(*) FROM schedule_period")).isEqualTo(firstPeriods);
+  }
+
+  @Test
+  void seedsTheRosterWeeksEveryUnitCanPublish() {
+    // Six units, one Monday-to-Sunday period per week of the 90-day window (14 weeks).
+    assertThat(count("SELECT count(DISTINCT unit_id) FROM schedule_period")).isEqualTo(6);
+    assertThat(
+            count(
+                "SELECT count(*) FROM schedule_period WHERE start_date = DATE '2026-09-28'"
+                    + " AND end_date = DATE '2026-10-04'"))
+        .isEqualTo(6);
+    assertThat(
+            count(
+                "SELECT count(*) FROM schedule_period WHERE start_date = DATE '2026-12-28'"
+                    + " AND end_date = DATE '2027-01-03'"))
+        .isEqualTo(6);
+
+    // Past weeks are published history; the demo week and the week after it are drafts.
+    assertThat(
+            count(
+                "SELECT count(*) FROM schedule_period WHERE end_date < DATE '2026-11-19'"
+                    + " AND status = 'PUBLISHED' AND published_at IS NOT NULL"))
+        .isEqualTo(6 * 7);
+    assertThat(
+            count(
+                "SELECT count(*) FROM schedule_period WHERE end_date >= DATE '2026-11-19'"
+                    + " AND status = 'DRAFT'"))
+        .isEqualTo(6 * 7);
+
+    // Every shift belongs to the period that covers its work date.
+    assertThat(count("SELECT count(*) FROM shift_assignment WHERE schedule_period_id IS NULL"))
+        .isZero();
+    assertThat(
+            count(
+                "SELECT count(*) FROM shift_assignment s JOIN schedule_period p"
+                    + " ON p.id = s.schedule_period_id WHERE p.unit_id <> s.unit_id"
+                    + " OR s.work_date < p.start_date OR s.work_date > p.end_date"))
+        .isZero();
+  }
+
+  @Test
+  void aMissingSchedulePeriodFailsTheSelfCheck() {
+    // A week without a period is a week a supervisor cannot publish, so the generator must refuse
+    // to hand out such a dataset.
+    jdbc.update(
+        "UPDATE shift_assignment SET schedule_period_id = NULL WHERE schedule_period_id ="
+            + " (SELECT id FROM schedule_period WHERE unit_id ="
+            + "   (SELECT id FROM unit WHERE code = 'A') AND start_date = DATE '2026-11-16')");
+    jdbc.update(
+        "DELETE FROM schedule_period WHERE unit_id ="
+            + " (SELECT id FROM unit WHERE code = 'A') AND start_date = DATE '2026-11-16'");
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+            () -> new DemoDataSelfCheck(jdbc, null, java.time.Instant.now()).verify())
+        .isInstanceOf(DemoDataSelfCheckException.class)
+        .hasMessageContaining("schedule period");
   }
 
   @Test
