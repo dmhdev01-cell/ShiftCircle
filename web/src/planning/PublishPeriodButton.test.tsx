@@ -98,4 +98,12 @@ describe('the publish period action', () => {
     expect(dialog).toHaveTextContent('16 – 22 Nov 2026');
     expect(dialog).toHaveTextContent('Draft');
   });
+
+  it('is the yellow primary action of an unpublished week', () => {
+    // V9 / README 3.4: one yellow primary per screen. An unpublished week's
+    // job is publishing it, so the action is a contained primary button.
+    renderButton();
+
+    expect(screen.getByRole('button', { name: 'Publish period' })).toHaveClass('MuiButton-contained');
+  });
 });

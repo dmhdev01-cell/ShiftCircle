@@ -68,7 +68,7 @@ export function PublishPeriodButton({ period, onPublished }: PublishPeriodButton
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
       <Button
-        variant="outlined"
+        variant="contained"
         color="primary"
         disabled={published || busy}
         onClick={() => setOpen(true)}
