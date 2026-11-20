@@ -124,7 +124,7 @@ export function RuleCheckPanel({
   // user is not left where they were (E1).
   useEffect(() => {
     if (state.kind === 'ready') {
-      heading.current?.focus();
+      heading.current?.focus({ preventScroll: true });
     }
   }, [state.kind, state.outcome]);
 

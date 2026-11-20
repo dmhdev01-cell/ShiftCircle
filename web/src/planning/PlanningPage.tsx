@@ -89,24 +89,37 @@ export function PlanningPage() {
   const ruleCheckOpen = mutation.state.kind !== 'idle';
   useEffect(() => {
     if (!ruleCheckOpen) return;
-    const officerId = pending?.officer.employeeId ?? proposal?.officer.employeeId;
-    const date = pending?.date ?? proposal?.item.startAt.slice(0, 10);
-    if (!officerId || !date) return;
-    const cell = document.querySelector<HTMLElement>(
-      `[data-officer-id="${officerId}"][data-date="${date}"]`,
-    );
-    if (!cell) return;
-    cell.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-    const top = cell.getBoundingClientRect().top;
-    // The fixed verdict sheet takes the bottom 52vh; put the row in the part
-    // still visible above it.
-    if (top < 80 || top > window.innerHeight * 0.35) {
-      try {
-        window.scrollBy({ top: top - 140, behavior: 'auto' });
-      } catch {
-        // jsdom has no layout to scroll.
+    const timer = window.setTimeout(() => {
+      const officerId = pending?.officer.employeeId ?? proposal?.officer.employeeId;
+      const date = pending?.date ?? proposal?.item.startAt.slice(0, 10);
+      if (!officerId || !date) return;
+      const cell = document.querySelector<HTMLElement>(
+        `[data-officer-id="${officerId}"][data-date="${date}"]`,
+      );
+      if (!cell) return;
+    // Bring the cell into the roster's own horizontal view on a tablet without
+    // letting scrollIntoView move the page; then put the row in the part of the
+    // page still visible above the fixed verdict sheet (bottom 52vh).
+    const region = cell.closest<HTMLElement>('[role="region"]');
+    if (region) {
+      const cellRect = cell.getBoundingClientRect();
+      const regionRect = region.getBoundingClientRect();
+      if (cellRect.right > regionRect.right) {
+        region.scrollLeft += cellRect.right - regionRect.right + 16;
+      } else if (cellRect.left < regionRect.left) {
+        region.scrollLeft -= regionRect.left - cellRect.left + 16;
       }
     }
+    const top = cell.getBoundingClientRect().top;
+      if (top < 80 || top > window.innerHeight * 0.35) {
+        try {
+          window.scrollTo(0, Math.max(0, window.scrollY + top - 140));
+        } catch {
+          // jsdom has no layout to scroll.
+        }
+      }
+    }, 50);
+    return () => window.clearTimeout(timer);
   }, [ruleCheckOpen, pending, proposal]);
 
   useEffect(() => {
@@ -386,6 +399,8 @@ export function PlanningPage() {
           onPickChip={pickChip}
         />
       </Box>
+
+      {ruleCheckOpen ? <Box aria-hidden="true" sx={{ height: '52vh', flexShrink: 0 }} /> : null}
 
       {ruleCheckOpen ? (
         <Box
