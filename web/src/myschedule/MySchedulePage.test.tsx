@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
+import { api } from '../api/client';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
@@ -155,5 +156,22 @@ describe('the employee My schedule', () => {
     // Only the signed-in officer appears.
     expect(screen.queryByText('Tara Nakamura')).not.toBeInTheDocument();
     expect(screen.queryByText('Ruth Okafor')).not.toBeInTheDocument();
+  });
+
+  it('writes when an offer was made in plain words, and never an empty "offered by"', async () => {
+    // V11: the api sends an instant and sometimes no name; the card printed
+    // "offered by  at 2026-11-20T08:45:47.911291-06:00".
+    const offers = await api.getMyOffers();
+    expect(offers.length).toBeGreaterThan(0);
+    vi.spyOn(api, 'getMyOffers').mockResolvedValue([
+      { ...offers[0], offeredBy: '', offeredAt: '2026-11-20T08:45:47.911291-06:00' },
+    ]);
+
+    renderMySchedule();
+
+    expect(await screen.findByText(/offered 20 Nov 08:45/)).toBeInTheDocument();
+    expect(screen.queryByText(/offered by\s+at/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/2026-11-20T08:45/)).not.toBeInTheDocument();
+    vi.restoreAllMocks();
   });
 });

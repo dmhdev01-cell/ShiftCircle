@@ -72,6 +72,32 @@ function monthOf(date: string): { year: number; month: number } {
   return { year: Number(date.slice(0, 4)), month: Number(date.slice(5, 7)) };
 }
 
+/**
+ * When an offer was made. The api writes an instant ("2026-11-20T08:45:47Z"),
+ * the seeded demo data writes a time ("14:20"); the card shows the day and the
+ * time in the centre's zone either way, never the raw ISO text (V11).
+ */
+function offeredWhen(at: string): string {
+  const parsed = new Date(at);
+  if (Number.isNaN(parsed.getTime())) return at;
+  const zone = 'America/Regina';
+  const day = new Intl.DateTimeFormat('en-CA', { day: 'numeric', timeZone: zone }).format(parsed);
+  const month = new Intl.DateTimeFormat('en-CA', { month: 'short', timeZone: zone }).format(parsed);
+  const time = new Intl.DateTimeFormat('en-CA', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: zone,
+  }).format(parsed);
+  return `${day} ${month} ${time}`;
+}
+
+/** "Unit B · Living unit · offered by M. Ellis at 14:20": no empty clause. */
+function offerSource(company: string, offeredBy: string, offeredAt: string): string {
+  const when = offeredWhen(offeredAt);
+  return offeredBy ? `${company} · offered by ${offeredBy} at ${when}` : `${company} · offered ${when}`;
+}
+
 function monthLabel(year: number, month: number): string {
   return new Intl.DateTimeFormat('en-CA', {
     month: 'long',
@@ -515,8 +541,8 @@ export function MySchedulePage() {
                 {shiftTemplates[offer.openShift.shiftTemplate]?.endsNextDay ? ' +1' : ''}
               </Typography>
               <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
-                {offer.openShift.unit.name} · offered by {offer.offeredBy} at {offer.offeredAt} ·
-                these hours count toward your pay-period hours
+                {offerSource(offer.openShift.unit.name, offer.offeredBy, offer.offeredAt)} · these
+                hours count toward your pay-period hours
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
                 {offerCheck(offer)}
