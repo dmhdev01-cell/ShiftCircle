@@ -77,6 +77,10 @@ test.describe('screenshots', () => {
     await shot(page, testInfo, 'supervisor', 'time', 'open-period');
     await page.getByLabel('Pay period').selectOption({ label: '26 Oct – 8 Nov 2026' });
     await expect(page.getByText(/Locked · /)).toBeVisible();
+    // The time entries of a whole period take a moment; capture the grid, not
+    // the "Loading the time entries…" line.
+    await expect(page.getByText('Loading the time entries…')).toHaveCount(0, { timeout: 30_000 });
+    await expect(page.getByRole('region', { name: 'Time entries, scrolls sideways' })).toBeVisible();
     await page.waitForLoadState('networkidle');
     await shot(page, testInfo, 'supervisor', 'time', 'locked-period');
 
@@ -176,7 +180,11 @@ test.describe('screenshots', () => {
       await route.fulfill({ response, json: shortStaffed(body) });
     });
     await page.clock.runFor(61_000);
-    await expect(page.getByText(/short/i).first()).toBeVisible();
+    // Wait for the short unit's own card (the facility panel always says
+    // "Units short right now", so a page-wide match proves nothing).
+    const unitA = page.getByRole('region', { name: 'Unit A · Living unit' });
+    await expect(unitA.getByText('Covered', { exact: true })).toHaveCount(0);
+    await expect(unitA.getByText(/short/i).first()).toBeVisible();
     await shot(page, testInfo, 'display', 'display', 'short');
 
     await page.unroute('**/api/v1/display/today');
