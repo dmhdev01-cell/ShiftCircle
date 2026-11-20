@@ -108,9 +108,11 @@ final class DemoPlantedCases {
 
     UUID override = id("planted:pc03:override");
     jdbc.update(
-        "INSERT INTO override (id, reason, rule_codes, rule_set_version_id)"
+        "INSERT INTO override (id, reason, rule_codes, rule_set_version_id, created_by, created_at)"
             + " VALUES (?, 'Lockdown, relief unavailable', ?,"
-            + " (SELECT id FROM rule_set_version WHERE status = 'PUBLISHED'))",
+            + " (SELECT id FROM rule_set_version WHERE status = 'PUBLISHED'),"
+            + " (SELECT id FROM app_user WHERE username = 'm.ellis'),"
+            + " TIMESTAMPTZ '2026-11-04 13:05:00-06')",
         override,
         new String[] {"U-05"});
     jdbc.update("UPDATE shift_assignment SET override_id = ? WHERE id = ?", override, assignment);
