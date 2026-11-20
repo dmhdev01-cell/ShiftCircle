@@ -46,14 +46,19 @@ row fingerprint), `RuleRowsRepository` + `PublishedRuleSet` boot from PostgreSQL
 reports the live version. Tests: `RuleSetApiTest` 4 (T13, T10, T7 dry run + post-publish WARN,
 E3), validator 13, scenarios 3.
 
-### c) Next in HANDOFF order: step 10 reports, then step 12 should-items
+### c) Step 12 should-items (lead's order; step 10 reports is dev-build2's `api-reports`, do not redo)
 
-- **Step 10 reports:** `/reports/coverage|hours|overtime|overrides` + CSV, numbers reconcile with
-  time entries (NFR-05 timings). Step 9's time entries and the payroll export now exist.
-- **Step 12 if time:** wall display `GET /display/today` (E5, counts only), `PATCH`/`DELETE
-  /assignments`, `POST /schedule-periods/{id}/publish`, `POST /absences`, Excel round-trip.
-- **Before submission:** Playwright E2E E1-E5 against the real api (the web branch has the
-  fixtures run), README setup, BUILD_RECORD, demo script/recording.
+1. **Wall display** `GET /display/today` — counts only, ADR-017 blocks, open shifts and officers
+   in overtime, no names; a test scans the payload for every employee name/number. *In progress.*
+2. **Audit viewer API** `GET /audit-events` — AUDITOR and scoped SUPERVISOR, filters
+   (actor/action/date/entity), paginated, read-only; prove the append-only trigger still refuses
+   UPDATE/DELETE.
+3. **Absences** `POST /absences` (type only; affects coverage), then
+   `POST /schedule-periods/{id}/publish`; `PATCH`/`DELETE /assignments` only if time remains
+   (rules + locked-period gate; the web has no move/cancel screen now).
+
+**Before submission:** Playwright E2E E1–E5 against the real api, README setup, BUILD_RECORD,
+demo script/recording.
 
 ## Gotchas for the next seat
 

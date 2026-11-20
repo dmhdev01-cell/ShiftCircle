@@ -216,7 +216,7 @@ rules. The dry run reports counts per rule, unit and old→new outcome, never na
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
-| GET | `/display/today` | Counts per unit and block, open shifts and overtime counts. **No names.** | DISPLAY, SUPERVISOR |
+| GET | `/display/today` | Counts per unit and block, open shifts and overtime counts. **No names.** | DISPLAY, SUPERVISOR (own units), AUDITOR |
 | GET | `/audit-events?entityType=&entityId=&from=&to=` | Audit trail | AUDITOR, SUPERVISOR (own units) |
 | GET | `/version` | Build version, git commit, live rule set version | any |
 | GET | `/actuator/health` | Liveness and readiness. Internal only, not proxied by nginx. | container network |
