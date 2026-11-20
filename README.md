@@ -118,9 +118,9 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
   mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
 ```
 
-**Count:** a clean run is **91 rules + 22 infrastructure + 178 api = 291 tests**, counted as
+**Count:** a clean run is **91 rules + 22 infrastructure + 182 api = 295 tests**, counted as
 `@Test` methods; Surefire reports the same total with **0 skipped**. The order-proof runs on
-2026-11-20 (default order and random seed 20261120 at `ca85c69`; earlier, default and random
+2026-11-20 (default order and random seed 20261120 at `5f426ce`; earlier, default and random
 order at `fe6487d` and reverse class order and random seeds 20261120 and 20261121 at `22375d4`)
 each gave the same total for their tip.
 

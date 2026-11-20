@@ -1,10 +1,10 @@
 # ShiftCircle — requirement-to-proof traceability
 
 **Derived from the test sources, not from the prose.** Checked on 2026-11-20 against `main` at
-`ca85c69` (code and docs) by grepping `@Test`, Playwright `test(...)` titles and the
-Flyway migrations. The latest clean-worktree run is **91 rules + 22 infrastructure + 178 api =
-291 tests, 0 failures** at `ca85c69`, run in the default class order and with a random seed
-(20261120). It is counted as `@Test` methods on their own line: 91 + 22 + 178 static annotations,
+`5f426ce` (code and docs) by grepping `@Test`, Playwright `test(...)` titles and the
+Flyway migrations. The latest clean-worktree run is **91 rules + 22 infrastructure + 182 api =
+295 tests, 0 failures** at `5f426ce`, run in the default class order and with a random seed
+(20261120). It is counted as `@Test` methods on their own line: 91 + 22 + 182 static annotations,
 and Surefire reports the same total with 0 skipped. A proof below names the test class and method
 that makes the claim, not the document that hopes it exists.
 
@@ -133,7 +133,7 @@ reaches; E1 also calls `expectDisclaimer`. E2–E5 rely on the web shell test fo
 | FR-05 overtime status live | `ScheduleApiTest#overtimeStatusChangesAtThePayPeriodThresholdBoundaries`; `#overtimeStatusUsesThePeriodThatContainsTheBoardDateAndCountsAMidnightCrossing`; `PlanningPage.test.tsx#shows the officer pay-period hours with the overtime status pill` | PASS |
 | FR-06 publish a period | `SchedulePublishApiTest#publishingIsScopedAuditedAndOneWay`, `#aDraftWeekReadsAsUnpublishedUntilItIsPublished`; `SchedulePeriodSeedApiTest#publishingASeededPeriodWorksOnAFreshDataset` (publishes a **generated** period, no planted row), `#theBoardCarriesThePeriodItReadsSoTheWebCanPublish` (the board hands over the id), `#theBoardCountsTheShiftsChangedAfterThePublication`, `#aPastWeekIsAlreadyPublishedAndCannotBePublishedAgain` | PASS |
 | FR-07 notice check and per-officer "changed" flag after publishing | The board counts the shifts changed after the publication (`publishedState.unpublishedChanges`, from the audit trail) and names the period; there is no P-05/S-01 rule row and no per-officer changed marker | **PARTIAL** — the count is real; the notice rule and the per-officer flag are not built (`docs/10` §8) |
-| Every error body is RFC 9457 problem+json, and a database conflict is a 409 rather than a 500 | `ConstraintProblemApiTest#anOverlappingEmergencyOverrideAnswersAConflictAndSavesNothing`, `#movingAShiftOntoAnotherOneAnswersAConflict`, `#anOvertimeConfirmThatWouldOverlapIsRefusedBeforeTheDatabaseIsAsked` (all over HTTP); `ApiProblemAdviceTest#theExclusionConstraintNamesTheConflictWithoutTheSql`, `#aUniqueConstraintBecomesA409Problem`, `#aNumericOverflowIsABadRequestNotAServerError`; `ProblemDetailsApiTest` (404 and 400 over HTTP) | PASS |
+| Every error body is RFC 9457 problem+json, and a database conflict is a 409 rather than a 500 | `ConstraintProblemApiTest#anOverlappingEmergencyOverrideAnswersAConflictAndSavesNothing`, `#movingAShiftOntoAnotherOneAnswersAConflict`, `#anOvertimeConfirmThatWouldOverlapIsRefusedBeforeTheDatabaseIsAsked` (all over HTTP); `ApiProblemAdviceTest#theExclusionConstraintNamesTheConflictWithoutTheSql`, `#aUniqueConstraintBecomesA409Problem`, `#aNumericOverflowIsABadRequestNotAServerError`, `#aCheckConstraintStaysAConflict`; `UnexpectedFailureApiTest#anUnexpectedFailureAnswersAProblemDocumentWithoutInternals`, `#springWebFailuresKeepTheirOwnStatus`, `#aRoleRefusalKeepsItsStatusAndGetsAProblemBody`; `ProblemDetailsApiTest` (404 and 400 over HTTP) | PASS |
 | FR-20–23 open shift, eligible list, offers, direct assign | `OvertimeApiTest#creatingAnOpenShiftIsSupervisorOnlyAndAudited`, `#theRankedListIsFewestOvertimeThenSeniority`, `#offerAcceptAndConfirmCreateTheAssignment`, `#directAssignRunsTheRulesAndFillsTheShift`, `#anEmployeeCannotSendOrConfirmOffers` | PASS |
 | FR-50–54 actuals, pay codes, lock, payroll CSV | `PayrollApiTest` (13 tests); `PayrollExportGoldenTest`; `CsvTest` | PASS |
 | FR-60–62/64 hours, overtime, coverage reports and CSV | `ReportsApiTest#coverageHoursReconcileWithTheAssignmentsHourByHour`, `#hoursAndOvertimeReconcileWithTheTimeEntriesAndThePayrollExport`, `#csvExportsUseTheDocumentedHeaders`, `#m4DisplayIsDeniedEveryReport` | PASS |
