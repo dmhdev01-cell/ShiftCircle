@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: shiftcircle-api
+
+server:
+  port: 8081
+
+logging:
+  level:
+    root: info
+    ca.shiftcircle: info

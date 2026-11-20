@@ -1,0 +1,42 @@
+template header
+ruleId
+afterShiftKind
+windowHours
+minRestHours
+outcome
+overridePolicy
+message
+
+package ca.shiftcircle.rules.tables.rest
+
+import ca.shiftcircle.rules.facts.MinRestInWindowFact;
+import ca.shiftcircle.rules.facts.RuleOutcome;
+import ca.shiftcircle.rules.facts.RuleResult;
+
+// Provided by the rule evaluator: the result collector and the published rule-set version.
+global java.util.List ruleResults;
+global String ruleSetVersion;
+
+template "rest_between_shifts"
+
+rule "@{ruleId} row @{row.rowNumber}"
+when
+    $f : MinRestInWindowFact(
+            windowHours == @{windowHours},
+            shiftKind matches "@{afterShiftKind}",
+            minRestHours < @{minRestHours} )
+then
+    ruleResults.add( new RuleResult(
+        "@{ruleId}",
+        "rest-between-shifts",
+        RuleOutcome.@{outcome},
+        "@{message}",
+        @{minRestHours},
+        $f.getMinRestHours(),
+        "hours",
+        "@{overridePolicy}",
+        ruleSetVersion,
+        $f.getEvidence() ) );
+end
+
+end template
