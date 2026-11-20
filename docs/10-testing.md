@@ -37,7 +37,8 @@ Full demo dataset (100 officers, 6,182 assignments, 84 schedule periods, checksu
 | Rule-set publish (compiles again, then swaps) | 433 ms | — | recorded, no NFR |
 
 These figures are from the clean-worktree run at `fe6487d` (the dataset with the 84 roster weeks).
-An earlier run on a busier host gave 54/58, 4/7 and 7/15 ms with a 655 ms build and a 516 ms
+The run at the tip `2537dd4` gave 17/22, 3/6 and 7/21 ms with a 889 ms build and a 739 ms publish,
+and an earlier run on a busier host gave 54/58, 4/7 and 7/15 ms with a 655 ms build and a 516 ms
 publish; the host is shared, so expect this spread. The test asserts the median and the p95 against
 the NFR limits, so a regression fails the build rather than being noticed in the demo.
 
