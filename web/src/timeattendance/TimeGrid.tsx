@@ -242,6 +242,10 @@ export function TimeGrid({ rows, days, locked, onPick }: TimeGridProps) {
                   fontWeight: 600,
                   color: colour.text.secondary,
                   backgroundColor: colour.bg.subtle,
+                  position: 'sticky',
+                  left: 0,
+                  zIndex: 2,
+                  boxShadow: 'inset -1px 0 0 #E1E3E6',
                 }}
               >
                 Officer
@@ -259,21 +263,38 @@ export function TimeGrid({ rows, days, locked, onPick }: TimeGridProps) {
               >
                 Pay period
               </th>
-              {days.map((date) => (
-                <th
-                  key={date}
-                  style={{
-                    textAlign: 'left',
-                    padding: 4,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: colour.text.secondary,
-                    backgroundColor: colour.bg.subtle,
-                  }}
-                >
-                  {date.slice(8, 10)}
-                </th>
-              ))}
+              {days.map((date, index) => {
+                const weekday = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][
+                  new Date(`${date}T00:00:00Z`).getUTCDay()
+                ];
+                const weekend = weekday === 'Su' || weekday === 'Sa';
+                const showMonth = index === 0 || date.endsWith('-01');
+                const month = new Intl.DateTimeFormat('en-CA', {
+                  month: 'short',
+                  timeZone: 'UTC',
+                }).format(new Date(`${date}T00:00:00Z`));
+                return (
+                  <th
+                    key={date}
+                    style={{
+                      textAlign: 'left',
+                      padding: 4,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: colour.text.secondary,
+                      backgroundColor: weekend ? '#F1F2F4' : colour.bg.subtle,
+                    }}
+                  >
+                    {weekday} {date.slice(8, 10)}
+                    {showMonth ? (
+                      <>
+                        <br />
+                        <span style={{ fontWeight: 500 }}>{month}</span>
+                      </>
+                    ) : null}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -284,6 +305,11 @@ export function TimeGrid({ rows, days, locked, onPick }: TimeGridProps) {
                     padding: 4,
                     borderBottom: `1px solid ${colour.border.default}`,
                     fontWeight: 600,
+                    position: 'sticky',
+                    left: 0,
+                    zIndex: 1,
+                    backgroundColor: colour.bg.surface,
+                    boxShadow: 'inset -1px 0 0 #E1E3E6',
                   }}
                 >
                   {row.name}
@@ -308,11 +334,19 @@ export function TimeGrid({ rows, days, locked, onPick }: TimeGridProps) {
                 </td>
                 {days.map((date) => {
                   const cell = row.cells.find((entry) => entry.date === date);
+                  const weekday = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][
+                    new Date(`${date}T00:00:00Z`).getUTCDay()
+                  ];
+                  const weekend = weekday === 'Su' || weekday === 'Sa';
                   return (
                     <td
                       key={date}
                       data-assignment-id={cell?.entry?.assignmentId}
-                      style={{ padding: 4, borderBottom: `1px solid ${colour.border.default}` }}
+                      style={{
+                        padding: 4,
+                        borderBottom: `1px solid ${colour.border.default}`,
+                        backgroundColor: weekend ? '#F7F8FA' : undefined,
+                      }}
                     >
                       <TimeCell entry={cell?.entry} locked={locked} onPick={onPick} />
                     </td>

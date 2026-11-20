@@ -318,7 +318,13 @@ export function TimeAttendancePage() {
         </Box>
       </Box>
 
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: 3,
+        }}
+      >
         <KpiTile label="Scheduled h" value={Math.round(scheduledHours)} note="in this pay period" />
         <KpiTile label="Worked h" value={Math.round(workedHours)} note="recorded" />
         <KpiTile
