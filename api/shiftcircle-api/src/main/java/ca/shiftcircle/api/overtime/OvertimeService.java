@@ -209,7 +209,8 @@ public class OvertimeService {
     Instant startAt = ((java.sql.Timestamp) shift.get("start_at")).toInstant();
     Instant endAt = ((java.sql.Timestamp) shift.get("end_at")).toInstant();
     String requiredQualification = requiredQualification((String) shift.get("unit_kind"));
-    int ruleSetVersion = ruleChecks.publishedVersion();
+    PublishedRuleSet.Snapshot live = publishedRuleSet.snapshot();
+    int ruleSetVersion = live.version();
 
     Set<UUID> overlapping =
         Set.copyOf(
@@ -236,7 +237,7 @@ public class OvertimeService {
         outcome =
             ruleChecks.evaluate(
                 new RuleCheckService.Change("EXTRA", employeeId, unitId, templateCode, startAt),
-                ruleSetVersion);
+                live);
         outcomes.put(employeeId, outcome);
       }
 
@@ -253,10 +254,7 @@ public class OvertimeService {
               flaggedCodes(outcome)));
     }
 
-    PublishedRuleSet.Snapshot live = publishedRuleSet.snapshot();
-    List<OvertimeRanker.Ranked> ranked = ranker.rank(pool, RankingPolicy.from(live.ruleSet()));
-
-    List<CandidateView> candidates = new ArrayList<>();
+    List<OvertimeRanker.Ranked> ranked = ranker.rank(pool, RankingPolicy.from(live.ruleSet()));    List<CandidateView> candidates = new ArrayList<>();
     long skipped = 0;
     for (OvertimeRanker.Ranked entry : ranked) {
       OvertimeRanker.Candidate candidate = entry.candidate();
@@ -316,7 +314,8 @@ public class OvertimeService {
     UUID unitId = (UUID) shift.get("unit_id");
     String templateCode = (String) shift.get("template_code");
     Instant startAt = ((java.sql.Timestamp) shift.get("start_at")).toInstant();
-    int ruleSetVersion = ruleChecks.publishedVersion();
+    PublishedRuleSet.Snapshot live = publishedRuleSet.snapshot();
+    int ruleSetVersion = live.version();
 
     int rank = 0;
     for (UUID employeeId : request.employeeIds()) {
@@ -325,7 +324,7 @@ public class OvertimeService {
       RuleCheckService.OutcomeView outcome =
           ruleChecks.evaluate(
               new RuleCheckService.Change("EXTRA", employeeId, unitId, templateCode, startAt),
-              ruleSetVersion);
+              live);
       if ("BLOCK".equals(outcome.outcome())) {
         throw new RuleViolationException(RuleViolationException.Kind.BLOCKED, outcome);
       }
@@ -429,7 +428,8 @@ public class OvertimeService {
                   principal.employeeId(),
                   (UUID) shift.get("unit_id"),
                   (String) shift.get("template_code"),
-                  ((java.sql.Timestamp) shift.get("start_at")).toInstant()));
+                  ((java.sql.Timestamp) shift.get("start_at")).toInstant()),
+              publishedRuleSet.snapshot());
       if ("BLOCK".equals(outcome.outcome())) {
         throw new RuleViolationException(RuleViolationException.Kind.BLOCKED, outcome);
       }
@@ -487,11 +487,11 @@ public class OvertimeService {
     Instant startAt = ((java.sql.Timestamp) shift.get("start_at")).toInstant();
     requireAvailable(employeeId, shift);
 
-    int ruleSetVersion = ruleChecks.publishedVersion();
+    PublishedRuleSet.Snapshot live = publishedRuleSet.snapshot();
     RuleCheckService.OutcomeView outcome =
         ruleChecks.evaluate(
             new RuleCheckService.Change("EXTRA", employeeId, unitId, templateCode, startAt),
-            ruleSetVersion);
+            live);
 
     // The supervisor saw the offer-time warnings in the ranked list and acknowledged them by
     // making the offer. A warning that is *new* at confirmation still needs a fresh human answer.

@@ -209,6 +209,8 @@ the exact rows it validated, compiled and ran; saving rows again clears the repo
 fingerprint, and `submit`/`publish` refuse an older build with `409`. At boot the live rule base is
 the published version's rows from PostgreSQL, not a code constant, so a restart keeps the published
 rules. The dry run reports counts per rule, unit and old→new outcome, never names (ADR-017).
+Publishing an *older* approved version after a newer one is allowed and supersedes the newer one: it
+is the rollback path, and the audit row records which version went live.
 | GET | `/rule-sets/{version}/tables/{code}/export` | `.xlsx` Drools decision table | RULES_ADMIN, RULES_APPROVER |
 | POST | `/rule-sets/{version}/tables/{code}/import` | multipart `.xlsx` into a draft (then build as usual) | RULES_ADMIN |
 

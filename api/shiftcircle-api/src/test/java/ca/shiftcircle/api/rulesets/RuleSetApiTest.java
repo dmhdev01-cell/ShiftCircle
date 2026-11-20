@@ -324,4 +324,98 @@ class RuleSetApiTest {
             "SELECT max(version) FROM rule_set_version WHERE status = 'PUBLISHED'", Integer.class);
     assertThat(live).isEqualTo(draft);
   }
+
+  @Test
+  @Order(5)
+  void aBuildThatTheRowsMovedPastIsRefusedAtSubmit() throws Exception {
+    Integer published = publishedVersion();
+    int draft = createDraft(published, "the fingerprint guard: rows move after the build");
+    Map<String, Object> rest = table(draft, "REST");
+    setParam(rest, "U-03", "minRestHours", 14);
+    saveRows(draft, "REST", rest);
+    Map<String, Object> report = build(draft);
+    assertThat((List<Map<String, Object>>) report.get("steps"))
+        .allSatisfy(step -> assertThat((Boolean) step.get("done")).isTrue());
+
+    // The rows move after the build: the report is no longer evidence about them.
+    setParam(rest, "U-03", "minRestHours", 15);
+    saveRows(draft, "REST", rest);
+
+    HttpResponse<String> submit =
+        send("POST", "/api/v1/rule-sets/" + draft + "/submit", null, "l.fraser");
+    assertThat(submit.statusCode())
+        .as("a build that predates the current rows cannot be submitted")
+        .isEqualTo(409);
+    assertThat(submit.body()).contains("rows changed since the last successful build");
+  }
+
+  @Test
+  @Order(6)
+  void aBuildThatTheRowsMovedPastIsRefusedAtPublish() throws Exception {
+    Integer published = publishedVersion();
+    int draft = createDraft(published, "the fingerprint guard: a direct row change");
+    Map<String, Object> report = build(draft);
+    assertThat((List<Map<String, Object>>) report.get("steps"))
+        .allSatisfy(step -> assertThat((Boolean) step.get("done")).isTrue());
+    submit(draft);
+    assertThat(send("POST", "/api/v1/rule-sets/" + draft + "/approve", null, "p.singh")
+            .statusCode())
+        .isEqualTo(200);
+
+    // Only a draft can be edited through the API, so this is the defence-in-depth path: a row
+    // changes underneath an approved version (another writer) and publish must refuse.
+    jdbc.update(
+        "UPDATE rule_row SET params = jsonb_set(params, '{minRestHours}', '13')"
+            + " WHERE rule_set_version_id ="
+            + " (SELECT id FROM rule_set_version WHERE version = ?) AND code = 'U-03'",
+        draft);
+
+    HttpResponse<String> publish =
+        send(
+            "POST",
+            "/api/v1/rule-sets/" + draft + "/publish",
+            "{\"effectiveDate\":\"2026-11-22\"}",
+            "p.singh");
+    assertThat(publish.statusCode())
+        .as("a build that predates a row change cannot publish")
+        .isEqualTo(409);
+    assertThat(publish.body()).contains("rows changed since the last successful build");
+    assertThat(publishedVersion()).as("nothing was swapped live").isEqualTo(published);
+  }
+
+  @Test
+  @Order(7)
+  void twoApprovalsOfOneVersionYieldOneApproval() throws Exception {
+    int draft = createDraft(publishedVersion(), "two approvers race for one decision");
+    build(draft);
+    submit(draft);
+
+    java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+    try {
+      java.util.concurrent.Callable<HttpResponse<String>> approve =
+          () -> send("POST", "/api/v1/rule-sets/" + draft + "/approve", null, "p.singh");
+      java.util.concurrent.Future<HttpResponse<String>> first = pool.submit(approve);
+      java.util.concurrent.Future<HttpResponse<String>> second = pool.submit(approve);
+      HttpResponse<String> left = first.get(30, java.util.concurrent.TimeUnit.SECONDS);
+      HttpResponse<String> right = second.get(30, java.util.concurrent.TimeUnit.SECONDS);
+      assertThat(List.of(left.statusCode(), right.statusCode()))
+          .as("one approver wins and the other is told the version moved")
+          .containsExactlyInAnyOrder(200, 409);
+    } finally {
+      pool.shutdownNow();
+    }
+
+    Integer audits =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM audit_event WHERE action = 'rule_set_approve'"
+                + " AND entity_id = (SELECT id FROM rule_set_version WHERE version = ?)",
+            Integer.class,
+            draft);
+    assertThat(audits).as("the losing approval must not write a second audit row").isEqualTo(1);
+  }
+
+  private Integer publishedVersion() {
+    return jdbc.queryForObject(
+        "SELECT max(version) FROM rule_set_version WHERE status = 'PUBLISHED'", Integer.class);
+  }
 }

@@ -56,6 +56,11 @@ class AuditApiTest {
 
   private static final ZoneId REGINA = ZoneId.of("America/Regina");
   private static final LocalDate TODAY = LocalDate.of(2026, 11, 19);
+  /**
+   * Assignments and entries are dated off the demo day on purpose: the wall-display test asserts
+   * exact hourly coverage for Unit A on 2026-11-19, and every class shares one database.
+   */
+  private static final LocalDate FIXTURE_DAY = TODAY.minusDays(9);
   private static final String ACTION = "audit_viewer_fixture";
   private static final String OTHER_ACTION = "audit_viewer_other";
 
@@ -93,9 +98,9 @@ class AuditApiTest {
         EMP_A,
         period,
         ASSIGN_A,
-        TODAY,
-        Timestamp.from(TODAY.atTime(7, 0).atZone(REGINA).toInstant()),
-        Timestamp.from(TODAY.atTime(15, 0).atZone(REGINA).toInstant()));
+        FIXTURE_DAY,
+        Timestamp.from(FIXTURE_DAY.atTime(7, 0).atZone(REGINA).toInstant()),
+        Timestamp.from(FIXTURE_DAY.atTime(15, 0).atZone(REGINA).toInstant()));
 
     assignARow = audit(ELLIS, "shift_assignment", ASSIGN_A, "2026-11-19T18:00:00Z");
     assignBRow = audit(ELLIS, "shift_assignment", ASSIGN_B, "2026-11-18T18:00:00Z");
@@ -132,9 +137,9 @@ class AuditApiTest {
         id,
         employee,
         unit,
-        Timestamp.from(TODAY.atTime(7, 0).atZone(REGINA).toInstant()),
-        Timestamp.from(TODAY.atTime(15, 0).atZone(REGINA).toInstant()),
-        TODAY);
+        Timestamp.from(FIXTURE_DAY.atTime(7, 0).atZone(REGINA).toInstant()),
+        Timestamp.from(FIXTURE_DAY.atTime(15, 0).atZone(REGINA).toInstant()),
+        FIXTURE_DAY);
   }
 
   private UUID periodContainingToday() {

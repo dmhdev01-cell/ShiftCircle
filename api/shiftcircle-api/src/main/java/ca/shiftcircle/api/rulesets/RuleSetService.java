@@ -36,6 +36,8 @@ import org.kie.api.KieBase;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import tools.jackson.databind.ObjectMapper;
@@ -293,7 +295,7 @@ public class RuleSetService {
             violations.isEmpty(),
             List.of()));
     if (!violations.isEmpty()) {
-      return store(versionId, steps, 0, 0, errors);
+      return store(versionId, version, principal, steps, 0, 0, errors);
     }
 
     // 2. Compile.
@@ -309,7 +311,7 @@ public class RuleSetService {
       steps.add(
           new BuildStepView(
               "compile", "Compile the decision tables", e.getMessage(), false, List.of()));
-      return store(versionId, steps, 0, 0, errors);
+      return store(versionId, version, principal, steps, 0, 0, errors);
     }
 
     // 3. Named rule scenarios (T1-T5) and the ranking order (T6).
@@ -331,7 +333,8 @@ public class RuleSetService {
             scenarioFailures.isEmpty(),
             List.of()));
     if (!scenarioFailures.isEmpty()) {
-      return store(versionId, steps, scenarioResults.size(), (int) passed, errors);
+      return store(
+          versionId, version, principal, steps, scenarioResults.size(), (int) passed, errors);
     }
 
     // 4. Dry run on the current roster, counts only (ADR-017).
@@ -347,7 +350,8 @@ public class RuleSetService {
             true,
             impact));
 
-    return store(versionId, steps, scenarioResults.size(), (int) passed, errors);
+    return store(
+        versionId, version, principal, steps, scenarioResults.size(), (int) passed, errors);
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -378,11 +382,16 @@ public class RuleSetService {
       throw new ResponseStatusException(
           HttpStatus.FORBIDDEN, "The author of a rule version cannot approve it");
     }
-    jdbc.update(
-        "UPDATE rule_set_version SET status = 'APPROVED', approved_by = ?, approved_at = now()"
-            + " WHERE id = ? AND status = 'SUBMITTED'",
-        userId,
-        versionRow.get("id"));
+    int approved =
+        jdbc.update(
+            "UPDATE rule_set_version SET status = 'APPROVED', approved_by = ?, approved_at = now()"
+                + " WHERE id = ? AND status = 'SUBMITTED'",
+            userId,
+            versionRow.get("id"));
+    if (approved == 0) {
+      // Two approvers raced: the loser changed nothing and must not write a second audit row.
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "The version is no longer submitted");
+    }
     audit(principal, "rule_set_approve", (UUID) versionRow.get("id"), Map.of("version", version));
     return version(version);
   }
@@ -428,7 +437,18 @@ public class RuleSetService {
     if (published == 0) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "The version is no longer approved");
     }
-    live.publish(ruleSet);
+    // Swap only once the transaction commits: a rollback must not leave memory ahead of the DB.
+    if (TransactionSynchronizationManager.isSynchronizationActive()) {
+      TransactionSynchronizationManager.registerSynchronization(
+          new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+              live.publish(ruleSet);
+            }
+          });
+    } else {
+      live.publish(ruleSet);
+    }
     audit(principal, "rule_set_publish", (UUID) versionRow.get("id"), Map.of(
         "version", version, "effectiveFrom", effective.toString()));
     return version(version);
@@ -631,7 +651,13 @@ public class RuleSetService {
   }
 
   private BuildReportView store(
-      UUID versionId, List<BuildStepView> steps, int total, int passed, List<String> errors) {
+      UUID versionId,
+      int version,
+      AuthPrincipal principal,
+      List<BuildStepView> steps,
+      int total,
+      int passed,
+      List<String> errors) {
     BuildReportView report =
         new BuildReportView(steps, new ScenarioCounts(total, passed), errors);
     boolean allPassed = steps.stream().allMatch(BuildStepView::done);
@@ -649,6 +675,15 @@ public class RuleSetService {
             ? fingerprint(new RuleSet("v", rowsRepository.rows(versionId, null)))
             : null,
         versionId);
+    audit(
+        principal,
+        "rule_set_build",
+        versionId,
+        Map.of(
+            "version", version,
+            "passed", allPassed,
+            "scenariosPassed", passed,
+            "scenariosTotal", total));
     return report;
   }
 
