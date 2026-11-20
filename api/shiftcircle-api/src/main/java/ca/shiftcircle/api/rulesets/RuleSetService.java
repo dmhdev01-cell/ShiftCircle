@@ -250,11 +250,13 @@ public class RuleSetService {
       } else {
         jdbc.update(
             "UPDATE rule_row SET enabled = ?, params = ?::jsonb, severity = ?, override_policy = ?,"
-                + " source = ?, sort_order = ? WHERE rule_set_version_id = ? AND code = ?",
+                + " message = ?, source = ?, sort_order = ?"
+                + " WHERE rule_set_version_id = ? AND code = ?",
             row.enabled(),
             mapper.writeValueAsString(params),
             severity,
             override,
+            message,
             source,
             order,
             versionId,

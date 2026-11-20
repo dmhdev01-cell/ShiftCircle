@@ -521,6 +521,32 @@ class RuleSetApiTest {
     assertThat(System.getProperty("sc.pwn2")).as("no injected code ran at build time").isNull();
   }
 
+  @Test
+  @Order(10)
+  void savingRowsPersistsAnEditedMessage() throws Exception {
+    int draft = createDraft(publishedVersion(), "S2: an edited message");
+    Map<String, Object> rest = table(draft, "REST");
+    List<Map<String, Object>> rows = (List<Map<String, Object>>) rest.get("rows");
+    Map<String, Object> u01 =
+        rows.stream()
+            .filter(row -> "U-01".equals(row.get("ruleCode")))
+            .findFirst()
+            .orElseThrow();
+    ((Map<String, Object>) u01.get("params"))
+        .put("_message", "At least 8 hours of rest after any shift.");
+    saveRows(draft, "REST", rest);
+
+    String stored =
+        jdbc.queryForObject(
+            "SELECT message FROM rule_row WHERE rule_set_version_id ="
+                + " (SELECT id FROM rule_set_version WHERE version = ?) AND code = 'U-01'",
+            String.class,
+            draft);
+    assertThat(stored)
+        .as("an edited plain-language message must not be silently dropped")
+        .isEqualTo("At least 8 hours of rest after any shift.");
+  }
+
   private Integer publishedVersion() {
     return jdbc.queryForObject(
         "SELECT max(version) FROM rule_set_version WHERE status = 'PUBLISHED'", Integer.class);
