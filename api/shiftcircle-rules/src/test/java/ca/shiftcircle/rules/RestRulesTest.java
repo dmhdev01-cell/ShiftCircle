@@ -47,7 +47,7 @@ class RestRulesTest {
               assertThat(result.actual()).isCloseTo(7.98, org.assertj.core.data.Offset.offset(0.01));
               assertThat(result.overridePolicy()).isEqualTo(OverridePolicy.EMERGENCY);
               assertThat(result.ruleSetVersion()).isEqualTo("v1");
-              assertThat(result.evidence()).contains("D8 ends").contains("next shift starts");
+              assertThat(result.evidence()).contains("D8 (").contains("ends").contains("next shift");
             });
   }
 
