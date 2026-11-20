@@ -50,6 +50,21 @@ describe('the overtime board', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows every blocking and warning code on the candidate pill', async () => {
+    renderBoard();
+
+    const table = await screen.findByRole('table');
+    const rows = within(table).getAllByRole('row').slice(1);
+
+    // Two blockers: the second must not hide behind the first.
+    expect(within(rows[1]).getByText('Skipped · U-01, U-05')).toBeInTheDocument();
+    // A block and a warning together.
+    expect(within(rows[7]).getByText('Skipped · U-01, U-12')).toBeInTheDocument();
+    // Warnings are named too, and a passing rule is not.
+    expect(within(rows[4]).getByText('Eligible · warning · U-14')).toBeInTheDocument();
+    expect(within(rows[4]).queryByText(/U-02/)).not.toBeInTheDocument();
+  });
+
   it('offers a Select only to the officers who can take the shift', async () => {
     renderBoard();
 
@@ -61,7 +76,7 @@ describe('the overtime board', () => {
     expect(within(rows[1]).queryByRole('checkbox')).not.toBeInTheDocument();
     // Sam is eligible, Tara is eligible with a warning.
     expect(within(rows[2]).getByRole('checkbox')).toBeInTheDocument();
-    expect(within(rows[4]).getByText('Eligible · warning')).toBeInTheDocument();
+    expect(within(rows[4]).getByText('Eligible · warning · U-14')).toBeInTheDocument();
   });
 
   it('shows the overtime hours and the seniority the api ranked on', async () => {

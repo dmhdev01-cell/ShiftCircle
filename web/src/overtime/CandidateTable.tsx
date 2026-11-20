@@ -80,11 +80,16 @@ export function CandidateTable({
         </thead>
         <tbody>
           {candidates.map((candidate, index) => {
-            // Only a rule that failed or warned is worth naming; a passing
-            // rule code would say nothing.
-            const ruleCode = candidate.ruleResults?.find(
-              (result) => result.outcome === 'BLOCK' || result.outcome === 'WARN',
-            )?.ruleCode;
+            // Every rule that failed or warned is worth naming; a passing
+            // rule code would say nothing. One officer can break more than one
+            // rule, and the pill must not hide the second blocker.
+            const ruleCodes = Array.from(
+              new Set(
+                (candidate.ruleResults ?? [])
+                  .filter((result) => result.outcome === 'BLOCK' || result.outcome === 'WARN')
+                  .map((result) => result.ruleCode),
+              ),
+            );
             const offerable = canBeOffered(candidate);
             return (
               <tr key={candidate.employeeId}>
@@ -124,7 +129,7 @@ export function CandidateTable({
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
                     <StatusPill tone={TONE[candidate.eligibility as Eligibility]}>
                       {LABEL[candidate.eligibility as Eligibility]}
-                      {ruleCode ? ` · ${ruleCode}` : ''}
+                      {ruleCodes.length > 0 ? ` · ${ruleCodes.join(', ')}` : ''}
                     </StatusPill>
                     {candidate.reason ? (
                       <Typography
