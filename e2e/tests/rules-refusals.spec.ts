@@ -98,6 +98,8 @@ test.describe('rules admin refusals', () => {
     await expect(sentence).toBeVisible();
     test.fail(true, 'D6: the plain-language sentence shows ".*" and "is block"');
     await expect(sentence).not.toContainText('.*', { timeout: 3_000 });
-    await expect(sentence).not.toContainText('is block');
+    // The bare enum words, with their full stop ("the change is block." /
+    // "is warn."); the fixed wording "is blocked" must not match.
+    await expect(sentence).not.toContainText(/\bis (block|warn)\./);
   });
 });
