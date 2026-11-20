@@ -1,5 +1,6 @@
 package ca.shiftcircle.api.reports;
 
+import ca.shiftcircle.api.csv.Csv;
 import ca.shiftcircle.api.security.AuthPrincipal;
 import ca.shiftcircle.api.security.ScopeGuard;
 import ca.shiftcircle.rules.pay.PayClassifier;
@@ -78,7 +79,14 @@ public class ReportsService {
     LocalDate from = fromInput != null ? fromInput : monday.minusWeeks(5);
     LocalDate to = toInput != null ? toInput : monday.plusWeeks(1).plusDays(6);
     validate(from, to);
-    boolean byWeek = !"day".equalsIgnoreCase(groupBy);
+    if (groupBy != null
+        && !groupBy.isBlank()
+        && !"day".equalsIgnoreCase(groupBy)
+        && !"week".equalsIgnoreCase(groupBy)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "groupBy must be day or week");
+    }
+    boolean byWeek = groupBy == null || groupBy.isBlank() || "week".equalsIgnoreCase(groupBy);
 
     Scope scope = scope(principal, unitId);
     if (scope.unitIds().isEmpty()) {
@@ -433,11 +441,17 @@ public class ReportsService {
   }
 
   private ReportsViews.HoursPeriod hoursPeriod(PayPeriodRecord period) {
-    Map<String, Object> row =
-        jdbc.queryForMap(
+    List<Map<String, Object>> rows =
+        jdbc.queryForList(
             "SELECT p.locked_at, u.display_name AS locked_by FROM pay_period p"
                 + " LEFT JOIN app_user u ON u.id = p.locked_by WHERE p.id = ?",
             period.id());
+    if (rows.isEmpty()) {
+      // A range with no pay period (M5): a clear empty report, not a failed query.
+      return new ReportsViews.HoursPeriod(
+          period.id(), label(period.from(), period.to(), false), period.status(), null, null);
+    }
+    Map<String, Object> row = rows.get(0);
     Timestamp lockedAt = (Timestamp) row.get("locked_at");
     return new ReportsViews.HoursPeriod(
         period.id(),
@@ -619,7 +633,7 @@ public class ReportsService {
         new StringBuilder(
             "week,required_hours,scheduled_hours,actual_hours,scheduled_percent,actual_percent,planned\n");
     for (ReportsViews.CoverageWeek week : report.weeks()) {
-      csv.append(cell(week.label()))
+      csv.append(Csv.cell(week.label()))
           .append(',')
           .append(money(week.requiredHours()))
           .append(',')
@@ -651,9 +665,9 @@ public class ReportsService {
         employeeNumbers(
             report.rows().stream().map(ReportsViews.HoursByOfficer::employeeId).toList());
     for (ReportsViews.HoursByOfficer row : report.rows()) {
-      csv.append(cell(numbers.getOrDefault(row.employeeId(), row.employeeId().toString())))
+      csv.append(Csv.cell(numbers.getOrDefault(row.employeeId(), row.employeeId().toString())))
           .append(',')
-          .append(cell(row.name()))
+          .append(Csv.cell(row.name()))
           .append(',')
           .append(money(row.scheduled()))
           .append(',')
@@ -680,9 +694,9 @@ public class ReportsService {
         employeeNumbers(report.rows().stream().map(ReportsViews.OvertimeByOfficer::employeeId).toList());
     StringBuilder csv = new StringBuilder("employee_no,name,overtime_hours\n");
     for (ReportsViews.OvertimeByOfficer row : report.rows()) {
-      csv.append(cell(numbers.getOrDefault(row.employeeId(), row.employeeId().toString())))
+      csv.append(Csv.cell(numbers.getOrDefault(row.employeeId(), row.employeeId().toString())))
           .append(',')
-          .append(cell(row.name()))
+          .append(Csv.cell(row.name()))
           .append(',')
           .append(money(row.hours()))
           .append('\n');
@@ -695,17 +709,17 @@ public class ReportsService {
     List<ReportsViews.OverrideRow> rows = overrides(principal, from, to, unitId);
     StringBuilder csv = new StringBuilder("at,employee,unit,rule_codes,actor,reason\n");
     for (ReportsViews.OverrideRow row : rows) {
-      csv.append(cell(row.at()))
+      csv.append(Csv.cell(row.at()))
           .append(',')
-          .append(cell(row.employeeName() == null ? "" : row.employeeName()))
+          .append(Csv.cell(row.employeeName() == null ? "" : row.employeeName()))
           .append(',')
-          .append(cell(row.unitName() == null ? "" : row.unitName()))
+          .append(Csv.cell(row.unitName() == null ? "" : row.unitName()))
           .append(',')
-          .append(cell(row.ruleCode() == null ? "" : row.ruleCode()))
+          .append(Csv.cell(row.ruleCode() == null ? "" : row.ruleCode()))
           .append(',')
-          .append(cell(row.actor() == null ? "" : row.actor()))
+          .append(Csv.cell(row.actor() == null ? "" : row.actor()))
           .append(',')
-          .append(cell(row.reason()))
+          .append(Csv.cell(row.reason()))
           .append('\n');
     }
     return csv.toString();
@@ -827,21 +841,6 @@ public class ReportsService {
     return value == null ? "" : String.format(Locale.ROOT, "%.2f", value);
   }
 
-  private static String cell(String value) {
-    String clean = value == null ? "" : value;
-    // Same protection as the payroll CSV: a leading = + - @ can be evaluated by a spreadsheet.
-    if (!clean.isEmpty() && "=+-@\t\r".indexOf(clean.charAt(0)) >= 0) {
-      clean = "'" + clean;
-    }
-    if (clean.indexOf(',') < 0
-        && clean.indexOf('"') < 0
-        && clean.indexOf('\t') < 0
-        && clean.indexOf('\n') < 0
-        && clean.indexOf('\r') < 0) {
-      return clean;
-    }
-    return '"' + clean.replace("\"", "\"\"") + '"';
-  }
 
   /** Kept so the coverage CSV can be extended with the raw hours without another query. */
   public LocalDate asOf() {
