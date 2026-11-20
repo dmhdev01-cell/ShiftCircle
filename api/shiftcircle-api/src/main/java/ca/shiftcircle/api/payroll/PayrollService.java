@@ -2,6 +2,7 @@ package ca.shiftcircle.api.payroll;
 
 import ca.shiftcircle.api.csv.Csv;
 import ca.shiftcircle.api.security.AuthPrincipal;
+import ca.shiftcircle.api.time.BusinessClock;
 import ca.shiftcircle.api.security.ScopeGuard;
 import ca.shiftcircle.rules.pay.PayClassification;
 import ca.shiftcircle.rules.pay.PayClassifier;
@@ -53,13 +54,15 @@ public class PayrollService {
 
   private final JdbcTemplate jdbc;
   private final ScopeGuard scopeGuard;
+  private final BusinessClock clock;
   private final PayClassifier classifier = new PayClassifier();
   private final PayPolicy policy = classifier.policyFrom(RuleRowsV1.ruleSet());
   private final ObjectMapper mapper = new ObjectMapper();
 
-  public PayrollService(JdbcTemplate jdbc, ScopeGuard scopeGuard) {
+  public PayrollService(JdbcTemplate jdbc, ScopeGuard scopeGuard, BusinessClock clock) {
     this.jdbc = jdbc;
     this.scopeGuard = scopeGuard;
+    this.clock = clock;
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -175,7 +178,7 @@ public class PayrollService {
     sql.append(" ORDER BY s.start_at, e.last_name, e.first_name");
 
     List<PayrollViews.TimeEntryView> entries = new ArrayList<>();
-    Instant now = Instant.now();
+    Instant now = clock.now();
     jdbc.query(
         sql.toString(),
         rs -> {
@@ -483,7 +486,7 @@ public class PayrollService {
     List<PayrollViews.TimeEntryView> entries =
         jdbc.query(
             ENTRY_SELECT + " WHERE s.id = ?",
-            (rs, index) -> entryView(rs, Instant.now()),
+            (rs, index) -> entryView(rs, clock.now()),
             assignmentId);
     PayrollViews.TimeEntryView entry =
         entries.isEmpty()
@@ -696,7 +699,7 @@ public class PayrollService {
   }
 
   private List<PayrollViews.MissingActual> missingActuals(PayPeriodRecord period) {
-    Instant now = Instant.now();
+    Instant now = clock.now();
     return jdbc.query(
         "SELECT s.id, s.employee_id, s.start_at FROM shift_assignment s"
             + " WHERE s.work_date BETWEEN ? AND ? AND s.status <> 'CANCELLED'"
