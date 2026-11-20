@@ -118,13 +118,13 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
   mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
 ```
 
-**Count:** the sources at the review-pass fix (`c0dcaf3`) hold **97 rules + 27 infrastructure + 224
-api = 348 tests**, counted as `@Test` methods (a static grep, each annotation on its own line; no
-parameterised tests). The last full clean-worktree run is **91 + 27 + 183 = 301** at `5e7765f`
-(this author, default order and random seed 20261120). dev-qa's run at `211e8f9` found 4 red (which
-`d2d120e` fixed), then review-r2/r3's follow-up findings were fixed at `c0dcaf3`; the full re-run at
-that tip is pending. Earlier, 296 = 91 + 22 + 183 at `dcee43b`, and default and random order at
-`fe6487d`, reverse class order and random seeds at `22375d4`.
+**Count:** the last full clean runs are dev-qa's independent ones at `c0dcaf3`: **348 = 97 rules +
+27 infrastructure + 224 api tests**, in the default order and with random seed 20261121, 0
+failures/errors/skipped; this author's static count agrees (97 + 27 + 224 `@Test` methods, one per
+line, no parameterised tests). Playwright against the real api: desktop 19 passed, tablet 18 passed
++ 1 skipped (the TV-size check is desktop-only); fixtures 43 passed / 3 skipped. Earlier, as
+history: 301 = 91 + 27 + 183 at `5e7765f`, 296 = 91 + 22 + 183 at `dcee43b`, and default/random at
+`fe6487d`, reverse and random seeds at `22375d4`.
 
 **One viewport per fresh stack.** The real-api specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop`, then `docker compose down -v && docker compose up -d --wait`, then `--project tablet`.
 
