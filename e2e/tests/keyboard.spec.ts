@@ -24,12 +24,13 @@ test.describe('keyboard only', () => {
 
     await tabTo(page, page.getByRole('button', { name: 'Emergency override…' }), 10);
     await page.keyboard.press('Enter');
-    const reason = page.getByRole('dialog').getByLabel('Why is this override needed?');
+    const override = page.getByRole('dialog', { name: 'Emergency override' });
+    const reason = override.getByLabel('Why is this override needed?');
     await expect(reason).toBeFocused();
     await page.keyboard.type('Short');
-    await expect(page.getByRole('dialog').getByRole('button', { name: 'Emergency override' })).toBeDisabled();
+    await expect(override.getByRole('button', { name: 'Emergency override' })).toBeDisabled();
     await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(override).toBeHidden();
     await expect(page.getByRole('button', { name: 'Emergency override…' })).toBeFocused();
   });
 

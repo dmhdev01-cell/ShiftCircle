@@ -7,6 +7,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import Drawer from '@mui/material/Drawer';
 import Typography from '@mui/material/Typography';
 
 import { shiftTemplates } from '../api/shiftTemplates';
@@ -82,6 +83,7 @@ export function PlanningPage() {
   );
   const [proposal, setProposal] = useState<{ officer: OfficerRow; item: ShiftItem } | null>(null);
   const [overrideOpen, setOverrideOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   if (state.kind === 'loading') {
     return (
@@ -246,7 +248,10 @@ export function PlanningPage() {
           </Typography>
         </Box>
 
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2.5 }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 2.5 }}>
+          <Button variant="outlined" color="primary" onClick={() => setHelpOpen(true)}>
+            Rules help
+          </Button>
           <Box
             sx={{
               display: 'flex',
@@ -309,34 +314,54 @@ export function PlanningPage() {
         />
       </Box>
 
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'flex-start' }}>
-        <Box
-          component="section"
-          id="roster"
-          aria-label="Roster"
-          tabIndex={-1}
-          sx={{ flex: '999 1 640px', minWidth: 0, outline: 'none' }}
-        >
-          <RosterGrid
-            payload={payload}
-            today={today}
-            onEmptyCell={startChoose}
-            onPickChip={pickChip}
-          />
-        </Box>
+      <Box
+        component="section"
+        id="roster"
+        aria-label="Roster"
+        tabIndex={-1}
+        sx={{ minWidth: 0, outline: 'none' }}
+      >
+        <RosterGrid
+          payload={payload}
+          today={today}
+          onEmptyCell={startChoose}
+          onPickChip={pickChip}
+        />
+      </Box>
 
-        <Box sx={{ flex: '1 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <Drawer
+        anchor="right"
+        open={helpOpen || mutation.state.kind !== 'idle'}
+        onClose={() => {
+          if (mutation.state.kind === 'idle') setHelpOpen(false);
+          else cancelChange();
+        }}
+      >
+        <Box
+          sx={{
+            width: { xs: '100vw', sm: 420 },
+            p: 3,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+          }}
+        >
           {mutation.state.kind === 'idle' ? (
-            <Card>
-              <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Typography sx={{ fontWeight: 600, fontSize: 15 }}>Rule check</Typography>
-                <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
-                  Pick an empty cell to propose a shift. The rules are checked before anything is
-                  saved, and a rule that blocks the change has to be overridden with a written
-                  reason.
-                </Typography>
-              </CardContent>
-            </Card>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
+                Rule check
+              </Typography>
+              <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
+                Pick an empty cell to propose a shift. The rules are checked before anything is
+                saved, and a rule that blocks the change has to be overridden with a written
+                reason.
+              </Typography>
+              <Box>
+                <Button variant="outlined" color="primary" onClick={() => setHelpOpen(false)}>
+                  Close
+                </Button>
+              </Box>
+            </Box>
           ) : (
             <RuleCheckPanel
               state={mutation.state}
@@ -356,7 +381,7 @@ export function PlanningPage() {
             />
           )}
         </Box>
-      </Box>
+      </Drawer>
 
       <Dialog
         open={pending !== null && mutation.state.kind === 'idle'}

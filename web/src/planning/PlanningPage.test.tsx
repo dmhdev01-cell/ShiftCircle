@@ -36,6 +36,17 @@ describe('the planning board', () => {
     ).toBeInTheDocument();
   });
 
+  it('keeps the rule explanation behind the Rules help button', async () => {
+    const user = userEvent.setup();
+    renderBoard();
+
+    await screen.findByText('Coverage gaps');
+    expect(screen.queryByText(/Pick an empty cell to propose a shift/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Rules help' }));
+    expect(screen.getByText(/Pick an empty cell to propose a shift/)).toBeInTheDocument();
+  });
+
   it('counts the coverage gaps from the hourly coverage (ADR-017)', async () => {
     renderBoard();
 

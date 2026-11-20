@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 
 import { AbsenceChip, OffChip, ShiftChip } from '../components/ShiftChip';
+import { ScrollShadows } from '../components/ScrollShadows';
 import { StatusPill } from '../components/StatusPill';
 import type { Block, CellItem, OfficerRow, SchedulePayload, ShiftItem } from '../api/types';
 import { colour } from '../theme/tokens';
@@ -87,18 +88,21 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGr
 
   return (
     <Box sx={{ backgroundColor: colour.bg.surface, border: `1px solid ${colour.border.default}`, borderRadius: '10px' }}>
-      <Box sx={{ overflowX: 'auto' }}>
+      <ScrollShadows
+        label="Roster, scrolls sideways"
+        hint="Scroll sideways to see the rest of the week."
+      >
         <table
           style={{
             width: '100%',
-            minWidth: 900,
+            minWidth: 860,
             borderCollapse: 'collapse',
             fontSize: 13,
           }}
         >
           <thead>
             <tr>
-              <th style={{ minWidth: 190, textAlign: 'left', padding: 8, fontSize: 12, fontWeight: 600, color: colour.text.secondary, backgroundColor: colour.bg.subtle }}>
+              <th style={{ width: 165, minWidth: 165, textAlign: 'left', padding: 6, fontSize: 12, fontWeight: 600, color: colour.text.secondary, backgroundColor: colour.bg.subtle }}>
                 Officer
               </th>
               <th
@@ -277,7 +281,7 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGr
             ))}
           </tbody>
         </table>
-      </Box>
+      </ScrollShadows>
 
       <Box
         sx={{

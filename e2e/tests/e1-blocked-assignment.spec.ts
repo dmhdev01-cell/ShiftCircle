@@ -38,7 +38,7 @@ test.describe('E1 blocked assignment (PC-01)', () => {
     await page.getByRole('button', { name: PC01_CHIP }).click();
     await page.getByRole('button', { name: 'Emergency override…' }).click();
 
-    const dialog = page.getByRole('dialog');
+    const dialog = page.getByRole('dialog', { name: 'Emergency override' });
     await expect(dialog).toBeVisible();
     // The dialog names the broken rules and the warning it acknowledges.
     await expect(dialog.getByText(/This overrides U-01, U-05/)).toBeVisible();
@@ -107,7 +107,7 @@ test.describe('E1 blocked assignment (PC-01)', () => {
     await signIn(page, 'M. Ellis');
     await page.getByRole('button', { name: PC01_CHIP }).click();
     await page.getByRole('button', { name: 'Emergency override…' }).click();
-    const dialog = page.getByRole('dialog');
+    const dialog = page.getByRole('dialog', { name: 'Emergency override' });
     await dialog.getByLabel('Why is this override needed?').fill('Lockdown, relief unavailable');
     await dialog.getByRole('button', { name: 'Emergency override' }).click();
     await expect(page.getByText('Saved', { exact: true })).toBeVisible();
