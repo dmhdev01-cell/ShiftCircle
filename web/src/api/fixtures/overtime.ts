@@ -67,7 +67,7 @@ export const demoCandidates: Candidate[] = [
     overtimeHoursThisQuarter: 6.5,
     seniorityDate: 'Aug 2019',
     eligibility: 'SKIPPED',
-    reason: 'Night shift ends Sat 07:00: no rest. Keeps his place.',
+    reason: 'Night shift ends Sat 07:00: no rest. Keeps their place.',
   },
   {
     employeeId: 'emp-sam',
@@ -121,7 +121,7 @@ export const demoCandidates: Candidate[] = [
     overtimeHoursThisQuarter: 34.5,
     seniorityDate: 'Jun 2012',
     eligibility: 'SKIPPED',
-    reason: 'P12 Fri 12:00–24:00: only 7 hours’ rest before this shift. Keeps her place.',
+    reason: 'P12 Fri 12:00–24:00: only 7 hours’ rest before this shift. Keeps their place.',
   },
 ];
 

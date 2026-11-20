@@ -45,7 +45,7 @@ describe('the overtime board', () => {
     // The skipped officer is still in the list, with the reason the api sent.
     expect(within(rows[1]).getAllByText('Skipped').length).toBeGreaterThan(0);
     expect(
-      within(rows[1]).getByText('Night shift ends Sat 07:00: no rest. Keeps his place.'),
+      within(rows[1]).getByText('Night shift ends Sat 07:00: no rest. Keeps their place.'),
     ).toBeInTheDocument();
   });
 
