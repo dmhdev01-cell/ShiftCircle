@@ -2,9 +2,11 @@
 
 **Derived from the test sources, not from the prose.** Checked on 2026-11-20 against `main` at
 `62dd4fc` (code) / `7994eba` (docs) by grepping `@Test`, Playwright `test(...)` titles and the
-Flyway migrations. The latest clean-worktree run is **91 rules + 20 infrastructure + 158 api =
-269 tests, 0 failures** at `62dd4fc`; a proof below names the test class and method that makes the
-claim, not the document that hopes it exists.
+Flyway migrations. The latest clean-worktree run is **91 rules + 20 infrastructure + 165 api =
+276 tests, 0 failures** at `22375d4`, run in reverse class order and with two random seeds
+(20261120, 20261121). It is counted as `@Test` methods: 91 + 20 + 165 static annotations, and
+Surefire reports the same total with 0 skipped. A proof below names the test class and method that
+makes the claim, not the document that hopes it exists.
 
 **Path shorthand.** `RulesTest` = a class in `api/shiftcircle-rules/src/test/java/ca/shiftcircle/rules/`;
 `ApiTest` = a class in `api/shiftcircle-api/src/test/java/ca/shiftcircle/api/`;
@@ -30,7 +32,7 @@ by review or convention, with no code assertion.
 | U-11 | 3 per 7 d and 10 per 28 d; 4th in 7 d WARN, 11th in 28 d WARN, 7-day boundary PASS | `HoursAndRunsRulesTest#u11PassesAtThreeSixteenHourShiftsInSevenDays`, `#u11WarnsAtAFourthSixteenHourShiftWithinSevenDays`, `#u11CountsAnExtendedSixteenHourShift`, `#u11PassesWhenTheFourthShiftIsExactlySevenDaysAfterTheFirst`, `#u11WarnsAtAnEleventhSixteenHourShiftWithinTwentyEightDays` | PASS |
 | U-12 | 2 consecutive days off in 7; 48 h PASS, 47 h 59 m WARN, break boundary and leading/trailing breaks counted | `HoursAndRunsRulesTest#u12PassesWithFortyEightHoursOff`, `#u12CountsABreakOfTwentyFourHoursAsNoDayOff`, `#u12CountsABreakOfTwentyFourHoursOneMinuteAsOneDay`, `#u12IgnoresALongBreakFromAnEarlierWeek`, `#u12CountsLeadingAndTrailingBreaksInTheWindow`, `#u12WarnsWithFortySevenHoursFiftyNineMinutesOff`, `#u12CountsDaysOffAtTheBreakBoundary` | PASS |
 | U-14 | 48 h PASS, 48.25 h WARN, 60.25 h BLOCK; no override | `HoursAndRunsRulesTest#u14PassesAtExactlyFortyEightHours`, `#u14WarnsAtFortyEightHoursFifteenMinutes`, `#u14BlocksAtSixtyHoursFifteenMinutes`; override refusal in `AssignmentApiTest#aBlockRuleWithoutAnEmergencyOverrideCannotBeOverridden` | PASS |
-| U-15 | Board shows under / approaching / in overtime for the current period | `ScheduleApiTest#listsTheOfficerRowsWithAssignmentsAndOvertimeStatus` asserts **UNDER** only; `PlanningPage.test.tsx#shows the officer pay-period hours with the overtime status pill` asserts the three labels on fixtures; `ScheduleQuery` computes 72 h/80 h | **PARTIAL** — no test at exactly 72 h or 80 h, so APPROACHING/IN_OVERTIME boundaries are unproven in the API |
+| U-15 | Board shows under / approaching / in overtime for the current period; 71.99 h UNDER, exactly 72 h APPROACHING, 79.99 h APPROACHING, exactly 80 h IN_OVERTIME; last day and midnight-crossing entry stay in their own period | `ScheduleApiTest#overtimeStatusChangesAtThePayPeriodThresholdBoundaries`, `#overtimeStatusUsesThePeriodThatContainsTheBoardDateAndCountsAMidnightCrossing`, `#listsTheOfficerRowsWithAssignmentsAndOvertimeStatus`; `PlanningPage.test.tsx#shows the officer pay-period hours with the overtime status pill` | PASS |
 | P-01 | 80 h REG, 80.5 h → 0.5 OT15, 96 h → 80 REG + 16 OT15, rostered 16 h inside 80 h all REG | `PayAndShiftLengthRulesTest#p01TreatsEightyHoursAsRegular`, `#p01ClassifiesHalfAnHourBeyondTheThreshold`, `#p01TreatsRosteredHoursAndAPickedUpSixteenHourShiftAsDesigned`; `PayrollApiTest#adjustedTimesSplitPeriodOvertimeThroughThePayClassifier` | PASS |
 | P-01b | OT paid at 1.5× | `PayAndShiftLengthRulesTest#p01ClassifiesHalfAnHourBeyondTheThreshold` (rate 1.5); `PayrollExportGoldenTest#theLockedPeriodsExportMatchesTheGoldenFileAndTheActualHours` (OT15 rows) | PASS |
 | P-04 | OT under 30 min unpaid; 29 m → 0, 30 m → 0.5 h | `PayAndShiftLengthRulesTest#p04DoesNotPayTwentyNineMinutesOfOvertime`, `#p04PaysThirtyMinutesOfOvertime` | PASS |
@@ -75,7 +77,7 @@ workflow scenarios; they are proved by their own API/DB tests, not by the rule-s
 | E2 | `e2e/e2-offer-accept-confirm.spec.ts` | `an offer reaches Tara, she accepts, the supervisor confirms`; `an employee sees no colleague hours or overtime totals` | Real api: `ai-dev-log` 61 | PASS |
 | E3 | `e2e/e3-rule-change.spec.ts` (+ `keyboard.spec.ts`) | `admin edits, builds and submits; approver approves and publishes`; `a supervisor can read the rules but not build, submit, approve or publish`; keyboard `@fixtures E3: edit, build, submit, sign out, approve, publish` | Real api: `ai-dev-log` 61 | PASS |
 | E4 | `e2e/e4-lock-and-payroll.spec.ts` | `@fixtures the open period refuses to lock while actuals are missing`; `the open period can be locked at the demo clock`; `a locked period is read-only and exports the payroll CSV`; `unlocking a period asks for a reason of at least 10 characters` | Real api: `ai-dev-log` 61 | PASS |
-| E5 | `e2e/e5-wall-display.spec.ts` | `shows counts only, with no officer names or employee numbers anywhere in the page`; `refreshes every 60 seconds and says when it last did`; `@api says it is not live when the api cannot be reached, and recovers`; `a supervisor sees only their own units`; `fits a 1920×1080 TV and a 1366×768 screen without scrolling` | API counterpart `DisplayApiTest` 3/3; **no full real-api E5 Playwright pass is recorded** in `ai-dev-log` | **PARTIAL** |
+| E5 | `e2e/e5-wall-display.spec.ts` | `shows counts only, with no officer names or employee numbers anywhere in the page`; `refreshes every 60 seconds and says when it last did`; `@api says it is not live when the api cannot be reached, and recovers`; `a supervisor sees only their own units`; `fits a 1920×1080 TV and a 1366×768 screen without scrolling` | **PASS** — dev-qa ran the full suite on a private fresh stack at `web-display a4b307e` (`docs/review-rounds.md` R26) and again for the stale fix at `067e556` (R27): 9 passed / 1 skipped per run, the skip being the fit test on the tablet project by design. Re-confirmed on the clean clone at `17308b7`. API counterpart `DisplayApiTest` 3/3 | PASS |
 
 Every spec calls `expectAccessible` (axe, WCAG 2.1 AA, serious/critical fail) on the screens it
 reaches; E1 also calls `expectDisclaimer`. E2–E5 rely on the web shell test for the footer.
@@ -128,7 +130,7 @@ reaches; E1 also calls `expectDisclaimer`. E2–E5 rely on the web shell test fo
 | FR-01 assign, unassign and move; every change runs the rules | `AssignmentApiTest`; `AssignmentMoveCancelApiTest` (move re-runs the pipeline); E1/E4 | PASS |
 | FR-02 shift templates configurable | `SchemaConstraintsTest#migrationsApplyAndSeedTheReferenceData` (six seeded templates); `ReferenceApiTest#shiftTemplatesAndQualificationsAreReadableByAnySignedInRole` (read) | **PARTIAL** — start times/lengths are seed data, not editable in the prototype |
 | FR-03/04 required vs scheduled vs actual per block; qualifications | `ScheduleApiTest#reportsHourlyCoverageForTheDay`; `ReportsApiTest#coverageHoursReconcileWithTheAssignmentsHourByHour`; `OvertimeRankerTest#anUnqualifiedOfficerKeepsTheFairnessPlaceButIsUnavailable` | PASS |
-| FR-05 overtime status live | `ScheduleApiTest#listsTheOfficerRowsWithAssignmentsAndOvertimeStatus`; `PlanningPage.test.tsx#shows the officer pay-period hours with the overtime status pill` | **PARTIAL** — no 72 h/80 h API boundary (see U-15) |
+| FR-05 overtime status live | `ScheduleApiTest#overtimeStatusChangesAtThePayPeriodThresholdBoundaries`; `#overtimeStatusUsesThePeriodThatContainsTheBoardDateAndCountsAMidnightCrossing`; `PlanningPage.test.tsx#shows the officer pay-period hours with the overtime status pill` | PASS |
 | FR-06 publish a period | `SchedulePublishApiTest#publishingIsScopedAuditedAndOneWay`, `#aDraftWeekReadsAsUnpublishedUntilItIsPublished` | PASS |
 | FR-07 notice check and per-officer "changed" flag after publishing | Only `publishedState.unpublishedChanges` count exists; no P-05/S-01 rule row and no per-officer changed marker | **NOT COVERED** |
 | FR-20–23 open shift, eligible list, offers, direct assign | `OvertimeApiTest#creatingAnOpenShiftIsSupervisorOnlyAndAudited`, `#theRankedListIsFewestOvertimeThenSeniority`, `#offerAcceptAndConfirmCreateTheAssignment`, `#directAssignRunsTheRulesAndFillsTheShift`, `#anEmployeeCannotSendOrConfirmOffers` | PASS |
@@ -154,9 +156,7 @@ reaches; E1 also calls `expectDisclaimer`. E2–E5 rely on the web shell test fo
    directory exists. `RuleScenarioRunner` holds T1–T5 and the T6 ranking check in Java; the build
    pipeline runs exactly those (`RuleSetService` step 3). T7–T14 are API/DB tests. `ai-dev-log` 43
    already described this correctly; the test-strategy header did not.
-2. **U-15 boundary.** The planning board computes UNDER/APPROACHING/IN_OVERTIME, but only UNDER is
-   asserted in the API test and the web test uses fixture statuses. There is no test at exactly 72 h
-   or 80 h. The rule is a Must feature, so this is a real boundary gap.
+2. **U-15 boundary (fixed after this derivation).** The planning board computes UNDER/APPROACHING/IN_OVERTIME; this derivation first found only UNDER asserted. `ScheduleApiTest` now pins 71.99 h, 72 h, 79.99 h, 80 h and 80.01 h plus the last-day/midnight-crossing period edge, and the rule row above is PASS.
 3. **FR-07 notice/changed flag.** Not built. Only `publishedState.unpublishedChanges` (a count) is
    returned; there is no P-05/S-01 row and no per-officer "changed since published" marker. It is now listed in `docs/10` §8.
 4. **NFR-09 OpenAPI.** `docs/07` §1 promises a generated OpenAPI document and Swagger UI. No

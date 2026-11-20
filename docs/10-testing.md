@@ -65,6 +65,13 @@ Each line is at least three tests: just under, exactly at, just over. Times are 
 | Pay-period lock precondition (ADR-017) | one shift ended 1 min before now with no actual → lock **409 missing-actuals** | shift ending exactly now (`end_at = now`) with no actual → **409** (it counts as ended); with an actual or absence → lock succeeds | shift ending 1 min after now with no actual → not counted; lock succeeds if all ended shifts are recorded |
 | Time zones / midnight | Night 23:00–07:00 crossing midnight: `work_date` = start date; a 12:00–24:00 shift **ends at 00:00 the next day** (not 23:59); 00:00–12:00 shift belongs to its own date; a 16 h shift 20:00–12:00 spans two dates; rest maths correct across midnight and month end (31 Oct → 1 Nov) | | |
 
+**U-15 is a board status, not a rule row.** The board reads the pay period that contains the
+requested `from` date and shows UNDER below 72 h, APPROACHING from 72 h, and IN_OVERTIME from 80 h.
+`ScheduleApiTest#overtimeStatusChangesAtThePayPeriodThresholdBoundaries` pins 71.99 h, exactly 72 h,
+79.99 h, exactly 80 h and 80.01 h (the `hours` column is 2 dp, so 71.99 h is 71 h 59 m 24 s);
+`#overtimeStatusUsesThePeriodThatContainsTheBoardDateAndCountsAMidnightCrossing` checks the last day,
+a 23:00–07:00 entry and a separate 2027 period.
+
 ## 4. Scenario library (named, reusable)
 
 These are the verification cases. Pick 2–5 for the build record (recommended: **T2, T3, T7, T8, T9**). The rules publish pipeline runs T1–T5 and the T6 ranking check (`RuleScenarioRunner`); T7–T14 are covered by their own API/database tests because a rule row cannot affect payroll, maker/checker or lock behaviour.

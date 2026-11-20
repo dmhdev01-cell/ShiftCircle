@@ -30,11 +30,15 @@ Internal note for the team; remove before submission (step 13) or fold into the 
 | boot validation | `062da95`, `62dd4fc` | `PublishedRuleSet` runs `RuleRowValidator` on the published rows at boot; unreadable rows stop the boot instead of falling back to v1; direct-edit tests restore the row |
 | 12e move/cancel | `c1dd6ad` | `PATCH`/`DELETE /assignments/{id}`: full rule pipeline on the target with own slot excluded, If-Match inside the officer lock, ETag/version, locked/started/actual/fills-open checks, audit before/after, 16 tests; POST and board items carry version too. Shapes handed to dev-build2 |
 | traceability | `docs/traceability.md` | 20 rules + S-04, T1-T14, E1-E5, guardrails 1-8 and ADR-001..023 mapped to exact tests; 65 class#method refs machine-checked. Found and reported: scenario JSON claim, U-15 boundary, FR-07 notice flag, NFR-09 OpenAPI, ADR-015 editing, perf E2E claim |
+| U-15 boundaries | `57da6b1` | `ScheduleApiTest` pins 71.99/72/79.99/80/80.01 h plus last-day/midnight and a separate period; 2 new tests; fixture clears time entries |
+| reason caps + absence | `f1d696d` | cancel/override/unlock/reject reasons capped at 500 with 400 naming the field; cancel refuses `absence-recorded`; tests for each; docs/07 updated |
+| order-proof tests | `22375d4` | one database per API test class; authz stale-token bug fixed; reverse + random x2 each 276 tests green |
+| generated password | `22375d4` | no-op `UserDetailsService` stops Boot's default user; `AuthApiTest` asserts no in-memory user and basic auth 401; log line gone |
 | 12b audit viewer | `21af15c` | `GET /audit-events`: auditor facility-wide, supervisor scoped to their units, filters (actor/action/entity/date), keyset pages, read-only; 405s and the append-only trigger proven |
 | review S1-S5 | `e13ddeb`, `b572dff`, `444f685`, `03ceb19`, `35c225d` | DRL injection closed (codes/messages/regex validated before compile + escaped again), shift-kind bounded against ReDoS, message edits saved, Must policies pinned, limits capped + silent rule named, odd input 400/404 problems |
 | 12a wall display | `6649eb1`, `f191d07`, `6237258` | `GET /display/today` (ADR-017 hourly blocks, midnight-crossing night, no names, scope, roles); the `coverage/` ignore fix that a clean checkout caught; ignored-source guard script + README step; 209 tests from a clean worktree at `f191d07` |
 
-Latest full run: 91 rules + 20 infrastructure + 158 api = **269 tests**, all passing in Docker from a clean worktree at `62dd4fc`.
+Latest full run: 91 rules + 20 infrastructure + 165 api = **276 tests**, all passing in Docker from a clean worktree at `22375d4`, in reverse class order and two random orders (seeds 20261120, 20261121). Counted as `@Test` methods; Surefire 0 skipped.
 
 ## Next, in the lead's priority order
 
@@ -82,9 +86,10 @@ demo script/recording.
 - Host owns 8080/5432/5433: use `SC_WEB_PORT=18080 SC_API_PORT=28081 SC_DB_PORT=25432`.
 - Tests only in Docker; Testcontainers needs the socket and `TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal`.
 - `sc.demo.generate=false` enables the demo profile in tests without generating 100 officers.
-- Tests share one PostgreSQL container: a new fixture on the demo day (2026-11-19) can break
-  `DisplayApiTest`'s exact Unit A coverage and the schedule assertions. Fixtures go on dates after
-  the demo day and are deleted afterwards; the README says the same for humans.
+- Tests share one PostgreSQL container but each API class gets its own database
+  (`PostgresTestSupport`), so class order cannot leak state. Keep fixtures off the demo day
+  (2026-11-19) where the display/schedule tests assert exact Unit A coverage. Run reverse and random
+  class order when changing test infrastructure; the README has the commands.
 - Verify counts from a clean worktree (`git worktree add /tmp/x HEAD`); working-tree passes hid files once.
 - `.gitignore` patterns must be anchored to the build output (`/web/build/`, `/web/coverage/`): the
   unanchored forms each swallowed a Java package (`rules/build/`, `api/coverage/`). Run
