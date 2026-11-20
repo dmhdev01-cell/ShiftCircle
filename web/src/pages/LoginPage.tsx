@@ -9,6 +9,7 @@ import { api, ApiError } from '../api/client';
 import { getSession, setSession, subscribeSession } from '../api/session';
 import type { DemoUser } from '../api/types';
 import { destinationFor } from '../shell/destinations';
+import { safeReturnPath } from '../shell/returnPath';
 import { ROLE_WORDS } from '../shell/roles';
 import { colour } from '../theme/tokens';
 
@@ -34,7 +35,8 @@ export function LoginPage() {
   const [busy, setBusy] = useState(false);
 
   // A protected route sent the visitor here; go back to it after signing in.
-  const from = (location.state as { from?: string } | null)?.from;
+  // The value is router state, so it is validated before it is navigated to.
+  const from = safeReturnPath((location.state as { from?: unknown } | null)?.from);
 
   useEffect(() => {
     let active = true;

@@ -8,9 +8,7 @@ import { AppShellRoutes } from '../App';
 import { api, ApiError } from '../api/client';
 import { sessionExpired } from '../api/session';
 import { RoleProvider } from '../shell/nav';
-import { theme } from '../theme/theme';
-
-function renderLogin() {
+import { theme } from '../theme/theme';function renderLogin() {
   return render(
     <ThemeProvider theme={theme}>
       <RoleProvider>
@@ -76,5 +74,25 @@ describe('the mock sign-in', () => {
     renderLogin();
 
     expect(await screen.findByText('Your session ended. Sign in again.')).toBeInTheDocument();
+  });
+
+  it('ignores a return path that would leave the app', async () => {
+    // review-r2 NOTE 1: the route guard passes the asked-for path in router
+    // state, and the sign-in screen must not navigate anywhere else.
+    const user = userEvent.setup();
+    render(
+      <ThemeProvider theme={theme}>
+        <RoleProvider>
+          <MemoryRouter initialEntries={[{ pathname: '/login', state: { from: 'https://evil.example' } }]}>
+            <AppShellRoutes />
+          </MemoryRouter>
+        </RoleProvider>
+      </ThemeProvider>,
+    );
+
+    await user.click(await screen.findByRole('button', { name: /T\. Nakamura/ }));
+
+    // The role's own landing page, not the hostile value.
+    expect(await screen.findByRole('heading', { name: 'My schedule', level: 1 })).toBeInTheDocument();
   });
 });
