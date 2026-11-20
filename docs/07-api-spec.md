@@ -306,9 +306,14 @@ key). A key the schema does not declare is still accepted when the stored row al
 `afterShiftKind` is the stored column for the rest table's "After this kind of shift" field:
 the friendly labels (`Any shift`, `Regular shift`, `16 h shift`, `12 h 00–12`, `12 h 12–24`) map to
 their patterns, and a raw pattern such as `D8|E8` or `(D8|N8|A12)` is accepted when it matches the
-strict grammar; anything else is `400`, never stored as `.*`. A rule code uses letters, digits and
-hyphens (for example `U-01` or `P-01b`). The build's validation is total: a row stored with a bad
-value (for
+strict grammar; anything else is `400`, never stored as `.*`. When both `after` (the friendly label)
+and `params.afterShiftKind` are sent they must agree: a disagreement is `400` naming both fields, and
+a client that edits the column sends one value in both fields (or only `afterShiftKind`). A rule code
+uses letters, digits and
+hyphens (for example `U-01` or `P-01b`). A message is a string of at most 500 characters; `result`
+is `BLOCK`, `WARN` or `INFO`; `override` is `EMERGENCY`, `ACKNOWLEDGE` or `NOT_ALLOWED`; anything
+else is `400` naming the column. Every numeric column has a documented range (docs/04 §5a) enforced
+at the PUT. The build's validation is total: a row stored with a bad value (for
 example by a direct database edit) becomes a validation error, not a `500`, and a report shows at
 most 20 errors with a count of the rest.
 

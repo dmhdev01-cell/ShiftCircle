@@ -91,6 +91,29 @@ accepts at most 16 values, and a build report lists at most 20 problems, then sa
 out. Validation itself is total: a row whose stored value has the wrong type is reported as a row
 problem, never allowed to throw into an HTTP 500.
 
+**The ranges every numeric column is held to** (the PUT refuses a value outside the range and the
+build validator refuses a stored one):
+
+| Table | Column | Range |
+|---|---|---|
+| Rest between shifts | `windowHours` | exactly 24 |
+| | `minRestHours` | 8–24 |
+| | `minExtensionMinutes` | 0–1440 |
+| Maximum hours | `windowHours` | 24 or 168 |
+| | `maxHours` | above 0, at most 168 and at most the window |
+| | `warnAtHours` | 0–168 and below `maxHours` |
+| Consecutive work | `max` | 1–366 |
+| 16-hour shifts | `maxIn7Days` | 1–28 |
+| | `maxIn28Days` | 1–366 and at least `maxIn7Days` |
+| Days off | `daysOff` | 1–7 |
+| | `withinDays` | exactly 7 |
+| | `minBreakHours` | 0–24 |
+| Pay classification | `thresholdHours` | above 0, at most 168 |
+| | `otRate` | 1.0–3.0 |
+| | `ignoreUnderMinutes` | 0–120 |
+| Shift types | `allowedLengths` | only 8, 12, 16 |
+| | `requireUnitFlagFor` | only 12, 16 |
+
 ## 6. Safe change pipeline
 
 1. **Edit**: a rules admin changes rows in a **draft** version (an Excel upload is future work, not built).

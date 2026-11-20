@@ -1,13 +1,13 @@
 # ShiftCircle — requirement-to-proof traceability
 
 **Derived from the test sources, not from the prose.** Checked on 2026-11-20 against `main` at
-`211e8f9` by grepping `@Test`, Playwright `test(...)` titles and the Flyway migrations. The
-sources hold **91 rules + 27 infrastructure + 200 api = 318 tests**, counted as `@Test` methods
+`d2d120e` by grepping `@Test`, Playwright `test(...)` titles and the Flyway migrations. The
+sources hold **94 rules + 27 infrastructure + 202 api = 323 tests**, counted as `@Test` methods
 on their own line (no parameterised tests). The latest full clean-worktree run is **91 rules + 27
-infrastructure + 183 api = 301 tests, 0 failures** at `5e7765f`, run in the default class order
-and with a random seed (20261120); dev-qa's independent run at `211e8f9` is pending, and this
-page will say whose number it records when it lands. A proof below names the test class and
-method that makes the claim, not the document that hopes it exists.
+infrastructure + 183 api = 301 tests, 0 failures** at `5e7765f` (this author, default class order
+and random seed 20261120); dev-qa's run at `211e8f9` found 4 red (tests on the old PUT contract
+and a null-params NPE), fixed at `d2d120e`, and its full re-run is pending. A proof below names
+the test class and method that makes the claim, not the document that hopes it exists.
 
 **Path shorthand.** `RulesTest` = a class in `api/shiftcircle-rules/src/test/java/ca/shiftcircle/rules/`;
 `ApiTest` = a class in `api/shiftcircle-api/src/test/java/ca/shiftcircle/api/`;
