@@ -37,9 +37,22 @@ function downloadCsv(fileName: string, content: string) {
   URL.revokeObjectURL(url);
 }
 
-function Table({ headings, children }: { headings: string[]; children: React.ReactNode }) {
+/**
+ * A report table. The wrapper takes focus and carries the table's name: a
+ * report wider than the screen scrolls sideways, and a keyboard user has to be
+ * able to reach the scroll (D10).
+ */
+function Table({
+  headings,
+  label,
+  children,
+}: {
+  headings: string[];
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
-    <Box sx={{ overflowX: 'auto' }}>
+    <Box role="region" aria-label={label} tabIndex={0} sx={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', minWidth: 820, borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
           <tr>
@@ -301,7 +314,7 @@ export function ReportsPage() {
           </Box>
 
           {hours ? (
-            <Table headings={hoursHeadings}>
+            <Table headings={hoursHeadings} label="Hours by officer">
               {hours.rows.map((row) => (
                 <tr key={row.employeeId}>
                   <td style={{ padding: '8px 10px', fontWeight: 600, borderBottom: `1px solid ${colour.border.default}` }}>
@@ -365,7 +378,7 @@ export function ReportsPage() {
               <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
                 Overtime by officer
               </Typography>
-              <Table headings={['Officer', 'Overtime h', 'Share of the top officer']}>
+              <Table headings={['Officer', 'Overtime h', 'Share of the top officer']} label="Overtime by officer">
                 {overtime?.rows.map((row) => {
                   const top = overtime.rows[0]?.hours ?? 1;
                   return (
@@ -400,7 +413,7 @@ export function ReportsPage() {
                 No emergency overrides in this scope. Nothing has needed one.
               </Typography>
             ) : null}
-            <Table headings={['When', 'Officer', 'Unit', 'Rule', 'Reason']}>
+            <Table headings={['When', 'Officer', 'Unit', 'Rule', 'Reason']} label="Emergency overrides">
               {overrides?.map((row) => (
                 <tr key={row.id}>
                   <td className="num" style={{ padding: '8px 10px', borderBottom: `1px solid ${colour.border.default}` }}>

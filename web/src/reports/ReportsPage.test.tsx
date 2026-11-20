@@ -115,6 +115,15 @@ describe('the coverage report against the real api shape', () => {
     expect(within(table).getByText('—')).toBeInTheDocument();
   });
 
+  it('lets a keyboard user reach the report table that scrolls sideways', async () => {
+    // D10: the Hours report is wider than a tablet screen and the scroll had no
+    // keyboard access (axe scrollable-region-focusable, serious).
+    renderReports('/reports/hours');
+
+    const region = await screen.findByRole('region', { name: 'Hours by officer' });
+    expect(region).toHaveAttribute('tabindex', '0');
+  });
+
   it('says so when there are no emergency overrides', async () => {
     // D2: an empty Overrides report showed an empty table and no sentence.
     vi.spyOn(api, 'getOverrides').mockResolvedValue([]);

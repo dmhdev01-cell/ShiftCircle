@@ -36,20 +36,19 @@ test.describe('accessibility on every screen', () => {
   });
 
   // One test per supervisor screen, so one finding cannot hide the next screen.
-  const D10 =
-    'D10: at tablet width this screen has a table that scrolls sideways with no keyboard access ' +
-    '(axe scrollable-region-focusable; CandidateTable.tsx:50, ReportsPage.tsx:41)';
-  for (const [link, heading, name, tabletDefect] of [
-    ['Planning board', 'Planning board', 'planning', false],
-    ['Overtime', 'Overtime board', 'overtime', true],
-    ['Rules', 'Rules', 'rules-supervisor', false],
-    ['Audit log', 'Audit log', 'audit-supervisor', false],
-    ['Employee view', 'My schedule', 'employee-view', false],
-    ['Time & attendance', 'Time & attendance', 'time', false],
-    ['About & version', 'About & version', 'about', false],
+  // D10 was here: at 768 px the overtime candidate table and the Hours report
+  // scrolled sideways with no keyboard access. Both scroll regions take focus
+  // and carry a name now, so the tablet sweep is an ordinary pass.
+  for (const [link, heading, name] of [
+    ['Planning board', 'Planning board', 'planning'],
+    ['Overtime', 'Overtime board', 'overtime'],
+    ['Rules', 'Rules', 'rules-supervisor'],
+    ['Audit log', 'Audit log', 'audit-supervisor'],
+    ['Employee view', 'My schedule', 'employee-view'],
+    ['Time & attendance', 'Time & attendance', 'time'],
+    ['About & version', 'About & version', 'about'],
   ] as const) {
     test(`supervisor: ${name}`, async ({ page }, testInfo) => {
-      test.fail(tabletDefect && testInfo.project.name === 'tablet', D10);
       await signIn(page, 'M. Ellis');
       await ready(page, 'Planning board');
       await navTo(page, link);
@@ -58,16 +57,8 @@ test.describe('accessibility on every screen', () => {
     });
   }
 
-  for (const [tab, tabletDefect] of [
-    ['Coverage', false],
-    ['Hours', true],
-    // The Overtime and Overrides tables use the same wrapper but pass axe at
-    // 768 px in the real data (measured), so they are not marked.
-    ['Overtime', false],
-    ['Overrides', false],
-  ] as const) {
+  for (const tab of ['Coverage', 'Hours', 'Overtime', 'Overrides'] as const) {
     test(`supervisor: reports, ${tab}`, async ({ page }, testInfo) => {
-      test.fail(tabletDefect && testInfo.project.name === 'tablet', D10);
       await signIn(page, 'M. Ellis');
       await ready(page, 'Planning board');
       await navTo(page, 'Reports');

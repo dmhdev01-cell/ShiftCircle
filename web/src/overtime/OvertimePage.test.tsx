@@ -65,6 +65,15 @@ describe('the overtime board', () => {
     expect(within(rows[4]).queryByText(/U-02/)).not.toBeInTheDocument();
   });
 
+  it('lets a keyboard user reach the candidate table that scrolls sideways', async () => {
+    // D10: at 768 px the table scrolls sideways and nothing could focus it
+    // (axe scrollable-region-focusable, serious).
+    renderBoard();
+
+    const region = await screen.findByRole('region', { name: 'Eligible officers ranked' });
+    expect(region).toHaveAttribute('tabindex', '0');
+  });
+
   it('offers a Select only to the officers who can take the shift', async () => {
     renderBoard();
 

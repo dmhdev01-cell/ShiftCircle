@@ -47,7 +47,14 @@ export function CandidateTable({
   offersClosed = false,
 }: CandidateTableProps) {
   return (
-    <Box sx={{ overflowX: 'auto' }}>
+    // A table wider than the screen scrolls sideways; a keyboard user needs to
+    // reach it, so the scroll region takes focus and says what it holds (D10).
+    <Box
+      role="region"
+      aria-label="Eligible officers ranked"
+      tabIndex={0}
+      sx={{ overflowX: 'auto' }}
+    >
       <table
         style={{
           width: '100%',
