@@ -21,7 +21,8 @@ public final class TemplateColumns {
    */
   private static final Pattern CODE = Pattern.compile("[A-Za-z0-9-]{1,16}");
 
-  private static final Pattern SHIFT_KIND = Pattern.compile("[A-Za-z0-9|.*+?()_-]{1,40}");
+  private static final Pattern SHIFT_KIND =
+      Pattern.compile("\\.\\*|\\(?[A-Za-z0-9]{1,8}(\\|[A-Za-z0-9]{1,8})*\\)?");
 
   private TemplateColumns() {}
 
@@ -105,9 +106,9 @@ public final class TemplateColumns {
   }
 
   private static String checkedRegex(String value) {
-    if (value == null || !SHIFT_KIND.matcher(value).matches()) {
+    if (value == null || value.length() > 64 || !SHIFT_KIND.matcher(value).matches()) {
       throw new IllegalArgumentException(
-          "The shift-kind pattern uses letters, digits and | . * + ? ( ) _ - only");
+          "The shift-kind pattern is a list of shift codes joined by |, or .*");
     }
     return value;
   }

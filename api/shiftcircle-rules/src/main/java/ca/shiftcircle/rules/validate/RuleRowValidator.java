@@ -1,5 +1,6 @@
 package ca.shiftcircle.rules.validate;
 
+import ca.shiftcircle.rules.model.OverridePolicy;
 import ca.shiftcircle.rules.model.RuleRow;
 import ca.shiftcircle.rules.model.RuleSet;
 import ca.shiftcircle.rules.model.RuleTableCode;
@@ -30,10 +31,22 @@ public final class RuleRowValidator {
    */
   private static final Pattern CODE = Pattern.compile("[A-Za-z0-9-]{1,16}");
 
-  private static final Pattern SHIFT_KIND = Pattern.compile("[A-Za-z0-9|.*+?()_-]{1,40}");
+  private static final Pattern SHIFT_KIND =
+      Pattern.compile("\\.\\*|\\(?[A-Za-z0-9]{1,8}(\\|[A-Za-z0-9]{1,8})*\\)?");
   private static final Pattern UNSAFE_MESSAGE = Pattern.compile("[\"\\\\\r\n{}]");
   /** Every rule the mock agreement requires (docs/05 §3 says these are the Must set). */
   private static final Set<String> REQUIRED = RuleRowsV1.ruleSet().ruleCodes();
+
+  /**
+   * The override policy each Must rule was published with (docs/05 legend, ADR-023). Weakening a
+   * Block to "no override" removes the emergency path; strengthening an acknowledge to EMERGENCY
+   * adds one. Neither is an edit the pipeline may accept.
+   */
+  private static final Map<String, OverridePolicy> REQUIRED_POLICIES =
+      RuleRowsV1.ruleSet().rows().stream()
+          .collect(
+              java.util.stream.Collectors.toUnmodifiableMap(
+                  RuleRow::code, RuleRow::overridePolicy));
 
   /** One plain-language problem with one row. */
   public record Violation(String code, String column, String message) {
@@ -64,6 +77,16 @@ public final class RuleRowValidator {
                 "Rule code",
                 "A rule code uses capital letters, digits and hyphens only (for example U-01)."));
       }
+      OverridePolicy documented = REQUIRED_POLICIES.get(row.code());
+      if (documented != null && row.overridePolicy() != documented) {
+        violations.add(
+            new Violation(
+                row.code(),
+                "Override",
+                "The documented override policy for this rule is "
+                    + policyLabel(documented)
+                    + "; a Must rule cannot be changed."));
+      }
       if (row.message() == null || row.message().isBlank()) {
         violations.add(new Violation(row.code(), "Message", "A rule needs a message to show."));
       } else if (UNSAFE_MESSAGE.matcher(row.message()).find()) {
@@ -89,13 +112,16 @@ public final class RuleRowValidator {
 
   private static void validateRest(RuleRow row, List<Violation> violations) {
     String afterShiftKind = row.text("afterShiftKind");
-    if (afterShiftKind == null || !SHIFT_KIND.matcher(afterShiftKind).matches()) {
+    if (afterShiftKind == null
+        || afterShiftKind.length() > 64
+        || !SHIFT_KIND.matcher(afterShiftKind).matches()) {
       violations.add(
           new Violation(
               row.code(),
               "After this kind of shift",
-              "Use shift codes joined by | (for example D8|N8), or .* for any shift. Letters,"
-                  + " digits and | . * + ? ( ) _ - only; no quotes, backslashes or spaces."));
+              "Use shift codes joined by | (for example D8|N8 or (D8|N8|A12)), or .* for any"
+                  + " shift. No other regex syntax: a quantifier like (a+)+ could hang the"
+                  + " build."));
     }
     if (row.number("windowHours") != 24) {
       violations.add(
@@ -285,6 +311,14 @@ public final class RuleRowValidator {
         }
       }
     }
+  }
+
+  private static String policyLabel(OverridePolicy policy) {
+    return switch (policy) {
+      case EMERGENCY -> "an emergency override with a written reason";
+      case ACKNOWLEDGE -> "acknowledgement, not an override";
+      case NONE -> "no override";
+    };
   }
 
   /** A hostile value must not be echoed whole into a report; the column check already refuses it. */

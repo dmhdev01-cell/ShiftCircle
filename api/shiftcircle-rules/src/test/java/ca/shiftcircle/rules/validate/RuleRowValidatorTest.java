@@ -248,6 +248,30 @@ class RuleRowValidatorTest {
   }
 
   @Test
+  void aNestedQuantifierRegexIsRefused() {
+    List<RuleRowValidator.Violation> violations =
+        validateWith(
+            "U-01",
+            params(
+                "afterShiftKind",
+                "(a+)+",
+                "windowHours",
+                24,
+                "minExtensionMinutes",
+                0,
+                "minRestHours",
+                8));
+
+    assertThat(violations)
+        .as("a pattern that can backtrack catastrophically must not reach the engine")
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.column()).isEqualTo("After this kind of shift");
+              assertThat(violation.message()).contains("hang the build");
+            });
+  }
+
+  @Test
   void aHostileMessageCannotReachTheDrl() {
     List<RuleRow> rows = new ArrayList<>();
     for (RuleRow row : RuleRowsV1.ruleSet().rows()) {
@@ -282,6 +306,41 @@ class RuleRowValidatorTest {
               assertThat(violation.column()).isEqualTo("Rule code");
               assertThat(violation.message()).contains("capital letters");
             });
+  }
+
+  @Test
+  void aMustRulesDocumentedOverridePolicyCannotBeChanged() {
+    List<RuleRow> rows = new ArrayList<>();
+    for (RuleRow row : RuleRowsV1.ruleSet().rows()) {
+      rows.add(
+          row.code().equals("U-01")
+              ? withPolicy(row, ca.shiftcircle.rules.model.OverridePolicy.NONE)
+              : row);
+    }
+
+    assertThat(validator.validate(new RuleSet("test", rows)))
+        .as("weakening a Block rule's override path removes the emergency escape")
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.code()).isEqualTo("U-01");
+              assertThat(violation.column()).isEqualTo("Override");
+              assertThat(violation.message()).contains("documented override policy");
+            });
+  }
+
+  private static RuleRow withPolicy(
+      RuleRow row, ca.shiftcircle.rules.model.OverridePolicy policy) {
+    return new RuleRow(
+        row.code(),
+        row.table(),
+        row.enabled(),
+        row.params(),
+        row.severity(),
+        policy,
+        row.message(),
+        row.source(),
+        row.placeholder(),
+        row.sortOrder());
   }
 
   private static RuleRow withMessage(RuleRow row, String message) {
