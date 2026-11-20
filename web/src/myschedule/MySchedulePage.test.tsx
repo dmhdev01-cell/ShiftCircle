@@ -51,23 +51,36 @@ describe('the employee My schedule', () => {
     }
   });
 
-  it('shows the overtime offer with Accept and Decline', async () => {
+  it('shows every pending overtime offer, not only the first', async () => {
     renderMySchedule();
 
-    const offer = await screen.findByRole('region', { name: 'Overtime offer' });
-    expect(within(offer).getByText('Sat 21 Nov · Evening 8 h 15:00 – 23:00')).toBeInTheDocument();
-    expect(within(offer).getByText(/offered by M. Ellis at 14:20/)).toBeInTheDocument();
-    expect(within(offer).getByText('Rules OK for you')).toBeInTheDocument();
-    expect(within(offer).getByRole('button', { name: 'Accept' })).toBeInTheDocument();
-    expect(within(offer).getByRole('button', { name: 'Decline' })).toBeInTheDocument();
+    await screen.findByText(/Sam Abara/);
+
+    // Two offers are waiting; an officer must not miss one.
+    const offers = screen.getAllByRole('region', { name: 'Overtime offer' });
+    expect(offers).toHaveLength(2);
+    expect(screen.getByText('Sat 21 Nov · Evening 8 h 15:00 – 23:00')).toBeInTheDocument();
+    expect(screen.getByText('Sun 22 Nov · Night 8 h 23:00 – 07:00')).toBeInTheDocument();
+    expect(screen.getByText(/offered by M. Ellis at 14:20/)).toBeInTheDocument();
+    expect(screen.getByText(/offered by M. Ellis at 15:05/)).toBeInTheDocument();
+    expect(screen.getAllByText('Rules OK for you')).toHaveLength(2);
+  });
+
+  it('offers Accept and Decline on each pending offer', async () => {
+    renderMySchedule();
+
+    await screen.findByText(/Sam Abara/);
+
+    expect(screen.getAllByRole('button', { name: 'Accept' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Decline' })).toHaveLength(2);
   });
 
   it('records the acceptance and says the supervisor confirms it', async () => {
     const user = userEvent.setup();
     renderMySchedule();
 
-    const offer = await screen.findByRole('region', { name: 'Overtime offer' });
-    await user.click(within(offer).getByRole('button', { name: 'Accept' }));
+    await screen.findByText(/Sam Abara/);
+    await user.click(screen.getAllByRole('button', { name: 'Accept' })[0]);
 
     expect(
       await screen.findByText('Accepted. Your supervisor will confirm the assignment.'),
@@ -78,8 +91,8 @@ describe('the employee My schedule', () => {
     const user = userEvent.setup();
     renderMySchedule();
 
-    const offer = await screen.findByRole('region', { name: 'Overtime offer' });
-    await user.click(within(offer).getByRole('button', { name: 'Decline' }));
+    await screen.findByText(/Sam Abara/);
+    await user.click(screen.getAllByRole('button', { name: 'Decline' })[0]);
 
     expect(await screen.findByText(/Declined/)).toBeInTheDocument();
   });

@@ -110,4 +110,23 @@ export const demoMyOffers: MyOffer[] = [
     reason: '56 h rest before · 72 h this pay period',
     status: 'OFFERED',
   },
+  {
+    id: 'offer-sun-night',
+    openShift: {
+      id: 'os-sun-nights-b',
+      date: '2026-11-22',
+      startAt: '2026-11-22T23:00:00-06:00',
+      endAt: '2026-11-23T07:00:00-06:00',
+      unit: { id: 'unit-b', name: 'Unit B · Living unit' },
+      shiftTemplate: 'N8',
+      needs: 1,
+      status: 'OFFERS_SENT',
+      reason: 'Sick call',
+    },
+    offeredBy: 'M. Ellis',
+    offeredAt: '15:05',
+    eligibility: 'ELIGIBLE',
+    reason: '40 h rest before · 72 h this pay period',
+    status: 'OFFERED',
+  },
 ];

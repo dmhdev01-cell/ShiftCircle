@@ -100,7 +100,7 @@ Content-Type: application/problem+json
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
 | GET | `/schedule?unitId=&from=&to=` | **Planning board payload:** days, coverage per block (required / scheduled / actual, each with the lowest hourly count and the short hour ranges, see below), officer rows with assignments, overtime status per officer, warnings, `overridesThisPeriod`, `asOf` and `publishedState` (see below) | SUPERVISOR, AUDITOR |
-| GET | `/me/schedule?from=&to=` | My shifts, hours this pay period, overtime this quarter, next shift | EMPLOYEE |
+| GET | `/me/schedule?from=&to=` | My shifts, hours this pay period, overtime this quarter, next shift, `asOf` (the server's "today", as on `GET /schedule`) | EMPLOYEE |
 | POST | `/rule-checks` | Preview any change (§3) | SUPERVISOR; EMPLOYEE for own proposals |
 | POST | `/assignments` | Assign a shift (§3 rules apply) | SUPERVISOR |
 | PATCH | `/assignments/{id}` | Move or change a shift (`If-Match`) | SUPERVISOR |

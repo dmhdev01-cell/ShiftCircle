@@ -13,7 +13,7 @@ import Typography from '@mui/material/Typography';
 import { api } from '../api/client';
 import { qualificationLabel } from '../api/qualifications';
 import { shiftTemplates } from '../api/shiftTemplates';
-import type { RuleCheckChange, RuleCheckOutcome } from '../api/types';
+import type { MyOffer, RuleCheckChange, RuleCheckOutcome } from '../api/types';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
 import { CalendarGrid } from './CalendarGrid';
@@ -104,7 +104,7 @@ export function MySchedulePage() {
 
   const { state: scheduleState } = useMySchedule(from, to);
   const { state: offersState, reload: reloadOffers } = useMyOffers();
-  const [answer, setAnswer] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [note, setNote] = useState('');
   const [sent, setSent] = useState<string | null>(null);
@@ -151,20 +151,26 @@ export function MySchedulePage() {
     return { date, inMonth, items: shift?.items ?? [] };
   });
 
-  const offer = offersState.kind === 'ready' ? offersState.offers[0] : undefined;
+  // Every pending offer is shown: an officer must not miss one.
+  const offers = offersState.kind === 'ready' ? offersState.offers : [];
 
-  const respond = async (response: 'ACCEPT' | 'DECLINE') => {
-    if (!offer) return;
+  const respond = async (offer: MyOffer, response: 'ACCEPT' | 'DECLINE') => {
     try {
       await api.respondToOffer(offer.id, response);
-      setAnswer(
-        response === 'ACCEPT'
-          ? 'Accepted. Your supervisor will confirm the assignment.'
-          : 'Declined. Thank you - your supervisor has been told.',
-      );
+      setAnswers((current) => ({
+        ...current,
+        [offer.id]:
+          response === 'ACCEPT'
+            ? 'Accepted. Your supervisor will confirm the assignment.'
+            : 'Declined. Thank you - your supervisor has been told.',
+      }));
       reloadOffers();
     } catch (error) {
-      setAnswer(error instanceof Error ? error.message : 'The answer could not be recorded.');
+      setAnswers((current) => ({
+        ...current,
+        [offer.id]:
+          error instanceof Error ? error.message : 'The answer could not be recorded.',
+      }));
     }
   };
 
@@ -388,82 +394,117 @@ export function MySchedulePage() {
         </Box>
 
         <Box sx={{ flex: '1 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <Box
-            component="section"
-            aria-label="Overtime offer"
-            sx={{
-              backgroundColor: colour.bg.surface,
-              border: `2px solid ${colour.support.lentils}`,
-              borderRadius: '10px',
-              p: 4,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2.5,
-            }}
-          >
+          {offers.length === 0 ? (
             <Box
-              component="span"
+              component="section"
+              aria-label="Overtime offer"
               sx={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: '#2F5206',
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
+                backgroundColor: colour.bg.surface,
+                border: `1px solid ${colour.border.default}`,
+                borderRadius: '10px',
+                p: 4,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2.5,
               }}
             >
-              Overtime offered to you
-            </Box>
-
-            {offer ? (
-              <>
-                <Typography component="h2" sx={{ m: 0, fontSize: 17, fontWeight: 700 }}>
-                  {shortDay(offer.openShift.date)} · {shiftTemplates[offer.openShift.shiftTemplate]?.label}{' '}
-                  {shiftTemplates[offer.openShift.shiftTemplate]?.start} –{' '}
-                  {shiftTemplates[offer.openShift.shiftTemplate]?.end}
-                </Typography>
-                <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
-                  {offer.openShift.unit.name} · offered by {offer.offeredBy} at {offer.offeredAt} · paid
-                  at overtime rates
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                  <StatusPill tone="pass">Rules OK for you</StatusPill>
-                  {offer.reason ? (
-                    <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
-                      {offer.reason}
-                    </Box>
-                  ) : null}
-                </Box>
-
-                {answer ? (
-                  <Box
-                    role="status"
-                    sx={{
-                      p: '10px 12px',
-                      borderRadius: '8px',
-                      backgroundColor: '#E8F1F8',
-                      fontSize: 13,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {answer}
-                  </Box>
-                ) : (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                    <Button variant="contained" color="primary" onClick={() => void respond('ACCEPT')}>
-                      Accept
-                    </Button>
-                    <Button variant="outlined" color="primary" onClick={() => void respond('DECLINE')}>
-                      Decline
-                    </Button>
-                  </Box>
-                )}
-              </>
-            ) : (
+              <Box
+                component="span"
+                sx={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: colour.text.secondary,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                Overtime offered to you
+              </Box>
               <Box component="span" sx={{ fontSize: 14, color: colour.text.secondary }}>
                 No overtime is offered to you right now.
               </Box>
-            )}
-          </Box>
+            </Box>
+          ) : null}
+
+          {offers.map((offer) => (
+            <Box
+              key={offer.id}
+              component="section"
+              aria-label="Overtime offer"
+              sx={{
+                backgroundColor: colour.bg.surface,
+                border: `2px solid ${colour.support.lentils}`,
+                borderRadius: '10px',
+                p: 4,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2.5,
+              }}
+            >
+              <Box
+                component="span"
+                sx={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#2F5206',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                Overtime offered to you
+              </Box>
+
+              <Typography component="h2" sx={{ m: 0, fontSize: 17, fontWeight: 700 }}>
+                {shortDay(offer.openShift.date)} · {shiftTemplates[offer.openShift.shiftTemplate]?.label}{' '}
+                {shiftTemplates[offer.openShift.shiftTemplate]?.start} –{' '}
+                {shiftTemplates[offer.openShift.shiftTemplate]?.end}
+              </Typography>
+              <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
+                {offer.openShift.unit.name} · offered by {offer.offeredBy} at {offer.offeredAt} · paid
+                at overtime rates
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                <StatusPill tone="pass">Rules OK for you</StatusPill>
+                {offer.reason ? (
+                  <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
+                    {offer.reason}
+                  </Box>
+                ) : null}
+              </Box>
+
+              {answers[offer.id] ? (
+                <Box
+                  role="status"
+                  sx={{
+                    p: '10px 12px',
+                    borderRadius: '8px',
+                    backgroundColor: '#E8F1F8',
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                >
+                  {answers[offer.id]}
+                </Box>
+              ) : (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() => void respond(offer, 'ACCEPT')}
+                  >
+                    Accept
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    onClick={() => void respond(offer, 'DECLINE')}
+                  >
+                    Decline
+                  </Button>
+                </Box>
+              )}
+            </Box>
+          ))}
 
           <Box
             component="section"
