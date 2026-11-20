@@ -197,6 +197,12 @@ export function PlanningPage() {
   const inOvertime = payload.officers.filter((officer) => officer.overtimeStatus === 'IN_OVERTIME');
   const approaching = payload.officers.filter((officer) => officer.overtimeStatus === 'APPROACHING');
   const threshold = payload.officers[0]?.payPeriodThreshold ?? 80;
+  // The count is null while the period is not published: there is nothing to
+  // compare against yet.
+  const changes = payload.publishedState.unpublishedChanges;
+  const changesPhrase = changes
+    ? changes + ' ' + (changes === 1 ? 'change' : 'changes') + ' since publishing'
+    : '';
 
   const warnCodes =
     mutation.state.outcome?.ruleResults
@@ -312,9 +318,7 @@ export function PlanningPage() {
             <strong style={{ color: colour.text.primary }}>
               {payload.publishedState.published ? 'Published' : 'Not published'}
             </strong>
-            {payload.publishedState.unpublishedChanges
-              ? `, ${payload.publishedState.unpublishedChanges} unpublished changes`
-              : ''}
+            {changesPhrase ? ', ' + changesPhrase : ''}
           </Typography>
         </Box>
 

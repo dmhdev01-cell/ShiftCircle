@@ -324,6 +324,14 @@ export function createFixtureApi(): ShiftCircleApi {
       request: SaveRequest,
     ): Promise<AssignmentChangeResult> {
       await wait(LATENCY_MS);
+      if (version === undefined || version === null) {
+        throw new ApiError('Send the version you read, as If-Match: "3".', 428, {
+          type: 'https://shiftcircle.local/problems/if-match-required',
+          title: 'If-Match is required',
+          status: 428,
+          detail: 'Send the version you read, as If-Match: "3".',
+        });
+      }
       const found = findShift(assignmentId);
       if (!found) {
         throw new ApiError('That shift is not in the fixture.', 404);
@@ -362,9 +370,17 @@ export function createFixtureApi(): ShiftCircleApi {
     async cancelAssignment(
       assignmentId: string,
       version: number,
-      _reason: string,
+      reason: string,
     ): Promise<AssignmentChangeResult> {
       await wait(LATENCY_MS);
+      if (reason === undefined || reason === null || reason.trim().length < 10) {
+        throw new ApiError('reason is required and must be at least 10 characters', 400, {
+          type: 'https://shiftcircle.local/problems/400',
+          title: 'Bad request',
+          status: 400,
+          detail: 'reason is required and must be at least 10 characters',
+        });
+      }
       const found = findShift(assignmentId);
       if (!found) {
         throw new ApiError('That shift is not in the fixture.', 404);
