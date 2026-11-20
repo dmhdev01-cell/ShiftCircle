@@ -91,11 +91,13 @@ describe('the planning board', () => {
     expect(screen.getByText(/U-01 · Minimum rest/)).toBeInTheDocument();
   });
 
-  it('offers an assignment on the empty cells', async () => {
+  it('reads Off on the empty cells and only offers an assignment for today or later', async () => {
     renderBoard();
 
     expect(
-      await screen.findByRole('button', { name: 'Assign a shift to Aiden Bergeron on 2026-11-19' }),
+      await screen.findByRole('button', {
+        name: /assign a shift to Aiden Bergeron on 2026-11-19/,
+      }),
     ).toBeInTheDocument();
   });
 });

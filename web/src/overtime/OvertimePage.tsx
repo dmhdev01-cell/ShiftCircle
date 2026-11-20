@@ -321,7 +321,7 @@ export function OvertimePage() {
                 }}
               >
                 <Box component="strong" sx={{ color: colour.text.primary }}>
-                  Fair-distribution order (O-02, rule tables v{payload?.ruleSetVersion ?? 7})
+                  Fair-distribution order (O-02, rule tables v{payload?.ruleSetVersion ?? '—'})
                 </Box>
                 {payload?.rankingNote ??
                   'Fewest overtime hours this quarter first, then seniority. Officers who would break a Block rule are skipped without losing their place.'}
@@ -391,6 +391,9 @@ export function OvertimePage() {
             <RuleCheckPanel
               state={mutation.state}
               title={directAssignTitle}
+              findEligibleHref={
+                activeShift ? `/overtime?shift=${activeShift.id}` : '/overtime'
+              }
               detail={
                 activeShift
                   ? `${activeShift.unit.name} · ${shortDay(activeShift.date)}`

@@ -5,6 +5,7 @@ import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 
 import { usingFixtures } from '../api/client';
+import { useVersion } from '../api/useVersion';
 import { colour } from '../theme/tokens';
 import { useRole } from './nav';
 import { roles } from './roles';
@@ -33,18 +34,25 @@ function ShiftCircleMark() {
 
 const REGINA = 'America/Regina';
 
-function formatClock(date: Date): string {
-  const weekday = new Intl.DateTimeFormat('en-CA', { weekday: 'short', timeZone: REGINA }).format(date);
-  const day = new Intl.DateTimeFormat('en-CA', { day: '2-digit', timeZone: REGINA }).format(date);
-  const month = new Intl.DateTimeFormat('en-CA', { month: 'short', timeZone: REGINA }).format(date);
-  const year = new Intl.DateTimeFormat('en-CA', { year: 'numeric', timeZone: REGINA }).format(date);
+/**
+ * The date comes from the api when it has one, so the demo reads 19 Nov and
+ * not the day the build happens to run on. The time is the browser's clock in
+ * Regina time.
+ */
+function formatClock(day: string | undefined, now: Date): string {
+  const date = day ?? now.toISOString().slice(0, 10);
+  const parsed = new Date(`${date}T00:00:00Z`);
+  const weekday = new Intl.DateTimeFormat('en-CA', { weekday: 'short', timeZone: REGINA }).format(parsed);
+  const dayOfMonth = new Intl.DateTimeFormat('en-CA', { day: '2-digit', timeZone: REGINA }).format(parsed);
+  const month = new Intl.DateTimeFormat('en-CA', { month: 'short', timeZone: REGINA }).format(parsed);
+  const year = new Intl.DateTimeFormat('en-CA', { year: 'numeric', timeZone: REGINA }).format(parsed);
   const time = new Intl.DateTimeFormat('en-CA', {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
     timeZone: REGINA,
-  }).format(date);
-  return `${weekday} ${day} ${month} ${year} · ${time}`;
+  }).format(now);
+  return `${weekday} ${dayOfMonth} ${month} ${year} · ${time}`;
 }
 
 /**
@@ -75,11 +83,14 @@ function FixturesBadge() {
 export function TopBar() {
   const { role, setRole } = useRole();
   const [now, setNow] = useState(() => new Date());
+  const { state: version } = useVersion();
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  const day = version.status === 'ready' ? version.info.asOf : undefined;
 
   return (
     <AppBar component="header" enableColorOnDark>
@@ -110,7 +121,7 @@ export function TopBar() {
           {usingFixtures ? <FixturesBadge /> : null}
 
           <Typography className="num" sx={{ color: colour.text.onDark, fontSize: 13 }}>
-            {formatClock(now)}
+            {formatClock(day, now)}
           </Typography>
 
           <Box

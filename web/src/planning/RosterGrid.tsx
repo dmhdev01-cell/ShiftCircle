@@ -212,6 +212,8 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGr
                   const cell = officer.cells.find((entry) => entry.date === date);
                   const items = cell?.items ?? [];
                   const isToday = date === today;
+                  // A shift cannot be added to a day that has happened.
+                  const canAssign = date >= today && onEmptyCell !== undefined;
                   return (
                     <td
                       key={date}
@@ -221,31 +223,42 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGr
                         backgroundColor: isToday ? '#EAF3F9' : undefined,
                       }}
                     >
-                      {items.length === 0 && onEmptyCell ? (
+                      {items.length === 0 ? (
+                        // A day with nothing on it reads 'Off', and only a day
+                        // that has not happened yet can be assigned.
                         <Box
                           component="button"
                           type="button"
-                          onClick={() => onEmptyCell(officer, date)}
-                          aria-label={`Assign a shift to ${officer.name} on ${date}`}
+                          disabled={!canAssign}
+                          onClick={() => onEmptyCell?.(officer, date)}
+                          aria-label={`Off - assign a shift to ${officer.name} on ${date}`}
+                          title={
+                            canAssign
+                              ? 'Assign a shift'
+                              : 'This day has already happened'
+                          }
                           sx={{
                             minHeight: 30,
-                            width: '100%',
-                            border: `1px dashed ${colour.border.input}`,
+                            px: 2,
+                            border: `1px dashed ${
+                              canAssign ? colour.border.input : 'transparent'
+                            }`,
                             borderRadius: '6px',
                             backgroundColor: 'transparent',
-                            color: colour.text.secondary,
+                            color: colour.text.muted,
                             fontFamily: 'inherit',
                             fontSize: 12,
-                            cursor: 'pointer',
-                            // The cell stays quiet until it is hovered or focused.
-                            opacity: 0,
-                            '&:hover, &:focus-visible': {
-                              opacity: 1,
-                              backgroundColor: colour.bg.linkHover,
-                            },
+                            cursor: canAssign ? 'pointer' : 'default',
+                            '&:hover, &:focus-visible': canAssign
+                              ? {
+                                  backgroundColor: colour.bg.linkHover,
+                                  borderColor: colour.brand.link,
+                                  color: colour.text.secondary,
+                                }
+                              : {},
                           }}
                         >
-                          Assign
+                          Off
                         </Box>
                       ) : (
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>

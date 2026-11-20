@@ -55,6 +55,23 @@ function monthGrid(year: number, month: number, weeks = 6): string[] {
   return dates;
 }
 
+interface MonthRange {
+  from: string;
+  to: string;
+}
+
+/** The first and last day of a month, for the api's range. */
+function monthRange(month: { year: number; month: number }): MonthRange {
+  const last = new Date(Date.UTC(month.year, month.month, 0)).getUTCDate();
+  const prefix = `${month.year}-${String(month.month).padStart(2, '0')}`;
+  return { from: `${prefix}-01`, to: `${prefix}-${last}` };
+}
+
+/** The month a day is in. */
+function monthOf(date: string): { year: number; month: number } {
+  return { year: Number(date.slice(0, 4)), month: Number(date.slice(5, 7)) };
+}
+
 function monthLabel(year: number, month: number): string {
   return new Intl.DateTimeFormat('en-CA', {
     month: 'long',
@@ -117,14 +134,13 @@ function offerCheck(offer: MyOffer) {
  * (S-04) - and nothing is agreed until the supervisor decides.
  */
 export function MySchedulePage() {
-  const [month, setMonth] = useState(() => {
-    const now = new Date();
-    return { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1 };
-  });
-  const from = `${month.year}-${String(month.month).padStart(2, '0')}-01`;
-  const to = `${month.year}-${String(month.month).padStart(2, '0')}-31`;
+  // The month starts at the api's day, not at the browser's, so the demo shows
+  // the demo month whatever day the build runs on. The first request has no
+  // range, because the client does not know the day yet.
+  const [pickedMonth, setPickedMonth] = useState<{ year: number; month: number } | null>(null);
 
-  const { state: scheduleState } = useMySchedule(from, to);
+  const range = pickedMonth ? monthRange(pickedMonth) : undefined;
+  const { state: scheduleState } = useMySchedule(range?.from, range?.to);
   const { state: offersState, reload: reloadOffers } = useMyOffers();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -165,6 +181,7 @@ export function MySchedulePage() {
 
   const payload = scheduleState.payload;
   const asOf = payload.asOf;
+  const month = pickedMonth ?? monthOf(asOf ?? '2026-11-19');
   const next = payload.nextShift;
 
   const cells: CalendarCell[] = monthGrid(month.year, month.month).map((date) => {
@@ -399,17 +416,17 @@ export function MySchedulePage() {
             today={asOf ?? ''}
             monthLabel={monthLabel(month.year, month.month)}
             onPreviousMonth={() =>
-              setMonth((current) =>
-                current.month === 1
-                  ? { year: current.year - 1, month: 12 }
-                  : { year: current.year, month: current.month - 1 },
+              setPickedMonth(
+                month.month === 1
+                  ? { year: month.year - 1, month: 12 }
+                  : { year: month.year, month: month.month - 1 },
               )
             }
             onNextMonth={() =>
-              setMonth((current) =>
-                current.month === 12
-                  ? { year: current.year + 1, month: 1 }
-                  : { year: current.year, month: current.month + 1 },
+              setPickedMonth(
+                month.month === 12
+                  ? { year: month.year + 1, month: 1 }
+                  : { year: month.year, month: month.month + 1 },
               )
             }
           />
@@ -480,6 +497,7 @@ export function MySchedulePage() {
                 {shortDay(offer.openShift.date)} · {shiftTemplates[offer.openShift.shiftTemplate]?.label}{' '}
                 {shiftTemplates[offer.openShift.shiftTemplate]?.start} –{' '}
                 {shiftTemplates[offer.openShift.shiftTemplate]?.end}
+                {shiftTemplates[offer.openShift.shiftTemplate]?.endsNextDay ? ' +1' : ''}
               </Typography>
               <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
                 {offer.openShift.unit.name} · offered by {offer.offeredBy} at {offer.offeredAt} · paid
@@ -606,7 +624,7 @@ export function MySchedulePage() {
               <Button
                 variant="contained"
                 color="primary"
-                disabled={drafts.length === 0 || note.trim().length === 0}
+                disabled={drafts.length === 0}
                 onClick={() => void sendToSupervisor()}
               >
                 Send to supervisor

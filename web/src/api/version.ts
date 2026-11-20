@@ -22,6 +22,8 @@ export interface VersionInfo {
   ruleSetVersion?: string;
   /** Active Spring profiles, comma separated. */
   profiles?: string;
+  /** The server's "today" (`SC_DEMO_TODAY` on the demo profile). */
+  asOf?: string;
   /** The raw response body, kept so unexpected shapes can be shown as-is. */
   raw: unknown;
 }
@@ -48,6 +50,7 @@ export function normaliseVersion(raw: unknown): VersionInfo {
     gitCommit: asString(source.gitCommit),
     ruleSetVersion: asString(source.ruleSetVersion),
     profiles: asString(source.profiles),
+    asOf: asString(source.asOf),
     raw,
   };
 }

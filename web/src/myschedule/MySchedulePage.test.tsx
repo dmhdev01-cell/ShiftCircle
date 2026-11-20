@@ -37,7 +37,7 @@ describe('the employee My schedule', () => {
     renderMySchedule();
 
     expect(await screen.findByText('Next shift')).toBeInTheDocument();
-    expect(screen.getByText(/23:00 – 07:00 \+1/)).toBeInTheDocument();
+    expect(screen.getAllByText(/23:00 – 07:00 \+1/).length).toBeGreaterThan(0);
     expect(screen.getByText(/Night 8 h · Unit B/)).toBeInTheDocument();
   });
 
@@ -60,7 +60,7 @@ describe('the employee My schedule', () => {
     const offers = screen.getAllByRole('region', { name: 'Overtime offer' });
     expect(offers).toHaveLength(2);
     expect(screen.getByText('Sat 21 Nov · Evening 8 h 15:00 – 23:00')).toBeInTheDocument();
-    expect(screen.getByText('Sun 22 Nov · Night 8 h 23:00 – 07:00')).toBeInTheDocument();
+    expect(screen.getByText('Sun 22 Nov · Night 8 h 23:00 – 07:00 +1')).toBeInTheDocument();
     expect(screen.getByText(/offered by M. Ellis at 14:20/)).toBeInTheDocument();
     expect(screen.getByText(/offered by M. Ellis at 15:05/)).toBeInTheDocument();
     // Only the offer the api sent a rule result for claims a check.

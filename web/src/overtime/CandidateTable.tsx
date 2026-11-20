@@ -73,7 +73,11 @@ export function CandidateTable({ candidates, selected, onToggle }: CandidateTabl
         </thead>
         <tbody>
           {candidates.map((candidate, index) => {
-            const ruleCode = candidate.ruleResults?.find((result) => result.ruleCode)?.ruleCode;
+            // Only a rule that failed or warned is worth naming; a passing
+            // rule code would say nothing.
+            const ruleCode = candidate.ruleResults?.find(
+              (result) => result.outcome === 'BLOCK' || result.outcome === 'WARN',
+            )?.ruleCode;
             const offerable = canBeOffered(candidate);
             return (
               <tr key={candidate.employeeId}>
@@ -149,7 +153,7 @@ export function CandidateTable({ candidates, selected, onToggle }: CandidateTabl
                     </Box>
                   ) : (
                     <Typography component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
-                      Skipped
+                      {candidate.eligibility === 'UNAVAILABLE' ? 'Not available' : 'Skipped'}
                     </Typography>
                   )}
                 </td>

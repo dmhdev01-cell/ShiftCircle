@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
@@ -49,8 +50,9 @@ function bannerFor(state: RuleCheckedState): Banner | null {
   const warnings = state.outcome.ruleResults.filter((result) => result.outcome === 'WARN');
 
   if (blocking.length > 0) {
+    const rules = blocking.length === 1 ? 'rule' : 'rules';
     return {
-      text: `Blocked: ${blocking.length} rules fail`,
+      text: `Blocked: ${blocking.length} ${rules} fail${blocking.length === 1 ? 's' : ''}`,
       bg: colour.status.block.bg,
       color: colour.status.block.text,
     };
@@ -72,6 +74,8 @@ interface RuleCheckPanelProps {
   detail: string;
   /** What the save button says. */
   saveLabel?: string;
+  /** Where "Find eligible officer" goes, with the shift if there is one. */
+  findEligibleHref?: string;
   onSave: () => void;
   onAcknowledge: (codes: string[]) => void;
   onOverride: () => void;
@@ -89,16 +93,34 @@ export function RuleCheckPanel({
   title,
   detail,
   saveLabel = 'Assign shift',
+  findEligibleHref = '/overtime',
   onSave,
   onAcknowledge,
   onOverride,
   onCancel,
 }: RuleCheckPanelProps) {
-  const banner = bannerFor(state);
+  const heading = useRef<HTMLHeadingElement>(null);
+
   const outcome = state.outcome;
   const blocking = outcome?.ruleResults.filter((result) => result.outcome === 'BLOCK') ?? [];
   const warnings = outcome?.ruleResults.filter((result) => result.outcome === 'WARN') ?? [];
-  const unacknowledged = warnings.filter((result) => !state.acknowledged.includes(result.ruleCode));
+  const unacknowledged = warnings.filter(
+    (result) => !state.acknowledged.includes(result.ruleCode),
+  );
+
+  // Only one yellow button on the screen.
+  const showAcknowledge = unacknowledged.length > 0 && blocking.length === 0;
+  const showSave =
+    state.kind === 'ready' && blocking.length === 0 && unacknowledged.length === 0;
+  const hasPrimary = showAcknowledge || showSave;
+
+  // The focus moves to the panel when the result arrives, so the keyboard
+  // user is not left where they were (E1).
+  useEffect(() => {
+    if (state.kind === 'ready') {
+      heading.current?.focus();
+    }
+  }, [state.kind, state.outcome]);
 
   return (
     <Box
@@ -125,7 +147,12 @@ export function RuleCheckPanel({
         >
           Proposed change
         </Box>
-        <Typography component="h2" sx={{ m: 0, fontSize: 17, fontWeight: 700 }}>
+        <Typography
+          component="h2"
+          ref={heading}
+          tabIndex={-1}
+          sx={{ m: 0, fontSize: 17, fontWeight: 700, outline: 'none' }}
+        >
           {title}
         </Typography>
         <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
@@ -133,7 +160,7 @@ export function RuleCheckPanel({
         </Box>
       </Box>
 
-      {banner ? (
+      {bannerFor(state) ? (
         <Box
           role="status"
           sx={{
@@ -142,18 +169,21 @@ export function RuleCheckPanel({
             gap: 2,
             p: '10px 12px',
             borderRadius: '8px',
-            backgroundColor: banner.bg,
-            color: banner.color,
+            backgroundColor: bannerFor(state)?.bg,
+            color: bannerFor(state)?.color,
             fontWeight: 700,
             fontSize: 14,
           }}
         >
-          {banner.text}
+          {bannerFor(state)?.text}
         </Box>
       ) : null}
 
       {outcome && outcome.ruleResults.length > 0 ? (
-        <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+        <Box
+          component="ul"
+          sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: 2.5 }}
+        >
           {outcome.ruleResults.map((result) => (
             <Box
               component="li"
@@ -210,7 +240,12 @@ export function RuleCheckPanel({
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
         {blocking.length > 0 ? (
-          <Button variant="contained" color="primary" component={Link} to="/overtime">
+          <Button
+            variant={hasPrimary ? 'outlined' : 'contained'}
+            color="primary"
+            component={Link}
+            to={findEligibleHref}
+          >
             Find eligible officer
           </Button>
         ) : null}
@@ -231,7 +266,7 @@ export function RuleCheckPanel({
           </Button>
         ) : null}
 
-        {unacknowledged.length > 0 && blocking.length === 0 ? (
+        {showAcknowledge ? (
           <Button
             variant="contained"
             color="primary"
@@ -241,7 +276,7 @@ export function RuleCheckPanel({
           </Button>
         ) : null}
 
-        {state.kind === 'ready' && blocking.length === 0 && unacknowledged.length === 0 ? (
+        {showSave ? (
           <Button variant="contained" color="primary" onClick={onSave}>
             {saveLabel}
           </Button>

@@ -139,7 +139,17 @@ export function PublishChecklist({
       ) : null}
 
       {message ? (
-        <Box role="status" sx={{ fontSize: 13, color: colour.status.block.text }}>
+        <Box
+          role="status"
+          sx={{
+            p: '10px 12px',
+            borderRadius: '8px',
+            backgroundColor: colour.status.info.bg,
+            color: colour.status.info.text,
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
           {message}
         </Box>
       ) : null}

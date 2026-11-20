@@ -198,7 +198,7 @@ Content-Type: application/problem+json
 |---|---|---|---|
 | GET | `/display/today` | Counts per unit and block, open shifts and overtime counts. **No names.** | DISPLAY, SUPERVISOR |
 | GET | `/audit-events?entityType=&entityId=&from=&to=` | Audit trail | AUDITOR, SUPERVISOR (own units) |
-| GET | `/version` | Build version, git commit, live rule set version | any |
+| GET | `/version` | Build version, git commit, live rule set version, and `asOf` (the server's "today", so the web's clock shows the demo day) | any |
 | GET | `/actuator/health` | Liveness and readiness. Internal only, not proxied by nginx. | container network |
 
 ## 5. Screen-to-endpoint map
