@@ -32,7 +32,7 @@ public class ScheduleController {
 
   @GetMapping("/schedule")
   @PreAuthorize("hasAnyRole('SUPERVISOR','AUDITOR')")
-  public ScheduleQuery.ScheduleView schedule(
+  public ScheduleQuery.SchedulePayload schedule(
       @RequestParam UUID unitId,
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,

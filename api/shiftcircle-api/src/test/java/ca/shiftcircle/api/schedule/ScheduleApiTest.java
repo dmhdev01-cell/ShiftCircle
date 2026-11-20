@@ -100,13 +100,19 @@ class ScheduleApiTest {
 
     assertThat(response.statusCode()).isEqualTo(200);
     Map<?, ?> body = mapper.readValue(response.body(), Map.class);
-    assertThat(body.get("publishedState")).isEqualTo("DRAFT");
-    var days = (java.util.List<?>) body.get("days");
-    assertThat(days).hasSize(1);
+    assertThat(((Map<?, ?>) body.get("publishedState")).get("published")).isEqualTo(false);
+    assertThat((java.util.List<?>) body.get("days")).hasSize(1);
 
-    Map<?, ?> day = (Map<?, ?>) days.get(0);
-    Map<?, ?> blocks = (Map<?, ?>) day.get("blocks");
-    Map<?, ?> dayBlock = (Map<?, ?>) blocks.get("DAY");
+    var coverage = (java.util.List<?>) body.get("coverage");
+    assertThat(coverage).hasSize(3);
+    Map<?, ?> dayBlock = null;
+    for (Object entry : coverage) {
+      Map<?, ?> block = (Map<?, ?>) entry;
+      if ("DAY".equals(block.get("block"))) {
+        dayBlock = block;
+      }
+    }
+    assertThat(dayBlock).isNotNull();
     Map<?, ?> scheduled = (Map<?, ?>) dayBlock.get("scheduled");
     assertThat(dayBlock.get("required")).isEqualTo(5);
     assertThat(scheduled.get("lowestHourly")).isEqualTo(1);
@@ -125,9 +131,12 @@ class ScheduleApiTest {
     var officers = (java.util.List<?>) mapper.readValue(response.body(), Map.class).get("officers");
     assertThat(officers).hasSize(1);
     Map<?, ?> officer = (Map<?, ?>) officers.get(0);
-    assertThat(officer.get("employeeNo")).isEqualTo("E-T1");
+    assertThat(officer.get("name")).isEqualTo("Test Officer");
     assertThat(officer.get("overtimeStatus")).isEqualTo("UNDER");
-    assertThat((java.util.List<?>) officer.get("assignments")).hasSize(1);
+    assertThat((java.util.List<?>) officer.get("cells")).hasSize(1);
+    var items = (java.util.List<?>) ((Map<?, ?>) ((java.util.List<?>) officer.get("cells")).get(0)).get("items");
+    assertThat(items).hasSize(1);
+    assertThat(((Map<?, ?>) items.get(0)).get("shiftTemplate")).isEqualTo("D8");
   }
 
   @Test

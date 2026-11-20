@@ -25,20 +25,20 @@ public class RuleCheckController {
   @PostMapping("/rule-checks")
   @PreAuthorize("hasAnyRole('SUPERVISOR','EMPLOYEE')")
   public RuleCheckService.OutcomeView preview(
-      @RequestBody ChangeRequest request, HttpServletRequest http) {
+      @RequestBody RuleCheckRequest request, HttpServletRequest http) {
     AuthPrincipal principal = scopeGuard.principal();
     // Employees may preview against themselves only; supervisors against their units.
     if (!principal.hasRole("SUPERVISOR")
-        && !java.util.Objects.equals(principal.employeeId(), request.employeeId())) {
+        && !java.util.Objects.equals(principal.employeeId(), request.change().employeeId())) {
       throw new org.springframework.web.server.ResponseStatusException(
           org.springframework.http.HttpStatus.NOT_FOUND, "Employee not found");
     }
     return ruleChecks.evaluate(
         new RuleCheckService.Change(
-            request.type(),
-            request.employeeId(),
-            request.unitId(),
-            request.shiftTemplate(),
-            request.startAt()));
+            request.change().typeOrAssign(),
+            request.change().employeeId(),
+            request.change().unitId(),
+            request.change().shiftTemplate(),
+            request.change().startAt()));
   }
 }

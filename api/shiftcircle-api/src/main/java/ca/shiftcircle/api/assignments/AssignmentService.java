@@ -1,6 +1,6 @@
 package ca.shiftcircle.api.assignments;
 
-import ca.shiftcircle.api.rules.ChangeRequest;
+import ca.shiftcircle.api.rules.RuleCheckRequest;
 import ca.shiftcircle.api.rules.RuleCheckService;
 import ca.shiftcircle.api.rules.RuleViolationException;
 import ca.shiftcircle.api.security.AuthPrincipal;
@@ -35,14 +35,14 @@ public class AssignmentService {
     this.scopeGuard = scopeGuard;
   }
 
-  public RuleCheckService.OutcomeView preview(ChangeRequest request, AuthPrincipal principal) {
-    scopeGuard.requireUnit(principal, unitCode(request.unitId()));
+  public RuleCheckService.OutcomeView preview(RuleCheckRequest request, AuthPrincipal principal) {
+    scopeGuard.requireUnit(principal, unitCode(request.change().unitId()));
     return ruleChecks.evaluate(change(request));
   }
 
   @Transactional
-  public UUID assign(ChangeRequest request, AuthPrincipal principal) {
-    String unitCode = unitCode(request.unitId());
+  public UUID assign(RuleCheckRequest request, AuthPrincipal principal) {
+    String unitCode = unitCode(request.change().unitId());
     scopeGuard.requireUnit(principal, unitCode);
 
     RuleCheckService.OutcomeView outcome = ruleChecks.evaluate(change(request));
@@ -72,21 +72,21 @@ public class AssignmentService {
     Map<String, Object> template =
         jdbc.queryForMap(
             "SELECT id, duration_minutes FROM shift_template WHERE code = ?",
-            request.shiftTemplate());
+            request.change().shiftTemplate());
     UUID assignmentId = UUID.randomUUID();
-    Instant end = request.startAt().plusSeconds(((Number) template.get("duration_minutes")).longValue() * 60);
+    Instant end = request.change().startAt().plusSeconds(((Number) template.get("duration_minutes")).longValue() * 60);
 
     jdbc.update(
         "INSERT INTO shift_assignment (id, employee_id, unit_id, shift_template_id, start_at, end_at,"
             + " work_date, kind, source, override_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'MANUAL', ?)",
         assignmentId,
-        request.employeeId(),
-        request.unitId(),
+        request.change().employeeId(),
+        request.change().unitId(),
         template.get("id"),
-        java.sql.Timestamp.from(request.startAt()),
+        java.sql.Timestamp.from(request.change().startAt()),
         java.sql.Timestamp.from(end),
-        request.startAt().atZone(java.time.ZoneId.of("America/Regina")).toLocalDate(),
-        "EXTRA".equals(request.kind()) ? "EXTRA" : "ROSTERED",
+        request.change().startAt().atZone(java.time.ZoneId.of("America/Regina")).toLocalDate(),
+        "EXTRA".equals(request.change().type()) ? "EXTRA" : "ROSTERED",
         overrideId);
 
     audit(
@@ -94,23 +94,23 @@ public class AssignmentService {
         "assign_shift",
         assignmentId,
         Map.of(
-            "employeeId", request.employeeId().toString(),
+            "employeeId", request.change().employeeId().toString(),
             "unit", unitCode,
-            "template", request.shiftTemplate(),
-            "startAt", request.startAt().toString(),
-            "kind", request.kind() == null ? "ROSTERED" : request.kind(),
+            "template", request.change().shiftTemplate(),
+            "startAt", request.change().startAt().toString(),
+            "kind", request.change().typeOrAssign(),
             "outcome", outcome.outcome(),
             "overrideId", overrideId == null ? "" : overrideId.toString()));
     return assignmentId;
   }
 
-  private RuleCheckService.Change change(ChangeRequest request) {
+  private RuleCheckService.Change change(RuleCheckRequest request) {
     return new RuleCheckService.Change(
-        request.type(),
-        request.employeeId(),
-        request.unitId(),
-        request.shiftTemplate(),
-        request.startAt());
+        request.change().typeOrAssign(),
+        request.change().employeeId(),
+        request.change().unitId(),
+        request.change().shiftTemplate(),
+        request.change().startAt());
   }
 
   private String unitCode(UUID unitId) {

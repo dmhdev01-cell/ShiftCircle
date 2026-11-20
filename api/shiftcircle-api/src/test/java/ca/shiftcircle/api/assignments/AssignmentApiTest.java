@@ -91,10 +91,10 @@ class AssignmentApiTest {
   }
 
   private String changeBody(String kind) {
-    return "{\"employeeId\":\"" + EMPLOYEE + "\",\"unitId\":\"" + UNIT_B + "\","
+    return "{\"change\":{\"employeeId\":\"" + EMPLOYEE + "\",\"unitId\":\"" + UNIT_B + "\","
         + "\"shiftTemplate\":\"D8\",\"startAt\":\"2026-11-21T07:00:00-06:00\""
-        + (kind == null ? "" : ",\"kind\":\"" + kind + "\"")
-        + "}";
+        + (kind == null ? "" : ",\"type\":\"" + kind + "\"")
+        + "}}";
   }
 
   @Test
@@ -128,9 +128,8 @@ class AssignmentApiTest {
   @Test
   void aBlockIsSavedWithAnEmergencyOverrideAndAudited() throws Exception {
     String body =
-        changeBody(null).replace(
-            "}",
-            ",\"override\":{\"reason\":\"Lockdown, relief unavailable\"}}");
+        changeBody(null).substring(0, changeBody(null).length() - 1)
+            + ",\"override\":{\"reason\":\"Lockdown, relief unavailable\"}}";
 
     HttpResponse<String> response = post("/api/v1/assignments", body, login("m.ellis"));
 
@@ -146,7 +145,9 @@ class AssignmentApiTest {
 
   @Test
   void aShortOverrideReasonIsRefused() throws Exception {
-    String body = changeBody(null).replace("}", ",\"override\":{\"reason\":\"too short\"}}");
+    String body =
+        changeBody(null).substring(0, changeBody(null).length() - 1)
+            + ",\"override\":{\"reason\":\"too short\"}}";
 
     assertThat(post("/api/v1/assignments", body, login("m.ellis")).statusCode()).isEqualTo(422);
   }
@@ -177,8 +178,8 @@ class AssignmentApiTest {
         UNIT_B);
 
     String body =
-        "{\"employeeId\":\"" + EMPLOYEE + "\",\"unitId\":\"" + UNIT_B + "\","
-            + "\"shiftTemplate\":\"E8\",\"startAt\":\"2026-11-20T15:00:00-06:00\"}";
+        "{\"change\":{\"employeeId\":\"" + EMPLOYEE + "\",\"unitId\":\"" + UNIT_B + "\","
+            + "\"shiftTemplate\":\"E8\",\"startAt\":\"2026-11-20T15:00:00-06:00\"}}";
     String token = login("m.ellis");
 
     HttpResponse<String> preview = post("/api/v1/rule-checks", body, token);
@@ -194,7 +195,8 @@ class AssignmentApiTest {
     assertThat(post("/api/v1/assignments", body, token).statusCode()).isEqualTo(422);
 
     String acknowledged =
-        body.replace("}", ",\"acknowledgeWarnings\":" + mapper.writeValueAsString(warnCodes) + "}");
+        body.substring(0, body.length() - 1)
+            + ",\"acknowledgeWarnings\":" + mapper.writeValueAsString(warnCodes) + "}";
     assertThat(post("/api/v1/assignments", acknowledged, token).statusCode()).isEqualTo(201);
   }
 

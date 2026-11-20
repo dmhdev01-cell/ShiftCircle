@@ -35,19 +35,19 @@ public class RuleCheckService {
   public record Change(
       String type, UUID employeeId, UUID unitId, String shiftTemplate, Instant startAt) {}
 
+  public record EvidenceView(String label) {}
+
   public record ResultView(
       String ruleCode,
       String ruleTable,
       String outcome,
       String message,
-      double required,
-      double actual,
-      String unit,
-      String overridePolicy,
-      String evidence) {}
+      java.util.Map<String, Object> facts,
+      java.util.List<EvidenceView> evidence,
+      String overridePolicy) {}
 
-  public record OutcomeView(String outcome, boolean overridable, String ruleSetVersion,
-      List<ResultView> ruleResults) {}
+  public record OutcomeView(
+      String outcome, int ruleSetVersion, boolean overridable, List<ResultView> ruleResults) {}
 
   private final JdbcTemplate jdbc;
   private final KieBase ruleBase;
@@ -149,12 +149,11 @@ public class RuleCheckService {
                         r.ruleTable(),
                         r.outcome().name(),
                         r.message(),
-                        r.required(),
-                        r.actual(),
-                        r.unit(),
-                        r.overridePolicy().name(),
-                        r.evidence()))
+                        java.util.Map.of(
+                            "required", r.required(), "actual", r.actual(), "unit", r.unit()),
+                        java.util.List.of(new EvidenceView(r.evidence())),
+                        r.overridePolicy().name()))
             .toList();
-    return new OutcomeView(outcome, overridable, RuleRowsV1.VERSION, views);
+    return new OutcomeView(outcome, 1, overridable, views);
   }
 }

@@ -1,6 +1,6 @@
 package ca.shiftcircle.api.assignments;
 
-import ca.shiftcircle.api.rules.ChangeRequest;
+import ca.shiftcircle.api.rules.RuleCheckRequest;
 import ca.shiftcircle.api.rules.RuleCheckService;
 import ca.shiftcircle.api.security.AuthPrincipal;
 import ca.shiftcircle.api.security.ScopeGuard;
@@ -31,7 +31,7 @@ public class AssignmentController {
   @PostMapping("/assignments")
   @ResponseStatus(HttpStatus.CREATED)
   @PreAuthorize("hasRole('SUPERVISOR')")
-  public Map<String, Object> assign(@RequestBody ChangeRequest request, HttpServletRequest http) {
+  public Map<String, Object> assign(@RequestBody RuleCheckRequest request, HttpServletRequest http) {
     AuthPrincipal principal = scopeGuard.principal();
     UUID id = assignments.assign(request, principal);
     return Map.of("id", id.toString(), "status", "PLANNED");

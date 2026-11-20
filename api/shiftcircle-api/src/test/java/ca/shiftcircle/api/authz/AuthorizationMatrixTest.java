@@ -129,11 +129,11 @@ class AuthorizationMatrixTest {
   @Test
   void assignmentWriteAccess() throws Exception {
     String body =
-        "{\"employeeId\":\""
+        "{\"change\":{\"employeeId\":\""
             + EMPLOYEE
             + "\",\"unitId\":\""
             + UNIT_A
-            + "\",\"shiftTemplate\":\"D8\",\"startAt\":\"2026-11-25T07:00:00-06:00\"}";
+            + "\",\"shiftTemplate\":\"D8\",\"startAt\":\"2026-11-25T07:00:00-06:00\"}}";
 
     assertThat(send("POST", "/api/v1/assignments", body, tokens.get("m.ellis")).statusCode())
         .isIn(201, 422);
@@ -151,11 +151,11 @@ class AuthorizationMatrixTest {
   @Test
   void rulePreviewAccess() throws Exception {
     String ownPreview =
-        "{\"employeeId\":\""
+        "{\"change\":{\"employeeId\":\""
             + EMPLOYEE
             + "\",\"unitId\":\""
             + UNIT_A
-            + "\",\"shiftTemplate\":\"D8\",\"startAt\":\"2026-11-24T07:00:00-06:00\"}";
+            + "\",\"shiftTemplate\":\"D8\",\"startAt\":\"2026-11-24T07:00:00-06:00\"}}";
 
     assertThat(send("POST", "/api/v1/rule-checks", ownPreview, tokens.get("m.ellis")).statusCode())
         .isEqualTo(200);
@@ -200,12 +200,12 @@ class AuthorizationMatrixTest {
   @Test
   void extraShiftsAreASeparateSupervisorActionAndAreAudited() throws Exception {
     String body =
-        "{\"employeeId\":\""
+        "{\"change\":{\"employeeId\":\""
             + EMPLOYEE
             + "\",\"unitId\":\""
             + UNIT_A
-            + "\",\"shiftTemplate\":\"D8\",\"kind\":\"EXTRA\","
-            + "\"startAt\":\"2026-11-26T07:00:00-06:00\"}";
+            + "\",\"shiftTemplate\":\"D8\",\"type\":\"EXTRA\","
+            + "\"startAt\":\"2026-11-26T07:00:00-06:00\"}}";
     String token = tokens.get("m.ellis");
 
     HttpResponse<String> response = send("POST", "/api/v1/rule-checks", body, token);
