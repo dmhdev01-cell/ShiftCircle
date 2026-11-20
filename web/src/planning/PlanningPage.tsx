@@ -13,9 +13,11 @@ import { shiftTemplates } from '../api/shiftTemplates';
 import type { OfficerRow, ShiftItem, Unit } from '../api/types';
 import { useUnits } from '../api/useUnits';
 import { useVersion } from '../api/useVersion';
+import { useRole } from '../shell/nav';
 import { colour } from '../theme/tokens';
 import { KpiTile } from './KpiTile';
 import { OverrideDialog } from './OverrideDialog';
+import { PublishPeriodButton } from './PublishPeriodButton';
 import { RosterGrid } from './RosterGrid';
 import { RuleCheckPanel } from './RuleCheckPanel';
 import { ShiftActionsDialog } from './ShiftActionsDialog';
@@ -70,6 +72,7 @@ interface Pending {
 export function PlanningPage() {
   const unitsState = useUnits();
   const version = useVersion();
+  const { role } = useRole();
   const units: Unit[] = unitsState.kind === 'ready' ? unitsState.units : [];
   const [unitId, setUnitId] = useState<string | null>(null);
   const activeUnitId = unitId ?? units[0]?.id;
@@ -84,6 +87,9 @@ export function PlanningPage() {
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const lastFocus = useRef<HTMLElement | null>(null);
+
+  // Only a supervisor publishes a roster; the api refuses everyone else.
+  const canPublish = role.id === 'SUPERVISOR';
 
   /** Put focus back on the cell or chip that opened the dock. */
   const restoreFocus = () => {
@@ -304,7 +310,7 @@ export function PlanningPage() {
           <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
             {payload.unit.name} · Week of {longDay(payload.from)} – {longDay(payload.to)} ·{' '}
             <strong style={{ color: colour.text.primary }}>
-              {payload.publishedState.published ? 'Published' : 'Draft'}
+              {payload.publishedState.published ? 'Published' : 'Not published'}
             </strong>
             {payload.publishedState.unpublishedChanges
               ? `, ${payload.publishedState.unpublishedChanges} unpublished changes`
@@ -316,6 +322,9 @@ export function PlanningPage() {
           <Button variant="outlined" color="primary" onClick={() => setHelpOpen(true)}>
             Rules help
           </Button>
+          {canPublish && payload.period ? (
+            <PublishPeriodButton period={payload.period} onPublished={reload} />
+          ) : null}
           <Box
             sx={{
               display: 'flex',

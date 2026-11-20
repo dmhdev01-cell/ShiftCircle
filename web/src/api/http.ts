@@ -18,6 +18,7 @@ import type {
   OpenShiftCandidates,
   OpenShiftQuery,
   ProblemDetails,
+  PublishedPeriod,
   RuleCheckChange,
   RuleCheckOutcome,
   BuildReport,
@@ -188,6 +189,12 @@ export function createHttpApi(): ShiftCircleApi {
       return request<SaveOutcome>('/assignments', {
         method: 'POST',
         body,
+      });
+    },
+
+    publishSchedulePeriod(periodId: string): Promise<PublishedPeriod> {
+      return request<PublishedPeriod>(`/schedule-periods/${periodId}/publish`, {
+        method: 'POST',
       });
     },
 

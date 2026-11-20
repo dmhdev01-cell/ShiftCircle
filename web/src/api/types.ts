@@ -182,22 +182,42 @@ export interface SchedulePayload {
   warnings: number;
   /** Emergency overrides recorded in the pay period on the board. */
   overridesThisPeriod: number;
-  /** Whether the period is published, and how many changes are not. */
+  /**
+   * Whether the period is published, and how many of its shifts changed after
+   * the publication. The count is null when the period is not published:
+   * there is nothing to compare against yet.
+   */
   publishedState: {
     published: boolean;
-    unpublishedChanges: number;
+    unpublishedChanges: number | null;
   };
-  /** The pay period the board shows. Not in the contract yet. */
+  /**
+   * The roster week the board shows, with the id the publish endpoint takes
+   * (POST /schedule-periods/{id}/publish). Null when the board's range is not
+   * inside a period.
+   */
   period?: {
     id: string;
     label: string;
-  };
+    status: 'DRAFT' | 'PUBLISHED';
+  } | null;
 }
 
 export interface ScheduleQuery {
   unitId?: string;
   from?: string;
   to?: string;
+}
+
+/**
+ * The api's answer to POST /schedule-periods/{id}/publish (docs/07 §4.2).
+ * Publishing is one-way: a second publish answers 409.
+ */
+export interface PublishedPeriod {
+  id: string;
+  status: string;
+  /** When the period was published. */
+  publishedAt: string;
 }
 
 // --- Overtime (docs/07-api-spec.md §4.3) ---
@@ -657,6 +677,12 @@ export interface ShiftCircleApi {
   getSchedule(query: ScheduleQuery): Promise<SchedulePayload>;
   previewRuleCheck(request: RuleCheckRequest): Promise<RuleCheckOutcome>;
   saveChange(request: SaveRequest): Promise<SaveOutcome>;
+
+  /**
+   * POST /schedule-periods/{id}/publish: a supervisor publishes their unit's
+   * roster week. One way: a second publish answers 409.
+   */
+  publishSchedulePeriod(periodId: string): Promise<PublishedPeriod>;
 
   /** PATCH /assignments/{id}; the version goes in If-Match. */
   moveAssignment(

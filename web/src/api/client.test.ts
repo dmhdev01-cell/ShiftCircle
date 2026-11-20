@@ -19,7 +19,12 @@ describe('the fixture api', () => {
     const schedule = await api.getSchedule({ unitId: 'unit-b' });
 
     expect(schedule.unit.name).toBe('Unit B · Living unit');
-    expect(schedule.publishedState).toEqual({ published: true, unpublishedChanges: 3 });
+    expect(schedule.publishedState).toEqual({ published: false, unpublishedChanges: null });
+    expect(schedule.period).toEqual({
+      id: 'period-2026-11-16',
+      label: '16 – 22 Nov 2026',
+      status: 'DRAFT',
+    });
     expect(schedule.overridesThisPeriod).toBe(1);
     expect(schedule.days).toHaveLength(7);
     expect(schedule.coverage).toHaveLength(21);

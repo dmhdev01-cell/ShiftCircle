@@ -160,4 +160,21 @@ describe('the planning board', () => {
     expect(screen.queryByRole('button', { name: /Acknowledge/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Assign shift' })).not.toBeInTheDocument();
   });
+
+  it('offers the supervisor the publish action for the roster week', async () => {
+    renderBoard();
+
+    expect(await screen.findByText('Not published')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Publish period' })).toBeEnabled();
+  });
+
+  it('does not offer an auditor the publish action', async () => {
+    const user = userEvent.setup();
+    renderBoard();
+    await screen.findByText('Coverage gaps');
+
+    await user.selectOptions(screen.getByLabelText('Mock sign-in: choose a role'), 'AUDITOR');
+
+    expect(screen.queryByRole('button', { name: 'Publish period' })).not.toBeInTheDocument();
+  });
 });

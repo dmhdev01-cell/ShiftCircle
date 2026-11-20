@@ -373,14 +373,35 @@ export const demoSchedule: SchedulePayload = {
   warnings: 5,
   overridesThisPeriod: 1,
   publishedState: {
-    published: true,
-    unpublishedChanges: 3,
+    published: false,
+    unpublishedChanges: null,
   },
   period: {
-    id: 'period-2026-11-09',
-    label: '9 – 22 Nov 2026',
+    id: 'period-2026-11-16',
+    label: '16 – 22 Nov 2026',
+    status: 'DRAFT',
   },
 };
+
+/**
+ * The shifts that changed after the period was published. The api counts them
+ * from the append-only audit trail; the fixture keeps the same count.
+ */
+export const changedAfterPublish = new Set<string>();
+
+/**
+ * Put the fixture period back to a draft, so a test can publish it again. The
+ * fixture api keeps its state in memory, like the api does in the database.
+ */
+export function resetSchedulePeriod() {
+  demoSchedule.period = {
+    id: 'period-2026-11-16',
+    label: '16 – 22 Nov 2026',
+    status: 'DRAFT',
+  };
+  demoSchedule.publishedState = { published: false, unpublishedChanges: null };
+  changedAfterPublish.clear();
+}
 
 /** PC-01: the assignment the rule check is about. */
 export const PC01_CHANGE = {

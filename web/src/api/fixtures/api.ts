@@ -23,6 +23,7 @@ import type {
   OvertimeReport,
   OverrideRow,
   PayPeriod,
+  PublishedPeriod,
   RecordActualInput,
   RecordActualResult,
   TimeEntry,
@@ -69,10 +70,26 @@ import { demoUsers } from './demoUsers';
 import { demoDisplayToday } from './display';
 import { toDisplayToday } from '../../display/displayPayload';
 import { demoBuildReport, demoRuleSets, demoRuleTables } from './rules';
-import { demoSchedule, PC01_CHANGE, shift } from './schedule';
+import { changedAfterPublish, demoSchedule, PC01_CHANGE, shift } from './schedule';
 import { demoPayPeriods, demoTimeEntries, unitCodeFor } from './timeAttendance';
 
 const LATENCY_MS = 120;
+
+/** When the demo fixture published the period (the demo clock has no time of day). */
+const DEMO_PUBLISHED_AT = '2026-11-19T09:00:00-06:00';
+
+/**
+ * A change to a shift of a published period is a change the officers have not
+ * seen yet, so the board counts it (docs/07 §4.2).
+ */
+function countUnpublishedChange(assignmentId: string) {
+  if (!demoSchedule.publishedState.published) return;
+  changedAfterPublish.add(assignmentId);
+  demoSchedule.publishedState = {
+    published: true,
+    unpublishedChanges: changedAfterPublish.size,
+  };
+}
 
 /** The officer, day cell and item for a rostered shift in the fixture schedule. */
 function findShift(assignmentId: string) {
@@ -338,6 +355,7 @@ export function createFixtureApi(): ShiftCircleApi {
       });
       moved.version = version + 1;
       target.items.push(moved);
+      countUnpublishedChange(assignmentId);
       return { id: assignmentId, status: 'PLANNED', version: version + 1 };
     },
 
@@ -362,7 +380,27 @@ export function createFixtureApi(): ShiftCircleApi {
       found.cell.items = found.cell.items.filter(
         (entry) => !(entry.type === 'SHIFT' && entry.assignmentId === assignmentId),
       );
+      countUnpublishedChange(assignmentId);
       return { id: assignmentId, status: 'CANCELLED', version: version + 1 };
+    },
+
+    async publishSchedulePeriod(periodId: string): Promise<PublishedPeriod> {
+      await wait(LATENCY_MS);
+      const period = demoSchedule.period;
+      if (!period || period.id !== periodId) {
+        throw new ApiError('That period is not in the demo fixture.', 404);
+      }
+      if (period.status === 'PUBLISHED') {
+        throw new ApiError('This period is already published.', 409, {
+          type: 'https://shiftcircle.local/problems/already-published',
+          title: 'This period is already published',
+          status: 409,
+          detail: 'This period is already published.',
+        });
+      }
+      period.status = 'PUBLISHED';
+      demoSchedule.publishedState = { published: true, unpublishedChanges: 0 };
+      return { id: period.id, status: 'PUBLISHED', publishedAt: DEMO_PUBLISHED_AT };
     },
 
     async getOpenShifts(query: OpenShiftQuery): Promise<OpenShift[]> {
