@@ -35,12 +35,12 @@ describe('the audit log', () => {
 
     const rows = await auditRows();
     expect(rows.length).toBe(20);
-    expect(within(rows[0]).getByText(/04 Nov 2026 · 13:05/)).toBeInTheDocument();
-    expect(within(rows[0]).getByText('M. Ellis')).toBeInTheDocument();
-    expect(within(rows[0]).getByText('m.ellis')).toBeInTheDocument();
-    expect(within(rows[0]).getByText('Rule override')).toBeInTheDocument();
-    expect(within(rows[0]).getByText(/Reason: Lockdown, relief unavailable/)).toBeInTheDocument();
-    expect(within(rows[0]).getByText(/U-05/)).toBeInTheDocument();
+    expect(within(rows[0]).getByText(/20 Nov 2026 · 13:50/)).toBeInTheDocument();
+    expect(within(rows[0]).getByText('P. Singh')).toBeInTheDocument();
+    expect(within(rows[0]).getByText('p.singh')).toBeInTheDocument();
+    expect(within(rows[0]).getByText('Rule set published')).toBeInTheDocument();
+    expect(within(rows[0]).getByText('Rule version')).toBeInTheDocument();
+    expect(within(rows[1]).getByText(/19 Nov 2026 · 09:10/)).toBeInTheDocument();
     expect(
       screen.getByText('Who did what, newest first. Read-only: the audit table refuses edits and deletes.'),
     ).toBeInTheDocument();

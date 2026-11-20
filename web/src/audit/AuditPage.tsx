@@ -197,7 +197,7 @@ export function AuditPage() {
             onChange={(event) =>
               setDraft((current) => ({ ...current, entityType: event.target.value }))
             }
-            slotProps={{ select: { native: true } }}
+            slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
             sx={{ minWidth: 170 }}
           >
             <option value="">All entities</option>

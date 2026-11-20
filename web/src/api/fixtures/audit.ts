@@ -2,23 +2,24 @@
  * Demo audit events for the read-only Audit log (docs/07 §4.8).
  *
  * The real api returns the newest first and pages on the descending id; the
- * fixture does the same, with enough events for "Load more" to be exercised.
+ * fixture keeps the same shape: events are sorted by time and numbered so that
+ * the id descends as time moves forward, with enough rows for "Load more".
  */
 
 import type { AuditEvent } from '../types';
 
+type Facts = Record<string, unknown>;
+
 function event(
-  id: number,
   occurredAt: string,
   username: string,
   displayName: string,
   action: string,
   entityType: string,
   entityId: string,
-  after: Record<string, unknown>,
-): AuditEvent {
+  after: Facts,
+): Omit<AuditEvent, 'id'> {
   return {
-    id,
     occurredAt,
     actor: { username, displayName },
     action,
@@ -29,9 +30,8 @@ function event(
   };
 }
 
-export const demoAuditEvents: AuditEvent[] = [
+const RAW: Array<Omit<AuditEvent, 'id'>> = [
   event(
-    30,
     '2026-11-04T19:05:00Z',
     'm.ellis',
     'M. Ellis',
@@ -41,7 +41,6 @@ export const demoAuditEvents: AuditEvent[] = [
     { reason: 'Lockdown, relief unavailable', rules: '[U-05]' },
   ),
   event(
-    29,
     '2026-11-04T19:05:00Z',
     'm.ellis',
     'M. Ellis',
@@ -51,7 +50,6 @@ export const demoAuditEvents: AuditEvent[] = [
     { employeeId: 'emp-piotr', unit: 'C', template: 'L16', outcome: 'BLOCK', overrideId: 'ov-pc03' },
   ),
   event(
-    28,
     '2026-11-09T14:12:00Z',
     'm.ellis',
     'M. Ellis',
@@ -61,7 +59,6 @@ export const demoAuditEvents: AuditEvent[] = [
     { status: 'LOCKED', totals: '10 officers · 764.0 worked h · 24.0 overtime h' },
   ),
   event(
-    27,
     '2026-11-20T19:50:00Z',
     'p.singh',
     'P. Singh',
@@ -71,7 +68,6 @@ export const demoAuditEvents: AuditEvent[] = [
     { version: 8, effectiveDate: '2026-11-20' },
   ),
   event(
-    26,
     '2026-11-19T15:10:00Z',
     'j.chen',
     'J. Chen',
@@ -84,7 +80,6 @@ export const demoAuditEvents: AuditEvent[] = [
     const id = 25 - index;
     const ellis = index % 2 === 0;
     return event(
-      id,
       `2026-11-${String(10 + (index % 9)).padStart(2, '0')}T${String(8 + (index % 10)).padStart(2, '0')}:15:00Z`,
       ellis ? 'm.ellis' : 'j.chen',
       ellis ? 'M. Ellis' : 'J. Chen',
@@ -95,3 +90,7 @@ export const demoAuditEvents: AuditEvent[] = [
     );
   }),
 ];
+
+export const demoAuditEvents: AuditEvent[] = [...RAW]
+  .sort((left, right) => Date.parse(right.occurredAt) - Date.parse(left.occurredAt))
+  .map((entry, index) => ({ ...entry, id: RAW.length - index }));
