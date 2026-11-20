@@ -4,9 +4,9 @@ package ca.shiftcircle.api.csv;
  * One CSV cell for the downloadable reports and the payroll export.
  *
  * <p>RFC 4180 quoting only where the value needs it, and a leading {@code =}, {@code +}, {@code -},
- * {@code @}, TAB or CR is neutralised with a single quote so a spreadsheet cannot evaluate a
- * hostile employee number, name or note as a formula (review-r2 P2). One helper, so the payroll
- * and report exports can never drift apart.
+ * {@code @}, TAB, CR or LF is neutralised with a single quote so a spreadsheet cannot evaluate a
+ * hostile employee number, name or note as a formula (review-r2 P2, review-r3 scope 3). One helper,
+ * so the payroll and report exports can never drift apart.
  */
 public final class Csv {
 
@@ -14,7 +14,7 @@ public final class Csv {
 
   public static String cell(String value) {
     String clean = value == null ? "" : value;
-    if (!clean.isEmpty() && "=+-@\t\r".indexOf(clean.charAt(0)) >= 0) {
+    if (!clean.isEmpty() && "=+-@\t\r\n".indexOf(clean.charAt(0)) >= 0) {
       clean = "'" + clean;
     }
     if (clean.indexOf(',') < 0

@@ -84,6 +84,14 @@ public class ReferenceController {
                         + " WHERE e.active AND e.home_unit_id = ? ORDER BY e.last_name, e.first_name",
                 unitId == null ? new Object[] {} : new Object[] {unitId}));
 
+    // No unit filter means "the officers I may see", not the whole roster (docs/09 §3): a
+    // supervisor sees only officers whose home unit is in their scope; the auditor sees all.
+    boolean facilityWide = principal.hasRole("AUDITOR") || principal.hasRole("DISPLAY");
+    if (unitId == null && !facilityWide) {
+      employees.removeIf(
+          employee -> !principal.scopesUnit((String) employee.get("home_unit")));
+    }
+
     Map<UUID, List<String>> qualifications = new LinkedHashMap<>();
     jdbc.query(
         "SELECT eq.employee_id, q.code FROM employee_qualification eq"

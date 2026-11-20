@@ -374,6 +374,15 @@ public class AssignmentService {
           HttpStatus.BAD_REQUEST,
           "override.reason must be at most " + MAX_REASON_LENGTH + " characters");
     }
+    // The type is ASSIGN or EXTRA only; anything else is a validation problem, not a conflict.
+    request.change().typeOrAssign();
+    LocalDate day = request.change().startAt().atZone(REGINA).toLocalDate();
+    LocalDate today = clock.today();
+    if (day.isBefore(today.minusYears(5)) || day.isAfter(today.plusYears(5))) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "The start date (startAt) must be within five years of today (" + today + ")");
+    }
   }
 
   /**

@@ -163,9 +163,13 @@ public final class RuleRowValidator {
               "Minimum rest must be between 8 and 24 hours: 8 is the legal floor and the fact"
                   + " builders measure rest in a 24-hour window."));
     }
-    if (optional(row, "minExtensionMinutes", 0) < 0) {
+    if (optional(row, "minExtensionMinutes", 0) < 0
+        || optional(row, "minExtensionMinutes", 0) > 1440) {
       violations.add(
-          new Violation(row.code(), "Overtime extension trigger", "Cannot be negative."));
+          new Violation(
+              row.code(),
+              "Overtime extension trigger",
+              "Must be between 0 and 1440 minutes (one day)."));
     }
   }
 
@@ -254,6 +258,16 @@ public final class RuleRowValidator {
       violations.add(
           new Violation(row.code(), "Days off required", "Must be between 1 and 7 days."));
     }
+    if (row.params().containsKey("minBreakHours")) {
+      double breakHours = row.number("minBreakHours");
+      if (breakHours < 0 || breakHours > 24) {
+        violations.add(
+            new Violation(
+                row.code(),
+                "Minimum length of a day off (hours)",
+                "Must be between 0 and 24 hours."));
+      }
+    }
   }
 
   private static void validatePay(RuleRow row, List<Violation> violations) {
@@ -275,9 +289,13 @@ public final class RuleRowValidator {
       }
     }
     if ("P-01b".equals(row.code())) {
-      if (row.number("otRate") < 1) {
+      double rate = row.number("otRate");
+      if (rate < 1 || rate > 3) {
         violations.add(
-            new Violation(row.code(), "Overtime rate", "The rate can't be below 1.0×."));
+            new Violation(
+                row.code(),
+                "Overtime rate",
+                "The rate must be between 1.0 and 3.0 times; 1.5 is the documented default."));
       }
     }
     if ("P-04".equals(row.code())) {

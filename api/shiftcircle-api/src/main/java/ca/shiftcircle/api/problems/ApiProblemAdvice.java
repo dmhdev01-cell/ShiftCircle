@@ -134,6 +134,28 @@ public class ApiProblemAdvice {
     return false;
   }
 
+  /** The field name an unknown-property failure carries, from the type or the message. */
+  private static String unrecognizedField(Throwable error) {
+    Throwable cause = error;
+    while (cause != null) {
+      if (cause instanceof tools.jackson.databind.exc.UnrecognizedPropertyException unknown) {
+        return unknown.getPropertyName();
+      }
+      String message = cause.getMessage();
+      if (message != null) {
+        Matcher matcher = UNRECOGNIZED_FIELD.matcher(message);
+        if (matcher.find()) {
+          return matcher.group(1);
+        }
+      }
+      cause = cause.getCause();
+    }
+    return null;
+  }
+
+  private static final Pattern UNRECOGNIZED_FIELD =
+      Pattern.compile("Unrecognized field \"([^\"]+)\"");
+
   /** The constraint name a PostgreSQL driver puts in its message, for the log only. */
   private static String constraintName(Throwable error) {
     Throwable current = error;
@@ -169,6 +191,13 @@ public class ApiProblemAdvice {
     MissingServletRequestParameterException.class
   })
   public ResponseEntity<Map<String, Object>> onBadRequest(Exception exception) {
+    String unknownField = unrecognizedField(exception);
+    if (unknownField != null) {
+      return problem(
+          HttpStatus.BAD_REQUEST,
+          "Bad request",
+          "The field '" + unknownField + "' is not part of this request.");
+    }
     if (exception instanceof MethodArgumentTypeMismatchException mismatch) {
       return problem(
           HttpStatus.BAD_REQUEST,

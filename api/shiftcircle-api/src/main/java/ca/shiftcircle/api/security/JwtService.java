@@ -28,11 +28,23 @@ public class JwtService {
   private final byte[] key;
   private final ObjectMapper mapper = new ObjectMapper();
 
-  public JwtService(@Value("${SC_JWT_SECRET}") String secret) {
-    if (secret == null || secret.length() < 32) {
+  public JwtService(@Value("${SC_JWT_SECRET:}") String secret) {
+    if (secret == null || secret.isBlank()) {
+      // The friendly message matters here too: a blank default lets this bean fail first with the
+      // message a person can act on, instead of a raw unresolved-placeholder stack (review-r3).
+      throw new IllegalStateException(
+          "ShiftCircle API refuses to start: SC_JWT_SECRET is not set. It is the signing key for"
+              + " mock sign-in tokens (32 bytes or more). Copy .env.example to .env and set it"
+              + " (docs/08-deployment.md §4).");
+    }
+    if (secret.length() < 32) {
       // The API already refuses to start without a 32-byte secret; the invariant is repeated here
       // so a mis-wired test or tool cannot sign with a weak key (review A2).
-      throw new IllegalStateException("SC_JWT_SECRET must be at least 32 characters");
+      throw new IllegalStateException(
+          "ShiftCircle API refuses to start: SC_JWT_SECRET is too short ("
+              + secret.length()
+              + " characters, at least 32 required). It is the signing key for mock sign-in"
+              + " tokens. Copy .env.example to .env and set it (docs/08-deployment.md §4).");
     }
     this.key = secret.getBytes(StandardCharsets.UTF_8);
   }

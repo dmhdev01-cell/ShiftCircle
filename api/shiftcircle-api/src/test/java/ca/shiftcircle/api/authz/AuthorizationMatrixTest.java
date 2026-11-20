@@ -8,6 +8,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,6 +52,8 @@ class AuthorizationMatrixTest {
   private static final UUID UNIT_B = UUID.fromString("11111111-1111-1111-1111-000000000002");
   private static final UUID UNIT_C = UUID.fromString("11111111-1111-1111-1111-000000000003");
   private static final UUID EMPLOYEE = UUID.fromString("33333333-3333-3333-3333-000000000009");
+  private static final UUID ADM_EMPLOYEE =
+      UUID.fromString("33333333-3333-3333-3333-0000000000ad");
   private static final java.time.LocalDate DAY = java.time.LocalDate.of(2026, 11, 18);
 
   @BeforeEach
@@ -61,6 +64,12 @@ class AuthorizationMatrixTest {
             + " VALUES (?, 'E-AZ', 'Scope', 'Officer', ?, DATE '2020-01-01') ON CONFLICT DO NOTHING",
         EMPLOYEE,
         UNIT_A);
+    jdbc.update(
+        "INSERT INTO employee (id, employee_no, first_name, last_name, home_unit_id, seniority_date)"
+            + " VALUES (?, 'E-ADM', 'Admitted', 'Officer',"
+            + " (SELECT id FROM unit WHERE code = 'ADM'), DATE '2020-01-01')"
+            + " ON CONFLICT DO NOTHING",
+        ADM_EMPLOYEE);
     jdbc.update(
         "INSERT INTO shift_assignment (id, employee_id, unit_id, shift_template_id, start_at,"
             + " end_at, work_date, kind, source) SELECT"
@@ -306,5 +315,34 @@ class AuthorizationMatrixTest {
               Integer.class);
       assertThat(audited).isGreaterThanOrEqualTo(1);
     }
+  }
+
+  @Test
+  void theEmployeeListIsScopedWhenNoUnitIsGiven() throws Exception {
+    List<Map<String, Object>> ellis = employees("m.ellis");
+    assertThat(ellis).anyMatch(employee -> "A".equals(employee.get("home_unit")));
+    assertThat(ellis)
+        .as("a supervisor does not see the whole roster (docs/09 §3)")
+        .noneMatch(employee -> "ADM".equals(employee.get("home_unit")));
+
+    List<Map<String, Object>> chen = employees("j.chen");
+    assertThat(chen).anyMatch(employee -> "ADM".equals(employee.get("home_unit")));
+    assertThat(chen).noneMatch(employee -> "A".equals(employee.get("home_unit")));
+
+    List<Map<String, Object>> auditor = employees("a.reviewer");
+    assertThat(auditor).anyMatch(employee -> "A".equals(employee.get("home_unit")));
+    assertThat(auditor).anyMatch(employee -> "ADM".equals(employee.get("home_unit")));
+
+    assertThat(send("GET", "/api/v1/employees?unitId=" + UNIT_C, null, tokens.get("m.ellis"))
+            .statusCode())
+        .as("a unit outside the caller's scope answers 404")
+        .isEqualTo(404);
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<Map<String, Object>> employees(String user) throws Exception {
+    HttpResponse<String> response = send("GET", "/api/v1/employees", null, tokens.get(user));
+    assertThat(response.statusCode()).isEqualTo(200);
+    return mapper.readValue(response.body(), List.class);
   }
 }

@@ -1,6 +1,11 @@
 spring:
   application:
     name: shiftcircle-api
+  jackson:
+    deserialization:
+      # An unknown field is a mistake, not something to ignore: a PUT that names a field the api
+      # does not have must answer 400 instead of pretending it saved (review-r3 NIT 1).
+      fail-on-unknown-properties: true
 
 server:
   port: 8081

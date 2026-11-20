@@ -51,6 +51,45 @@ class RuleRowValidatorTest {
   }
 
   @Test
+  void anAbsurdOvertimeRateIsRefused() {
+    assertThat(validateWith("P-01b", params("otRate", 1e308)))
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.column()).isEqualTo("Overtime rate");
+              assertThat(violation.message()).contains("between 1.0 and 3.0");
+            });
+  }
+
+  @Test
+  void anAbsurdExtensionTriggerIsRefused() {
+    Map<String, Object> params =
+        params(
+            "afterShiftKind", ".*",
+            "windowHours", 24,
+            "minRestHours", 8,
+            "minExtensionMinutes", 1441);
+
+    assertThat(validateWith("U-01", params))
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.column()).isEqualTo("Overtime extension trigger");
+              assertThat(violation.message()).contains("between 0 and 1440");
+            });
+  }
+
+  @Test
+  void anAbsurdDayOffBreakIsRefused() {
+    Map<String, Object> params = params("daysOff", 2, "withinDays", 7, "minBreakHours", 25);
+
+    assertThat(validateWith("U-12", params))
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.column()).isEqualTo("Minimum length of a day off (hours)");
+              assertThat(violation.message()).contains("between 0 and 24");
+            });
+  }
+
+  @Test
   void thePublishedRuleSetIsValid() {
     assertThat(validator.validate(RuleRowsV1.ruleSet())).isEmpty();
   }

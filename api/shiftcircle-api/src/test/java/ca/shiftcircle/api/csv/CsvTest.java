@@ -29,5 +29,6 @@ class CsvTest {
     assertThat(Csv.cell("@cmd")).isEqualTo("'@cmd");
     assertThat(Csv.cell("\t=2+5*10")).isEqualTo("\"'\t=2+5*10\"");
     assertThat(Csv.cell("\r=1")).isEqualTo("\"'\r=1\"");
+    assertThat(Csv.cell("\n=1")).as("a leading line feed is neutralised too").isEqualTo("\"'\n=1\"");
   }
 }

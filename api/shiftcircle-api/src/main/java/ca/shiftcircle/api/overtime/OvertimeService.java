@@ -466,10 +466,16 @@ public class OvertimeService {
 
   @Transactional
   public OfferRecordView confirm(UUID offerId, AuthPrincipal principal) {
+    // Lock order: open_shift row FIRST, then the offer, then the officer advisory lock. Two
+    // supervisors confirming two different accepted offers for one shift serialise on the shift,
+    // so the second sees FILLED and is refused (review-r3 F8).
+    Map<String, Object> peek =
+        jdbc.queryForMap(
+            "SELECT open_shift_id FROM overtime_offer WHERE id = ?", offerId);
+    Map<String, Object> shift = shiftRowForUpdate((UUID) peek.get("open_shift_id"));
     // Row lock: two supervisors confirming the same offer serialise here, so only one creates an
     // assignment (review-r1 F3).
     Map<String, Object> offer = offerRowForUpdate(offerId);
-    Map<String, Object> shift = shiftRow((UUID) offer.get("open_shift_id"));
     scopeGuard.requireUnit(principal, (String) shift.get("unit_code"));
 
     if (!"ACCEPTED".equals(offer.get("status"))) {
@@ -521,10 +527,15 @@ public class OvertimeService {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "Only an accepted offer can be confirmed");
     }
-    jdbc.update(
-        "UPDATE open_shift SET status = 'FILLED', filled_assignment_id = ? WHERE id = ?",
-        assignmentId,
-        shift.get("id"));
+    int filled =
+        jdbc.update(
+            "UPDATE open_shift SET status = 'FILLED', filled_assignment_id = ?"
+                + " WHERE id = ? AND status <> 'FILLED'",
+            assignmentId,
+            shift.get("id"));
+    if (filled == 0) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "This shift is already filled");
+    }
     audit(principal, "confirm_overtime_offer", "overtime_offer", offerId, Map.of(
         "assignmentId", assignmentId.toString(), "employeeId", employeeId.toString()));
 
@@ -539,7 +550,10 @@ public class OvertimeService {
   @Transactional
   public Map<String, Object> assignDirect(
       UUID openShiftId, DirectAssignRequest request, AuthPrincipal principal) {
-    Map<String, Object> shift = shiftRow(openShiftId);
+    // Lock order: the open_shift row FIRST, then assignments.assign() takes the officer advisory
+    // lock. Confirm() follows the same order (shift, offer, officer), so a direct assign and a
+    // confirm of two offers for one shift cannot deadlock or both fill it.
+    Map<String, Object> shift = shiftRowForUpdate(openShiftId);
     scopeGuard.requireUnit(principal, (String) shift.get("unit_code"));
     if (request == null || request.employeeId() == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "employeeId is required");
@@ -566,10 +580,15 @@ public class OvertimeService {
             principal);
     UUID assignmentId = saved.id();
 
-    jdbc.update(
-        "UPDATE open_shift SET status = 'FILLED', filled_assignment_id = ? WHERE id = ?",
-        assignmentId,
-        openShiftId);
+    int filled =
+        jdbc.update(
+            "UPDATE open_shift SET status = 'FILLED', filled_assignment_id = ?"
+                + " WHERE id = ? AND status <> 'FILLED'",
+            assignmentId,
+            openShiftId);
+    if (filled == 0) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "This shift is already filled");
+    }
     audit(principal, "assign_open_shift", "open_shift", openShiftId, Map.of(
         "assignmentId", assignmentId.toString(), "employeeId", request.employeeId().toString()));
 
@@ -611,6 +630,21 @@ public class OvertimeService {
                 + " u.kind AS unit_kind, t.code AS template_code, o.start_at, o.end_at, o.reason,"
                 + " o.status FROM open_shift o JOIN unit u ON u.id = o.unit_id"
                 + " JOIN shift_template t ON t.id = o.shift_template_id WHERE o.id = ?",
+            id);
+    if (rows.isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Open shift not found");
+    }
+    return rows.get(0);
+  }
+
+  private Map<String, Object> shiftRowForUpdate(UUID id) {
+    List<Map<String, Object>> rows =
+        jdbc.queryForList(
+            "SELECT o.id, o.unit_id, o.shift_template_id, u.code AS unit_code, u.name AS unit_name,"
+                + " u.kind AS unit_kind, t.code AS template_code, o.start_at, o.end_at, o.reason,"
+                + " o.status FROM open_shift o JOIN unit u ON u.id = o.unit_id"
+                + " JOIN shift_template t ON t.id = o.shift_template_id WHERE o.id = ?"
+                + " FOR UPDATE OF o",
             id);
     if (rows.isEmpty()) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Open shift not found");

@@ -77,8 +77,8 @@ class RuleRowEditApiTest {
     int draft = draft();
     Map<String, Object> table = table(draft, "REST");
     Map<String, Object> row = row(table, "U-01");
-    // The web leaves the old friendly label in 'after' and puts the edit in params.
-    row.put("after", "Any shift");
+    // The label field left stale by a client must not silently beat the stored value.
+    row.put("after", null);
     params(row).put("afterShiftKind", "D8|E8");
 
     HttpResponse<String> response = save(draft, "REST", table);
@@ -147,7 +147,7 @@ class RuleRowEditApiTest {
     for (String[] probe : probes) {
       Map<String, Object> table = table(draft, "REST");
       Map<String, Object> row = row(table, "U-01");
-      row.put("after", "Any shift");
+      row.put("after", null);
       params(row).put("afterShiftKind", probe[1]);
 
       HttpResponse<String> response = save(draft, "REST", table);
@@ -161,6 +161,182 @@ class RuleRowEditApiTest {
             .contains("After this kind of shift");
       }
     }
+  }
+
+  @Test
+  void aLabelThatDisagreesWithTheParamsIsARefusedConflict() throws Exception {
+    int draft = draft();
+    Map<String, Object> table = table(draft, "REST");
+    row(table, "U-01").put("after", "16 h shift");
+
+    HttpResponse<String> response = save(draft, "REST", table);
+    assertThat(response.statusCode()).isEqualTo(400);
+    assertThat(problem(response).get("title").toString()).contains("different values");
+    assertThat(storedAfter(draft)).as("nothing was saved").isEqualTo(".*");
+  }
+
+  @Test
+  void aGarbageLabelIsRefusedNotIgnored() throws Exception {
+    int draft = draft();
+    Map<String, Object> table = table(draft, "REST");
+    row(table, "U-01").put("after", "zzz;evil");
+
+    HttpResponse<String> response = save(draft, "REST", table);
+    assertThat(response.statusCode()).isEqualTo(400);
+    assertThat(problem(response).get("title").toString()).contains("(after)");
+    assertThat(storedAfter(draft)).as("nothing was saved").isEqualTo(".*");
+  }
+
+  @Test
+  void anOverlongMessageIsRefused() throws Exception {
+    int draft = draft();
+    Map<String, Object> table = table(draft, "REST");
+    params(row(table, "U-01")).put("_message", "x".repeat(501));
+
+    HttpResponse<String> response = save(draft, "REST", table);
+    assertThat(response.statusCode()).isEqualTo(400);
+    assertThat(problem(response).get("title").toString()).contains("at most 500");
+  }
+
+  @Test
+  void aNonStringMessageIsRefused() throws Exception {
+    int draft = draft();
+    Map<String, Object> table = table(draft, "REST");
+    params(row(table, "U-01")).put("_message", 5);
+
+    HttpResponse<String> response = save(draft, "REST", table);
+    assertThat(response.statusCode()).isEqualTo(400);
+    assertThat(problem(response).get("title").toString()).contains("needs text");
+  }
+
+  @Test
+  void aGarbageResultIsRefused() throws Exception {
+    int draft = draft();
+    Map<String, Object> table = table(draft, "REST");
+    row(table, "U-01").put("result", "EVIL");
+
+    HttpResponse<String> response = save(draft, "REST", table);
+    assertThat(response.statusCode()).isEqualTo(400);
+    assertThat(problem(response).get("title").toString()).contains("Result");
+  }
+
+  @Test
+  void aGarbageOverrideIsRefused() throws Exception {
+    int draft = draft();
+    Map<String, Object> table = table(draft, "REST");
+    row(table, "U-01").put("override", "EVIL");
+
+    HttpResponse<String> response = save(draft, "REST", table);
+    assertThat(response.statusCode()).isEqualTo(400);
+    assertThat(problem(response).get("title").toString()).contains("Override");
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void everyNumericColumnRefusesValuesOutsideItsRange() throws Exception {
+    String[][] cases = {
+      {"REST", "windowHours", "23", "24", "25"},
+      {"REST", "minRestHours", "7", "8", "25"},
+      {"REST", "minExtensionMinutes", "-1", "0", "1441"},
+      {"MAX_HOURS", "maxHours", "0", "24", "200"},
+      {"MAX_HOURS", "warnAtHours", "-1", "0", "169"},
+      {"CONSECUTIVE", "max", "0", "4", "367"},
+      {"LONG_SHIFTS", "maxIn7Days", "0", "4", "29"},
+      {"LONG_SHIFTS", "maxIn28Days", "0", "8", "367"},
+      {"DAYS_OFF", "daysOff", "0", "2", "8"},
+      {"DAYS_OFF", "withinDays", "6", "7", "8"},
+      {"DAYS_OFF", "minBreakHours", "-1", "0", "25"},
+      {"PAY", "thresholdHours", "0", "80", "169"},
+      {"PAY", "otRate", "0.5", "1.5", "3.1"},
+      {"PAY", "ignoreUnderMinutes", "-1", "0", "121"},
+    };
+    int draft = draft();
+    for (String[] probe : cases) {
+      for (int i = 0; i < 3; i++) {
+        Map<String, Object> table = table(draft, probe[0]);
+        List<Map<String, Object>> rows = (List<Map<String, Object>>) table.get("rows");
+        Map<String, Object> row =
+            rows.stream()
+                .filter(r -> params(r).containsKey(probe[1]))
+                .findFirst()
+                .orElse(rows.get(0));
+        params(row).put(probe[1], Double.parseDouble(probe[2 + i]));
+
+        HttpResponse<String> response = save(draft, probe[0], table);
+        assertThat(response.statusCode())
+            .as(probe[0] + "." + probe[1] + "=" + probe[2 + i])
+            .isEqualTo(i == 1 ? 200 : 400);
+      }
+    }
+  }
+
+  @Test
+  void everyJsonRootTypeForStoredParamsAnswersValidationNotAFiveHundred() throws Exception {
+    int draft = draft();
+    for (String root : List.of("null", "[]", "\"text\"", "5", "true")) {
+      jdbc.update(
+          "UPDATE rule_row rr SET params = ?::jsonb FROM rule_set_version v"
+              + " WHERE v.id = rr.rule_set_version_id AND v.version = ? AND rr.code = 'U-01'",
+          root,
+          draft);
+      assertThat((List<?>) table(draft, "REST").get("rows"))
+          .as("GET after " + root)
+          .isNotEmpty();
+
+      HttpResponse<String> response = build(draft);
+      assertThat(response.statusCode()).as("build after " + root).isEqualTo(200);
+      assertThat((List<?>) json(response).get("errors")).as(root).isNotEmpty();
+    }
+  }
+
+  @Test
+  void anOverlongDraftReasonIsRefused() throws Exception {
+    String body = "{\"basedOn\":1,\"reason\":\"" + "x".repeat(501) + "\"}";
+
+    HttpResponse<String> response = send("POST", "/api/v1/rule-sets/drafts", body);
+    assertThat(response.statusCode()).isEqualTo(400);
+    assertThat(problem(response).get("title").toString()).contains("reason");
+  }
+
+  @Test
+  void anUnknownTopLevelRowFieldIsRefusedNamingIt() throws Exception {
+    int draft = draft();
+    Map<String, Object> table = table(draft, "REST");
+    row(table, "U-01").put("message", "ignored before");
+
+    HttpResponse<String> response = save(draft, "REST", table);
+    assertThat(response.statusCode()).isEqualTo(400);
+    assertThat(response.body()).as("names the unknown field").contains("message");
+  }
+
+  @Test
+  void aNewRestRowMayCarryTheExtensionColumn() throws Exception {
+    int draft = draft();
+    Map<String, Object> table = table(draft, "REST");
+    List<Map<String, Object>> rows = (List<Map<String, Object>>) table.get("rows");
+    Map<String, Object> copy = new java.util.LinkedHashMap<>(rows.get(0));
+    copy.put("ruleCode", "U-99");
+    rows.add(copy);
+
+    HttpResponse<String> response = save(draft, "REST", table);
+    assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+    assertThat((List<?>) table(draft, "REST").get("rows"))
+        .anySatisfy(row -> assertThat(((Map<?, ?>) row).get("ruleCode")).isEqualTo("U-99"));
+  }
+
+  @Test
+  void anInventedKeyOnANewRowIsRefused() throws Exception {
+    int draft = draft();
+    Map<String, Object> table = table(draft, "REST");
+    List<Map<String, Object>> rows = (List<Map<String, Object>>) table.get("rows");
+    Map<String, Object> copy = new java.util.LinkedHashMap<>(rows.get(0));
+    copy.put("ruleCode", "U-98");
+    params(copy).put("surpriseKey", 7);
+    rows.add(copy);
+
+    HttpResponse<String> response = save(draft, "REST", table);
+    assertThat(response.statusCode()).isEqualTo(400);
+    assertThat(problem(response).get("title").toString()).contains("surpriseKey");
   }
 
   // -------------------------------------------------------------------------------------------

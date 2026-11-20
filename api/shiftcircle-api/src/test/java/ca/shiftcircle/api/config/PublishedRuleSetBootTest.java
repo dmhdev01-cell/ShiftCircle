@@ -82,16 +82,20 @@ class PublishedRuleSetBootTest {
     String original = paramsOf(published);
 
     try {
-      jdbc.update(
-          "UPDATE rule_row SET params = 'null'::jsonb"
-              + " WHERE rule_set_version_id = ? AND code = 'U-01'",
-          published);
+      for (String root : java.util.List.of("null", "[]", "\"text\"", "5", "true")) {
+        jdbc.update(
+            "UPDATE rule_row SET params = ?::jsonb"
+                + " WHERE rule_set_version_id = ? AND code = 'U-01'",
+            root,
+            published);
 
-      assertThatThrownBy(() -> new PublishedRuleSet(compiler, rows))
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("ShiftCircle will not start")
-          .hasMessageContaining("U-01")
-          .hasMessageContaining("Row values");
+        assertThatThrownBy(() -> new PublishedRuleSet(compiler, rows))
+            .as("params root " + root)
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("ShiftCircle will not start")
+            .hasMessageContaining("U-01")
+            .hasMessageContaining("Row values");
+      }
       assertThat(output)
           .as("the refusal is in the log, not only in the exception")
           .contains("is not valid, so ShiftCircle will not start")

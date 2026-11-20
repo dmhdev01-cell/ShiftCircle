@@ -680,17 +680,23 @@ public class PayrollService {
           HttpStatus.BAD_REQUEST, "reason must be at most 500 characters");
     }
     if ("LOCKED".equals(period.status())) {
-      jdbc.update(
-          "UPDATE pay_period SET status = 'OPEN', locked_at = NULL, locked_by = NULL,"
-              + " unlock_reason = ?, version = version + 1 WHERE id = ?",
-          clean,
-          periodId);
-      audit(
-          principal,
-          "unlock_pay_period",
-          "pay_period",
-          periodId,
-          Map.of("status", "OPEN", "reason", clean));
+      int unlocked =
+          jdbc.update(
+              "UPDATE pay_period SET status = 'OPEN', locked_at = NULL, locked_by = NULL,"
+                  + " unlock_reason = ?, version = version + 1"
+                  + " WHERE id = ? AND status = 'LOCKED'",
+              clean,
+              periodId);
+      if (unlocked > 0) {
+        // A concurrent unlock that lost the race changed nothing, so it must not write a second
+        // audit row (review-r3 F7).
+        audit(
+            principal,
+            "unlock_pay_period",
+            "pay_period",
+            periodId,
+            Map.of("status", "OPEN", "reason", clean));
+      }
     }
     return periodView(periodRow(periodId));
   }

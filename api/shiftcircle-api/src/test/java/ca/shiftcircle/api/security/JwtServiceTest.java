@@ -13,6 +13,21 @@ class JwtServiceTest {
       new JwtService("test-jwt-secret-that-is-at-least-32-bytes-long");
 
   @Test
+  void aMissingSecretExplainsWhatToDo() {
+    assertThatThrownBy(() -> new JwtService(""))
+        .as("a raw unresolved placeholder must not be what a person sees")
+        .hasMessageContaining("SC_JWT_SECRET is not set")
+        .hasMessageContaining(".env.example");
+  }
+
+  @Test
+  void aShortSecretExplainsWhatToDo() {
+    assertThatThrownBy(() -> new JwtService("too-short"))
+        .hasMessageContaining("SC_JWT_SECRET is too short")
+        .hasMessageContaining("32");
+  }
+
+  @Test
   void roundTripsThePrincipal() {
     AuthPrincipal principal =
         new AuthPrincipal(

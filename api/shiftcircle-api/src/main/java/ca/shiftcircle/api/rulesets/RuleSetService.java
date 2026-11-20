@@ -31,6 +31,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import org.kie.api.KieBase;
@@ -68,6 +69,40 @@ public class RuleSetService {
   private static final int MAX_LIST_VALUES = 16;
   /** A build report shows this many problems, then says how many it left out. */
   private static final int MAX_ERRORS = 20;
+  /** The longest message a rule may show. */
+  private static final int MAX_MESSAGE = 500;
+
+  /** Allowed range for one numeric column, enforced at PUT and again by the validator. */
+  private record Range(double min, double max) {}
+
+  /** Exact values some numeric columns allow (the fact builders produce only these windows). */
+  private static final Map<String, Set<Double>> EXACT_VALUES =
+      Map.of(
+          "REST.windowHours", Set.of(24.0),
+          "MAX_HOURS.windowHours", Set.of(24.0, 168.0),
+          "DAYS_OFF.withinDays", Set.of(7.0));
+
+  /** The documented range of every other numeric column (docs/04 §5a). */
+  private static final Map<String, Range> NUMERIC_RANGES =
+      Map.ofEntries(
+          Map.entry("REST.minRestHours", new Range(8, 24)),
+          Map.entry("REST.minExtensionMinutes", new Range(0, 1440)),
+          Map.entry("MAX_HOURS.maxHours", new Range(0.01, 168)),
+          Map.entry("MAX_HOURS.warnAtHours", new Range(0, 168)),
+          Map.entry("CONSECUTIVE.max", new Range(1, 366)),
+          Map.entry("LONG_SHIFTS.maxIn7Days", new Range(1, 28)),
+          Map.entry("LONG_SHIFTS.maxIn28Days", new Range(1, 366)),
+          Map.entry("DAYS_OFF.daysOff", new Range(1, 7)),
+          Map.entry("DAYS_OFF.minBreakHours", new Range(0, 24)),
+          Map.entry("PAY.thresholdHours", new Range(0.01, 168)),
+          Map.entry("PAY.otRate", new Range(1, 3)),
+          Map.entry("PAY.ignoreUnderMinutes", new Range(0, 120)));
+
+  /** The values the row's result and override columns may take. */
+  private static final Set<String> RESULTS = Set.of("BLOCK", "WARN", "INFO");
+
+  private static final Set<String> OVERRIDES =
+      Set.of("EMERGENCY", "ACKNOWLEDGE", "NOT_ALLOWED");
 
   private static final ZoneId REGINA = ZoneId.of("America/Regina");
 
@@ -175,6 +210,14 @@ public class RuleSetService {
     if (basedOn == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "basedOn is required");
     }
+    if (reason == null || reason.isBlank()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The reason (reason) is required");
+    }
+    if (reason.length() > MAX_MESSAGE) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "The reason (reason) must be at most " + MAX_MESSAGE + " characters");
+    }
     Map<String, Object> base = versionRow(basedOn);
     UUID id = UUID.randomUUID();
     Integer next =
@@ -251,15 +294,30 @@ public class RuleSetService {
         // overwritten by the stale friendly label the web leaves in 'after' (review-r2, 2026-11-20).
         params.put("afterShiftKind", resolveAfter(row, params, versionId));
       }
+      if (row.result() != null && !RESULTS.contains(row.result())) {
+        throw columnProblem("Result", "result", "must be one of BLOCK, WARN, INFO");
+      }
+      if (row.override() != null && !OVERRIDES.contains(row.override())) {
+        throw columnProblem(
+            "Override", "override", "must be one of EMERGENCY, ACKNOWLEDGE, NOT_ALLOWED");
+      }
+      Object messageParam = params.get("_message");
+      if (messageParam != null && !(messageParam instanceof String)) {
+        throw columnProblem("Message", "_message", "needs text");
+      }
       String severity = row.result() == null
           ? (existing == null ? "WARN" : existing.severity().name()) : row.result();
       String override =
           row.override() == null
               ? (existing == null ? "ACKNOWLEDGE" : existing.overridePolicy().name())
               : "NOT_ALLOWED".equals(row.override()) ? "NONE" : row.override();
-      String message = row.params() != null && row.params().get("_message") != null
-          ? String.valueOf(row.params().get("_message"))
+      String message = messageParam != null
+          ? (String) messageParam
           : existing == null ? row.ruleCode() : existing.message();
+      if (message != null && message.length() > MAX_MESSAGE) {
+        throw columnProblem(
+            "Message", "message", "must be at most " + MAX_MESSAGE + " characters");
+      }
       String source = row.source() == null
           ? (existing == null ? "MOCK" : existing.source()) : row.source();
       if (existing == null) {
@@ -999,7 +1057,7 @@ public class RuleSetService {
       Object value = entry.getValue();
       Map<?, ?> column = schema.get(key) instanceof Map<?, ?> declared
           ? declared
-          : storedColumn(key, existing);
+          : storedColumn(key, table);
       if (column == null) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST, "Unknown column '" + key + "' for the " + table.code() + " table");
@@ -1064,7 +1122,29 @@ public class RuleSetService {
           && !allowed.contains(String.valueOf(value))) {
         throw columnProblem(label, key, "must be one of " + allowed);
       }
+      if (value instanceof Number number) {
+        String rangeKey = table.name() + "." + key;
+        Set<Double> exact = EXACT_VALUES.get(rangeKey);
+        if (exact != null && !exact.contains(number.doubleValue())) {
+          throw columnProblem(label, key, "must be " + exactValues(exact));
+        }
+        Range range = NUMERIC_RANGES.get(rangeKey);
+        if (range != null
+            && (number.doubleValue() < range.min() || number.doubleValue() > range.max())) {
+          throw columnProblem(
+              label,
+              key,
+              "must be between " + numberText(range.min()) + " and " + numberText(range.max()));
+        }
+      }
     }
+  }
+
+  private static String exactValues(Set<Double> values) {
+    return values.stream()
+        .sorted()
+        .map(value -> numberText(value))
+        .collect(java.util.stream.Collectors.joining(" or "));
   }
 
   private static ResponseStatusException columnProblem(String label, String key, String needs) {
@@ -1077,13 +1157,11 @@ public class RuleSetService {
    * store {@code minExtensionMinutes} without declaring it; refusing it would make every ordinary
    * REST save a 400. Inventing a key is still refused: only a key already on this row is accepted.
    */
-  private static Map<?, ?> storedColumn(String key, RuleRow existing) {
-    if (existing == null || !existing.params().containsKey(key)) {
-      return null;
-    }
-    if ("minExtensionMinutes".equals(key)) {
-      return Map.of(
-          "type", "int", "label", "Overtime extension trigger", "nullable", true);
+  private static Map<?, ?> storedColumn(String key, RuleTableCode table) {
+    // minExtensionMinutes is part of the REST contract even though the v1 column_schema predates
+    // it; accepting it for a NEW row too keeps new and stored rows on the same rule.
+    if ("minExtensionMinutes".equals(key) && table == RuleTableCode.REST) {
+      return Map.of("type", "int", "label", "Overtime extension trigger", "nullable", true);
     }
     return null;
   }
@@ -1101,26 +1179,47 @@ public class RuleSetService {
    */
   private String resolveAfter(RowView row, Map<String, Object> params, UUID versionId) {
     Object stored = params.get("afterShiftKind");
-    String value = stored instanceof String text ? text : null;
-    if (value == null && row.after() != null) {
-      value = row.after();
+    String fromParams = stored instanceof String text && !text.isBlank() ? text : null;
+    String fromLabel = row.after() == null || row.after().isBlank() ? null : row.after();
+    String paramsValue = fromParams == null ? null : afterStored(fromParams);
+    String labelValue = fromLabel == null ? null : afterStored(fromLabel);
+    if (fromParams != null && paramsValue == null) {
+      throw afterProblem("afterShiftKind", fromParams);
     }
-    if (value == null) {
-      RuleRow existing = findRow(versionId, RuleTableCode.REST, row.ruleCode());
-      return existing == null
-          ? ".*"
-          : String.valueOf(existing.params().getOrDefault("afterShiftKind", ".*"));
+    if (fromLabel != null && labelValue == null) {
+      throw afterProblem("after", fromLabel);
     }
+    if (paramsValue != null && labelValue != null && !paramsValue.equals(labelValue)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "The After this kind of shift column has different values in 'after' and"
+              + " 'afterShiftKind'; send the same value in both fields, or only afterShiftKind");
+    }
+    if (paramsValue != null) {
+      return paramsValue;
+    }
+    if (labelValue != null) {
+      return labelValue;
+    }
+    RuleRow existing = findRow(versionId, RuleTableCode.REST, row.ruleCode());
+    return existing == null
+        ? ".*"
+        : String.valueOf(existing.params().getOrDefault("afterShiftKind", ".*"));
+  }
+
+  /** A friendly label or a raw shift-kind pattern, as the value to store; null when invalid. */
+  private static String afterStored(String value) {
     String mapped = rawAfter(value);
     if (mapped != null) {
       return mapped;
     }
-    if (isShiftKind(value)) {
-      return value;
-    }
-    throw new ResponseStatusException(
+    return isShiftKind(value) ? value : null;
+  }
+
+  private static ResponseStatusException afterProblem(String field, String value) {
+    return new ResponseStatusException(
         HttpStatus.BAD_REQUEST,
-        "The After this kind of shift column (afterShiftKind) must be one of Any shift,"
+        "The After this kind of shift column (" + field + ") must be one of Any shift,"
             + " Regular shift, 16 h shift, 12 h 00\u201312, 12 h 12\u201324, or shift codes"
             + " joined by | (for example D8|E8)");
   }
