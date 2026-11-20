@@ -1,5 +1,7 @@
 package ca.shiftcircle.rules.facts;
 
+import java.util.List;
+
 /**
  * Derived fact for consecutive-work rules (U-08 days, U-09 12-hour shifts, U-10 overnight 12-hour
  * shifts): the longest run for one officer, and whether the shift that causes it was picked up
@@ -11,13 +13,19 @@ public class ConsecutiveRunFact {
   private final int runLength;
   private final boolean causedByOvertime;
   private final String evidence;
+  private final List<String> evidenceAssignmentIds;
 
   public ConsecutiveRunFact(
-      String counts, int runLength, boolean causedByOvertime, String evidence) {
+      String counts,
+      int runLength,
+      boolean causedByOvertime,
+      String evidence,
+      List<String> evidenceAssignmentIds) {
     this.counts = counts;
     this.runLength = runLength;
     this.causedByOvertime = causedByOvertime;
     this.evidence = evidence;
+    this.evidenceAssignmentIds = List.copyOf(evidenceAssignmentIds);
   }
 
   public String getCounts() {
@@ -34,6 +42,10 @@ public class ConsecutiveRunFact {
 
   public String getEvidence() {
     return evidence;
+  }
+
+  public List<String> getEvidenceAssignmentIds() {
+    return evidenceAssignmentIds;
   }
 
   @Override

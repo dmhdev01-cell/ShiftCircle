@@ -103,7 +103,9 @@ public final class DemoDataSelfCheck {
 
     List<RuleResult> unjustified =
         blocks.stream()
-            .filter(result -> overridden.stream().noneMatch(result.evidence()::contains))
+            .filter(
+                result ->
+                    result.evidenceAssignmentIds().stream().noneMatch(overridden::contains))
             .toList();
     if (!unjustified.isEmpty()) {
       violations.add(

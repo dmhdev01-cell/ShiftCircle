@@ -1,5 +1,7 @@
 package ca.shiftcircle.rules.facts;
 
+import java.util.List;
+
 /**
  * Derived fact for rest rules: the shortest gap between two consecutive shifts inside the window.
  *
@@ -13,18 +15,21 @@ public class MinRestInWindowFact {
   private final double minRestHours;
   private final double previousExtensionMinutes;
   private final String evidence;
+  private final List<String> evidenceAssignmentIds;
 
   public MinRestInWindowFact(
       String shiftKind,
       int windowHours,
       double minRestHours,
       double previousExtensionMinutes,
-      String evidence) {
+      String evidence,
+      List<String> evidenceAssignmentIds) {
     this.shiftKind = shiftKind;
     this.windowHours = windowHours;
     this.minRestHours = minRestHours;
     this.previousExtensionMinutes = previousExtensionMinutes;
     this.evidence = evidence;
+    this.evidenceAssignmentIds = List.copyOf(evidenceAssignmentIds);
   }
 
   public String getShiftKind() {
@@ -45,6 +50,10 @@ public class MinRestInWindowFact {
 
   public String getEvidence() {
     return evidence;
+  }
+
+  public List<String> getEvidenceAssignmentIds() {
+    return evidenceAssignmentIds;
   }
 
   @Override

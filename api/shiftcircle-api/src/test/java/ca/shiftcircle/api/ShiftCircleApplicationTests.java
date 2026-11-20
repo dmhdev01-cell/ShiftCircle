@@ -40,7 +40,12 @@ class ShiftCircleApplicationTests {
   void firesU01InsideTheSpringContext() {
     MinRestInWindowFact fact =
         new MinRestInWindowFact(
-            "D8", 24, 4.0, 0, "D8 ends Thu 19 Nov 15:00, next shift starts 19:00 (4.00 h rest)");
+            "D8",
+            24,
+            4.0,
+            0,
+            "D8 ends Thu 19 Nov 15:00, next shift starts 19:00 (4.00 h rest)",
+            java.util.List.of());
 
     List<RuleResult> results = ruleEvaluator.evaluate(publishedRuleSet.kieBase(), "v1", fact);
 

@@ -68,6 +68,6 @@ public final class RollingHoursFactBuilder {
             windowHours,
             BusinessTime.evidence(bestFrom),
             bestContributors.size());
-    return new MaxHoursInWindowFact(windowHours, best, evidence);
+    return new MaxHoursInWindowFact(windowHours, best, evidence, bestContributors);
   }
 }

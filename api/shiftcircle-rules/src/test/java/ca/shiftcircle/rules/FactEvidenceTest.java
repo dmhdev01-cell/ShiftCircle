@@ -54,7 +54,11 @@ class FactEvidenceTest {
 
     assertThat(facts)
         .singleElement()
-        .satisfies(fact -> assertThat(fact.getEvidence()).doesNotContain(ID));
+        .satisfies(
+            fact -> {
+              assertThat(fact.getEvidence()).doesNotContain(ID);
+              assertThat(fact.getEvidenceAssignmentIds()).containsExactly(ID);
+            });
   }
 
   @Test
@@ -65,7 +69,11 @@ class FactEvidenceTest {
 
     assertThat(facts)
         .singleElement()
-        .satisfies(fact -> assertThat(fact.getEvidence()).doesNotContain(ID));
+        .satisfies(
+            fact -> {
+              assertThat(fact.getEvidence()).doesNotContain(ID);
+              assertThat(fact.getEvidenceAssignmentIds()).containsExactly(ID);
+            });
   }
 
   @Test
@@ -84,6 +92,14 @@ class FactEvidenceTest {
           .doesNotContain(ID)
           .doesNotContain(ID_2);
     }
+    assertThat(facts)
+        .filteredOn(fact -> "DAYS".equals(fact.getCounts()))
+        .singleElement()
+        .satisfies(fact -> assertThat(fact.getEvidenceAssignmentIds()).containsExactly(ID_2));
+    assertThat(facts)
+        .filteredOn(fact -> "SHIFTS_12H".equals(fact.getCounts()))
+        .singleElement()
+        .satisfies(fact -> assertThat(fact.getEvidenceAssignmentIds()).containsExactly(ID_2));
   }
 
   @Test
@@ -93,6 +109,10 @@ class FactEvidenceTest {
 
     assertThat(facts)
         .singleElement()
-        .satisfies(fact -> assertThat(fact.getEvidence()).doesNotContain(ID));
+        .satisfies(
+            fact -> {
+              assertThat(fact.getEvidence()).doesNotContain(ID);
+              assertThat(fact.getEvidenceAssignmentIds()).containsExactly(ID);
+            });
   }
 }

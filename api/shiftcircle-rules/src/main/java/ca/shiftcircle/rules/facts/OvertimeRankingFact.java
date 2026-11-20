@@ -1,5 +1,7 @@
 package ca.shiftcircle.rules.facts;
 
+import java.util.List;
+
 /**
  * Derived fact for the overtime-ranking table: one open shift that has been ranked. The ordering
  * itself is computed in Java; the rule records which policy produced it.
@@ -26,5 +28,10 @@ public class OvertimeRankingFact {
 
   public String getEvidence() {
     return evidence;
+  }
+
+  /** A ranking is per officer, not per assignment. */
+  public List<String> getEvidenceAssignmentIds() {
+    return List.of();
   }
 }
