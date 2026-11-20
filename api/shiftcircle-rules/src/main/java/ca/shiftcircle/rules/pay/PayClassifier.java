@@ -2,6 +2,8 @@ package ca.shiftcircle.rules.pay;
 
 import ca.shiftcircle.rules.model.RuleRow;
 import ca.shiftcircle.rules.model.RuleSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -55,5 +57,36 @@ public final class PayClassifier {
 
     return new PayClassification(
         totalHours, regularHours, overtimeHours, rawOvertimeMinutes, policy.overtimeRate());
+  }
+
+  /** One paid portion of an entry: its pay code and hours. */
+  public record Portion(String payCode, double hours) {}
+
+  /**
+   * Splits one officer's entries, in time order, into regular and overtime hours.
+   *
+   * <p>The split point comes from {@link #classify}, so the threshold and the P-04 minimum are
+   * decided in one place. Hours beyond the threshold that P-04 treats as too few to be overtime are
+   * regular time, which keeps the payroll export's totals equal to the actual hours.
+   */
+  public List<Portion> allocate(List<Double> hoursInTimeOrder, PayPolicy policy) {
+    double total = hoursInTimeOrder.stream().mapToDouble(Double::doubleValue).sum();
+    PayClassification classification = classify(total, policy);
+    double regularTotal = Math.max(0, classification.totalHours() - classification.overtimeHours());
+
+    List<Portion> portions = new ArrayList<>();
+    double consumed = 0;
+    for (double hours : hoursInTimeOrder) {
+      double regularPart = Math.max(0, Math.min(hours, regularTotal - consumed));
+      double overtimePart = hours - regularPart;
+      consumed += hours;
+      if (regularPart > 0) {
+        portions.add(new Portion("REG", regularPart));
+      }
+      if (overtimePart > 0) {
+        portions.add(new Portion("OT15", overtimePart));
+      }
+    }
+    return portions;
   }
 }
