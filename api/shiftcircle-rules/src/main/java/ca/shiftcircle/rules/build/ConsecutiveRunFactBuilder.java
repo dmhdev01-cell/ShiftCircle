@@ -74,7 +74,11 @@ public final class ConsecutiveRunFactBuilder {
                 best,
                 bestEnd,
                 overtime ? " picked up outside the roster" : "");
-    return new ConsecutiveRunFact("DAYS", best, overtime, evidence);
+    List<String> ids =
+        bestEnd == null
+            ? List.of()
+            : List.of(byDate.get(bestEnd).get(byDate.get(bestEnd).size() - 1).assignmentId());
+    return new ConsecutiveRunFact("DAYS", best, overtime, evidence, ids);
   }
 
   private ConsecutiveRunFact twelveHourRun(List<ShiftFact> shifts) {
@@ -125,6 +129,11 @@ public final class ConsecutiveRunFactBuilder {
                 nightOnly ? "overnight " : "",
                 bestLast.start().atZone(BusinessTime.REGINA).toLocalDate(),
                 overtime ? " (picked up)" : "");
-    return new ConsecutiveRunFact(mode, best, overtime, evidence);
+    return new ConsecutiveRunFact(
+        mode,
+        best,
+        overtime,
+        evidence,
+        bestLast == null ? List.of() : List.of(bestLast.assignmentId()));
   }
 }

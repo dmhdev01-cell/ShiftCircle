@@ -1,5 +1,7 @@
 package ca.shiftcircle.rules.facts;
 
+import java.util.List;
+
 /**
  * Derived fact for rule U-12: the worst 7-day window's longest break without a shift, and how many
  * days off that break counts as.
@@ -37,6 +39,11 @@ public class DaysOffFact {
 
   public String getEvidence() {
     return evidence;
+  }
+
+  /** The fact covers a window, not one assignment, so there is no id to carry. */
+  public List<String> getEvidenceAssignmentIds() {
+    return List.of();
   }
 
   @Override

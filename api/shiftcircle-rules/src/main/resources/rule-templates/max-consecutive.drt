@@ -44,7 +44,8 @@ then
         "shifts",
         policy,
         ruleSetVersion,
-        $f.getEvidence() ) );
+        $f.getEvidence(),
+        $f.getEvidenceAssignmentIds() ) );
 end
 
 end template

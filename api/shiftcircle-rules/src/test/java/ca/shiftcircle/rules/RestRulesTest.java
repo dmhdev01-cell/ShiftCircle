@@ -52,6 +52,8 @@ class RestRulesTest {
                   .contains("next shift N8 starts")
                   .doesNotContainPattern(
                       "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
+              assertThat(result.evidenceAssignmentIds())
+                  .containsExactly(day.assignmentId(), next.assignmentId());
             });
   }
 

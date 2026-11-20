@@ -1,5 +1,7 @@
 package ca.shiftcircle.rules.facts;
 
+import java.util.List;
+
 /**
  * Derived fact for the pay table: one officer's hours so far in a week or pay period, already
  * classified by {@code PayClassifier}. The rule reports the classification; it never recomputes it.
@@ -57,5 +59,10 @@ public class PayPeriodFact {
 
   public String getEvidence() {
     return evidence;
+  }
+
+  /** A pay classification is per officer, not per assignment. */
+  public List<String> getEvidenceAssignmentIds() {
+    return List.of();
   }
 }

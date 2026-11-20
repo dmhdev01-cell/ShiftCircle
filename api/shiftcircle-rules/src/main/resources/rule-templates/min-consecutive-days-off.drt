@@ -37,7 +37,8 @@ then
         "days",
         OverridePolicy.@{overridePolicy},
         ruleSetVersion,
-        $f.getEvidence() ) );
+        $f.getEvidence(),
+        $f.getEvidenceAssignmentIds() ) );
 end
 
 end template

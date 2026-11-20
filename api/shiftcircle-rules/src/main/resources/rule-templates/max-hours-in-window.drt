@@ -38,7 +38,8 @@ then
             "hours",
             OverridePolicy.@{overridePolicy},
             ruleSetVersion,
-            $f.getEvidence() ) );
+            $f.getEvidence(),
+        $f.getEvidenceAssignmentIds() ) );
     } else {
         ruleResults.add( new RuleResult(
             "@{code}",
@@ -50,7 +51,8 @@ then
             "hours",
             OverridePolicy.ACKNOWLEDGE,
             ruleSetVersion,
-            $f.getEvidence() ) );
+            $f.getEvidence(),
+        $f.getEvidenceAssignmentIds() ) );
     }
 end
 

@@ -1,5 +1,7 @@
 package ca.shiftcircle.rules.facts;
 
+import java.util.List;
+
 /**
  * Derived fact for the shift-length table (L-01, S-03): a shift's template length and whether the
  * unit's local agreement allows that pattern.
@@ -11,18 +13,21 @@ public class ShiftLengthFact {
   private final int nominalMinutes;
   private final boolean allowedPatternByUnit;
   private final String evidence;
+  private final List<String> evidenceAssignmentIds;
 
   public ShiftLengthFact(
       String templateCode,
       int durationMinutes,
       int nominalMinutes,
       boolean allowedPatternByUnit,
-      String evidence) {
+      String evidence,
+      String assignmentId) {
     this.templateCode = templateCode;
     this.durationMinutes = durationMinutes;
     this.nominalMinutes = nominalMinutes;
     this.allowedPatternByUnit = allowedPatternByUnit;
     this.evidence = evidence;
+    this.evidenceAssignmentIds = List.of(assignmentId);
   }
 
   public String getTemplateCode() {
@@ -52,5 +57,9 @@ public class ShiftLengthFact {
 
   public String getEvidence() {
     return evidence;
+  }
+
+  public List<String> getEvidenceAssignmentIds() {
+    return evidenceAssignmentIds;
   }
 }

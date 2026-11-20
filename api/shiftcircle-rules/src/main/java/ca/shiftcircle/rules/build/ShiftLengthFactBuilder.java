@@ -42,6 +42,11 @@ public final class ShiftLengthFactBuilder {
             shift.unitCode(),
             allowed ? "" : " (no local agreement for that pattern)");
     return new ShiftLengthFact(
-        shift.templateCode(), shift.durationMinutes(), nominal, allowed, evidence);
+        shift.templateCode(),
+        shift.durationMinutes(),
+        nominal,
+        allowed,
+        evidence,
+        shift.assignmentId());
   }
 }
