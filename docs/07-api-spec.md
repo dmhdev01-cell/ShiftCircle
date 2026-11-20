@@ -237,7 +237,7 @@ path (`POST /assignments`), so S-04 and the audit event still hold.
 | GET | `/rule-sets` | Versions and status | RULES_ADMIN, RULES_APPROVER, AUDITOR, SUPERVISOR (read) |
 | GET | `/rule-sets/{version}/tables/{code}` | Rows, column schema and plain-language sentences | same |
 | POST | `/rule-sets/drafts` | `{ "basedOn": 7, "reason" }` → new draft (also used to roll back to an older version) | RULES_ADMIN |
-| PUT | `/rule-sets/{version}/tables/{code}/rows` | Replace a table's rows in a draft (`If-Match`) | RULES_ADMIN |
+| PUT | `/rule-sets/{version}/tables/{code}/rows` | Replace a table's rows in a draft (no `If-Match` in the prototype: saving clears the build, and a stale build can't be submitted) | RULES_ADMIN |
 | POST | `/rule-sets/{version}/build` | Validate → compile (Drools) → run test scenarios → dry run on the published roster; returns the report | RULES_ADMIN |
 | POST | `/rule-sets/{version}/submit` | Submit a successfully built draft for approval | RULES_ADMIN |
 | POST | `/rule-sets/{version}/approve` · `/reject` | Second-person decision (`approved_by ≠ created_by`) | RULES_APPROVER |
@@ -250,8 +250,12 @@ the published version's rows from PostgreSQL, not a code constant, so a restart 
 rules. The dry run reports counts per rule, unit and old→new outcome, never names (ADR-017).
 Publishing an *older* approved version after a newer one is allowed and supersedes the newer one: it
 is the rollback path, and the audit row records which version went live.
-| GET | `/rule-sets/{version}/tables/{code}/export` | `.xlsx` Drools decision table | RULES_ADMIN, RULES_APPROVER |
-| POST | `/rule-sets/{version}/tables/{code}/import` | multipart `.xlsx` into a draft (then build as usual) | RULES_ADMIN |
+
+**Excel export and import: future work (not built in the prototype).** The design planned
+`GET /rule-sets/{version}/tables/{code}/export` (an `.xlsx` Drools decision table) and
+`POST …/import` (a multipart `.xlsx` into a draft, then build as usual). Neither exists, and there
+is no plan to build them for the prototype (docs/10 §8). If built, an import must go through the
+same validation as the grid (R24/R28: rule values are code input).
 
 ### 4.8 Wall display, audit, operations
 
@@ -269,6 +273,6 @@ is the rollback path, and the audit row records which version went live.
 | Planning board | `GET /schedule`, `POST /rule-checks`, `POST/PATCH/DELETE /assignments`, `POST /schedule-periods/{id}/publish` |
 | My schedule | `GET /me/schedule`, `GET /me/offers`, `POST /offers/{id}/accept`, `POST /rule-checks`, `POST /proposals` |
 | Overtime board | `GET /open-shifts`, `GET /open-shifts/{id}/candidates`, `POST /open-shifts/{id}/offers`, `POST /open-shifts/{id}/assign` |
-| Rules | `GET /rule-sets…`, `PUT …/rows`, `POST …/build`, `…/submit`, `…/approve`, `…/publish`, export/import |
+| Rules | `GET /rule-sets…`, `PUT …/rows`, `POST …/build`, `…/submit`, `…/approve`, `…/publish` (Excel export/import: not built) |
 | Reports | `GET /reports/*`, `GET /pay-periods/{id}/payroll-export` |
 | Wall display | `GET /display/today` every 60 s |

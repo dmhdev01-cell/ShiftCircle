@@ -14,7 +14,7 @@
 flowchart LR
     subgraph Admin["Rules screen (non-technical)"]
         G[Friendly grid per rule table<br/>labels · dropdowns · help text<br/>plain-language preview]
-        X[Download / upload Excel<br/>for offline review]
+        X[Download / upload Excel<br/>FUTURE WORK: not built]
     end
     subgraph API["api container"]
         V[Validate values]
@@ -58,7 +58,7 @@ Under each row the screen shows a generated **plain-language sentence**:
 
 The admin can change numbers, choose from dropdowns (shift kinds, Block / Warn / Info, override options), switch a row on or off, set an effective date, and add a row (e.g. a new rest rule after a 12-hour night). They **can't** edit the technical template. That's what keeps the system safe.
 
-**Excel round-trip:** any table can be downloaded as a standard Drools spreadsheet decision table (`.xlsx`) to review with labour relations or the union, and uploaded back. Uploads go through the same validate → test → approve pipeline (§6). The spreadsheet's technical header area (Drools' RuleSet and RuleTable keywords) is generated and protected.
+**Excel round-trip (future work, not built in the prototype; docs/10 §8):** the design is that any table can be downloaded as a standard Drools spreadsheet decision table (`.xlsx`) to review with labour relations or the union, and uploaded back. Uploads go through the same validate → test → approve pipeline (§6). The spreadsheet's technical header area (Drools' RuleSet and RuleTable keywords) is generated and protected.
 
 ## 5. Rule tables
 
@@ -87,7 +87,7 @@ there (for example, a warning level at or above the ceiling is refused).
 
 ## 6. Safe change pipeline
 
-1. **Edit**: a rules admin changes rows in a **draft** version (or uploads an Excel file).
+1. **Edit**: a rules admin changes rows in a **draft** version (an Excel upload is future work, not built).
 2. **Validate**: types, ranges and sanity checks (e.g. minimum rest can't be below the 8-hour legal floor; a Block rule can't be switched to Info without a reason). Errors are shown in plain language.
 3. **Compile**: Drools builds a **staging** rule base from templates plus rows. Compilation problems are translated into "row 3, column *Minimum rest*: must be a number".
 4. **Test**: the automated regression scenarios run (T1–T9 and the boundary cases), plus a **dry run** against the current roster: "This change adds 14 warnings and 2 blocks on the published schedule."
@@ -113,7 +113,7 @@ ScheduleChange ─▶ FactBuilders (Java) ─▶ insert facts into a Drools sess
 | Item | Choice |
 |---|---|
 | Engine | Drools 10.x (Apache KIE, currently incubating), embedded as libraries through the KIE API. We don't use the KIE Spring Boot starter. |
-| Rule authoring | Rule templates plus data rows (`drools-templates`); spreadsheet decision table import/export (`drools-decisiontables`) |
+| Rule authoring | Rule templates plus data rows (`drools-templates`); spreadsheet decision table import/export (`drools-decisiontables`; future work, not built) |
 | Java / Spring | **Java 21 LTS** + Spring Boot 4.x, pending a Day 1 compatibility check (see below) |
 
 **Compatibility note:** the Apache KIE 10.2.0 release notes list an upgrade to Spring Boot 3.5.10 and Java 21 support. Our earlier target (Java 25 + Spring Boot 4.1) is newer than what KIE says it has tested. Because we embed Drools as plain libraries rather than through its Spring integration, Spring Boot 4.x should work, but we'll **prove it with a Day 1 spike**. Fallback: Spring Boot 3.5.x, which is past its free open-source support, so that's a governance trade-off to record.

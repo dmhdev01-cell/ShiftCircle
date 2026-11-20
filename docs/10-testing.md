@@ -185,3 +185,21 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 - Unit tests build their own tiny fixtures with builders (`aShift().night12().endingAt("2026-11-21T07:00")…`), never the demo dataset.
 - Integration tests use Testcontainers with migrations applied and **only** the fixtures each test needs. E2E tests use the full demo dataset after `docker compose down -v`.
 - No real names, real staffing levels or non-public operational details, ever (synthetic data only, ADR-004).
+
+## 8. Intentionally not built
+
+Things the design describes that the prototype does **not** have. They are listed so that nothing reads as an implied feature, and no test claims to cover them. Checked against the code on 2026-11-20.
+
+| Not built | What exists instead | Where it is designed |
+|---|---|---|
+| **Excel round-trip** for rule tables (download/upload `.xlsx`) | The in-app grid only. No export or import endpoint, no Apache POI dependency | docs/04 §2, docs/07 §4.7, FR-74 |
+| **Employee shift planner** ("Propose shifts", `/me/propose`) and the supervisor's **proposals inbox** (`/proposals`) | Placeholder pages that say what is planned; no `/proposals` api. The `! D proposed` chip exists only in the fixtures web | docs/07 §4.4, docs/ui/README §6 |
+| **My hours** (`/me/hours`) and a separate **rule version review** page (`/rules/{version}/review`) | Placeholder pages; the approver reviews and approves on the rules screen | docs/ui/README §6 |
+| **Withdrawing or expiring an overtime offer** | Offers are accepted or declined. The schema has `WITHDRAWN` and `EXPIRED` statuses, but nothing sets them | docs/07 §4.2 (move and cancel) |
+| **`ETag`/`If-Match` in general** | Only assignment move and cancel (docs/07 §4.2); rule drafts rely on the build fingerprint | docs/07 §1 |
+| **Full token claims:** `nbf`, `iss`, `aud` | The mock issuer's tokens are checked for signature, `exp` and the identity claims only. A real identity provider over OIDC would bring the rest (pilot) | docs/09 §4 |
+| **A payroll-clerk role** for lock, unlock and export | Any supervisor with a unit in scope, audited (ADR-022) | ADR-022 pilot note |
+| **Arrow-key (roving tabindex) navigation** in the roster grid | Every chip is reachable by Tab, with a skip link; reaching one can take many presses | ai-dev-log #51 |
+| **Tablet-specific layouts** | Responsive layouts; the e2e suite runs at 768×1024 with axe. No tablet-specific design or touch testing | docs/ui/README §4 |
+| **Wall display "open shifts in the next 48 h" list** | Counts of open shifts today per unit and in total (the api returns counts only) | WallDisplay.dc.html |
+| **Notifications, shift trades** | Offers are in-app only | ADR-010 |

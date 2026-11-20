@@ -118,7 +118,9 @@ docker run --rm --network host -v "$PWD/e2e":/work -w /work \
 | Real | Simulated |
 |---|---|
 | Rules engine: Drools decision tables compiled from editable rows; rule checks with plain-language reasons | Sign-in: the token issuer is a mock; token validation is real |
-| Safeguards: Block rules need an emergency override with a written reason (≥ 10 characters); maker/checker on rule versions (API and a database CHECK); append-only audit (database triggers); locked pay periods (trigger) | Payroll system: ShiftCircle produces the payroll CSV; nothing is sent anywhere |
+| Safeguards: emergency-policy Blocks need an override with a written reason (≥ 10 characters), and other Blocks can't be overridden (ADR-023); maker/checker on rule versions (API and a database CHECK); append-only audit (database triggers); locked pay periods (trigger) | Payroll system: ShiftCircle produces the payroll CSV; nothing is sent anywhere |
 | Role and unit scope on every endpoint (out of scope returns `404`) | People and data: 100 fictional officers, generated with a fixed seed |
 | Period-based overtime classification and the payroll CSV | Collective-agreement values: many are MOCK placeholders to validate (`docs/05-union-rules.md`) |
 | PostgreSQL with Flyway migrations | "Today" is fixed at 19 Nov 2026 (`SC_DEMO_TODAY`) |
+
+**Not built at all** (designed, but not in the prototype): the Excel round-trip for rule tables, the employee shift planner and proposals inbox, offer withdrawal, a payroll-clerk role, arrow-key grid navigation and more. The full list, with what exists instead, is in [docs/10-testing.md §8](docs/10-testing.md#8-intentionally-not-built).
