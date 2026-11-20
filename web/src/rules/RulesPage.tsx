@@ -8,7 +8,13 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { api } from '../api/client';
-import type { BuildReport, RuleSetVersion, RuleTable, RuleTableRow } from '../api/types';
+import type {
+  BuildReport,
+  RuleSetStatus,
+  RuleSetVersion,
+  RuleTable,
+  RuleTableRow,
+} from '../api/types';
 import { StatusPill } from '../components/StatusPill';
 import { useRole } from '../shell/nav';
 import { colour } from '../theme/tokens';
@@ -25,6 +31,15 @@ const TABLE_CODES = [
   'overtime-ranking',
   'shift-types',
 ];
+
+const STATUS_LABELS: Record<RuleSetStatus, string> = {
+  LIVE: 'Live',
+  DRAFT: 'Draft',
+  SUBMITTED: 'Submitted',
+  APPROVED: 'Approved',
+  PUBLISHED: 'Published',
+  REJECTED: 'Rejected',
+};
 
 const TABLE_NAMES: Record<string, string> = {
   'rest-between-shifts': 'Rest between shifts',
@@ -123,6 +138,14 @@ export function RulesPage() {
   const hasDraft = versions.some((entry) => entry.status === 'DRAFT');
   // Keep showing the version that was picked, whatever its status is now.
   const shown = versions.find((entry) => entry.version === selectedVersion) ?? draft;
+  // The version on screen is not necessarily the draft: /rules/7 (the
+  // supervisor link) shows the live version. The header and the checklist name
+  // the real live and draft versions, not whatever the route happens to show.
+  const pending = versions.find(
+    (entry) =>
+      !entry.live &&
+      (entry.status === 'DRAFT' || entry.status === 'SUBMITTED' || entry.status === 'APPROVED'),
+  );
   const tableKey = table ? `${draft.version}:${table.code}:${table.rows.length}:${table.changed}` : '';
   const rows = table && edits?.key === tableKey ? edits.rows : (table?.rows ?? []);
   const edited = table && edits?.key === tableKey ? edits.edited : {};
@@ -130,7 +153,7 @@ export function RulesPage() {
   const canEdit = role.id === 'RULES_ADMIN' && draft.status === 'DRAFT';
   // The person who created the draft cannot approve it, even with the
   // approver role as well.
-  const isAuthor = draft.createdBy === userName;
+  const isAuthor = pending?.createdBy === userName;
 
   const update = (ruleCode: string, patch: Partial<RuleTableRow>) => {
     if (!table) return;
@@ -190,10 +213,11 @@ export function RulesPage() {
           <Typography variant="h1">Rules</Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
             <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
-              Live v{live?.version ?? '—'} · draft v{shown?.version ?? '—'}
+              Live v{live?.version ?? '—'} ·{' '}
+              {pending ? `draft v${pending.version}` : 'no draft'}
             </Typography>
-            <StatusPill tone={draft.status === 'DRAFT' ? 'warn' : 'info'}>
-              {draft.status === 'DRAFT' ? 'Draft' : draft.status === 'SUBMITTED' ? 'Submitted' : 'Live'}
+            <StatusPill tone={shown.status === 'DRAFT' ? 'warn' : 'info'}>
+              {STATUS_LABELS[shown.status]}
             </StatusPill>
           </Box>
         </Box>
@@ -342,51 +366,58 @@ export function RulesPage() {
         <Box
           sx={{ flex: '1 1 300px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}
         >
-          <PublishChecklist
-            report={report}
-            version={draft.version}
-            isAuthor={isAuthor}
-            role={role.id}
-            status={draft.status}
-            canSubmit={report !== null && draft.status === 'DRAFT'}
-            hasUnsavedEdits={dirty}
-            onSaveEdits={saveEdits}
-            onBuilt={(built, savedEdits) => {
-              setReport(built);
-              setMessage(
-                savedEdits
-                  ? 'The unsaved edits were saved, then the draft was built and the test scenarios ran.'
-                  : 'The draft was built and the test scenarios ran.',
-              );
-            }}
-            onSubmitted={(submitted, savedEdits) => {
-              setDraft(submitted);
-              setMessage(
-                savedEdits
-                  ? 'The unsaved edits were saved, the draft was rebuilt, and it is submitted for approval. A second approver has to review it.'
-                  : 'The draft is submitted for approval. A second approver has to review it.',
-              );
-            }}
-            onApproved={(approved) => {
-              setDraft(approved);
-              setVersions((current) =>
-                (current ?? []).map((entry) =>
-                  entry.version === approved.version ? approved : entry,
-                ),
-              );
-              setMessage('The version is approved. It can be published.');
-            }}
-            onPublished={(published) => {
-              setDraft(published);
-              setVersions((current) =>
-                (current ?? []).map((entry) => ({
-                  ...entry,
-                  live: entry.version === published.version,
-                })),
-              );
-              setMessage(`Version ${published.version} is live from ${published.publishedAt}.`);
-            }}
-          />
+          {pending ? (
+            <PublishChecklist
+              report={report}
+              version={pending.version}
+              isAuthor={isAuthor}
+              role={role.id}
+              status={pending.status}
+              canSubmit={report !== null && pending.status === 'DRAFT'}
+              hasUnsavedEdits={dirty}
+              onSaveEdits={saveEdits}
+              onBuilt={(built, savedEdits) => {
+                setReport(built);
+                setMessage(
+                  savedEdits
+                    ? 'The unsaved edits were saved, then the draft was built and the test scenarios ran.'
+                    : 'The draft was built and the test scenarios ran.',
+                );
+              }}
+              onSubmitted={(submitted, savedEdits) => {
+                setDraft(submitted);
+                setVersions((current) =>
+                  (current ?? []).map((entry) =>
+                    entry.version === submitted.version ? submitted : entry,
+                  ),
+                );
+                setMessage(
+                  savedEdits
+                    ? 'The unsaved edits were saved, the draft was rebuilt, and it is submitted for approval. A second approver has to review it.'
+                    : 'The draft is submitted for approval. A second approver has to review it.',
+                );
+              }}
+              onApproved={(approved) => {
+                setDraft(approved);
+                setVersions((current) =>
+                  (current ?? []).map((entry) =>
+                    entry.version === approved.version ? approved : entry,
+                  ),
+                );
+                setMessage('The version is approved. It can be published.');
+              }}
+              onPublished={(published) => {
+                setDraft(published);
+                setVersions((current) =>
+                  (current ?? []).map((entry) => ({
+                    ...entry,
+                    live: entry.version === published.version,
+                  })),
+                );
+                setMessage(`Version ${published.version} is live from ${published.publishedAt}.`);
+              }}
+            />
+          ) : null}
 
           <Box
             sx={{

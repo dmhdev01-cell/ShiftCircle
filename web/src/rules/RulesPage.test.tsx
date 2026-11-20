@@ -293,6 +293,14 @@ describe('Rules admin', () => {
     expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument();
   });
 
+  it('names the real live and draft versions when the route shows the live version', async () => {
+    renderRules('/rules/7/rest-between-shifts');
+
+    expect(await screen.findByText('Live v7 · draft v8')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Before draft v8 goes live' })).toBeInTheDocument();
+    expect(screen.queryByText('Before draft v7 goes live')).not.toBeInTheDocument();
+  });
+
   it('shows the version history', async () => {
     renderRules();
 
