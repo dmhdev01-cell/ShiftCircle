@@ -1,105 +1,82 @@
 # ShiftCircle build record
 
-<!-- DRAFT (2026-11-20 08:05Z). Only facts true now; TODO / TODO-VERIFY mark what isn't built or re-verified yet. Target: 2 pages; details live in docs/review-rounds.md and the linked docs. Delete this comment before submitting. -->
+<!-- DRAFT (2026-11-20 12:10Z, feature freeze). TODO marks what changes at the final merge. Target: 2 pages; per-round detail lives in docs/review-rounds.md. Delete this comment before submitting. -->
 
-**What it is:** a working prototype that schedules 8, 12 and 16-hour shifts at a fictional 24/7 provincial correctional centre. A Drools rules engine, which non-technical staff edit as decision tables, checks every change, and a supervisor approves every change. Time feeds a simulated payroll export. All data is synthetic. It isn't an official Government of Saskatchewan service. Setup: `README.md` § Setup.
+**What it is:** a working prototype that schedules 8, 12 and 16-hour shifts at a fictional 24/7 provincial correctional centre. Every change is checked by a Drools rules engine, whose rules non-technical staff edit as decision tables, and approved by a supervisor. Time feeds a simulated payroll export. All data is synthetic. It isn't an official Government of Saskatchewan service. Setup: `README.md` § Setup.
 
 ## 1. Architecture
 
-Three containers under `docker compose` (ADR-006, ADR-011, ADR-012):
+```mermaid
+flowchart LR
+    B[Browser: desktop · tablet · TV] -->|:8080| W[web: nginx + React 19 / MUI 9]
+    W -->|/api/ proxy| A[api: Java 21 · Spring Boot 4.1.3 · Drools 10.2.0]
+    A -->|JDBC| D[(db: PostgreSQL 17 · Flyway V1–V4)]
+    R[Rule tables edited in-app] -->|validate → compile → scenarios → dry run → approve| A
+```
 
-- **web:** nginx serving React 19, TypeScript and MUI 9. It's the only published port and it proxies `/api/`.
-- **api:** Java 21, Spring Boot 4.1.3, Drools 10.2.0 embedded. Java fact builders do the time maths; rule templates plus editable rows compile into a rule base that is swapped in when a version is published.
-- **db:** PostgreSQL 17, Flyway V1–V4. Constraints: no overlapping shifts, maker/checker, override reasons. Triggers: append-only audit, locked pay periods.
-
-<!-- TODO: one small diagram (browser → web → api → db; rule tables → build → hot swap); reuse docs/08-deployment.md §1. -->
-
-Change flow: preview (`POST /rule-checks`) → save → `422` with plain-language rule results → acknowledge a warning, or override an emergency-policy Block with a reason → audit event (ADR-014).
+Only the web publishes a port. Rule rows compile into a rule base that is swapped in when a version is published. Database constraints and triggers enforce no overlaps, maker/checker, override reasons, the append-only audit and locked periods. A change goes: preview → save → `422` with plain reasons → acknowledge a warning, or override an emergency-policy Block with a reason → audit event (ADR-014).
 
 ## 2. Key decisions
 
 | Decision | ADR |
 |---|---|
-| No AI at runtime: the rules engine decides and a supervisor approves | ADR-002, ADR-005 |
-| Drools decision tables edited in-app; maker/checker publishing with test scenarios and a dry run | ADR-012 |
-| Coverage by unit and block, measured hourly; overtime = hours over the pay-period threshold | ADR-013, ADR-016, ADR-017 |
-| Only emergency-policy Blocks can be overridden; the 60 h week, consecutive days and 12 h runs can't (to confirm) | ADR-023 |
-| Pay-period lock and export are facility-wide, audited; a pilot restricts them to payroll (to confirm) | ADR-022 |
-| Audit grants deferred to a pilot (triggers are the proof); overtime authorization enforced by the workflow | ADR-018, ADR-019 |
+| No AI at runtime: the rules engine decides, a supervisor approves | ADR-002, 005 |
+| Drools decision tables edited in-app; maker/checker publish with test scenarios and a dry run | ADR-012 |
+| Coverage by unit and block, hourly; overtime = hours over the pay-period threshold | ADR-013, 016, 017 |
+| **Deviations, for the person to confirm:** only emergency-policy Blocks can be overridden (docs said U-14 could be; the code says no); pay-period lock and export are facility-wide for any supervisor (a pilot gives them to payroll); audit is protected by triggers, not role grants | ADR-023, 022, 018 |
 
 ## 3. AI-assisted development
 
-**Who did what.** Claude (Opus 5.5) did the design and specs on 2026-11-19. From 2026-11-20 an OpenRig team of AI agents did the build; the project lead set direction and made the decisions.
+**Who did what.** Claude Opus 5.5 did the design and specs (2026-11-19). From 2026-11-20 an OpenRig team of AI agents built and verified it; the project lead set direction.
 
 | Seat | Model | Role |
 |---|---|---|
-| orch-lead / orch-advisor | Claude Sonnet 5.5 / Claude Opus 5.5 | Routing and decisions while the person was away / advice |
-| dev-build | DeepSeek V4.1 Flash | Api, rules, generator |
-| dev-build2 | MiniMax M3.1 Flash, then DeepSeek V4.1 Flash | Web (relaunched at 05:06Z after the MiniMax plan limit) |
-| dev-qa | GLM 5.3 | QA: clean-checkout runs, mutation checks, private stacks |
-| review-r1 / review-r2 | GLM 5.3 Flash / GLM 5.3 | Independent review, security probes |
-| dev-design | Claude Opus 5.5 | UI notes and reviews, e2e tests, wall display, docs |
+| orch-lead / orch-advisor / dev-design | Claude Sonnet 5.5 / Opus 5.5 / Opus 5.5 | Routing, advice; UI spec, reviews, e2e, wall display, docs |
+| dev-build, dev-build2 | DeepSeek V4.1 Flash (dev-build2 MiniMax M3.1 Flash until 05:06Z) | Api, rules, generator; web |
+| dev-qa, review-r2 / review-r1 | GLM 5.3 / GLM 5.3 Flash | QA on clean checkouts; independent review and security probes |
 
-The verifiers are a different model family from the builders, so verification doesn't depend on the authors.
+**Independence, honestly:** builders and verifiers are different model families, except from about **10:07Z to 11:30Z**. The OpenCode credit ran out, and all five OpenCode seats ran on MiniMax (M3.1 Flash building, M3 verifying). The rounds in that window (R31 items 6–7, R32–R34) have weaker independence. The original mapping was back from about 11:40Z.
 
-**How it was verified.** 30 review and QA rounds (the last a full clean-clone check of `main`), three e2e runs and one visual review, each recorded with what was checked, found and fixed (`docs/review-rounds.md`; narrative in `docs/ai-dev-log.md`). Fixes were proved by reverting them and watching their test fail.
+**How it was verified:** 34 review and QA rounds, three e2e runs and two visual reviews, each recorded with what was checked, found and fixed (`docs/review-rounds.md`; narrative in `docs/ai-dev-log.md`). Fixes were proved by reverting them and watching their test fail.
 
-**What the verification caught.** The best evidence that independent checking mattered is what passed every test and was still wrong:
+**What verification caught** that had passed the author's own tests:
 
-| What happened | Caught by | Ref. |
+| Defect | Caught by | Ref. |
 |---|---|---|
-| **Remote code execution through a rule edit.** Rule values reached the generated Drools source unescaped: a rules admin, with no approval, could edit a pattern, press Build and run arbitrary Java on the server. The builder's tests and a QA PASS missed it; an independent reviewer **executed a payload** to prove it. Fixed in layers (whitelist grammar, validation before any compile, generic compile errors); re-verified with a 19-value character battery, and each layer stops the payload on its own. | review-r2 | R23, R24, R28 |
-| **Concurrent saves got past a Block rule.** Each save was checked on its own, so every test passed; two saves for one officer sent at once both got 201. Fixed with a per-officer lock; the fix fails its test when reverted. | review-r2 | R13, R16 |
-| **Source code missing from git, twice.** A `.gitignore` line meant for the web (`build/`, later `coverage/`) ignored a Java package, so results, including a QA PASS, ran on files a clean clone didn't have. A guard script now fails on any ignored file under a source folder. | review-r2, then the builder | R5, log #25 |
-| **A screen that passed two automated checks was visibly broken.** In the wall display's stale state every card spilled into the footer and old numbers still looked live. A geometry probe and the author's fit test had checked only the live state; a visual review of screenshots found it. | dev-design (author) | Visual, R27 |
-| **The payroll lock used the real clock, not the demo's**, so the demo's lock step was refused on a fresh stack and no test caught it. Fixed in `210e59b`; the lock works at the demo clock from a clean clone (R30). | dev-qa | R25, R30 |
-| **Claims corrected:** a reviewer's own probe was vacuous (off-by-one setup; it said so); a QA claim that a CHECK rejects NULL was disproved; two spec numbers couldn't both hold (84 h on a 12 h rotation is overtime before any absence, ADR-020); docs said U-14 could be overridden, the code said no (ADR-023); a verifier retracted its own finding (empty fields in the auditor's override view) after checking the raw data: its query had used the wrong field names. | r2, design seat, builder, dev-qa | R16, log #23, #27, R25, R30 |
-| **Rejected or corrected by the lead:** a custom rule catalogue (Drools chosen so staff can edit rules); 16 h shifts as overtime-only and overtime per shift. | project lead | log #5, #13 |
+| **Remote code execution through a rule edit:** rule values reached the generated Drools source unescaped, so a rules admin could run Java on the server with no approval. Fixed in layers (whitelist grammar, validation before compile, generic errors); each layer stops it alone. | review-r2 executed a payload | R24, R28 |
+| **Concurrent saves passed a Block rule** (both got 201); fixed with a per-officer lock | review-r2 | R13, R16 |
+| **Source missing from git, twice:** `.gitignore` lines for the web hid Java packages; a guard script now fails on any ignored source | review-r2, builder | R5, log #25 |
+| **Stale wall display looked live and spilled into the footer;** two automated checks covered only the live state | visual review | Visual, R27 |
+| **Payroll lock used the real clock**, so the demo's lock step failed on a fresh stack | dev-qa | R25, R30 |
+| **Test-order bug:** the README's test service failed when built fresh; each test class now gets its own database | dev-qa | R30, R31 |
+| **Raw HTTP 500** for an overridden overlapping shift: the 409 handler had only been tested directly, never over HTTP | dev-qa | R32, log #68 |
+| **Blank page for the auditor:** the api sends a `null` the fixtures never had; now an error boundary plus real-api contract samples | real-api e2e, then dev-qa | R32 |
+| **Flaky web suite** under host load (2 of 6 runs red); fix author-reported, re-check pending | dev-qa | R34 |
+
+**Suggestions corrected or rejected:** the lead rejected a custom rule catalogue (Drools lets staff edit rules) and 16 h shifts as overtime-only (log #5, #13). The builder rejected a catch-all error handler that would turn `403`s into `500`s, then built it with that trap closed (log #68). Verifiers retracted two of their own claims (R16, R30).
 
 ## 4. Test cases and verified status
 
-**Verified** by a GLM verifier from a clean checkout or a private stack (details per round in `docs/review-rounds.md`):
-
-| Steps | Result |
-|---|---|
-| 1–5 | Schema, rules boundary matrix (under/exactly/over), generator checksum; 84/84 (R1–R10) |
-| 6 | 142/142 at `f73d6c5`, after two high findings (R12, R13, R15, R16) |
-| 7 (web) | Real api, private stack: Playwright 5 passed / 2 skipped per viewport (R25) |
-| 8, 9 | 200/200 on merged main with revert-the-fix checks (R18–R21); T8 golden CSV recomputed independently (R17) |
-| 10 | 206/206; reports reconciled against independent SQL and the real payroll CSV (R22) |
-| 11 | 235/235 at `35c225d`, after a critical finding (R23, R24, R28) |
-| 12a (wall display) | Counts only, stale state, role reach (R26, R27) |
-| Move and cancel | 270 tests at `62dd4fc`; ~30 probes, no Block bypass by moving (R29) |
-| All of `main` | From a true clean clone at `17308b7`: api 246/246, web 118/118, demo script walked end to end (R30) |
-
-Latest independently verified api totals: **270 at `62dd4fc`** (R29) and **246/246 from a clean clone at `17308b7`** (R30). E2E (Playwright, axe on every screen) at `17308b7` (R30): real api desktop 13 passed, tablet 12 passed + 1 skipped; fixtures web 35 passed, 3 skipped, 0 failed. The class-order failure R30 found in the `api-test` service is fixed in `22375d4` (each API test class gets its own database): the author's clean-worktree runs in three class orders (reverse, and random with two seeds) each gave 91 rules + 20 infrastructure + 165 api = **276 tests, 0 failures**. Not yet independently re-verified. <!-- TODO: final totals on the submission commit (api / web / e2e / axe), with the command -->
+**Counts.** At `a10688e` the author's runs give 91 rules + 22 infrastructure + 182 api = **295, 0 failures** (default and random order). dev-qa's rerun is pending: its first attempt was killed for memory on the shared host at 147 passed, 0 failed. Latest independent counts: **284** from a clean clone at `489b3e1` (R33) and **276** in three class orders at `22375d4` (R31). E2E (Playwright, axe on every screen) in R34: real api desktop 20 passed, tablet 19 + 1 skipped; fixtures 43 passed / 3 skipped. <!-- TODO: final api / web / e2e totals on the submission commit after the web-stable merge, with the command and the verifying round. -->
 
 | ID | Case | Expected | Result |
 |---|---|---|---|
-| T2 | 12 h shift Fri 12:00–24:00, then Day 8 h Sat 07:00 (PC-01) | **BLOCK** U-01 (7 h rest), U-05 (17 h in 24 h); nothing saved | 422, nothing saved (R12). Full stack: also U-14 (60 h week), so **no override is offered** (R25) |
-| T3 | Exactly 8 h of rest (PC-02) | U-01 PASS (inclusive); U-02 WARN | 8 h 00 m PASS, 7 h 59 m BLOCK (R4, R7). TODO-VERIFY on PC-02 data |
-| T7 | Rule change without code: U-10 from 4 to 3 nights (PC-06) | Dry run lists the four-night runs; warns after publish | Over HTTP: the dry run lists the run (counts only); after approval and publish by another user the check warns, no code change (R23, R28) |
-| T8 | Payroll export, locked 26 Oct – 8 Nov (PC-05) | CSV equals the golden file; overtime only beyond 80 h | Golden file recomputed independently, byte-identical (R17); live export byte-identical (R25) |
-| T9 | 17 h in a lockdown (PC-03) | BLOCK without a reason; with ≥ 10 characters it saves and is audited | 9 characters and 10 spaces refused; override and audit rows written (R12, R13) |
+| T2 | 12 h shift Fri 12:00–24:00, then Day 8 h Sat 07:00 (PC-01) | BLOCK U-01, U-05; nothing saved | 422, nothing saved; U-14 also fires, so **no override is offered** (R12, R25, R30) |
+| T3 | Exactly 8 h of rest | U-01 PASS (inclusive), U-02 WARN | 8 h 00 m PASS, 7 h 59 m BLOCK (R4, R7) |
+| T7 | Rule change without code: U-10 from 4 to 3 nights | Dry run lists the runs; warns after publish | Over HTTP, approved and published by another user (R23, R28) |
+| T8 | Payroll export, locked 26 Oct – 8 Nov | CSV equals the golden file | Golden recomputed independently; live export byte-identical (R17, R25, R33) |
+| T9 | 17 h in a lockdown (PC-03) | BLOCK; ≥ 10-character reason saves and audits | 9 characters and 10 spaces refused; override and audit written (R12, R13) |
 
 ## 5. Governance and ministry suitability
 
-- **Synthetic data only:** 100 fictional officers, seed 20261001, `is_synthetic` on every person; one planted override only, so the audit log holds no invented events (R10, R25).
-- **No secrets in the repo:** `.env.example` ships empty; compose and the api refuse to start without strong secrets; no `.env`, key or certificate anywhere in the history (R2, R9, R30).
-- **Safeguards:** emergency-policy Blocks need a reason of ≥ 10 characters and are audited (PC-03); other Blocks can't be overridden (PC-01, ADR-023). Warnings must be acknowledged. Maker/checker in the api and a DB CHECK; append-only audit; locked periods protected by a trigger; only a supervisor authorizes overtime; saves are serialized per officer (R12–R16, R21, R28).
-- **Rule editor security:** staff input is treated as untrusted code input: whitelisted, validated before compile, generic errors (R28).
-- **Privacy:** role and unit scope on every endpoint, out-of-scope is `404` (R12, R16). The wall display shows counts only, even when the api sends a planted name (R26). Supervisors don't see rule-change audit events; the auditor sees all (`docs/09-access-control.md` §2).
-- **Rule values** are labelled by source (Employment Act, agreement, MOCK); MOCK values are assumptions to confirm.
-- **Honest limits:**
-  - **No human reviewed the boundary tests.** Guardrail 4 required it; the project lead waived it on 2026-11-20. AI verifiers (GLM, independent of the DeepSeek author) reviewed them instead (R4–R7).
-  - Audit is protected by triggers, not role grants (ADR-018); the stock nginx master runs as root (`docs/08-deployment.md` §2); sign-in is a mock issuer, validation is real.
-  - Accessibility: no serious or critical axe findings on the screens the e2e suite visits; reaching a roster chip by keyboard takes many Tab presses (no arrow-key navigation; ai-dev-log #51).
+- **Synthetic data only:** 100 fictional officers (seed 20261001, `is_synthetic` on every person). **No secrets:** `.env.example` ships empty; compose and the api refuse weak secrets; the history has no `.env`, keys or certificates (R2, R9, R30).
+- **Safeguards:** an emergency-policy Block needs a reason of ≥ 10 characters and is audited; other Blocks can't be overridden; warnings must be acknowledged. Maker/checker in the api and the database. Only supervisors authorize overtime. Rule-editor input is treated as untrusted code.
+- **Privacy:** role and unit scope on every endpoint, out of scope `404`; the wall display shows counts only, even when the api plants a name (R26).
+- **Honest limits:** **no human reviewed the rule boundary tests.** Guardrail 4 required it; the project lead waived it on 2026-11-20, and GLM verifiers reviewed them instead (R4–R7). Sign-in is a mock issuer, though validation is real. The nginx master runs as root. MOCK rule values need confirming. Designed but not built: Excel round trip, shift proposals, OpenAPI and more (`docs/10-testing.md` §8).
 
 ## 6. Next steps (pilot)
 
-1. Restore **human review of the rule boundary tests** by a labour-relations or scheduling practitioner.
-2. Validate the MOCK rule values, shift times, overtime threshold and offer order with the centre (`HANDOFF.md` §8); confirm ADR-020, ADR-022 and ADR-023.
-3. Government SSO over OIDC, with roles from directory groups; a payroll-clerk role for lock and export (ADR-022).
-4. Separate migration and application database roles, with `INSERT, SELECT` only on the audit log (ADR-018).
-5. `nginx-unprivileged` and read-only, non-root containers; TLS, a secrets manager, managed PostgreSQL, and CI with image scanning (`docs/08-deployment.md` §9).
-6. Future features: shift trades and notifications (ADR-010).
+1. Human review of the rule boundary tests by a scheduling or labour-relations practitioner.
+2. Validate the MOCK rule values, shift times and offer order with the centre; confirm ADR-020, 022 and 023.
+3. Government SSO (OIDC) with roles from directory groups; a payroll-clerk role for lock and export.
+4. Separate migration and application database roles, with insert-only audit (ADR-018); non-root containers, TLS, a secrets manager, CI with image scanning (`docs/08-deployment.md` §9).
