@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -27,10 +27,14 @@ function scopeLine(user: DemoUser): string {
  */
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const session = useSyncExternalStore(subscribeSession, getSession);
   const [users, setUsers] = useState<DemoUser[] | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // A protected route sent the visitor here; go back to it after signing in.
+  const from = (location.state as { from?: string } | null)?.from;
 
   useEffect(() => {
     let active = true;
@@ -58,7 +62,13 @@ export function LoginPage() {
     };
   }, []);
 
-  const notice = session.ended ? 'Your session ended. Sign in again.' : message;
+  // Three reasons to say something above the picker: an expired session, a
+  // route that needs a sign-in first, and anything the api said.
+  const notice = session.ended
+    ? 'Your session ended. Sign in again.'
+    : from
+      ? 'Please sign in to continue.'
+      : message;
 
   const signIn = async (user: DemoUser) => {
     setBusy(true);
@@ -66,7 +76,8 @@ export function LoginPage() {
     try {
       const result = await api.mockLogin(user.id);
       setSession(result.token, result.user ?? user);
-      navigate(destinationFor(user));
+      // Back to the route that asked for a sign-in, or to the role's landing.
+      navigate(from ?? destinationFor(user), { replace: true });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'The sign-in failed.');
     } finally {

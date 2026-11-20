@@ -11,6 +11,7 @@ import { PlaceholderPage } from './pages/PlaceholderPage';
 import { AppShell } from './shell/AppShell';
 import { ErrorBoundary } from './shell/ErrorBoundary';
 import { RoleProvider } from './shell/nav';
+import { RequireSession } from './shell/RequireSession';
 import { theme } from './theme/theme';
 
 /** The planning board is the heaviest screen, so it loads on its own. */
@@ -127,9 +128,11 @@ export function AppRoutes() {
 export function AppShellRoutes() {
   return (
     <ErrorBoundary title={'ShiftCircle could not start'}>
-      <AppShell>
-        <AppRoutes />
-      </AppShell>
+      <RequireSession>
+        <AppShell>
+          <AppRoutes />
+        </AppShell>
+      </RequireSession>
     </ErrorBoundary>
   );
 }

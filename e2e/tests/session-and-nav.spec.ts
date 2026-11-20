@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 import { isFixtures } from './api';
-import { DISCLAIMER, expectDisclaimer, signIn, signOut } from './support';
+import { DISCLAIMER, expectDisclaimer, signIn, signInAgain, signOut } from './support';
 
 /**
  * Sign-in, where each role lands, the navigation each role gets, sign-out, a
@@ -170,6 +170,24 @@ test.describe('session and navigation', () => {
     expect(version.asOf).toBe('2026-11-19');
     await signIn(page, 'M. Ellis');
     await expect(page.getByRole('banner')).toContainText('Thu 19 Nov 2026', { timeout: 5_000 });
+  });
+
+  test('a hard reload without the token asks for a sign-in and returns to the route', async ({ page }) => {
+    // D11: the token lives in memory, so a reload or a deep link arrives with
+    // no session. The screens used to render and call the api with no token.
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+
+    await signIn(page, 'M. Ellis');
+    for (const path of ['/reports/coverage', '/planning']) {
+      await page.goto(path);
+      await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible();
+      await expect(page.getByText('Please sign in to continue.')).toBeVisible();
+      // Sign in where the guard put us, so the route that was asked for is kept.
+      await signInAgain(page, 'M. Ellis');
+      await expect(page).toHaveURL(new RegExp(`${path}$`));
+    }
+    expect(errors, 'page errors while reloading without a token').toEqual([]);
   });
 
   test('the footer line is on every route, including sign-in and the not-built screens', async ({ page }) => {
