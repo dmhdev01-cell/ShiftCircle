@@ -133,7 +133,7 @@ public class RuleSetService {
 
   public TableView table(int version, String tableCode) {
     Map<String, Object> versionRow = versionRow(version);
-    RuleTableCode table = resolveTable(tableCode);
+    RuleTableCode table = resolveTableOr404(tableCode);
     Map<String, Object> tableRow =
         jdbc.queryForMap(
             "SELECT name, column_schema::text AS schema FROM rule_table WHERE code = ?",
@@ -200,18 +200,33 @@ public class RuleSetService {
       int version, String tableCode, List<RowView> rows, AuthPrincipal principal) {
     Map<String, Object> versionRow = versionRow(version);
     requireStatus(versionRow, "DRAFT", "Only a draft can be edited");
-    RuleTableCode table = resolveTable(tableCode);
+    RuleTableCode table = resolveTableOr404(tableCode);
     if (rows == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "rows is required");
     }
     Map<String, Object> tableRow =
-        jdbc.queryForMap("SELECT id FROM rule_table WHERE code = ?", table.code());
+        jdbc.queryForMap(
+            "SELECT id, column_schema::text AS schema FROM rule_table WHERE code = ?",
+            table.code());
+    Map<String, Object> schema = readMap((String) tableRow.get("schema"));
+    java.util.Set<String> codes = new java.util.LinkedHashSet<>();
+    for (RowView row : rows) {
+      if (row.ruleCode() == null || row.ruleCode().isBlank()) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Every row needs a rule code");
+      }
+      if (!codes.add(row.ruleCode())) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "A table lists each rule once; '" + row.ruleCode() + "' is repeated");
+      }
+    }
     UUID versionId = (UUID) versionRow.get("id");
 
     int order = 0;
     for (RowView row : rows) {
       order++;
       Map<String, Object> params = row.params() == null ? new LinkedHashMap<>() : row.params();
+      requireParamTypes(schema, params);
       // The web updates params[hoursParam] itself; the after select carries a friendly label,
       // so map that back to the stored pattern when it is one of the known labels.
       if (table == RuleTableCode.REST && row.after() != null) {
@@ -373,7 +388,8 @@ public class RuleSetService {
           " No longer fires on the current roster: " + String.join(", ", dryRun.silent()) + ".";
     }
     steps.add(
-        new BuildStepView("dryRun", "Dry run on the published roster", dryRunDetail, true, impact));
+        new BuildStepView(
+            "dryRun", "Dry run on the published roster", dryRunDetail, true, impact));
 
     return store(
         versionId, version, principal, steps, scenarioResults.size(), (int) passed, errors);
@@ -791,7 +807,7 @@ public class RuleSetService {
       String mapped = TABLE_SLUGS.get(code);
       if (mapped == null) {
         throw new ResponseStatusException(
-            HttpStatus.BAD_REQUEST, "Unknown rule table: " + code);
+            HttpStatus.NOT_FOUND, "Unknown rule table: " + code);
       }
       return RuleTableCode.fromCode(mapped);
     }
@@ -929,6 +945,45 @@ public class RuleSetService {
           : String.valueOf(number.doubleValue());
     }
     return String.valueOf(value);
+  }
+
+  /**
+   * A value the screen sends must match the column's declared type. Without this a string in a
+   * numeric column reached the validator as a ClassCastException, which surfaced as a 500.
+   */
+  private void requireParamTypes(Map<String, Object> schema, Map<String, Object> params) {
+    for (Map.Entry<String, Object> entry : params.entrySet()) {
+      Object value = entry.getValue();
+      if ("_message".equals(entry.getKey()) || value == null) {
+        continue;
+      }
+      if (!(schema.get(entry.getKey()) instanceof Map<?, ?> column)) {
+        continue;
+      }
+      String label = String.valueOf(column.get("label") == null ? entry.getKey() : column.get("label"));
+      String type = String.valueOf(column.get("type"));
+      if ("number".equals(type) && !(value instanceof Number)) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "The " + label + " column needs a number");
+      }
+      if ("boolean".equals(type) && !(value instanceof Boolean)) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "The " + label + " column needs true or false");
+      }
+      if (column.get("enum") instanceof List<?> allowed && !allowed.contains(String.valueOf(value))) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "The " + label + " column must be one of " + allowed);
+      }
+    }
+  }
+
+  private RuleTableCode resolveTableOr404(String tableCode) {
+    try {
+      return resolveTable(tableCode);
+    } catch (IllegalArgumentException unknown) {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_FOUND, "Unknown rule table '" + tableCode + "'");
+    }
   }
 
   private Map<String, Object> readMap(String json) {

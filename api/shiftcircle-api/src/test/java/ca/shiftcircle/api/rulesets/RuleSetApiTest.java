@@ -547,6 +547,57 @@ class RuleSetApiTest {
         .isEqualTo("At least 8 hours of rest after any shift.");
   }
 
+  @Test
+  @Order(11)
+  void anUnknownTableAndOddInputAnswerProblemsNamingTheField() throws Exception {
+    int published = publishedVersion();
+    HttpResponse<String> unknownTable =
+        send("GET", "/api/v1/rule-sets/" + published + "/tables/NOT_A_TABLE", null, "l.fraser");
+    assertThat(unknownTable.statusCode()).isEqualTo(404);
+    assertThat(unknownTable.body()).contains("NOT_A_TABLE");
+
+    int draft = createDraft(published, "S5: odd input");
+    Map<String, Object> rest = table(draft, "REST");
+    Map<String, Object> u01 =
+        ((List<Map<String, Object>>) rest.get("rows")).stream()
+            .filter(row -> "U-01".equals(row.get("ruleCode")))
+            .findFirst()
+            .orElseThrow();
+    u01.put("after", null);
+    ((Map<String, Object>) u01.get("params")).put("minRestHours", "eight");
+    HttpResponse<String> oddNumber =
+        send(
+            "PUT",
+            "/api/v1/rule-sets/" + draft + "/tables/REST/rows",
+            mapper.writeValueAsString(Map.of("rows", rest.get("rows"))),
+            "l.fraser");
+    assertThat(oddNumber.statusCode()).isEqualTo(400);
+    assertThat(oddNumber.body()).contains("At least (hours) off");
+
+    Map<String, Object> original =
+        ((List<Map<String, Object>>) table(draft, "REST").get("rows")).stream()
+            .filter(row -> "U-01".equals(row.get("ruleCode")))
+            .findFirst()
+            .orElseThrow();
+    HttpResponse<String> duplicate =
+        send(
+            "PUT",
+            "/api/v1/rule-sets/" + draft + "/tables/REST/rows",
+            mapper.writeValueAsString(Map.of("rows", List.of(original, original))),
+            "l.fraser");
+    assertThat(duplicate.statusCode()).isEqualTo(400);
+    assertThat(duplicate.body()).contains("repeated");
+
+    HttpResponse<String> badDate =
+        send(
+            "POST",
+            "/api/v1/rule-sets/" + published + "/publish",
+            "{\"effectiveDate\":\"not-a-date\"}",
+            "p.singh");
+    assertThat(badDate.statusCode()).isEqualTo(400);
+    assertThat(badDate.body()).contains("effectiveDate");
+  }
+
   private Integer publishedVersion() {
     return jdbc.queryForObject(
         "SELECT max(version) FROM rule_set_version WHERE status = 'PUBLISHED'", Integer.class);

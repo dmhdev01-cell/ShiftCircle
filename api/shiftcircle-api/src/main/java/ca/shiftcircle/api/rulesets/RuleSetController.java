@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Rule administration endpoints (docs/07 §4.7): versions, the decision-table grid, the safe build
@@ -99,10 +100,16 @@ public class RuleSetController {
   public RuleSetService.VersionView publish(
       @PathVariable int version,
       @RequestBody(required = false) PublishRequest request) {
-    LocalDate effective =
-        request == null || request.effectiveDate() == null
-            ? null
-            : LocalDate.parse(request.effectiveDate());
+    LocalDate effective;
+    try {
+      effective =
+          request == null || request.effectiveDate() == null
+              ? null
+              : LocalDate.parse(request.effectiveDate());
+    } catch (java.time.format.DateTimeParseException notADate) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "effectiveDate must be a date like 2026-11-20");
+    }
     return ruleSets.publish(version, effective, scopeGuard.principal());
   }
 }
