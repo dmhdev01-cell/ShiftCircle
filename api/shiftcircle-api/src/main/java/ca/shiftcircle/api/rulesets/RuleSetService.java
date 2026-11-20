@@ -32,6 +32,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.kie.api.KieBase;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -58,6 +59,15 @@ public class RuleSetService {
   private static final Logger log = LoggerFactory.getLogger(RuleSetService.class);
   private static final String COMPILE_FAILED =
       "The rules did not compile. Fix the values in the table and build again.";
+  /** A rule code is a stable agreement id: letters, digits and hyphens (docs/05, e.g. P-01b). */
+  private static final Pattern RULE_CODE = Pattern.compile("[A-Za-z0-9-]{1,16}");
+  /** The only shift-kind grammar validation accepts; the PUT uses the same one. */
+  private static final Pattern SHIFT_KIND =
+      Pattern.compile("\\.\\*|\\(?[A-Za-z0-9]{1,8}(\\|[A-Za-z0-9]{1,8})*\\)?");
+  /** A list column never needs more than this; a 4000-item list is a payload, not an edit. */
+  private static final int MAX_LIST_VALUES = 16;
+  /** A build report shows this many problems, then says how many it left out. */
+  private static final int MAX_ERRORS = 20;
 
   private static final ZoneId REGINA = ZoneId.of("America/Regina");
 
@@ -214,6 +224,11 @@ public class RuleSetService {
       if (row.ruleCode() == null || row.ruleCode().isBlank()) {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Every row needs a rule code");
       }
+      if (!RULE_CODE.matcher(row.ruleCode()).matches()) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "A rule code uses letters, digits and hyphens only (for example U-01 or P-01b).");
+      }
       if (!codes.add(row.ruleCode())) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST,
@@ -225,17 +240,17 @@ public class RuleSetService {
     int order = 0;
     for (RowView row : rows) {
       order++;
-      Map<String, Object> params = row.params() == null ? new LinkedHashMap<>() : row.params();
-      requireParamTypes(schema, params);
-      // The web updates params[hoursParam] itself; the after select carries a friendly label,
-      // so map that back to the stored pattern when it is one of the known labels.
-      if (table == RuleTableCode.REST && row.after() != null) {
-        String rawAfter = rawAfter(row.after());
-        if (rawAfter != null) {
-          params.put("afterShiftKind", rawAfter);
-        }
-      }
+      Map<String, Object> params =
+          row.params() == null
+              ? new LinkedHashMap<>()
+              : new LinkedHashMap<>(row.params());
       RuleRow existing = findRow(versionId, table, row.ruleCode());
+      requireParamTypes(schema, params, table, existing);
+      if (table == RuleTableCode.REST) {
+        // params[afterShiftKind] is the stored shape and wins when present, so an edit is never
+        // overwritten by the stale friendly label the web leaves in 'after' (review-r2, 2026-11-20).
+        params.put("afterShiftKind", resolveAfter(row, params, versionId));
+      }
       String severity = row.result() == null
           ? (existing == null ? "WARN" : existing.severity().name()) : row.result();
       String override =
@@ -735,8 +750,16 @@ public class RuleSetService {
       int total,
       int passed,
       List<String> errors) {
+    List<String> shown = errors;
+    if (errors.size() > MAX_ERRORS) {
+      shown = new ArrayList<>(errors.subList(0, MAX_ERRORS));
+      shown.add(
+          "\u2026and "
+              + (errors.size() - MAX_ERRORS)
+              + " more problems; fix these and build again.");
+    }
     BuildReportView report =
-        new BuildReportView(steps, new ScenarioCounts(total, passed), errors);
+        new BuildReportView(steps, new ScenarioCounts(total, passed), shown);
     boolean allPassed = steps.stream().allMatch(BuildStepView::done);
     jdbc.update(
         "UPDATE rule_set_version SET build_report = ?::jsonb, dry_run_report = ?::jsonb,"
@@ -952,33 +975,160 @@ public class RuleSetService {
   }
 
   /**
-   * A value the screen sends must match the column's declared type. Without this a string in a
-   * numeric column reached the validator as a ClassCastException, which surfaced as a 500.
+   * A value the screen sends must match the column's declared type, and an unknown key is a
+   * mistake, not something to ignore. Without this a string in a numeric column was stored and
+   * crashed the build, and an unknown key answered 200 as if it had saved (review-r2, 2026-11-20).
    */
-  private void requireParamTypes(Map<String, Object> schema, Map<String, Object> params) {
+  private void requireParamTypes(
+      Map<String, Object> schema,
+      Map<String, Object> params,
+      RuleTableCode table,
+      RuleRow existing) {
     for (Map.Entry<String, Object> entry : params.entrySet()) {
+      String key = entry.getKey();
+      if ("_message".equals(key)) {
+        continue;
+      }
       Object value = entry.getValue();
-      if ("_message".equals(entry.getKey()) || value == null) {
-        continue;
+      Map<?, ?> column = schema.get(key) instanceof Map<?, ?> declared
+          ? declared
+          : storedColumn(key, existing);
+      if (column == null) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "Unknown column '" + key + "' for the " + table.code() + " table");
       }
-      if (!(schema.get(entry.getKey()) instanceof Map<?, ?> column)) {
-        continue;
-      }
-      String label = String.valueOf(column.get("label") == null ? entry.getKey() : column.get("label"));
+      String label =
+          String.valueOf(column.get("label") == null ? key : column.get("label"));
       String type = String.valueOf(column.get("type"));
-      if ("number".equals(type) && !(value instanceof Number)) {
-        throw new ResponseStatusException(
-            HttpStatus.BAD_REQUEST, "The " + label + " column needs a number");
+      if (value == null) {
+        if (Boolean.TRUE.equals(column.get("nullable"))) {
+          continue;
+        }
+        throw columnProblem(label, key, "needs a value");
       }
-      if ("boolean".equals(type) && !(value instanceof Boolean)) {
-        throw new ResponseStatusException(
-            HttpStatus.BAD_REQUEST, "The " + label + " column needs true or false");
+      switch (type) {
+        case "number", "int" -> {
+          if (!(value instanceof Number number) || !Double.isFinite(number.doubleValue())) {
+            throw columnProblem(label, key, "needs a number");
+          }
+          if ("int".equals(type) && number.doubleValue() != Math.rint(number.doubleValue())) {
+            throw columnProblem(label, key, "needs a whole number");
+          }
+          if (column.get("minimum") instanceof Number minimum
+              && number.doubleValue() < minimum.doubleValue()) {
+            throw columnProblem(label, key, "must be at least " + numberText(minimum));
+          }
+          if (column.get("maximum") instanceof Number maximum
+              && number.doubleValue() > maximum.doubleValue()) {
+            throw columnProblem(label, key, "must be at most " + numberText(maximum));
+          }
+        }
+        case "boolean" -> {
+          if (!(value instanceof Boolean)) {
+            throw columnProblem(label, key, "needs true or false");
+          }
+        }
+        case "text" -> {
+          if (!(value instanceof String)) {
+            throw columnProblem(label, key, "needs text");
+          }
+        }
+        case "array" -> {
+          if (!(value instanceof List<?> list)) {
+            throw columnProblem(label, key, "needs a list");
+          }
+          if (list.size() > MAX_LIST_VALUES) {
+            throw columnProblem(label, key, "accepts at most " + MAX_LIST_VALUES + " values");
+          }
+          for (Object item : list) {
+            if (item == null || (!(item instanceof String) && !(item instanceof Number))) {
+              throw columnProblem(label, key, "must be a list of values");
+            }
+            if (table == RuleTableCode.SHIFT_LENGTHS && !(item instanceof Number)) {
+              throw columnProblem(label, key, "needs a list of hours");
+            }
+          }
+        }
+        default -> {
+          // No declared type to check; the enum check below still applies.
+        }
       }
-      if (column.get("enum") instanceof List<?> allowed && !allowed.contains(String.valueOf(value))) {
-        throw new ResponseStatusException(
-            HttpStatus.BAD_REQUEST, "The " + label + " column must be one of " + allowed);
+      if (column.get("enum") instanceof List<?> allowed
+          && !allowed.contains(String.valueOf(value))) {
+        throw columnProblem(label, key, "must be one of " + allowed);
       }
     }
+    if (table == RuleTableCode.REST
+        && params.get("minRestHours") instanceof Number rest
+        && (rest.doubleValue() < 8 || rest.doubleValue() > 24)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "The At least (hours) off column (minRestHours) must be between 8 and 24 hours");
+    }
+  }
+
+  private static ResponseStatusException columnProblem(String label, String key, String needs) {
+    return new ResponseStatusException(
+        HttpStatus.BAD_REQUEST, "The " + label + " column (" + key + ") " + needs);
+  }
+
+  /**
+   * A key the column schema does not declare but the stored row already carries. The v1 REST rows
+   * store {@code minExtensionMinutes} without declaring it; refusing it would make every ordinary
+   * REST save a 400. Inventing a key is still refused: only a key already on this row is accepted.
+   */
+  private static Map<?, ?> storedColumn(String key, RuleRow existing) {
+    if (existing == null || !existing.params().containsKey(key)) {
+      return null;
+    }
+    if ("minExtensionMinutes".equals(key)) {
+      return Map.of(
+          "type", "int", "label", "Overtime extension trigger", "nullable", true);
+    }
+    return null;
+  }
+
+  private static String numberText(Number number) {
+    return number.doubleValue() == Math.rint(number.doubleValue())
+        ? String.valueOf(number.intValue())
+        : String.valueOf(number.doubleValue());
+  }
+
+  /**
+   * The value stored in afterShiftKind. params[afterShiftKind] is authoritative when present (it
+   * is the storage shape both the web grid and the security probes edit); a friendly label in
+   * either field still maps; anything else is refused, never silently dropped.
+   */
+  private String resolveAfter(RowView row, Map<String, Object> params, UUID versionId) {
+    Object stored = params.get("afterShiftKind");
+    String value = stored instanceof String text ? text : null;
+    if (value == null && row.after() != null) {
+      value = row.after();
+    }
+    if (value == null) {
+      RuleRow existing = findRow(versionId, RuleTableCode.REST, row.ruleCode());
+      return existing == null
+          ? ".*"
+          : String.valueOf(existing.params().getOrDefault("afterShiftKind", ".*"));
+    }
+    String mapped = rawAfter(value);
+    if (mapped != null) {
+      return mapped;
+    }
+    if (isShiftKind(value)) {
+      return value;
+    }
+    throw new ResponseStatusException(
+        HttpStatus.BAD_REQUEST,
+        "The After this kind of shift column (afterShiftKind) must be one of Any shift,"
+            + " Regular shift, 16 h shift, 12 h 00\u201312, 12 h 12\u201324, or shift codes"
+            + " joined by | (for example D8|E8)");
+  }
+
+  private static boolean isShiftKind(String value) {
+    return value.length() <= 64
+        && value.startsWith("(") == value.endsWith(")")
+        && SHIFT_KIND.matcher(value).matches();
   }
 
   private RuleTableCode resolveTableOr404(String tableCode) {

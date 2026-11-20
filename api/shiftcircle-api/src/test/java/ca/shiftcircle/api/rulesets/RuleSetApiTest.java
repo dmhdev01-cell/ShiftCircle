@@ -219,7 +219,7 @@ class RuleSetApiTest {
     List<Map<String, Object>> steps = (List<Map<String, Object>>) report.get("steps");
     assertThat((Boolean) steps.get(0).get("done")).as("validation fails").isFalse();
     assertThat((List<String>) report.get("errors"))
-        .anySatisfy(error -> assertThat(error).contains("8-hour legal floor"));
+        .anySatisfy(error -> assertThat(error).contains("between 8 and 24"));
     assertThat(send("POST", "/api/v1/rule-sets/" + draft + "/submit", null, "l.fraser")
             .statusCode())
         .as("a failed build cannot be submitted")

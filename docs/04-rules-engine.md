@@ -85,10 +85,16 @@ reject such rows with a plain-language message ("Window must be 24 or 168 hours"
 can be submitted, and the same validation belongs in `TemplateColumns` where it can be expressed
 there (for example, a warning level at or above the ceiling is refused).
 
+The rest table's minimum rest is bounded at both ends: **8 to 24 hours** (8 is the legal floor; the
+fact builders measure rest in a 24-hour window, so a larger minimum would never fire). A list column
+accepts at most 16 values, and a build report lists at most 20 problems, then says how many it left
+out. Validation itself is total: a row whose stored value has the wrong type is reported as a row
+problem, never allowed to throw into an HTTP 500.
+
 ## 6. Safe change pipeline
 
 1. **Edit**: a rules admin changes rows in a **draft** version (an Excel upload is future work, not built).
-2. **Validate**: types, ranges and sanity checks (e.g. minimum rest can't be below the 8-hour legal floor; a Block rule can't be switched to Info without a reason). Errors are shown in plain language.
+2. **Validate**: types, ranges and sanity checks (e.g. minimum rest must be between 8 and 24 hours; a Block rule can't be switched to Info without a reason). Errors are shown in plain language.
 3. **Compile**: Drools builds a **staging** rule base from templates plus rows. Compilation problems are translated into "row 3, column *Minimum rest*: must be a number".
 4. **Test**: the automated regression scenarios run (T1–T9 and the boundary cases), plus a **dry run** against the current roster: "This change adds 14 warnings and 2 blocks on the published schedule."
 5. **Approve (maker/checker)**: a second person with the approver role reviews the before/after comparison and the impact, then publishes. One person can't both edit and publish.
