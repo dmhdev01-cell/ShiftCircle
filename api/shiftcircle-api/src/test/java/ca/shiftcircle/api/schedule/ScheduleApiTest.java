@@ -47,6 +47,7 @@ class ScheduleApiTest {
 
   @BeforeEach
   void fixture() {
+    jdbc.update("DELETE FROM time_entry WHERE employee_id = ?", EMPLOYEE);
     jdbc.update(
         "INSERT INTO pay_period (id, start_date, end_date, status) VALUES"
             + " ('44444444-4444-4444-4444-000000000001', DATE '2026-11-16', DATE '2026-11-29', 'OPEN')"
@@ -92,6 +93,124 @@ class ScheduleApiTest {
 
   private String schedulePath() {
     return "/api/v1/schedule?unitId=" + UNIT + "&from=" + DAY + "&to=" + DAY;
+  }
+
+  private String schedulePath(java.time.LocalDate from, java.time.LocalDate to) {
+    return "/api/v1/schedule?unitId=" + UNIT + "&from=" + from + "&to=" + to;
+  }
+
+  private String overtimeStatus(java.time.LocalDate from, java.time.LocalDate to)
+      throws Exception {
+    HttpResponse<String> response = get(schedulePath(from, to), login("m.ellis"));
+    assertThat(response.statusCode()).isEqualTo(200);
+    var officers = (java.util.List<?>) mapper.readValue(response.body(), Map.class).get("officers");
+    assertThat(officers).hasSize(1);
+    return (String) ((Map<?, ?>) officers.get(0)).get("overtimeStatus");
+  }
+
+  private void setPeriodHours(UUID periodId, java.time.LocalDate workDate, double hours) {
+    jdbc.update("DELETE FROM time_entry WHERE employee_id = ?", EMPLOYEE);
+    jdbc.update(
+        "INSERT INTO time_entry (id, employee_id, pay_period_id, work_date, start_at, end_at,"
+            + " hours, entry_type, pay_code, rule_set_version_id) VALUES"
+            + " (?, ?, ?, ?, TIMESTAMPTZ '2026-11-18 07:00:00-06',"
+            + " TIMESTAMPTZ '2026-11-18 15:00:00-06', ?, 'ACTUAL', 'REG',"
+            + " (SELECT id FROM rule_set_version WHERE status = 'PUBLISHED' LIMIT 1))",
+        UUID.randomUUID(),
+        EMPLOYEE,
+        periodId,
+        workDate,
+        hours);
+  }
+
+  @Test
+  void overtimeStatusChangesAtThePayPeriodThresholdBoundaries() throws Exception {
+    UUID period = UUID.fromString("44444444-4444-4444-4444-000000000001");
+
+    // hours is numeric(5,2) by design (payroll is 2 dp): 71.99 h is 71 h 59 m 24 s, still under.
+    setPeriodHours(period, DAY, 71.99);
+    assertThat(overtimeStatus(DAY, DAY)).as("71.99 h is below the 72 h approach line").isEqualTo("UNDER");
+
+    setPeriodHours(period, DAY, 72.00);
+    assertThat(overtimeStatus(DAY, DAY)).as("exactly 72 h starts approaching").isEqualTo("APPROACHING");
+
+    setPeriodHours(period, DAY, 79.99);
+    assertThat(overtimeStatus(DAY, DAY)).as("79.99 h is still approaching").isEqualTo("APPROACHING");
+
+    setPeriodHours(period, DAY, 80.00);
+    assertThat(overtimeStatus(DAY, DAY)).as("exactly 80 h is in overtime").isEqualTo("IN_OVERTIME");
+
+    setPeriodHours(period, DAY, 80.01);
+    assertThat(overtimeStatus(DAY, DAY)).as("above 80 h stays in overtime").isEqualTo("IN_OVERTIME");
+  }
+
+  @Test
+  void overtimeStatusUsesThePeriodThatContainsTheBoardDateAndCountsAMidnightCrossing()
+      throws Exception {
+    UUID firstPeriod = UUID.fromString("44444444-4444-4444-4444-000000000001");
+    UUID secondPeriod = UUID.fromString("44444444-4444-4444-4444-000000000002");
+    UUID lastDayShift = UUID.fromString("55555555-5555-5555-5555-000000000002");
+    UUID nextPeriodShift = UUID.fromString("55555555-5555-5555-5555-000000000003");
+    java.time.LocalDate lastDay = java.time.LocalDate.of(2026, 11, 29);
+    java.time.LocalDate nextPeriodDay = java.time.LocalDate.of(2027, 1, 4);
+
+    jdbc.update(
+        "INSERT INTO pay_period (id, start_date, end_date, status) VALUES (?, ?, ?, 'OPEN')"
+            + " ON CONFLICT (id) DO NOTHING",
+        secondPeriod,
+        nextPeriodDay,
+        nextPeriodDay.plusDays(13));
+    jdbc.update(
+        "INSERT INTO shift_assignment (id, employee_id, unit_id, shift_template_id, start_at,"
+            + " end_at, work_date, kind, source) SELECT ?, ?, ?, t.id,"
+            + " TIMESTAMPTZ '2026-11-29 07:00:00-06', TIMESTAMPTZ '2026-11-29 15:00:00-06',"
+            + " DATE '2026-11-29', 'ROSTERED', 'ROTATION' FROM shift_template t WHERE t.code = 'D8'"
+            + " ON CONFLICT (id) DO NOTHING",
+        lastDayShift,
+        EMPLOYEE,
+        UNIT);
+    jdbc.update(
+        "INSERT INTO shift_assignment (id, employee_id, unit_id, shift_template_id, start_at,"
+            + " end_at, work_date, kind, source) SELECT ?, ?, ?, t.id,"
+            + " TIMESTAMPTZ '2027-01-04 07:00:00-06', TIMESTAMPTZ '2027-01-04 15:00:00-06',"
+            + " DATE '2027-01-04', 'ROSTERED', 'ROTATION' FROM shift_template t WHERE t.code = 'D8'"
+            + " ON CONFLICT (id) DO NOTHING",
+        nextPeriodShift,
+        EMPLOYEE,
+        UNIT);
+    try {
+      jdbc.update("DELETE FROM time_entry WHERE employee_id = ?", EMPLOYEE);
+      // The first period's last entry starts at 23:00 on its last day and ends after midnight.
+      jdbc.update(
+          "INSERT INTO time_entry (id, employee_id, pay_period_id, work_date, start_at, end_at,"
+              + " hours, entry_type, pay_code, rule_set_version_id) VALUES"
+              + " (?, ?, ?, DATE '2026-11-29', TIMESTAMPTZ '2026-11-29 23:00:00-06',"
+              + " TIMESTAMPTZ '2026-11-30 07:00:00-06', 72.00, 'ACTUAL', 'REG',"
+              + " (SELECT id FROM rule_set_version WHERE status = 'PUBLISHED' LIMIT 1))",
+          UUID.randomUUID(),
+          EMPLOYEE,
+          firstPeriod);
+      jdbc.update(
+          "INSERT INTO time_entry (id, employee_id, pay_period_id, work_date, start_at, end_at,"
+              + " hours, entry_type, pay_code, rule_set_version_id) VALUES"
+              + " (?, ?, ?, DATE '2027-01-04', TIMESTAMPTZ '2027-01-04 07:00:00-06',"
+              + " TIMESTAMPTZ '2027-01-04 15:00:00-06', 80.00, 'ACTUAL', 'REG',"
+              + " (SELECT id FROM rule_set_version WHERE status = 'PUBLISHED' LIMIT 1))",
+          UUID.randomUUID(),
+          EMPLOYEE,
+          secondPeriod);
+
+      assertThat(overtimeStatus(lastDay, lastDay))
+          .as("the board on the last day reads its own period, including the midnight-crossing entry")
+          .isEqualTo("APPROACHING");
+      assertThat(overtimeStatus(nextPeriodDay, nextPeriodDay))
+          .as("the next period's 80 h is separate; the first period's hours must not leak in")
+          .isEqualTo("IN_OVERTIME");
+    } finally {
+      jdbc.update("DELETE FROM time_entry WHERE employee_id = ?", EMPLOYEE);
+      jdbc.update("DELETE FROM shift_assignment WHERE id IN (?, ?)", lastDayShift, nextPeriodShift);
+      jdbc.update("DELETE FROM pay_period WHERE id = ?", secondPeriod);
+    }
   }
 
   @Test
