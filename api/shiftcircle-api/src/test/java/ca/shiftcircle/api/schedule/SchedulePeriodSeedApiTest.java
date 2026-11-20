@@ -286,4 +286,19 @@ class SchedulePeriodSeedApiTest {
   private String pastBoard() {
     return "/api/v1/schedule?unitId=" + UNIT_A + "&from=2026-11-09&to=2026-11-15";
   }
+
+  @Test
+  @Order(6)
+  void aBoardThatSpansTwoWeeksHasNoSinglePeriod() throws Exception {
+    // The contract: the period whose dates contain the board's range. Two weeks are not inside one
+    // period, so the board says it has none rather than guessing which week to publish.
+    String twoWeeks = "/api/v1/schedule?unitId=" + UNIT_A + "&from=2026-11-09&to=2026-11-22";
+
+    Map<String, Object> body = json(get(twoWeeks, "m.ellis"));
+
+    assertThat(body.get("period")).isNull();
+    Map<String, Object> state = (Map<String, Object>) body.get("publishedState");
+    assertThat(state.get("published")).isEqualTo(false);
+    assertThat(state.get("unpublishedChanges")).isNull();
+  }
 }
