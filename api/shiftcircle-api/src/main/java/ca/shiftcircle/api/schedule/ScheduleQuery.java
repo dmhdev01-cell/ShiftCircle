@@ -126,21 +126,23 @@ public class ScheduleQuery {
                   (String) assignment.get("absence_type")));
     }
 
-    LocalDate periodStart =
-        jdbc.queryForObject(
+    Map<UUID, Double> periodHours = new LinkedHashMap<>();
+    List<LocalDate> periodStarts =
+        jdbc.queryForList(
             "SELECT start_date FROM pay_period WHERE ? BETWEEN start_date AND end_date",
             LocalDate.class,
             from);
-    Map<UUID, Double> periodHours = new LinkedHashMap<>();
-    jdbc.query(
-        "SELECT employee_id, coalesce(sum(hours), 0) AS h FROM time_entry"
-            + " WHERE pay_period_id = (SELECT id FROM pay_period WHERE start_date = ?)"
-            + " AND absence_type IS NULL GROUP BY employee_id",
-        (org.springframework.jdbc.core.RowCallbackHandler)
-            resultSet ->
-                periodHours.put(
-                    (UUID) resultSet.getObject("employee_id"), resultSet.getDouble("h")),
-        periodStart);
+    if (!periodStarts.isEmpty()) {
+      jdbc.query(
+          "SELECT employee_id, coalesce(sum(hours), 0) AS h FROM time_entry"
+              + " WHERE pay_period_id = (SELECT id FROM pay_period WHERE start_date = ?)"
+              + " AND absence_type IS NULL GROUP BY employee_id",
+          (org.springframework.jdbc.core.RowCallbackHandler)
+              resultSet ->
+                  periodHours.put(
+                      (UUID) resultSet.getObject("employee_id"), resultSet.getDouble("h")),
+          periodStarts.get(0));
+    }
 
     List<OfficerView> officers = new ArrayList<>();
     officerRows.forEach(
