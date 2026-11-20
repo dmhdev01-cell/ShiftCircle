@@ -1,5 +1,6 @@
 package ca.shiftcircle.api.payroll;
 
+import ca.shiftcircle.api.csv.Csv;
 import ca.shiftcircle.api.security.AuthPrincipal;
 import ca.shiftcircle.api.security.ScopeGuard;
 import ca.shiftcircle.rules.pay.PayClassification;
@@ -806,38 +807,16 @@ public class PayrollService {
     String unitCode = String.valueOf(row.get("unit_code"));
     return String.join(
             ",",
-            csvCell(String.valueOf(row.get("employee_no"))),
-            csvCell(period.from().toString()),
-            csvCell(period.to().toString()),
-            csvCell(((java.sql.Date) row.get("work_date")).toLocalDate().toString()),
-            csvCell(code),
-            csvCell(String.format(Locale.ROOT, "%.2f", hours)),
-            csvCell(unitCode),
+            Csv.cell(String.valueOf(row.get("employee_no"))),
+            Csv.cell(period.from().toString()),
+            Csv.cell(period.to().toString()),
+            Csv.cell(((java.sql.Date) row.get("work_date")).toLocalDate().toString()),
+            Csv.cell(code),
+            Csv.cell(String.format(Locale.ROOT, "%.2f", hours)),
+            Csv.cell(unitCode),
             // The prototype has no separate cost-centre reference, so the unit code is used.
-            csvCell(unitCode))
+            Csv.cell(unitCode))
         + "\n";
-  }
-
-  /**
-   * One CSV cell. RFC 4180 quoting only where the value needs it, and a leading {@code = + - @} is
-   * neutralised with a single quote so a spreadsheet cannot evaluate a hostile employee number or
-   * note as a formula (review-r2 P2). The demo values are unaffected, so the golden file stays
-   * byte-identical.
-   */
-  static String csvCell(String value) {
-    String clean = value == null ? "" : value;
-    // OWASP treats a leading TAB (0x09) and CR as formula prefixes too, not only = + - @.
-    if (!clean.isEmpty() && "=+-@\t\r".indexOf(clean.charAt(0)) >= 0) {
-      clean = "'" + clean;
-    }
-    if (clean.indexOf(',') >= 0
-        || clean.indexOf('"') >= 0
-        || clean.indexOf('\t') >= 0
-        || clean.indexOf('\n') >= 0
-        || clean.indexOf('\r') >= 0) {
-      return '"' + clean.replace("\"", "\"\"") + '"';
-    }
-    return clean;
   }
 
   private static String sha256(String content) {
