@@ -7,11 +7,15 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -33,6 +37,7 @@ class AuthApiTest {
   }
 
   @Autowired private Environment environment;
+  @Autowired private ApplicationContext context;
 
   private final ObjectMapper mapper = new ObjectMapper();
   private final HttpClient client = HttpClient.newHttpClient();
@@ -105,6 +110,32 @@ class AuthApiTest {
             null);
 
     assertThat(response.statusCode()).isEqualTo(200);
+  }
+
+  @Test
+  void theDefaultGeneratedPasswordUserIsNotConfigured() {
+    assertThat(context.getBeanNamesForType(InMemoryUserDetailsManager.class))
+        .as("Spring Boot's generated 'user' is not in the context, so no password is logged")
+        .isEmpty();
+    assertThat(context.getBeanNamesForType(UserDetailsService.class))
+        .as("only the no-op bean that refuses password authentication")
+        .hasSize(1);
+  }
+
+  @Test
+  void basicAuthWithTheDefaultUserIsUnauthorized() throws Exception {
+    String port = environment.getRequiredProperty("local.server.port");
+    String credentials =
+        Base64.getEncoder().encodeToString("user:password".getBytes(StandardCharsets.UTF_8));
+    HttpResponse<String> response =
+        client.send(
+            HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/me"))
+                .header("Authorization", "Basic " + credentials)
+                .GET()
+                .build(),
+            HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+
+    assertThat(response.statusCode()).isEqualTo(401);
   }
 
   @Test

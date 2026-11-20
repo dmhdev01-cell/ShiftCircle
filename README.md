@@ -81,7 +81,7 @@ Sign-in is **simulated**. The sign-in screen lists fictional demo users (`GET /a
 |---|---|---|---|
 | M. Ellis | Supervisor, Employee | Units A, B | Planning board, overtime, time and payroll |
 | J. Chen | Supervisor, Employee | Admissions, Control, Escort | Scope checks (can't see Unit B) |
-| T. Nakamura | Employee | own records | My schedule, offers, proposals |
+| T. Nakamura | Employee | own records | My schedule, offers (accept/decline) |
 | L. Fraser | Rules admin | — | Edit, build and submit rule changes |
 | P. Singh | Rules approver | — | Approve and publish (not their own drafts) |
 | A. Reviewer | Auditor | all, read-only | Reports and audit |
@@ -122,11 +122,23 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
 
 **Checked on the fresh clone:** both viewports on one stack gave 21 passed, 1 skipped and 4 failed, all 4 on tablet after desktop had changed the data; tablet alone on a fresh stack gave 12 passed, 1 skipped (the TV-size check runs on desktop only). The `--add-host` line was run on macOS; on Linux it is **UNVERIFIED** here (`--network host` with `BASE_URL=http://localhost:8080` is the alternative). Not run by this author: the `api-test` service (the builders and QA run the same Maven build; counts per round are in `docs/review-rounds.md`) and the web unit-test line in this clone (the same command passes in the branch worktrees). The web unit tests write `web/node_modules` with Linux binaries.
 
-**Fixtures and the shared test database:** the API test classes share one PostgreSQL container. The
-schedule and display tests assert exact Unit A coverage for the demo day (19 Nov 2026), so a new
-fixture that adds, moves or cancels a shift on that day changes their numbers. Put new fixtures on
-dates after the demo day and delete them afterwards; a fixture on the demo day is a test-order bug
-waiting to happen.
+**Fixtures and the shared test database:** each API test class gets its **own database** inside the
+shared PostgreSQL container (`PostgresTestSupport` creates one per class, and Flyway builds the
+schema), so class order cannot leak a generated roster, a published rule set or a linked employee
+into another class. Keep new fixtures off the demo day (19 Nov 2026) where the schedule and display
+tests assert exact Unit A coverage; dates after it are safer. When you change shared test
+infrastructure, also run reverse and random class order so a future regression is caught:
+
+```sh
+docker run --rm -v "$PWD/api":/src -v /var/run/docker.sock:/var/run/docker.sock \
+  -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -w /src \
+  maven:3.9-eclipse-temurin-21 ./mvnw -B test -Dsurefire.runOrder=reversealphabetical
+
+docker run --rm -v "$PWD/api":/src -v /var/run/docker.sock:/var/run/docker.sock \
+  -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -w /src \
+  maven:3.9-eclipse-temurin-21 ./mvnw -B test \
+  -Dsurefire.runOrder=random -Dsurefire.runOrderRandomSeed=20261120
+```
 
 ### What is real and what is simulated
 
