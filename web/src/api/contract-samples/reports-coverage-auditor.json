@@ -1,0 +1,72 @@
+{
+  "weeks": [
+    {
+      "label": "12 \u2013 18 Oct",
+      "scheduledPercent": 109.26,
+      "actualPercent": 107.22,
+      "planned": false,
+      "requiredHours": 3920.0,
+      "scheduledHours": 4283.0,
+      "actualHours": 4203.0
+    },
+    {
+      "label": "19 \u2013 25 Oct",
+      "scheduledPercent": 109.69,
+      "actualPercent": 107.27,
+      "planned": false,
+      "requiredHours": 3920.0,
+      "scheduledHours": 4300.0,
+      "actualHours": 4205.0
+    },
+    {
+      "label": "26 Oct \u2013 1 Nov 2026",
+      "scheduledPercent": 111.12,
+      "actualPercent": 107.14,
+      "planned": false,
+      "requiredHours": 3920.0,
+      "scheduledHours": 4356.0,
+      "actualHours": 4200.0
+    },
+    {
+      "label": "2 \u2013 8 Nov",
+      "scheduledPercent": 111.76,
+      "actualPercent": 106.86,
+      "planned": false,
+      "requiredHours": 3920.0,
+      "scheduledHours": 4381.0,
+      "actualHours": 4189.0
+    },
+    {
+      "label": "9 \u2013 15 Nov",
+      "scheduledPercent": 108.67,
+      "actualPercent": 107.35,
+      "planned": false,
+      "requiredHours": 3920.0,
+      "scheduledHours": 4260.0,
+      "actualHours": 4208.0
+    },
+    {
+      "label": "16 \u2013 22 Nov",
+      "scheduledPercent": 108.85,
+      "actualPercent": 102.16,
+      "planned": false,
+      "requiredHours": 3920.0,
+      "scheduledHours": 4267.0,
+      "actualHours": 1990.0
+    },
+    {
+      "label": "23 \u2013 29 Nov",
+      "scheduledPercent": 110.54,
+      "actualPercent": null,
+      "planned": true,
+      "requiredHours": 3920.0,
+      "scheduledHours": 4333.0,
+      "actualHours": null
+    }
+  ],
+  "axisFrom": 98,
+  "axisTo": 112,
+  "requiredHours": 27440.0,
+  "scheduledHours": 30180.0,
+  "actualHours": 22995.0
+}

@@ -62,7 +62,8 @@ save shift-templates /api/v1/shift-templates "$SUPERVISOR"
 UNIT_ID=$(curl -s "$BASE/api/v1/units" -H "Authorization: Bearer $SUPERVISOR" |
   python3 -c 'import sys,json; print(json.load(sys.stdin)[0]["id"])')
 
-save schedule "/api/v1/schedule?unitId=$UNIT_ID&from=2026-11-16&to=2026-11-22" "$SUPERVISOR"
+save schedule-draft "/api/v1/schedule?unitId=$UNIT_ID&from=2026-11-23&to=2026-11-29" "$SUPERVISOR"
+save schedule-supervisor "/api/v1/schedule?unitId=$UNIT_ID&from=2026-11-16&to=2026-11-22" "$SUPERVISOR"
 save reports-coverage "/api/v1/reports/coverage" "$SUPERVISOR"
 save reports-hours "/api/v1/reports/hours" "$SUPERVISOR"
 save reports-overtime "/api/v1/reports/overtime" "$SUPERVISOR"
@@ -90,5 +91,23 @@ PERIOD_ID=$(curl -s "$BASE/api/v1/pay-periods" -H "Authorization: Bearer $SUPERV
 if [ -n "$PERIOD_ID" ]; then
   save time-entries "/api/v1/pay-periods/$PERIOD_ID/time-entries" "$SUPERVISOR"
 fi
+
+
+# Publishing the demo week gives the samples a published period as well as a
+# draft one. The script changes the stack it runs against, so point it at a
+# demo stack. A second run finds the week published already and moves on.
+SCHEDULE_PERIOD_ID=$(curl -s "$BASE/api/v1/schedule?unitId=$UNIT_ID&from=2026-11-16&to=2026-11-22" \
+  -H "Authorization: Bearer $SUPERVISOR" |
+  python3 -c 'import sys,json; print(json.load(sys.stdin).get("period", {}).get("id", ""))')
+
+if [ -n "$SCHEDULE_PERIOD_ID" ]; then
+  curl -s -X POST "$BASE/api/v1/schedule-periods/$SCHEDULE_PERIOD_ID/publish" \
+    -H "Authorization: Bearer $SUPERVISOR" > /dev/null
+fi
+
+save schedule-published "/api/v1/schedule?unitId=$UNIT_ID&from=2026-11-16&to=2026-11-22" "$SUPERVISOR"
+save schedule-auditor "/api/v1/schedule?unitId=$UNIT_ID&from=2026-11-16&to=2026-11-22" "$AUDITOR"
+save reports-coverage-auditor /api/v1/reports/coverage "$AUDITOR"
+save reports-overrides-auditor /api/v1/reports/overrides "$AUDITOR"
 
 echo "Contract samples are in $OUT."

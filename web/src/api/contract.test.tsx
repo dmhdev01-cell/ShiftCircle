@@ -15,11 +15,14 @@ import openShiftCandidates from './contract-samples/open-shift-candidates.json';
 import openShifts from './contract-samples/open-shifts.json';
 import payPeriods from './contract-samples/pay-periods.json';
 import reportsCoverage from './contract-samples/reports-coverage.json';
+import reportsCoverageAuditor from './contract-samples/reports-coverage-auditor.json';
 import reportsHours from './contract-samples/reports-hours.json';
 import reportsOvertime from './contract-samples/reports-overtime.json';
 import reportsOverrides from './contract-samples/reports-overrides.json';
 import ruleSets from './contract-samples/rule-sets.json';
-import schedule from './contract-samples/schedule.json';
+import scheduleAuditor from './contract-samples/schedule-auditor.json';
+import scheduleDraft from './contract-samples/schedule-draft.json';
+import schedulePublished from './contract-samples/schedule-published.json';
 import timeEntries from './contract-samples/time-entries.json';
 import units from './contract-samples/units.json';
 import version from './contract-samples/version.json';
@@ -58,7 +61,7 @@ function mockTheApi() {
   );
 
   vi.spyOn(api, 'getUnits').mockResolvedValue(units as never);
-  vi.spyOn(api, 'getSchedule').mockResolvedValue(schedule as never);
+  vi.spyOn(api, 'getSchedule').mockResolvedValue(scheduleDraft as never);
   vi.spyOn(api, 'getCoverageReport').mockResolvedValue(reportsCoverage as never);
   vi.spyOn(api, 'getHoursReport').mockResolvedValue(reportsHours as never);
   vi.spyOn(api, 'getOvertimeReport').mockResolvedValue(reportsOvertime as never);
@@ -95,8 +98,9 @@ describe('the screens against the real api shapes', () => {
     await expectScreen('/planning', 'Planning board');
   });
 
-  it('shows the reports', async () => {
+  it('shows the reports, with the coverage report an auditor sees', async () => {
     mockTheApi();
+    vi.spyOn(api, 'getCoverageReport').mockResolvedValue(reportsCoverageAuditor as never);
     await expectScreen('/reports/coverage', 'Reports');
   });
 
@@ -128,5 +132,39 @@ describe('the screens against the real api shapes', () => {
   it('shows the wall display', async () => {
     mockTheApi();
     await expectScreen('/display', "Today's coverage");
+  });
+});
+
+describe('the board against the real api shapes', () => {
+  it('offers the publish action on a draft week', async () => {
+    mockTheApi();
+    vi.spyOn(api, 'getSchedule').mockResolvedValue(scheduleDraft as never);
+
+    renderScreen('/planning');
+    await screen.findByText('Coverage gaps');
+
+    expect(screen.getByText('Not published')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Publish period' })).toBeEnabled();
+  });
+
+  it('closes the publish action on a published week', async () => {
+    mockTheApi();
+    vi.spyOn(api, 'getSchedule').mockResolvedValue(schedulePublished as never);
+
+    renderScreen('/planning');
+    await screen.findByText('Coverage gaps');
+
+    expect(screen.getByText('Published')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Publish period' })).toBeDisabled();
+  });
+
+  it('shows the auditor the same board', async () => {
+    mockTheApi();
+    vi.spyOn(api, 'getSchedule').mockResolvedValue(scheduleAuditor as never);
+
+    renderScreen('/planning');
+    await screen.findByText('Coverage gaps');
+
+    expect(screen.queryByText('This screen could not be shown')).not.toBeInTheDocument();
   });
 });
