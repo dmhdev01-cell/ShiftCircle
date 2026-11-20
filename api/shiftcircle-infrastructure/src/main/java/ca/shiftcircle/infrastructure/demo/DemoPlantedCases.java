@@ -5,7 +5,11 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeSet;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -38,6 +42,7 @@ final class DemoPlantedCases {
     plantPc03SeventeenHourOverride();
     plantPc04PiotrFourNights();
     plantPc05PayPeriodBoundary();
+    plantPc06MoreFourNightRuns();
     plantPc09ControlCandidate();
   }
 
@@ -153,6 +158,58 @@ final class DemoPlantedCases {
     setPeriodHours(officers.get(0), periodStart, 80.0);
     setPeriodHours(officers.get(1), periodStart, 80.0 + 29.0 / 60.0);
     setPeriodHours(officers.get(2), periodStart, 84.0);
+  }
+
+  // PC-06: T7 needs plural four-night runs for its dry run. Two officers get four overnight shifts
+  // in the first four days of the window: no rolling week before that can see them, and the rest of
+  // that week is cleared so the 48 hours stay under the weekly ceiling.
+  private void plantPc06MoreFourNightRuns() {
+    LocalDate runStart = LocalDate.of(2026, 10, 1);
+    for (String employeeNo : new String[] {"E-001", "E-004"}) {
+      for (int day = 4; day <= 8; day++) {
+        deleteAssignments(employeeNo, runStart.plusDays(day));
+      }
+      for (int day = 0; day < 4; day++) {
+        LocalDate date = runStart.plusDays(day);
+        // Replace whatever that day held, so the four dates are consecutive nights.
+        deleteAssignments(employeeNo, date);
+        Instant start = instant(date, "00:00");
+        UUID assignmentId = id("planted:pc06:" + employeeNo + ":" + day);
+        insertAssignment(
+            assignmentId, employeeNo, unitFor(employeeNo), "A12", start,
+            start.plusSeconds(12 * 3600L), date);
+        // The run sits in the past, so it carries an actual like every other worked shift (ADR-017).
+        jdbc.update(
+            "INSERT INTO time_entry (id, employee_id, pay_period_id, shift_assignment_id,"
+                + " work_date, start_at, end_at, hours, entry_type, pay_code, rule_set_version_id)"
+                + " VALUES (?, (SELECT id FROM employee WHERE employee_no = ?),"
+                + " (SELECT id FROM pay_period WHERE ? BETWEEN start_date AND end_date), ?, ?, ?, ?,"
+                + " 12.0, 'ACTUAL', 'REG',"
+                + " (SELECT id FROM rule_set_version WHERE status = 'PUBLISHED'))",
+            id("time-entry:pc06:" + employeeNo + ":" + day),
+            employeeNo,
+            date,
+            assignmentId,
+            date,
+            Timestamp.from(start),
+            Timestamp.from(start.plusSeconds(12 * 3600L)));
+      }
+    }
+  }
+
+  private String unitFor(String employeeNo) {
+    return jdbc.queryForObject(
+        "SELECT u.code FROM employee e JOIN unit u ON u.id = e.home_unit_id"
+            + " WHERE e.employee_no = ?",
+        String.class,
+        employeeNo);
+  }
+
+  private static LocalDate localDate(Object value) {
+    if (value instanceof LocalDate date) {
+      return date;
+    }
+    return ((java.sql.Date) value).toLocalDate();
   }
 
   // PC-09: an open Control shift exists; the self-check proves the officer with the fewest overtime

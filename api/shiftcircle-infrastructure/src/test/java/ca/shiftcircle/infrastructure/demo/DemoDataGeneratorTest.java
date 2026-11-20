@@ -149,6 +149,28 @@ class DemoDataGeneratorTest {
   }
 
   @Test
+  void fewerThanThreeFourNightRunsFailsTheSelfCheck() {
+    // The check must count runs (QA finding): remove the two planted extra runs and expect PC-06.
+    // The planted run is in a locked period; unlock it for the test, then remove the run.
+    jdbc.update(
+        "UPDATE pay_period SET status = 'OPEN', unlock_reason = 'test'"
+            + " WHERE start_date = DATE '2026-09-28'");
+    String runAssignments =
+        "SELECT s.id FROM shift_assignment s WHERE s.shift_template_id ="
+            + " (SELECT id FROM shift_template WHERE code = 'A12')"
+            + " AND s.work_date BETWEEN DATE '2026-10-01' AND DATE '2026-10-04'"
+            + " AND s.employee_id IN (SELECT id FROM employee"
+            + "   WHERE employee_no IN ('E-001','E-004'))";
+    jdbc.update("DELETE FROM time_entry WHERE shift_assignment_id IN (" + runAssignments + ")");
+    jdbc.update("DELETE FROM shift_assignment WHERE id IN (" + runAssignments + ")");
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+            () -> new DemoDataSelfCheck(jdbc, null, java.time.Instant.now()).verify())
+        .isInstanceOf(DemoDataSelfCheckException.class)
+        .hasMessageContaining("PC-06");
+  }
+
+  @Test
   void twoOfficersCanShareOvertimeHoursWithDifferentSeniority() {
     // PC-07's precondition: the ranking needs a real tie to break by seniority.
     Integer ties =

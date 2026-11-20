@@ -347,9 +347,9 @@ public final class DemoDataSelfCheck {
 
     int eightHourRest =
         count(
-            "SELECT count(*) FROM shift_assignment s JOIN shift_template t"
-                + " ON t.id = s.shift_template_id WHERE t.code = 'N8'"
-                + " AND s.end_at = TIMESTAMPTZ '2026-11-26 07:00:00-06'");
+            "SELECT count(*) FROM shift_assignment WHERE id = '"
+                + DemoDataGenerator.id("planted:pc02:night")
+                + "' AND end_at = TIMESTAMPTZ '2026-11-26 07:00:00-06'");
     if (eightHourRest < 1) {
       violations.add("PC-02: no night shift ending 07:00 on Thu 26 Nov");
     }
@@ -395,11 +395,11 @@ public final class DemoDataSelfCheck {
 
     int fourNightRuns =
         count(
-            "SELECT count(*) FROM (SELECT employee_id, work_date -"
+            "SELECT count(*) FROM (SELECT employee_id, grp FROM (SELECT employee_id, work_date -"
                 + " (row_number() OVER (PARTITION BY employee_id ORDER BY work_date))::int AS grp"
                 + " FROM shift_assignment s JOIN shift_template t ON t.id = s.shift_template_id"
                 + " WHERE t.code = 'A12') runs"
-                + " GROUP BY employee_id, grp HAVING count(*) >= 4");
+                + " GROUP BY employee_id, grp HAVING count(*) >= 4) four_night_runs");
     if (fourNightRuns < 3) {
       violations.add("PC-06: fewer than three four-night runs in the roster");
     }
