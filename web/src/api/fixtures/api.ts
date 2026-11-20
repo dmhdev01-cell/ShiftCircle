@@ -23,6 +23,7 @@ import type {
   RecordActualInput,
   RecordActualResult,
   TimeEntry,
+  Unit,
   OfferRecord,
   OfferResponse,
   OpenShift,
@@ -309,6 +310,7 @@ export function createFixtureApi(): ShiftCircleApi {
       const recorded = recordedOffers
         .filter((offer) => offer.openShiftId === openShiftId)
         .map((offer) => ({
+          id: offer.offerId,
           at: offer.at,
           employeeId: offer.employeeId,
           employeeName: offer.employeeName,
@@ -357,6 +359,7 @@ export function createFixtureApi(): ShiftCircleApi {
           recorded.status = 'OFFERED';
         } else {
           recordedOffers.push({
+            id: offerId,
             offerId,
             openShiftId: openShift.id,
             at: 'now',
@@ -367,6 +370,7 @@ export function createFixtureApi(): ShiftCircleApi {
         }
 
         return {
+          id: offerId,
           at: 'now',
           employeeId,
           employeeName,
@@ -385,6 +389,7 @@ export function createFixtureApi(): ShiftCircleApi {
       if (recorded) {
         recorded.status = 'CONFIRMED';
         return {
+          id: recorded.offerId,
           at: recorded.at,
           employeeId: recorded.employeeId,
           employeeName: recorded.employeeName,
@@ -463,6 +468,20 @@ export function createFixtureApi(): ShiftCircleApi {
         throw new ApiError('A note to the supervisor is required.', 400);
       }
       return { id: `p-fixture-${items.length}`, accepted: items.length };
+    },
+
+    async getUnits(): Promise<Unit[]> {
+      await wait(LATENCY_MS);
+      return [
+        {
+          id: demoSchedule.unit.id,
+          code: 'B',
+          name: demoSchedule.unit.name,
+          kind: 'LIVING',
+          allows_12h: true,
+          allows_16h: true,
+        },
+      ];
     },
 
     async getDemoUsers(): Promise<DemoUser[]> {

@@ -10,7 +10,9 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Typography from '@mui/material/Typography';
 
 import { shiftTemplates } from '../api/shiftTemplates';
-import type { OfficerRow, ShiftItem } from '../api/types';
+import type { OfficerRow, ShiftItem, Unit } from '../api/types';
+import { useUnits } from '../api/useUnits';
+import { useVersion } from '../api/useVersion';
 import { colour } from '../theme/tokens';
 import { KpiTile } from './KpiTile';
 import { OverrideDialog } from './OverrideDialog';
@@ -29,6 +31,21 @@ function weekday(date: string): string {
   return new Intl.DateTimeFormat('en-CA', { weekday: 'short', timeZone: 'UTC' }).format(
     new Date(`${date}T00:00:00Z`),
   );
+}
+
+function iso(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+/** The Monday-to-Sunday week the demo "today" falls in. */
+function weekOf(asOf: string | undefined): { from?: string; to?: string } {
+  if (!asOf) return {};
+  const date = new Date(`${asOf}T00:00:00Z`);
+  const monday = new Date(date);
+  monday.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  return { from: iso(monday), to: iso(sunday) };
 }
 
 function longDay(date: string): string {
@@ -51,7 +68,13 @@ interface Pending {
  * `GET /schedule` exists.
  */
 export function PlanningPage() {
-  const { state, reload } = useSchedule();
+  const unitsState = useUnits();
+  const version = useVersion();
+  const units: Unit[] = unitsState.kind === 'ready' ? unitsState.units : [];
+  const [unitId, setUnitId] = useState<string | null>(null);
+  const activeUnitId = unitId ?? units[0]?.id;
+  const week = weekOf(version.state.status === 'ready' ? version.state.info.asOf : undefined);
+  const { state, reload } = useSchedule(activeUnitId, week.from, week.to);
   const mutation = useRuleCheckedMutation();
   const [pending, setPending] = useState<Pending | null>(null);
   const [shiftActions, setShiftActions] = useState<{ officer: OfficerRow; item: ShiftItem } | null>(
@@ -239,6 +262,7 @@ export function PlanningPage() {
               component="select"
               aria-label="Unit"
               value={payload.unit.id}
+              onChange={(event) => setUnitId(event.target.value)}
               sx={{
                 minHeight: 44,
                 px: 3,
@@ -251,7 +275,19 @@ export function PlanningPage() {
                 backgroundColor: colour.bg.surface,
               }}
             >
-              <option value={payload.unit.id}>{payload.unit.name}</option>
+              {(units.length > 0
+                ? units
+                : [
+                    {
+                      id: payload.unit.id,
+                      name: payload.unit.name,
+                    } as Unit,
+                  ]
+              ).map((unit) => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.name}
+                </option>
+              ))}
             </Box>
           </Box>
         </Box>

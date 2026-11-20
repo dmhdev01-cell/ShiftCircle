@@ -240,6 +240,8 @@ export interface Candidate {
 export type OfferStatus = 'OFFERED' | 'ACCEPTED' | 'DECLINED' | 'CONFIRMED';
 
 export interface OfferRecord {
+  /** The api's offer id, used to confirm it. */
+  id: string;
   at: string;
   employeeId: string;
   employeeName: string;
@@ -540,6 +542,16 @@ export interface BuildReport {
   scenarios: { total: number; passed: number };
 }
 
+/** A unit from GET /units (docs/07 §4.1). */
+export interface Unit {
+  id: string;
+  code: string;
+  name: string;
+  kind: string;
+  allows_12h: boolean;
+  allows_16h: boolean;
+}
+
 // --- Mock sign-in (docs/09-access-control.md §4) ---
 
 /** Exactly what the api sends for a demo user (AuthController's describe()). */
@@ -600,6 +612,9 @@ export interface ShiftCircleApi {
   getMyOffers(): Promise<MyOffer[]>;
   respondToOffer(offerId: string, response: OfferResponse): Promise<MyOffer>;
   submitProposals(note: string, items: RuleCheckChange[]): Promise<{ id: string; accepted: number }>;
+
+  // Reference data.
+  getUnits(): Promise<Unit[]>;
 
   // Mock sign-in.
   getDemoUsers(): Promise<DemoUser[]>;

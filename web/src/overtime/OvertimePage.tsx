@@ -132,9 +132,9 @@ export function OvertimePage() {
   const activeShift = shifts.find((shift) => shift.id === activeId);
   const payload = candidatesState.kind === 'ready' ? candidatesState.payload : undefined;
 
-  const confirmOffer = async (employeeId: string) => {
+  const confirmOffer = async (offerId: string) => {
     try {
-      await api.confirmOffer(employeeId);
+      await api.confirmOffer(offerId);
       setMessage('The accepted offer is confirmed and the shift is assigned.');
       reloadCandidates();
     } catch (error) {
@@ -468,7 +468,7 @@ export function OvertimePage() {
                     <Button
                       variant="outlined"
                       color="primary"
-                      onClick={() => void confirmOffer(entry.employeeId)}
+                      onClick={() => void confirmOffer(entry.id)}
                     >
                       Confirm
                     </Button>

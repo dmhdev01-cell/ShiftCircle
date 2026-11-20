@@ -23,6 +23,11 @@ export function useSchedule(unitId?: string, from?: string, to?: string) {
   const key = `${unitId ?? ''}|${from ?? ''}|${to ?? ''}|${nonce}`;
 
   useEffect(() => {
+    if (!unitId) {
+      // The board cannot ask for a unit before the reference data names one.
+      setResult({ key, state: { kind: 'loading' } });
+      return;
+    }
     let active = true;
 
     api

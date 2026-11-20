@@ -11,6 +11,7 @@ import type {
   RecordActualInput,
   RecordActualResult,
   TimeEntry,
+  Unit,
   OfferRecord,
   OfferResponse,
   OpenShift,
@@ -234,6 +235,10 @@ export function createHttpApi(): ShiftCircleApi {
         method: 'POST',
         body: JSON.stringify({ note, items }),
       });
+    },
+
+    getUnits(): Promise<Unit[]> {
+      return request<Unit[]>('/units');
     },
 
     getDemoUsers(): Promise<DemoUser[]> {

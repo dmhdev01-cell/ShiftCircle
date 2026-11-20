@@ -127,15 +127,17 @@ export const demoCandidates: Candidate[] = [
 
 /** The offers already recorded, as the mockup shows them. */
 export const demoOfferHistory: OfferRecord[] = [
-  { at: '14:30', employeeId: 'emp-kari', employeeName: 'Fri evenings → Kari Lindqvist', status: 'OFFERED' },
-  { at: '14:30', employeeId: 'emp-sam', employeeName: 'Fri evenings → Sam Abara', status: 'DECLINED' },
+  { id: 'offer-kari-fri', at: '14:30', employeeId: 'emp-kari', employeeName: 'Fri evenings → Kari Lindqvist', status: 'OFFERED' },
+  { id: 'offer-sam-fri', at: '14:30', employeeId: 'emp-sam', employeeName: 'Fri evenings → Sam Abara', status: 'DECLINED' },
   {
+    id: 'offer-ruth-fri',
     at: '14:30',
     employeeId: 'emp-ruth',
     employeeName: 'Fri evenings → Ruth Okafor',
     status: 'ACCEPTED',
   },
   {
+    id: 'offer-sam-sun',
     at: '09:15',
     employeeId: 'emp-sam',
     employeeName: 'Sun nights (Admissions) → Sam Abara',

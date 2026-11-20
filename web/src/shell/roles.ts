@@ -119,11 +119,25 @@ export const roles: RoleDescriptor[] = [
 /** Reachable from every role; hosts the build/version display. */
 export const aboutNavItem: NavItem = { label: 'About & version', to: '/about' };
 
-/** The role a signed-in user acts as: their first role the screens know. */
+/**
+ * The role a signed-in user acts as. The api does not promise an order in
+ * `roles`, so choose by what the role can do, not by array position:
+ * a supervisor who is also an employee starts on the supervisor screens.
+ */
+const ROLE_PRECEDENCE: Role[] = [
+  'SUPERVISOR',
+  'RULES_ADMIN',
+  'RULES_APPROVER',
+  'AUDITOR',
+  'EMPLOYEE',
+  'DISPLAY',
+];
+
 export function roleForUser(user: DemoUser): RoleDescriptor {
-  for (const id of user.roles) {
-    const descriptor = roles.find((entry) => entry.id === id);
-    if (descriptor) return descriptor;
+  for (const id of ROLE_PRECEDENCE) {
+    if (user.roles.includes(id)) {
+      return roles.find((entry) => entry.id === id)!;
+    }
   }
   return roles.find((descriptor) => descriptor.id === 'SUPERVISOR')!;
 }
