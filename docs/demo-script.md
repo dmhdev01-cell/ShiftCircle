@@ -1,7 +1,9 @@
 # ShiftCircle demo script (≤ 5 minutes)
 
-**Status:** v0.3 · 2026-11-20 · follows `HANDOFF.md` §10.
-- **VERIFIED** means the step was done on the **real api**: dev-qa walked the whole script step by step on a clean-clone stack at `main` `17308b7` (round R30). Every segment worked; the time budgets add up to 275 s, and the machine steps take seconds, so the 4:35 is narration time. The Playwright specs drive most of the same steps.
+**Status:** v0.4 · 2026-11-20 · follows `HANDOFF.md` §10.
+- **VERIFIED** means the step was done on the **real api**, in two independent walks by dev-qa. The first was in the browser from a clean clone at `17308b7` (R30). The final one was at the api level from a true clone of the merged `main` `3a4bbbd`, and every step worked. The exact figures below come from that final walk. The Playwright specs drive most of the same steps in a browser.
+- **The panel's wording differs slightly from the quotes here.** Read the words on the screen, not the script's.
+- The time budgets add up to 275 s. The machine steps take seconds, so the 4:35 is narration time.
 - **TODO-VERIFY** marks a step not yet done on the real api.
 
 Rehearse every step anyway before recording.
@@ -38,17 +40,17 @@ About 25 s of slack is left for transitions.
 | Sign in as **M. Ellis** (Supervisor, Units A and B). The planning board opens on the first unit in scope; choose **Unit B · Living unit** in the Unit selector. Week of **16 Nov**. | Coverage per block, measured hourly, with each officer's pay-period hours and overtime status. | VERIFIED (board and unit switch) |
 | Point to the KPI tiles (on the demo data: **13** coverage gaps, **2** in overtime, **3** approaching, **0** rule warnings, **0** overrides this period) and one coverage cell that names its short hours | Overtime is pay-period hours over 80 h, not a shift type. | VERIFIED (dev-qa's walk) |
 | On **Nia Thompson's** row, click her empty **Sat 21 Nov** cell ("Off"), then choose **D8 · Day 8 h** (07:00–15:00) | Nia works the 12 h shift Fri 12:00–24:00. | VERIFIED. The real api has no proposals in the schedule yet, so the fixtures' `! D proposed` chip doesn't appear; start from the empty cell |
-| Read the rule-check panel: **Blocked: 3 rules fail**: **U-01** (7 h rest; the minimum is 8 h in 24 h), **U-05** (17 h in 24 h) and **U-14** (the week passes the 60 h ceiling) | The rules engine decides and gives a plain reason with its source. **Safeguard:** there's no Save and **no Emergency override**. The weekly ceiling allows no override, so there is no way around this one: find someone else. | VERIFIED: the wording (U-01 7 h rest, U-05 17 h in 24 h, U-14 week over 60 h), no "Assign shift" and no "Emergency override…" button; the api refuses even a valid-reason override (422, nothing saved) |
+| Read the rule-check panel: **Blocked: 3 rules fail**: **U-01** (7 h rest; the minimum is 8 h), **U-05** (17 h in 24 h; the limit is 16 h) and **U-14** (68 h in the week; the ceiling is 60 h) | The rules engine decides and gives a plain reason with its source. **Safeguard:** there's no Save and **no Emergency override**. The weekly ceiling allows no override, so there is no way around this one: find someone else. | VERIFIED: U-01 7.0 vs 8.0 h, U-05 17.0 h in 24 h, U-14 68.0 > 60 h, BLOCK, not overridable. No "Assign shift" and no "Emergency override…" button. Even an override with a valid reason gets 422, Nia's Sat 21 cell stays empty, and the refusal writes no audit row |
 
 ## 3. Overtime (60 s) · T6, PC-08, E1/E2
 
 | Do | Say (outline) | Status |
 |---|---|---|
 | Click **Find eligible officer**. The Overtime board opens on the open shift **Sat 21 Nov · Unit B · Days 07:00–15:00** | | VERIFIED |
-| Point to the fair-distribution box (O-02: fewest overtime hours this quarter, then seniority) and one **Skipped · U-01** row | An officer without enough rest is skipped and keeps their place. They aren't penalised. | TODO-VERIFY (no spec asserts the order or a Skipped row on the real api; names come from the generator) |
+| Point to the fair-distribution box (O-02: fewest overtime hours this quarter, then seniority) and one **Skipped** row (read its rule code off the screen) | An officer without enough rest is skipped and keeps their place. They aren't penalised. | VERIFIED: 36 candidates, 20 of them skipped. **TODO-VERIFY: the ranking order.** It is pinned by the T6 test, not by the walk; check the order on screen at rehearsal |
 | Tick **Tara Nakamura** (the officer behind the `T. Nakamura` login; the roster also has a **Tara Fontaine**, so check the surname) and a second eligible officer (dev-qa used E-003), then **Offer to selected (2)** | Offers are recorded in-app. Notifications are future work. | VERIFIED (PC-08 frees Tara Nakamura for this shift) |
 | Switch to the window signed in as **T. Nakamura**. On **My schedule**, the offer card for Sat 21 Nov, Unit B, shows what the rules said. Click **Accept** | Employees see only their own hours. | VERIFIED (accept, and the employee-privacy check) |
-| Back as M. Ellis: **Confirm** the accepted offer. On the planning board, Tara Nakamura's row shows `D · extra` on Sat 21 Nov | A supervisor authorises every extra shift (S-04, ADR-019). | VERIFIED, including the `D · extra` chip |
+| Back as M. Ellis: **Confirm** the accepted offer. On the planning board, Tara Nakamura's row shows `D · extra` on Sat 21 Nov | A supervisor authorises every extra shift (S-04, ADR-019). | VERIFIED: offer, accept and confirm; Tara Nakamura has a D8 EXTRA shift on Sat 21 Nov; the board shows the `D · extra` chip |
 
 ## 4. Rules admin (60 s) · E3 (T7 and T10 as tests)
 
@@ -56,14 +58,14 @@ About 25 s of slack is left for transitions.
 |---|---|---|
 | Sign in as **L. Fraser** (Rules admin). Open **Rules → Rest between shifts**. Set **U-03** from **12 h** to **14 h** | A non-technical admin edits a decision table. The sentence below updates: "After a 16-hour shift, an officer must have at least 14 consecutive hours off…" | VERIFIED (E3 runs on the real api) |
 | Click **Build**. The checklist fills in: values checked → compiled by Drools → test scenarios pass → dry-run impact on the published roster. Then **Submit for approval** | It can't go live if any scenario fails. | VERIFIED. Read the real dry-run count off the screen at rehearsal |
-| Sign in as **P. Singh** (Rules approver). The review shows the before/after diff (~~12~~ **14**). Click **Approve**, then **Publish**. The live version goes up by one | Maker/checker: the person who edits can't approve. The API and the database both refuse it. **No code change, no redeploy.** | VERIFIED (approve, publish, version + 1) |
+| Sign in as **P. Singh** (Rules approver). The review shows the before/after diff (~~12~~ **14**). Click **Approve**, then **Publish**. The live version goes from **v1 to v2** (on a fresh stack) | Maker/checker: the person who edits can't approve. The API and the database both refuse it. **No code change, no redeploy.** | VERIFIED: the build reported 6/6, L. Fraser approving their own draft gets 403, P. Singh approves and publishes, `/version` says v2 |
 
 ## 5. Time, payroll and reports (45 s) · T8, PC-05, T9, PC-03
 
 | Do | Say (outline) | Status |
 |---|---|---|
-| As M. Ellis, open **Time & attendance** and choose pay period **26 Oct – 8 Nov** (Locked). Click **Payroll export (CSV)** and open the file | Overtime is classified per pay period. The CSV totals equal the recorded hours, and a golden-file test checks it. The payroll system itself is simulated: the CSV is the handoff. | VERIFIED: the locked period is read-only, the CSV header follows docs/07 §4.5 and every row is in the period; "Unlock…" asks for a reason of ≥ 10 characters. Locking the **open** period also works at the demo clock (the real-clock bug is fixed). Optional, if time allows |
-| Sign in as **A. Reviewer** (Auditor, facility-wide, read-only). Open **Reports → Coverage**, then **Overtime**. On the overrides list, point to **Tue 3 Nov (ended Wed 4 Nov 13:00), 17 h, "Lockdown, relief unavailable"** (PC-03) | **This is the legitimate override.** In a lockdown with no relief, a supervisor kept an officer on for 17 h. U-05 (16 h in 24 h) is a Block whose policy allows an emergency override, so the supervisor gave a written reason, and it is reported and audited. Compare Nia: no override existed. Human judgment stays with people, inside limits the rules set. | VERIFIED: the row shows the reason, rule **U-05**, the officer, **Unit C · Living unit**, the actor (M. Ellis) and the 4 Nov date. Use the auditor: no demo supervisor has Unit C in scope, so a supervisor's report doesn't show it. (An earlier "fields empty" note was a verifier's own tool error, retracted on the raw data.) |
+| As M. Ellis, open **Time & attendance** and choose pay period **26 Oct – 8 Nov** (Locked). Click **Payroll export (CSV)** and open the file | Overtime is classified per pay period. The CSV totals equal the recorded hours, and a golden-file test checks it. The payroll system itself is simulated: the CSV is the handoff. | VERIFIED: the export is 1,010 lines, sha256 `d502848d…d06a`, byte-identical to the golden file. The locked period is read-only, the CSV header follows docs/07 §4.5 and every row is in the period; "Unlock…" asks for a reason of ≥ 10 characters. Locking the **open** period also works at the demo clock (the real-clock bug is fixed). Optional, if time allows |
+| Sign in as **A. Reviewer** (Auditor, facility-wide, read-only). Open **Reports → Coverage**, then **Overtime**. On the overrides list, point to **Tue 3 Nov (ended Wed 4 Nov 13:00), 17 h, "Lockdown, relief unavailable"** (PC-03) | **This is the legitimate override.** In a lockdown with no relief, a supervisor kept an officer on for 17 h. U-05 (16 h in 24 h) is a Block whose policy allows an emergency override, so the supervisor gave a written reason, and it is reported and audited. Compare Nia: no override existed. Human judgment stays with people, inside limits the rules set. | VERIFIED: the auditor's overrides list holds exactly this one row: the reason, rule **U-05**, the officer (Nell Holm), **Unit C · Living unit**, the actor (M. Ellis) and 4 Nov 13:05. Use the auditor: no demo supervisor has Unit C in scope, so a supervisor's report doesn't show it. (An earlier "fields empty" note was a verifier's own tool error, retracted on the raw data.) |
 
 ## 6. Close (20 s)
 
@@ -73,7 +75,7 @@ About 25 s of slack is left for transitions.
 
 **Say, in one line:** "The rules, safeguards, audit and payroll file are real working code; sign-in, the payroll system, the people and the agreement values are simulated."
 
-Optional 10 s shot: sign in as **Unit office TV** for the wall display: counts only, no names, "updated hh:mm" (E5, merged; VERIFIED).
+Optional 10 s shot: sign in as **Unit office TV** for the wall display: counts only, no names, "updated hh:mm" (E5; VERIFIED: zero person names in the final walk; the stale state was re-verified live at the final web head).
 
 **Then say:** "Next steps for a pilot: government single sign-on, validate the MOCK rules with practitioners, restore human review of the rule tests, and run on an approved platform."
 
