@@ -99,7 +99,7 @@ Content-Type: application/problem+json
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
-| GET | `/schedule?unitId=&from=&to=` | **Planning board payload:** days, coverage per block (required / scheduled / actual, each with the lowest hourly count and the short hour ranges, see below), officer rows with assignments, overtime status per officer, warnings | SUPERVISOR, AUDITOR |
+| GET | `/schedule?unitId=&from=&to=` | **Planning board payload:** days, coverage per block (required / scheduled / actual, each with the lowest hourly count and the short hour ranges, see below), officer rows with assignments, overtime status per officer, warnings, `overridesThisPeriod`, `asOf` and `publishedState` (see below) | SUPERVISOR, AUDITOR |
 | GET | `/me/schedule?from=&to=` | My shifts, hours this pay period, overtime this quarter, next shift | EMPLOYEE |
 | POST | `/rule-checks` | Preview any change (§3) | SUPERVISOR; EMPLOYEE for own proposals |
 | POST | `/assignments` | Assign a shift (§3 rules apply) | SUPERVISOR |
@@ -118,6 +118,16 @@ Content-Type: application/problem+json
 ```
 
 `lowestHourly` is the minimum headcount over the block's hours; `shortHours` lists merged hour ranges below `required` (`to` is exclusive); `covered` is true when `shortHours` is empty. `actual` is present for past hours only. The display version has the same shape and still **no names**.
+
+**Board header fields:** three facts on the board are neither per-officer nor per-block, so `GET /schedule` returns them at the top level of the payload:
+
+```json
+{ "asOf": "2026-11-19",
+  "overridesThisPeriod": 1,
+  "publishedState": { "published": true, "unpublishedChanges": 3 } }
+```
+
+`asOf` is the server's "today" (`SC_DEMO_TODAY` on the demo profile), so the board marks the same days the api does instead of guessing from the browser clock. `overridesThisPeriod` counts the emergency overrides recorded in the pay period on the board. `publishedState` says whether the period is published and how many changes are not published yet.
 
 ### 4.3 Overtime
 
