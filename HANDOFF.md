@@ -109,7 +109,7 @@ Each step lists its "done when" check. If time runs short, cut from the bottom o
 - **Integration tests** with Testcontainers PostgreSQL for constraints, triggers, ranking and payroll classification.
 - **Authorization tests**: one per denied or scoped cell of the permission matrix; out-of-scope reads return 404.
 - **Payroll golden file** for the locked period 26 Oct – 8 Nov.
-- **Generator self-check** (no overlaps; no unexplained Block violations; coverage ≥ 97.5% of hour-slots; overtime 3–6% of hours with a realistic skew; reproducible checksum).
+- **Generator self-check** (no overlaps; no unexplained Block violations; coverage ≥ 97.5% of hour-slots; overtime 3–8% of hours with a realistic skew, ADR-020; reproducible checksum).
 - **Playwright E2E** for flows E1–E5 on desktop and tablet viewports, with **axe** accessibility checks and a keyboard-only run of E1 and E3.
 - **Performance smoke** for NFR-05 (planning board < 1 s, rule check < 200 ms, 90-day report < 2 s).
 - **Build record test cases:** use T2 (block), T3 (exact 8 h boundary), T7 (rule change without code), T8 (payroll), T9 (human judgment/override).

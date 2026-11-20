@@ -109,3 +109,19 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Why:** "who may authorize" is a permission, already enforced by role and scope checks (`09-access-control.md` §3) and proven by the authorization tests; a configurable table would let an admin switch off a safeguard (HANDOFF guardrail 3).
 **Consequences:** `05-union-rules.md` §2E and §4 updated; S-04 is tested by the authorization tests (an `EMPLOYEE` creating or confirming an `EXTRA` shift gets `403`) and by checking the audit event, not by the rule boundary matrix.
 
+## ADR-020 — Demo data sizing correction: 2% sick + 2% vacation, overtime band 3–8%
+**Status:** Accepted (2026-11-20, `orch.lead` while the project lead was away; **to be confirmed by the project lead**). Found by the generator build (`docs/ai-dev-log.md` #27).
+**Decision:** the demo generator uses about **2% sick + 2% vacation** (was 4% + 4%), and self-check 4 accepts **3–8% overtime** of worked hours (was 3–6%).
+**Arithmetic (per 2-week pay period, 80 h threshold, ADR-016):**
+- 12 h crews, 60 officers on 2 × 00–12, 2 × 12–24, 4 off. That's 48 h per 8 days, so **84 h** per period, and 4 h of overtime each before any absence is covered: 60 × 4 = **240 h**.
+- 8 h staff, 30 officers on 5 on, 2 off: **80 h**, exactly at the threshold, so every extra shift they take is overtime.
+- 16 h staff, 10 officers on 1 on, 2 off: about **74.7 h**.
+- Worked hours with nobody absent: 60 × 84 + 30 × 80 + 10 × 74.7 ≈ **8,190 h**. Structural overtime alone is 240 / 8,190 ≈ **2.9%**.
+- Absent hours are refilled mostly by extra shifts, and almost everyone available is already at or over 80 h, so nearly every refilled hour is overtime:
+  - 8% absences: up to about 2.9% + 8% ≈ **11%** overtime, so the 3–6% band can't hold.
+  - 4% absences: up to about 2.9% + 4% ≈ **7%**, which fits inside 3–8%.
+
+  These are upper bounds: an absent 12 h officer also loses some of their own structural overtime.
+**Doesn't change:** HANDOFF §4's dataset decisions (100 fictional officers, 90 days 1 Oct – 29 Dec 2026, "today" 19 Nov, seed 20261001), the rotations, the staffing requirements, or the overtime rule. It changes only the absence rates and one self-check threshold.
+**Trade-off:** fewer absences mean fewer coverage gaps to demonstrate. Gap filling, unfilled gaps (self-check 3) and the planted cases are unaffected.
+

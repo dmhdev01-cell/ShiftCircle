@@ -141,7 +141,7 @@ Posts matter to the prototype because they're what **coverage** (required vs. sc
 | Officers | **100**, fictional names, mixed qualifications (control-room, escort/transport, first aid), mock seniority dates |
 | Window | **90 days**: 1 October – 29 December 2026 (one quarter). Days before "today" have actuals; later days are planned only. "Today" can be configured for the demo. |
 | Rotations | About 60 officers on 12-hour rotations (2 × 00:00–12:00, 2 × 12:00–24:00, 4 off), 30 on 8-hour rotations (days / evenings / nights) and 10 on 16-hour shifts (20:00–12:00, 1 on, 2 off). Overtime comes from total hours in the pay period, not from shift length. |
-| Absences | About 8% of shifts become sick or vacation absences in the past portion, which creates the gaps that overtime fills |
+| Absences | About 4% of shifts (2% sick, 2% vacation; was 8%, see ADR-020) become absences in the past portion, which creates the gaps that overtime fills |
 | Coverage sizing | Required staffing is set slightly above what 100 officers can cover once absences are counted, so overtime appears naturally (roughly 24 officers on at any given hour, against ~23 available on average) |
 | Planted cases | A few deliberate edge cases for the demo and tests: a short-rest violation, an exactly-8-hour boundary, a 17-hour emergency override, and an officer running long on consecutive nights |
 | Reproducibility | The generator uses a fixed random seed, so every `docker compose up` produces the same data, and tests can rely on it |
