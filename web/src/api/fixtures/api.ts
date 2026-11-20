@@ -9,17 +9,26 @@
 
 import { ApiError } from '../http';
 import type {
+  MyOffer,
+  MySchedulePayload,
+  OfferRecord,
+  OfferResponse,
+  OpenShift,
+  OpenShiftCandidates,
+  OpenShiftQuery,
   RuleCheckChange,
   RuleCheckOutcome,
   RuleCheckRequest,
   RuleResult,
-  SchedulePayload,
   SaveOutcome,
   SaveRequest,
+  SchedulePayload,
   ScheduleQuery,
   ShiftCircleApi,
 } from '../types';
 import { BLOCKED_BY_RULES, WARNINGS_NEED_ACKNOWLEDGEMENT } from '../types';
+import { demoMyOffers, demoMySchedule } from './mySchedule';
+import { demoCandidates, demoOfferHistory, demoOpenShifts } from './overtime';
 import { demoSchedule, PC01_CHANGE } from './schedule';
 
 const LATENCY_MS = 120;
@@ -176,6 +185,125 @@ export function createFixtureApi(): ShiftCircleApi {
 
       assignmentCounter += 1;
       return { assignmentId: `a-fixture-${assignmentCounter}`, ruleOutcome: outcome };
+    },
+
+    async getOpenShifts(query: OpenShiftQuery): Promise<OpenShift[]> {
+      await wait(LATENCY_MS);
+      const from = query.from ?? '0000-01-01';
+      const to = query.to ?? '9999-12-31';
+      return demoOpenShifts.filter(
+        (shift) =>
+          shift.date >= from &&
+          shift.date <= to &&
+          (!query.unitId || shift.unit.id === query.unitId) &&
+          (!query.status || shift.status === query.status),
+      );
+    },
+
+    async getOpenShiftCandidates(openShiftId: string): Promise<OpenShiftCandidates> {
+      await wait(LATENCY_MS);
+      const openShift = demoOpenShifts.find((shift) => shift.id === openShiftId);
+      if (!openShift) {
+        throw new ApiError('That open shift is not in the fixture.', 404);
+      }
+      return {
+        openShift,
+        candidates: demoCandidates,
+        ruleSetVersion: RULE_SET_VERSION,
+        rankingNote:
+          'Fewest overtime hours this quarter first, then seniority. Officers who would break a Block rule are skipped without losing their place.',
+        history: demoOfferHistory,
+      };
+    },
+
+    async createOffers(openShiftId: string, employeeIds: string[]): Promise<OfferRecord[]> {
+      await wait(LATENCY_MS);
+      const openShift = demoOpenShifts.find((shift) => shift.id === openShiftId);
+      if (!openShift) {
+        throw new ApiError('That open shift is not in the fixture.', 404);
+      }
+      // Only a supervisor may offer overtime (S-04). This is the supervisor's
+      // session, so the offers are recorded.
+      return employeeIds.map((employeeId) => {
+        const candidate = demoCandidates.find((entry) => entry.employeeId === employeeId);
+        return {
+          at: 'now',
+          employeeId,
+          employeeName: candidate?.name ?? employeeId,
+          status: 'OFFERED' as const,
+        };
+      });
+    },
+
+    async confirmOffer(offerId: string): Promise<OfferRecord> {
+      await wait(LATENCY_MS);
+      const offer = demoOfferHistory.find((entry) => entry.employeeId === offerId);
+      if (!offer) {
+        throw new ApiError('That offer is not in the fixture.', 404);
+      }
+      // Only a supervisor confirms an accepted offer (S-04).
+      return { ...offer, status: 'CONFIRMED' };
+    },
+
+    async assignOpenShift(openShiftId: string, employeeId: string): Promise<SaveOutcome> {
+      await wait(LATENCY_MS);
+      if (!demoOpenShifts.some((shift) => shift.id === openShiftId)) {
+        throw new ApiError('That open shift is not in the fixture.', 404);
+      }
+      const candidate = demoCandidates.find((entry) => entry.employeeId === employeeId);
+      if (!candidate) {
+        throw new ApiError('That officer is not in the fixture.', 404);
+      }
+      const outcome: RuleCheckOutcome = {
+        outcome: candidate.eligibility === 'WARN' ? 'WARN' : 'PASS',
+        ruleSetVersion: RULE_SET_VERSION,
+        overridable: true,
+        ruleResults: [],
+        passedRules: 12,
+      };
+      assignmentCounter += 1;
+      return { assignmentId: `a-fixture-${assignmentCounter}`, ruleOutcome: outcome };
+    },
+
+    async getMySchedule(query: ScheduleQuery): Promise<MySchedulePayload> {
+      await wait(LATENCY_MS);
+      const from = query.from ?? '0000-01-01';
+      const to = query.to ?? '9999-12-31';
+      const days = demoMySchedule.days.filter((day) => day >= from && day <= to);
+      return {
+        ...demoMySchedule,
+        days,
+        shifts: demoMySchedule.shifts.filter((shift) => days.includes(shift.date)),
+      };
+    },
+
+    async getMyOffers(): Promise<MyOffer[]> {
+      await wait(LATENCY_MS);
+      return demoMyOffers;
+    },
+
+    async respondToOffer(offerId: string, response: OfferResponse): Promise<MyOffer> {
+      await wait(LATENCY_MS);
+      const offer = demoMyOffers.find((entry) => entry.id === offerId);
+      if (!offer) {
+        throw new ApiError('That offer is not in the fixture.', 404);
+      }
+      // Accepting re-checks the rules; the supervisor confirms afterwards.
+      return {
+        ...offer,
+        status: response === 'ACCEPT' ? 'ACCEPTED' : 'DECLINED',
+      };
+    },
+
+    async submitProposals(
+      note: string,
+      items: RuleCheckChange[],
+    ): Promise<{ id: string; accepted: number }> {
+      await wait(LATENCY_MS);
+      if (note.trim().length === 0) {
+        throw new ApiError('A note to the supervisor is required.', 400);
+      }
+      return { id: `p-fixture-${items.length}`, accepted: items.length };
     },
   };
 }

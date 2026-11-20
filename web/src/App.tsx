@@ -16,6 +16,10 @@ const PlanningPage = lazy(() =>
   import('./planning/PlanningPage').then((module) => ({ default: module.PlanningPage })),
 );
 
+const OvertimePage = lazy(() =>
+  import('./overtime/OvertimePage').then((module) => ({ default: module.OvertimePage })),
+);
+
 function RouteFallback() {
   return (
     <Box sx={{ p: 4, fontSize: 14 }} role="status">
@@ -34,7 +38,7 @@ export function AppRoutes() {
       <Routes>
         <Route path="/" element={<Navigate to="/planning" replace />} />
         <Route path="/planning" element={<PlanningPage />} />
-        <Route path="/overtime" element={<PlaceholderPage title="Overtime" subtitle="Supervisor · Overtime board" />} />
+        <Route path="/overtime" element={<OvertimePage />} />
         <Route
           path="/reports/:tab"
           element={

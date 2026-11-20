@@ -187,6 +187,119 @@ export interface ScheduleQuery {
   to?: string;
 }
 
+// --- Overtime (docs/07-api-spec.md §4.3) ---
+
+export type OpenShiftStatus = 'OPEN' | 'OFFERS_SENT' | 'FILLED';
+
+export interface OpenShift {
+  id: string;
+  date: string;
+  startAt: string;
+  endAt: string;
+  unit: { id: string; name: string };
+  shiftTemplate: string;
+  /** How many officers the shift still needs. */
+  needs: number;
+  status: OpenShiftStatus;
+  /** Why the shift is open, e.g. "Proposed officer blocked (rest)". */
+  reason?: string;
+}
+
+/** How a candidate stands for this shift. */
+export type Eligibility = 'ELIGIBLE' | 'WARN' | 'SKIPPED' | 'UNAVAILABLE';
+
+export interface Candidate {
+  employeeId: string;
+  name: string;
+  qualifications: string[];
+  /** Overtime hours this quarter - the ranking basis (ADR-016). */
+  overtimeHoursThisQuarter: number;
+  /** Seniority date, e.g. "Mar 2014". */
+  seniorityDate: string;
+  eligibility: Eligibility;
+  /**
+   * Why the candidate is eligible, warned, skipped or unavailable. The api
+   * sends it; the screen does not make one up.
+   */
+  reason?: string;
+  ruleResults?: RuleResult[];
+}
+
+export type OfferStatus = 'OFFERED' | 'ACCEPTED' | 'DECLINED' | 'CONFIRMED';
+
+export interface OfferRecord {
+  at: string;
+  employeeId: string;
+  employeeName: string;
+  status: OfferStatus;
+}
+
+export interface OpenShiftCandidates {
+  openShift: OpenShift;
+  /** In the api's ranking order. Officers who are skipped keep their place. */
+  candidates: Candidate[];
+  /** The rule table version the ranking used. */
+  ruleSetVersion: number;
+  /** How the api ranked them, in plain words. */
+  rankingNote?: string;
+  /** The offers already recorded for this shift. */
+  history: OfferRecord[];
+}
+
+// --- My schedule (docs/07-api-spec.md §4.2, §4.3) ---
+
+export interface MyNextShift {
+  date: string;
+  startAt: string;
+  endAt: string;
+  shiftTemplate: string;
+  unit: { id: string; name: string };
+}
+
+export interface MySchedulePayload {
+  employee: {
+    id: string;
+    name: string;
+    role: string;
+    unit: { id: string; name: string };
+    rotation: string;
+    qualifications: string[];
+  };
+  nextShift?: MyNextShift;
+  /** Hours in the pay period, and what is still scheduled. */
+  payPeriod: {
+    label: string;
+    workedHours: number;
+    scheduledHours: number;
+    totalHours: number;
+    thresholdHours: number;
+  };
+  overtimeThisQuarter: {
+    hours: number;
+    /** The officer's place on the overtime list. */
+    rank: number;
+    of: number;
+  };
+  /** The officer's own shifts in the range. */
+  days: string[];
+  shifts: DayCell[];
+}
+
+/** An overtime offer to the signed-in officer. */
+export interface MyOffer {
+  id: string;
+  openShift: OpenShift;
+  /** Who offered it and when. */
+  offeredBy: string;
+  offeredAt: string;
+  /** The api's rule result for this officer and this shift. */
+  eligibility: Eligibility;
+  reason?: string;
+  status: OfferStatus;
+}
+
+export type OfferResponse = 'ACCEPT' | 'DECLINE';
+
 // --- The client the screens use ---
 
 /** A change to save. The api runs the rules before it accepts the change. */
@@ -214,4 +327,24 @@ export interface ShiftCircleApi {
   getSchedule(query: ScheduleQuery): Promise<SchedulePayload>;
   previewRuleCheck(request: RuleCheckRequest): Promise<RuleCheckOutcome>;
   saveChange(request: SaveRequest): Promise<SaveOutcome>;
+
+  // Overtime.
+  getOpenShifts(query: OpenShiftQuery): Promise<OpenShift[]>;
+  getOpenShiftCandidates(openShiftId: string): Promise<OpenShiftCandidates>;
+  createOffers(openShiftId: string, employeeIds: string[]): Promise<OfferRecord[]>;
+  confirmOffer(offerId: string): Promise<OfferRecord>;
+  assignOpenShift(openShiftId: string, employeeId: string): Promise<SaveOutcome>;
+
+  // My schedule.
+  getMySchedule(query: ScheduleQuery): Promise<MySchedulePayload>;
+  getMyOffers(): Promise<MyOffer[]>;
+  respondToOffer(offerId: string, response: OfferResponse): Promise<MyOffer>;
+  submitProposals(note: string, items: RuleCheckChange[]): Promise<{ id: string; accepted: number }>;
+}
+
+export interface OpenShiftQuery {
+  unitId?: string;
+  from?: string;
+  to?: string;
+  status?: OpenShiftStatus;
 }

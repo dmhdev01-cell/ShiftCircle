@@ -1,10 +1,18 @@
 import type {
+  MyOffer,
+  MySchedulePayload,
+  OfferRecord,
+  OfferResponse,
+  OpenShift,
+  OpenShiftCandidates,
+  OpenShiftQuery,
   ProblemDetails,
+  RuleCheckChange,
   RuleCheckOutcome,
   RuleCheckRequest,
-  SchedulePayload,
   SaveOutcome,
   SaveRequest,
+  SchedulePayload,
   ScheduleQuery,
   ShiftCircleApi,
 } from './types';
@@ -78,11 +86,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-function queryString(query: ScheduleQuery): string {
+function queryString(query: {
+  unitId?: string;
+  from?: string;
+  to?: string;
+  status?: string;
+}): string {
   const params = new URLSearchParams();
-  if (query.unitId) params.set('unitId', query.unitId);
-  if (query.from) params.set('from', query.from);
-  if (query.to) params.set('to', query.to);
+  for (const [key, value] of Object.entries(query)) {
+    if (value) params.set(key, value);
+  }
   const asString = params.toString();
   return asString ? `?${asString}` : '';
 }
@@ -124,6 +137,56 @@ export function createHttpApi(): ShiftCircleApi {
       return request<SaveOutcome>('/assignments', {
         method: 'POST',
         body,
+      });
+    },
+
+    getOpenShifts(query: OpenShiftQuery): Promise<OpenShift[]> {
+      return request<OpenShift[]>(`/open-shifts${queryString(query)}`);
+    },
+
+    getOpenShiftCandidates(openShiftId: string): Promise<OpenShiftCandidates> {
+      return request<OpenShiftCandidates>(`/open-shifts/${openShiftId}/candidates`);
+    },
+
+    createOffers(openShiftId: string, employeeIds: string[]): Promise<OfferRecord[]> {
+      return request<OfferRecord[]>(`/open-shifts/${openShiftId}/offers`, {
+        method: 'POST',
+        body: JSON.stringify({ employeeIds, ordered: false }),
+      });
+    },
+
+    confirmOffer(offerId: string): Promise<OfferRecord> {
+      return request<OfferRecord>(`/offers/${offerId}/confirm`, { method: 'POST' });
+    },
+
+    assignOpenShift(openShiftId: string, employeeId: string): Promise<SaveOutcome> {
+      return request<SaveOutcome>(`/open-shifts/${openShiftId}/assign`, {
+        method: 'POST',
+        body: JSON.stringify({ employeeId }),
+      });
+    },
+
+    getMySchedule(query: ScheduleQuery): Promise<MySchedulePayload> {
+      return request<MySchedulePayload>(`/me/schedule${queryString(query)}`);
+    },
+
+    getMyOffers(): Promise<MyOffer[]> {
+      return request<MyOffer[]>('/me/offers?status=OFFERED');
+    },
+
+    respondToOffer(offerId: string, response: OfferResponse): Promise<MyOffer> {
+      return request<MyOffer>(`/offers/${offerId}/${response.toLowerCase()}`, {
+        method: 'POST',
+      });
+    },
+
+    submitProposals(
+      note: string,
+      items: RuleCheckChange[],
+    ): Promise<{ id: string; accepted: number }> {
+      return request<{ id: string; accepted: number }>('/proposals', {
+        method: 'POST',
+        body: JSON.stringify({ note, items }),
       });
     },
   };

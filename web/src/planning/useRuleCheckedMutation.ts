@@ -1,7 +1,17 @@
 import { useCallback, useState } from 'react';
 
 import { api, ApiError } from '../api/client';
-import type { ProblemDetails, RuleCheckChange, RuleCheckOutcome } from '../api/types';
+import type {
+  ProblemDetails,
+  RuleCheckChange,
+  RuleCheckOutcome,
+  SaveOutcome,
+} from '../api/types';
+
+export interface SaveOptions {
+  acknowledgeWarnings?: string[];
+  override?: { reason: string };
+}
 
 export interface RuleCheckedState {
   kind: 'idle' | 'checking' | 'ready' | 'saved' | 'error';
@@ -39,6 +49,17 @@ function messageOf(error: unknown): string {
  * ever auto-approved: a Warn result has to be acknowledged and a Block result
  * has to be overridden with a written reason.
  */
+/** The default way to save a change: POST the change to the api. */
+const defaultSaver = (
+  change: RuleCheckChange,
+  options?: SaveOptions,
+): Promise<SaveOutcome> =>
+  api.saveChange({
+    change,
+    ...(options?.acknowledgeWarnings ? { acknowledgeWarnings: options.acknowledgeWarnings } : {}),
+    ...(options?.override ? { override: options.override } : {}),
+  });
+
 export function useRuleCheckedMutation() {
   const [state, setState] = useState<RuleCheckedState>({ kind: 'idle', acknowledged: [] });
 
@@ -64,13 +85,18 @@ export function useRuleCheckedMutation() {
   const save = useCallback(
     async (
       change: RuleCheckChange,
-      options?: { acknowledgeWarnings?: string[]; override?: { reason: string } },
+      options?: SaveOptions,
+      /**
+       * A different way to save the same change, for example assigning an
+       * open shift instead of creating an assignment.
+       */
+      saver?: (change: RuleCheckChange, options?: SaveOptions) => Promise<SaveOutcome>,
     ) => {
       const acknowledged = options?.acknowledgeWarnings ?? [];
       setState((previous) => ({ ...previous, kind: 'checking' }));
       try {
-        const result = await api.saveChange({
-          change,
+        const save = saver ?? defaultSaver;
+        const result = await save(change, {
           ...(options?.acknowledgeWarnings ? { acknowledgeWarnings: options.acknowledgeWarnings } : {}),
           ...(options?.override ? { override: options.override } : {}),
         });
