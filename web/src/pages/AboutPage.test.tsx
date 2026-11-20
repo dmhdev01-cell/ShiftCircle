@@ -71,7 +71,9 @@ describe('About page', () => {
     renderAbout();
 
     expect(await screen.findByText(/Could not read the build information/)).toBeInTheDocument();
-    expect(screen.getByText('Failed to fetch')).toBeInTheDocument();
+    // The browser's own words are not shown; the sentence says what to do.
+    expect(screen.getByText(/Could not reach the API/)).toBeInTheDocument();
+    expect(screen.queryByText('Failed to fetch')).not.toBeInTheDocument();
   });
 
   it('shows the raw response when the api answers with an unexpected shape', async () => {

@@ -42,6 +42,12 @@ import { toDisplayToday } from '../display/displayPayload';
 
 export const API_BASE = '/api/v1';
 
+/**
+ * The sentence a screen shows when the browser could not reach the api at all.
+ * fetch's own message ("Failed to fetch") is about the browser, not the work.
+ */
+export const UNREACHABLE_MESSAGE = 'Could not reach the API. Check the connection and try again.';
+
 /** An api answer that was not a success. Carries the Problem Details body. */
 export class ApiError extends Error {
   readonly status: number;
@@ -88,11 +94,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
         ...init?.headers,
       },
     });
-  } catch (cause) {
-    throw new ApiError(
-      cause instanceof Error ? cause.message : 'Could not reach the API.',
-      0,
-    );
+  } catch {
+    // The browser's own words ("Failed to fetch") are not an answer a
+    // supervisor can act on.
+    throw new ApiError(UNREACHABLE_MESSAGE, 0);
   }
 
   if (!response.ok) {
@@ -125,11 +130,10 @@ async function requestCsv(path: string): Promise<{ fileName: string; content: st
         ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
       },
     });
-  } catch (cause) {
-    throw new ApiError(
-      cause instanceof Error ? cause.message : 'Could not reach the API.',
-      0,
-    );
+  } catch {
+    // The browser's own words ("Failed to fetch") are not an answer a
+    // supervisor can act on.
+    throw new ApiError(UNREACHABLE_MESSAGE, 0);
   }
 
   if (!response.ok) {

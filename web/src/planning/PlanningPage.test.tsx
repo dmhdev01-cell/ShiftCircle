@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
-import { api } from '../api/client';
+import { api, ApiError } from '../api/client';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
@@ -191,6 +191,22 @@ describe('the planning board', () => {
 
     // The first read is the board itself; the save must ask for a second one.
     await waitFor(() => expect(schedule.mock.calls.length).toBeGreaterThanOrEqual(2));
+  });
+
+  it('shows a plain sentence when the api cannot be reached', async () => {
+    // Cosmetic: the board used to repeat the browser's raw "Failed to fetch".
+    // The client maps that to this sentence (api/http.test.ts pins it).
+    const spy = vi
+      .spyOn(api, 'getSchedule')
+      .mockRejectedValue(new ApiError('Could not reach the API. Check the connection and try again.', 0));
+
+    renderBoard();
+
+    expect(await screen.findByText('Could not load the schedule')).toBeInTheDocument();
+    expect(screen.getByText(/Could not reach the API/)).toBeInTheDocument();
+    expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    spy.mockRestore();
   });
 
   it('offers the supervisor the publish action for the roster week', async () => {

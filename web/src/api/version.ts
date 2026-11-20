@@ -84,10 +84,9 @@ export async function fetchVersion(signal?: AbortSignal): Promise<VersionInfo> {
       headers: { Accept: 'application/json' },
       signal,
     });
-  } catch (cause) {
-    throw new VersionError(
-      cause instanceof Error ? cause.message : 'Could not reach the API.',
-    );
+  } catch {
+    // Not the browser's "Failed to fetch": say what the person can do.
+    throw new VersionError('Could not reach the API. Check the connection and try again.');
   }
 
   if (!response.ok) {
