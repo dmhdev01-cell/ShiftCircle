@@ -25,7 +25,7 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 | View unit roster (names and shifts) | own unit, shifts only | scope | — | — | ✓ | — |
 | View others' hours, absences, overtime totals | — | scope | — | — | ✓ | — |
 | Absence **type** (sick/vacation) for others | — | scope | — | — | ✓ | — |
-| Assign, move or cancel shifts | — | scope | — | — | — | — |
+| Assign, move or cancel shifts | — | scope (the target unit; the officer may come from any unit: cross-unit cover, ADR-024) | — | — | — | — |
 | Emergency override of a Block rule whose policy allows one (U-01, U-03, U-05; ADR-023) | — | scope (reason required) | — | — | — | — |
 | Publish a schedule period | — | scope | — | — | — | — |
 | Create open shifts, send offers, assign overtime | — | scope | — | — | — | — |
@@ -49,7 +49,7 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 |---|---|
 | UI | Menu items and buttons are shown by role. A convenience only, never the control. |
 | API (role) | Spring Security method security: `@PreAuthorize("hasRole('SUPERVISOR')")` on each use case |
-| API (scope) | A `ScopeGuard` checks the target unit, or the target employee's unit, against the caller's `user_unit_scope`. Out-of-scope IDs return `404`, so they don't reveal what exists. "Own" checks compare against the caller's linked `employee_id`. |
+| API (scope) | A `ScopeGuard` checks the target unit against the caller's `user_unit_scope`. For an employee's own request it also checks the caller's linked officer. **Cross-unit cover (ADR-024):** a supervisor may assign an officer from **any** unit into a unit in their own scope. The rule preview then shows that officer's rest and hours conflicts, which the supervisor needs in order to decide. A supervisor can't assign **into** a unit outside their scope, and can't read an officer's data outside their scope except through that preview. Out-of-scope IDs return `404`, so they don't reveal what exists. "Own" checks compare against the caller's linked `employee_id`. |
 | Data queries | Repository methods for lists take the caller's scope as a parameter (no unfiltered list queries in controllers) |
 | Database | Triggers refuse `UPDATE`, `DELETE` and `TRUNCATE` on `audit_event` (role grants deferred to a pilot, ADR-018); `CHECK (approved_by <> created_by)` on rule versions; a trigger blocks changes to time entries in locked pay periods |
 | Tests | One automated authorization test per matrix cell that says "—" or "scope", against real HTTP endpoints |

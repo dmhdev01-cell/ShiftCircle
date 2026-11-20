@@ -153,3 +153,15 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Trade-off (stated plainly):** a real lockdown that needs a 61st hour in a week, or an 8th consecutive day, can't be saved without a rules change. The answer today is to change the rule through maker/checker. That is slower than an emergency override, but fully audited.
 **Consequences:** `05-union-rules.md` §2 (legend, U-06, U-08, U-09, U-14), §3 notes and the §5 example; `10-testing.md` §1 and the U-14 boundary row; `09-access-control.md` §2 override row; `02-requirements.md` FR-23. The demo shows PC-01 as the Block with no way around it, and PC-03 (U-05, a lockdown) as the legitimate override.
 
+## ADR-024: Cross-unit cover. A supervisor may assign an officer from any unit into a unit they run
+**Status:** Accepted (2026-11-20, `orch.lead` while the project lead was away, from review-r3's authorization pass). **TO BE CONFIRMED BY THE PERSON.**
+**Context:** `docs/09` §3 said the scope guard checks "the target unit, or the target employee's unit". The code checks the **target unit only** for a supervisor (`AssignmentService.preview` and `assign` call `ScopeGuard.requireUnit` on the shift's unit). So a supervisor can preview and save a shift for an officer whose home unit is outside their scope, as long as the shift is in a unit they run.
+**Decision:** keep the code. This is cross-unit cover: an officer from another unit works an extra or covering shift in a unit the supervisor runs, which a 24/7 centre needs when relief is short. A supervisor:
+- **may** assign an officer from any unit into a unit in their own scope;
+- **sees** that officer's rest and hours conflicts in the rule preview, because the decision needs them;
+- **can't** assign into a unit outside their scope (`404`);
+- **can't** read an officer's data outside their scope except through that preview.
+**Trade-off (stated plainly):** the preview reveals one officer's rule results, such as rest gaps, hours in 24 h and weekly hours, to a supervisor of another unit. It shows nothing else about that officer.
+**Pilot:** allow cross-unit cover only for officers whom their home unit has explicitly shared (a cover pool), or ask the home unit's supervisor to approve, and review it under FOIP.
+**Consequences:** `09-access-control.md` §2 (assign row) and §3 (API scope); `07-api-spec.md` §4.2 Roles.
+
