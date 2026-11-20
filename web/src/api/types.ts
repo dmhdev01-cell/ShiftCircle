@@ -461,6 +461,68 @@ export interface OverrideRow {
   ruleCode?: string;
 }
 
+// --- Rules administration (docs/07-api-spec.md §4.7) ---
+
+export type RuleSetStatus = 'LIVE' | 'DRAFT' | 'SUBMITTED' | 'PUBLISHED' | 'REJECTED';
+
+export interface RuleSetVersion {
+  version: number;
+  status: RuleSetStatus;
+  /** True for the version the rules engine is running. */
+  live: boolean;
+  createdBy?: string;
+  createdAt?: string;
+  reason?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  publishedAt?: string;
+}
+
+export type RuleResultChoice = 'BLOCK' | 'WARN' | 'INFO';
+export type OverrideChoice = 'EMERGENCY' | 'NOT_ALLOWED' | 'ACKNOWLEDGE';
+
+/** One row of a decision table: one rule. */
+export interface RuleTableRow {
+  ruleCode: string;
+  enabled: boolean;
+  /** The shift kind the rule applies after. */
+  after: string;
+  /** The hours the rule needs. */
+  minHours: number;
+  result: RuleResultChoice;
+  override: OverrideChoice;
+  source: string;
+  /** The floor the value cannot go below, e.g. the legal minimum. */
+  min?: number;
+  /** The plain-language sentence for the row. */
+  sentence: string;
+}
+
+export interface RuleTable {
+  code: string;
+  name: string;
+  /** The plain-language column headings. */
+  columns: { after: string; hours: string; result: string; override: string };
+  rows: RuleTableRow[];
+  /** How many rows changed in the draft. */
+  changed: number;
+}
+
+/** One step of the publish checklist. */
+export interface BuildStep {
+  key: string;
+  title: string;
+  detail: string;
+  done: boolean;
+  /** The impact on the published roster, as counts without names (ADR-017). */
+  impact?: { ruleCode: string; unit: string; from: string; to: string; count: number }[];
+}
+
+export interface BuildReport {
+  steps: BuildStep[];
+  scenarios: { total: number; passed: number };
+}
+
 // --- The client the screens use ---
 
 /** A change to save. The api runs the rules before it accepts the change. */
@@ -501,6 +563,15 @@ export interface ShiftCircleApi {
   getMyOffers(): Promise<MyOffer[]>;
   respondToOffer(offerId: string, response: OfferResponse): Promise<MyOffer>;
   submitProposals(note: string, items: RuleCheckChange[]): Promise<{ id: string; accepted: number }>;
+
+  // Rules administration.
+  getRuleSets(): Promise<RuleSetVersion[]>;
+  getRuleTable(version: number, code: string): Promise<RuleTable>;
+  saveRuleRows(version: number, code: string, rows: RuleTableRow[]): Promise<RuleTable>;
+  buildRuleSet(version: number): Promise<BuildReport>;
+  submitRuleSet(version: number): Promise<RuleSetVersion>;
+  approveRuleSet(version: number): Promise<RuleSetVersion>;
+  publishRuleSet(version: number, effectiveDate: string): Promise<RuleSetVersion>;
 
   // Reports.
   getCoverageReport(query: ReportQuery): Promise<CoverageReport>;

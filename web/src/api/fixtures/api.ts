@@ -9,6 +9,7 @@
 
 import { ApiError } from '../http';
 import type {
+  BuildReport,
   CoverageReport,
   HoursReport,
   MyOffer,
@@ -28,6 +29,9 @@ import type {
   RuleCheckOutcome,
   RuleCheckRequest,
   RuleResult,
+  RuleSetVersion,
+  RuleTable,
+  RuleTableRow,
   SaveOutcome,
   SaveRequest,
   SchedulePayload,
@@ -47,6 +51,7 @@ import {
   demoOvertimeReport,
   demoOverrides,
 } from './reports';
+import { demoBuildReport, demoRuleSets, demoRuleTables } from './rules';
 import { demoSchedule, PC01_CHANGE } from './schedule';
 import { demoPayPeriods, demoTimeEntries } from './timeAttendance';
 
@@ -359,6 +364,76 @@ export function createFixtureApi(): ShiftCircleApi {
         throw new ApiError('A note to the supervisor is required.', 400);
       }
       return { id: `p-fixture-${items.length}`, accepted: items.length };
+    },
+
+    async getRuleSets(): Promise<RuleSetVersion[]> {
+      await wait(LATENCY_MS);
+      return demoRuleSets;
+    },
+
+    async getRuleTable(_version: number, code: string): Promise<RuleTable> {
+      await wait(LATENCY_MS);
+      const table = demoRuleTables.find((entry) => entry.code === code);
+      if (!table) {
+        throw new ApiError('That rule table is not in the fixture.', 404);
+      }
+      return table;
+    },
+
+    async saveRuleRows(_version: number, code: string, rows: RuleTableRow[]): Promise<RuleTable> {
+      await wait(LATENCY_MS);
+      const table = demoRuleTables.find((entry) => entry.code === code);
+      if (!table) {
+        throw new ApiError('That rule table is not in the fixture.', 404);
+      }
+      table.rows = rows;
+      table.changed = rows.filter((row) => row.enabled).length;
+      return table;
+    },
+
+    async buildRuleSet(_version?: number): Promise<BuildReport> {
+      await wait(LATENCY_MS);
+      return demoBuildReport;
+    },
+
+    async submitRuleSet(version: number): Promise<RuleSetVersion> {
+      await wait(LATENCY_MS);
+      const ruleSet = demoRuleSets.find((entry) => entry.version === version);
+      if (!ruleSet) {
+        throw new ApiError('That rule set is not in the fixture.', 404);
+      }
+      ruleSet.status = 'SUBMITTED';
+      return ruleSet;
+    },
+
+    async approveRuleSet(version: number): Promise<RuleSetVersion> {
+      await wait(LATENCY_MS);
+      const ruleSet = demoRuleSets.find((entry) => entry.version === version);
+      if (!ruleSet) {
+        throw new ApiError('That rule set is not in the fixture.', 404);
+      }
+      // The person who edited the change cannot approve it.
+      if (ruleSet.createdBy === 'L. Fraser') {
+        throw new ApiError('You created this version. Another approver must review it.', 403);
+      }
+      ruleSet.status = 'PUBLISHED';
+      ruleSet.approvedBy = 'P. Singh';
+      ruleSet.approvedAt = 'now';
+      return ruleSet;
+    },
+
+    async publishRuleSet(version: number, effectiveDate: string): Promise<RuleSetVersion> {
+      await wait(LATENCY_MS);
+      const ruleSet = demoRuleSets.find((entry) => entry.version === version);
+      if (!ruleSet) {
+        throw new ApiError('That rule set is not in the fixture.', 404);
+      }
+      ruleSet.status = 'PUBLISHED';
+      ruleSet.publishedAt = effectiveDate;
+      demoRuleSets.forEach((entry) => {
+        entry.live = entry.version === version;
+      });
+      return ruleSet;
     },
 
     async getCoverageReport(): Promise<CoverageReport> {

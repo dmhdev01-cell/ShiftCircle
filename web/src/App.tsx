@@ -24,6 +24,10 @@ const MySchedulePage = lazy(() =>
   import('./myschedule/MySchedulePage').then((module) => ({ default: module.MySchedulePage })),
 );
 
+const RulesPage = lazy(() =>
+  import('./rules/RulesPage').then((module) => ({ default: module.RulesPage })),
+);
+
 const ReportsPage = lazy(() =>
   import('./reports/ReportsPage').then((module) => ({ default: module.ReportsPage })),
 );
@@ -54,16 +58,7 @@ export function AppRoutes() {
         <Route path="/planning" element={<PlanningPage />} />
         <Route path="/overtime" element={<OvertimePage />} />
         <Route path="/reports/:tab" element={<ReportsPage />} />
-        <Route
-          path="/rules/:version/shift-types"
-          element={
-            <PlaceholderPage
-              title="Shift types"
-              subtitle="Rules admin · Shift templates"
-              planned="A grid of shift templates (code, label, start, length, regular or overtime-only, chip style, active, effective date), edited in a rule-set draft and published through the build, approve and publish flow (ADR-015)."
-            />
-          }
-        />
+        <Route path="/rules/:version/shift-types" element={<RulesPage />} />
         <Route
           path="/rules/:version/review"
           element={
@@ -74,16 +69,7 @@ export function AppRoutes() {
             />
           }
         />
-        <Route
-          path="/rules/:version/:table"
-          element={
-            <PlaceholderPage
-              title="Rules"
-              subtitle="Rules admin · Decision table"
-              planned="The decision-table grid, the plain-language preview panel, the publish checklist and the version history."
-            />
-          }
-        />
+        <Route path="/rules/:version/:table" element={<RulesPage />} />
         <Route
           path="/display"
           element={

@@ -17,8 +17,12 @@ import type {
   ProblemDetails,
   RuleCheckChange,
   RuleCheckOutcome,
+  BuildReport,
   ReportQuery,
   RuleCheckRequest,
+  RuleSetVersion,
+  RuleTable,
+  RuleTableRow,
   SaveOutcome,
   SaveRequest,
   SchedulePayload,
@@ -223,6 +227,40 @@ export function createHttpApi(): ShiftCircleApi {
       return request<{ id: string; accepted: number }>('/proposals', {
         method: 'POST',
         body: JSON.stringify({ note, items }),
+      });
+    },
+
+    getRuleSets(): Promise<RuleSetVersion[]> {
+      return request<RuleSetVersion[]>('/rule-sets');
+    },
+
+    getRuleTable(version: number, code: string): Promise<RuleTable> {
+      return request<RuleTable>(`/rule-sets/${version}/tables/${code}`);
+    },
+
+    saveRuleRows(version: number, code: string, rows: RuleTableRow[]): Promise<RuleTable> {
+      return request<RuleTable>(`/rule-sets/${version}/tables/${code}/rows`, {
+        method: 'PUT',
+        body: JSON.stringify({ rows }),
+      });
+    },
+
+    buildRuleSet(version: number): Promise<BuildReport> {
+      return request<BuildReport>(`/rule-sets/${version}/build`, { method: 'POST' });
+    },
+
+    submitRuleSet(version: number): Promise<RuleSetVersion> {
+      return request<RuleSetVersion>(`/rule-sets/${version}/submit`, { method: 'POST' });
+    },
+
+    approveRuleSet(version: number): Promise<RuleSetVersion> {
+      return request<RuleSetVersion>(`/rule-sets/${version}/approve`, { method: 'POST' });
+    },
+
+    publishRuleSet(version: number, effectiveDate: string): Promise<RuleSetVersion> {
+      return request<RuleSetVersion>(`/rule-sets/${version}/publish`, {
+        method: 'POST',
+        body: JSON.stringify({ effectiveDate }),
       });
     },
 

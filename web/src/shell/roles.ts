@@ -6,7 +6,7 @@
  * sign-in picker undesigned and the prototype deliberately has no runtime AI.
  */
 
-export type Role = 'SUPERVISOR' | 'EMPLOYEE' | 'RULES_ADMIN';
+export type Role = 'SUPERVISOR' | 'EMPLOYEE' | 'RULES_ADMIN' | 'RULES_APPROVER';
 
 export interface NavItem {
   label: string;
@@ -57,6 +57,15 @@ export const roles: RoleDescriptor[] = [
     nav: [
       { label: 'Rules', to: '/rules/7/rest-between-shifts' },
       { label: 'Shift types', to: '/rules/7/shift-types', muted: true },
+      { label: 'Rule version review', to: '/rules/7/review', muted: true },
+    ],
+  },
+  {
+    id: 'RULES_APPROVER',
+    label: 'Rules approver',
+    user: 'P. Singh',
+    nav: [
+      { label: 'Rules', to: '/rules/7/rest-between-shifts' },
       { label: 'Rule version review', to: '/rules/7/review', muted: true },
     ],
   },
