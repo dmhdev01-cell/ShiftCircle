@@ -114,6 +114,7 @@ export function AppRoutes() {
             <PlaceholderPage
               title="Page not found"
               subtitle="That route is not part of the prototype."
+              builtLater={false}
             />
           }
         />

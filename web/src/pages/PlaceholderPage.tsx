@@ -11,13 +11,18 @@ interface PlaceholderPageProps {
   subtitle?: string;
   /** What this screen will show once it is built. */
   planned?: ReactNode;
+  /**
+   * False for a route that is not part of the prototype at all: there is no
+   * "not built yet" promise to make, only a 404 (V10).
+   */
+  builtLater?: boolean;
 }
 
 /**
  * Placeholder for a screen that the UI spec designs but this scaffold does
  * not build yet. It states what is planned instead of showing an empty page.
  */
-export function PlaceholderPage({ title, subtitle, planned }: PlaceholderPageProps) {
+export function PlaceholderPage({ title, subtitle, planned, builtLater = true }: PlaceholderPageProps) {
   return (
     <>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -27,18 +32,20 @@ export function PlaceholderPage({ title, subtitle, planned }: PlaceholderPagePro
         ) : null}
       </Box>
 
-      <Card>
-        <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: 15 }}>Not built yet</Typography>
-          <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
-            This screen is part of the ShiftCircle scope but is not implemented in the scaffold. The
-            app shell, navigation, theme and footer are in place.
-          </Typography>
-          {planned ? (
-            <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>{planned}</Typography>
-          ) : null}
-        </CardContent>
-      </Card>
+      {builtLater ? (
+        <Card>
+          <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Typography sx={{ fontWeight: 600, fontSize: 15 }}>Not built yet</Typography>
+            <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
+              This screen is part of the ShiftCircle scope but is not implemented in the scaffold. The
+              app shell, navigation, theme and footer are in place.
+            </Typography>
+            {planned ? (
+              <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>{planned}</Typography>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
     </>
   );
 }

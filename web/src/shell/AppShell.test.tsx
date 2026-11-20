@@ -128,6 +128,16 @@ describe('AppShell', () => {
     },
   );
 
+  it('shows only the 404 text on a route that is not part of the prototype', async () => {
+    // V10: the page said "Page not found" and then offered a "Not built yet"
+    // card promising the screen would come.
+    renderShell('/no-such-page');
+
+    expect(await screen.findByRole('heading', { name: 'Page not found', level: 1 })).toBeInTheDocument();
+    expect(screen.getByText('That route is not part of the prototype.')).toBeInTheDocument();
+    expect(screen.queryByText('Not built yet')).not.toBeInTheDocument();
+  });
+
   it('shows no role chip on the sign-in screen (build notes 2.1)', () => {
     renderShell('/login');
 
