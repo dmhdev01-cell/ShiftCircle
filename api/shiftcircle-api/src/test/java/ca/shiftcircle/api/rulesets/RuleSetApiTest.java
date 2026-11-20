@@ -465,6 +465,62 @@ class RuleSetApiTest {
     assertThat(audits).as("the losing approval must not write a second audit row").isEqualTo(1);
   }
 
+  @Test
+  @Order(8)
+  void aHostileShiftKindIsRefusedBeforeCompile() throws Exception {
+    int draft = createDraft(publishedVersion(), "S1: a hostile shift-kind regex");
+    Map<String, Object> rest = table(draft, "REST");
+    Map<String, Object> u01 =
+        ((List<Map<String, Object>>) rest.get("rows")).stream()
+            .filter(row -> "U-01".equals(row.get("ruleCode")))
+            .findFirst()
+            .orElseThrow();
+    // The screen sends the friendly label; a crafted request omits it so params is authoritative.
+    u01.put("after", null);
+    setParam(rest, "U-01", "afterShiftKind", ".*\"); System.setProperty(\"sc.pwn\", \"1\"); //");
+    saveRows(draft, "REST", rest);
+
+    Map<String, Object> report = build(draft);
+    List<Map<String, Object>> steps = (List<Map<String, Object>>) report.get("steps");
+    assertThat(steps)
+        .as("validation refuses the value and the compile step never runs")
+        .extracting(step -> step.get("key"))
+        .contains("validation")
+        .doesNotContain("compile");
+    assertThat(steps.get(0).get("done")).isEqualTo(false);
+    assertThat(report.get("errors").toString()).contains("shift codes");
+    assertThat(System.getProperty("sc.pwn")).as("no injected code ran at build time").isNull();
+
+    assertThat(send("POST", "/api/v1/rule-sets/" + draft + "/submit", null, "l.fraser").statusCode())
+        .as("a failed build cannot be submitted")
+        .isEqualTo(409);
+  }
+
+  @Test
+  @Order(9)
+  void aHostileRuleCodeIsRefusedBeforeCompile() throws Exception {
+    int draft = createDraft(publishedVersion(), "S1: a hostile rule code");
+    Map<String, Object> rest = table(draft, "REST");
+    List<Map<String, Object>> rows = (List<Map<String, Object>>) rest.get("rows");
+    Map<String, Object> renamed =
+        rows.stream()
+            .filter(row -> "U-01".equals(row.get("ruleCode")))
+            .findFirst()
+            .orElseThrow();
+    // Rename the rule: the code becomes the DRL rule name and, for a new row, its message.
+    renamed.put("ruleCode", "X\"); System.setProperty(\"sc.pwn2\", \"1\"); //");
+    String body = mapper.writeValueAsString(Map.of("rows", rows));
+    HttpResponse<String> saved =
+        send("PUT", "/api/v1/rule-sets/" + draft + "/tables/REST/rows", body, "l.fraser");
+    assertThat(saved.statusCode()).withFailMessage(saved.body() + "\nBODY=" + body).isEqualTo(200);
+
+    Map<String, Object> report = build(draft);
+    List<Map<String, Object>> steps = (List<Map<String, Object>>) report.get("steps");
+    assertThat(steps).extracting(step -> step.get("key")).doesNotContain("compile");
+    assertThat(report.get("errors").toString()).contains("Rule code");
+    assertThat(System.getProperty("sc.pwn2")).as("no injected code ran at build time").isNull();
+  }
+
   private Integer publishedVersion() {
     return jdbc.queryForObject(
         "SELECT max(version) FROM rule_set_version WHERE status = 'PUBLISHED'", Integer.class);

@@ -35,6 +35,8 @@ import java.util.UUID;
 import org.kie.api.KieBase;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -52,6 +54,10 @@ import tools.jackson.databind.ObjectMapper;
  */
 @Service
 public class RuleSetService {
+
+  private static final Logger log = LoggerFactory.getLogger(RuleSetService.class);
+  private static final String COMPILE_FAILED =
+      "The rules did not compile. Fix the values in the table and build again.";
 
   private static final ZoneId REGINA = ZoneId.of("America/Regina");
 
@@ -318,10 +324,13 @@ public class RuleSetService {
               "compile", "Compile the decision tables", "The staging rule base compiled.", true,
               List.of()));
     } catch (RuleCompilationException e) {
-      errors.add(e.getMessage());
+      // The compiler message names generated classes and source positions: a compile oracle.
+      // Keep the detail in the server log and give the admin a plain refusal (review-r2 S1).
+      log.warn("rule set v{} did not compile", version, e);
+      errors.add(COMPILE_FAILED);
       steps.add(
           new BuildStepView(
-              "compile", "Compile the decision tables", e.getMessage(), false, List.of()));
+              "compile", "Compile the decision tables", COMPILE_FAILED, false, List.of()));
       return store(versionId, version, principal, steps, 0, 0, errors);
     }
 
@@ -430,8 +439,24 @@ public class RuleSetService {
     RuleSet ruleSet =
         new RuleSet("v" + version, rowsRepository.rows((UUID) versionRow.get("id"), null));
     requireFingerprint(versionRow, ruleSet);
+    // Validate before compiling and before touching the database, so a row that could never be
+    // generated (or could inject code) is refused even if it reached an approved version.
+    List<RuleRowValidator.Violation> violations = validator.validate(ruleSet);
+    if (!violations.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "The rows are no longer valid; rebuild the draft before publishing ("
+              + violations.get(0)
+              + ")");
+    }
     // Compile before touching the database, so a failure changes nothing.
-    compiler.compile(ruleSet);
+    try {
+      compiler.compile(ruleSet);
+    } catch (RuleCompilationException e) {
+      log.warn("approved rule set v{} no longer compiles", version, e);
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "The rules did not compile; rebuild the draft and publish again");
+    }
 
     LocalDate effective =
         effectiveDate == null

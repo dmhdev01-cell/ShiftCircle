@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * The publish-time validation docs/04 §5a requires: reject row values the fact builders never
@@ -22,6 +23,15 @@ public final class RuleRowValidator {
       Set.of("DAYS", "SHIFTS_12H", "SHIFTS_NIGHT_12H");
   private static final Set<String> SORT_KEYS = Set.of("OT_HOURS_QUARTER_ASC", "SENIORITY_ASC");
   private static final Set<Integer> SHIFT_LENGTHS = Set.of(8, 12, 16);
+  /**
+   * A rule row is turned into DRL source, so a value is a code fragment, not data (review-r2 S1).
+   * Codes and the shift-kind regex are restricted to characters that cannot close a string literal
+   * or a constraint; messages may use ordinary prose but never a quote, backslash, newline or brace.
+   */
+  private static final Pattern CODE = Pattern.compile("[A-Za-z0-9-]{1,16}");
+
+  private static final Pattern SHIFT_KIND = Pattern.compile("[A-Za-z0-9|.*+?()_-]{1,40}");
+  private static final Pattern UNSAFE_MESSAGE = Pattern.compile("[\"\\\\\r\n{}]");
   /** Every rule the mock agreement requires (docs/05 §3 says these are the Must set). */
   private static final Set<String> REQUIRED = RuleRowsV1.ruleSet().ruleCodes();
 
@@ -47,8 +57,21 @@ public final class RuleRowValidator {
       }
     }
     for (RuleRow row : ruleSet.rows()) {
+      if (row.code() == null || !CODE.matcher(row.code()).matches()) {
+        violations.add(
+            new Violation(
+                display(row.code()),
+                "Rule code",
+                "A rule code uses capital letters, digits and hyphens only (for example U-01)."));
+      }
       if (row.message() == null || row.message().isBlank()) {
         violations.add(new Violation(row.code(), "Message", "A rule needs a message to show."));
+      } else if (UNSAFE_MESSAGE.matcher(row.message()).find()) {
+        violations.add(
+            new Violation(
+                row.code(),
+                "Message",
+                "The message can't contain a quote, backslash, newline or brace."));
       }
       switch (row.table()) {
         case REST -> validateRest(row, violations);
@@ -65,6 +88,15 @@ public final class RuleRowValidator {
   }
 
   private static void validateRest(RuleRow row, List<Violation> violations) {
+    String afterShiftKind = row.text("afterShiftKind");
+    if (afterShiftKind == null || !SHIFT_KIND.matcher(afterShiftKind).matches()) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "After this kind of shift",
+              "Use shift codes joined by | (for example D8|N8), or .* for any shift. Letters,"
+                  + " digits and | . * + ? ( ) _ - only; no quotes, backslashes or spaces."));
+    }
     if (row.number("windowHours") != 24) {
       violations.add(
           new Violation(
@@ -253,6 +285,14 @@ public final class RuleRowValidator {
         }
       }
     }
+  }
+
+  /** A hostile value must not be echoed whole into a report; the column check already refuses it. */
+  private static String display(String code) {
+    if (code == null) {
+      return "";
+    }
+    return code.length() <= 24 ? code : code.substring(0, 24) + "\u2026";
   }
 
   private static double optional(RuleRow row, String key, double fallback) {

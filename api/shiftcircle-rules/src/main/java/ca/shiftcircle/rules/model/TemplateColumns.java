@@ -3,6 +3,7 @@ package ca.shiftcircle.rules.model;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -14,18 +15,26 @@ import java.util.stream.Collectors;
  */
 public final class TemplateColumns {
 
+  /**
+   * Defense in depth behind the validator (review-r2 S1): every value that becomes DRL source is
+   * checked here too, so a row that reached the database another way still cannot inject code.
+   */
+  private static final Pattern CODE = Pattern.compile("[A-Za-z0-9-]{1,16}");
+
+  private static final Pattern SHIFT_KIND = Pattern.compile("[A-Za-z0-9|.*+?()_-]{1,40}");
+
   private TemplateColumns() {}
 
   public static Map<String, Object> of(RuleRow row) {
     Map<String, Object> columns = new LinkedHashMap<>();
-    columns.put("code", row.code());
+    columns.put("code", checkedCode(row.code()));
     columns.put("severity", row.severity().name());
     columns.put("overridePolicy", row.overridePolicy().name());
-    columns.put("message", row.message());
+    columns.put("message", quoted(row.message()));
 
     switch (row.table()) {
       case REST -> {
-        columns.put("afterShiftKind", row.text("afterShiftKind"));
+        columns.put("afterShiftKind", checkedRegex(row.text("afterShiftKind")));
         columns.put("windowHours", row.number("windowHours"));
         columns.put("minExtensionMinutes", optionalNumber(row, "minExtensionMinutes", 0));
         columns.put("minRestHours", row.number("minRestHours"));
@@ -85,6 +94,34 @@ public final class TemplateColumns {
       return false;
     }
     return row.table() != RuleTableCode.PAY || row.params().containsKey("thresholdHours");
+  }
+
+  private static String checkedCode(String code) {
+    if (code == null || !CODE.matcher(code).matches()) {
+      throw new IllegalArgumentException(
+          "A rule code uses capital letters, digits and hyphens only");
+    }
+    return code;
+  }
+
+  private static String checkedRegex(String value) {
+    if (value == null || !SHIFT_KIND.matcher(value).matches()) {
+      throw new IllegalArgumentException(
+          "The shift-kind pattern uses letters, digits and | . * + ? ( ) _ - only");
+    }
+    return value;
+  }
+
+  /** The value sits inside a Java string literal in the consequence. */
+  private static String quoted(String message) {
+    if (message == null) {
+      return "";
+    }
+    return message
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r");
   }
 
   private static String shiftLengthCondition(RuleRow row) {
