@@ -35,6 +35,18 @@ function SessionWatcher() {
  * content on tablets and phones.
  */
 export function AppShell({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  if (location.pathname === '/display') {
+    // The wall display is a full-screen TV page with its own footer line;
+    // it keeps the session watcher so a 401 still ends on the sign-in screen.
+    return (
+      <>
+        <SessionWatcher />
+        {children}
+      </>
+    );
+  }
+
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <SessionWatcher />

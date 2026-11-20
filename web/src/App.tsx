@@ -39,6 +39,10 @@ const TimeAttendancePage = lazy(() =>
   })),
 );
 
+const WallDisplayPage = lazy(() =>
+  import('./display/WallDisplayPage').then((module) => ({ default: module.WallDisplayPage })),
+);
+
 function RouteFallback() {
   return (
     <Box sx={{ p: 4, fontSize: 14 }} role="status">
@@ -72,16 +76,7 @@ export function AppRoutes() {
           }
         />
         <Route path="/rules/:version/:table" element={<RulesPage />} />
-        <Route
-          path="/display"
-          element={
-            <PlaceholderPage
-              title="Wall display"
-              subtitle="Today's coverage · 1920 × 1080"
-              planned="Six unit cards with counts only (no names), the clock, open shifts in the next 48 hours and facility totals."
-            />
-          }
-        />
+        <Route path="/display" element={<WallDisplayPage />} />
         <Route path="/me/schedule" element={<MySchedulePage />} />
         <Route
           path="/me/propose"
