@@ -356,13 +356,25 @@ class ReportsApiTest {
     assertThat(created.get("employeeName")).isNotNull();
     assertThat(created.get("unitName")).isNotNull();
 
-    // The planted PC-03 override is there with its reason and rule code.
+    // PC-03: the auditor sees the full row, not just a degraded one.
     assertThat(report)
         .anySatisfy(
             row -> {
               assertThat(row.get("reason")).isEqualTo("Lockdown, relief unavailable");
               assertThat(row.get("ruleCode")).isEqualTo("U-05");
+              assertThat(row.get("actor")).isEqualTo("M. Ellis");
+              assertThat(row.get("employeeName")).isNotNull();
+              assertThat(row.get("unitName")).isEqualTo("Unit C · Living unit");
             });
+    // The default range (as of the demo day) includes it, so the Overrides tab is not empty.
+    List<Map<String, Object>> defaults =
+        jsonList(
+            get(
+                "/api/v1/reports/overrides",
+                tokens.get("a.reviewer"),
+                null));
+    assertThat(defaults)
+        .anySatisfy(row -> assertThat(row.get("reason")).isEqualTo("Lockdown, relief unavailable"));
   }
 
   @Test

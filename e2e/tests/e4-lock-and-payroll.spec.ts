@@ -22,6 +22,27 @@ test.describe('E4 time and attendance, lock, payroll export', () => {
     await expect(page.getByText(/with no actual recorded/).first()).toBeVisible();
   });
 
+  test('the open period can be locked at the demo clock', async ({ page }) => {
+    await signIn(page, 'M. Ellis');
+    await navTo(page, 'Time & attendance');
+    await expect(page.getByRole('heading', { name: 'Time & attendance', level: 1 })).toBeVisible();
+    // The fixtures open period deliberately has missing actuals; this test is about the real
+    // api's frozen demo day, where shifts after 19 Nov noon have not ended.
+    test.skip(
+      (await page.getByText('Demo fixtures').count()) > 0,
+      'fixtures mode has a different open period',
+    );
+    await page.getByLabel('Pay period').selectOption({ label: '9 – 22 Nov 2026' });
+    const lock = page.getByRole('button', { name: 'Lock pay period' });
+    await expect(lock).toBeEnabled();
+    await lock.click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Lock pay period' }).click();
+    await expect(page.getByText(/The pay period is locked/)).toBeVisible();
+    await expect(page.getByText(/Locked · /)).toBeVisible();
+  });
+
   test('a locked period is read-only and exports the payroll CSV', async ({ page }, testInfo) => {
     await signIn(page, 'M. Ellis');
     await navTo(page, 'Time & attendance');

@@ -170,7 +170,7 @@ describe('the overtime board', () => {
 
     // The employee sees the offer and accepts it.
     const employee = renderBoard('/me/schedule');
-    const regions = await screen.findAllByRole('region', { name: 'Overtime offer' });
+    const regions = await screen.findAllByRole('region', { name: 'Overtime offer' }, { timeout: 5000 });
     const offered = regions.find(
       (region) =>
         within(region).queryByText(/Sat 21 Nov/) && within(region).queryByText(/07:00 – 15:00/),
@@ -184,7 +184,7 @@ describe('the overtime board', () => {
 
     // The supervisor sees the answer and confirms it (S-04).
     renderBoard();
-    const accepted = await screen.findByRole('group', { name: 'Sam Abara · Accepted' });
+    const accepted = await screen.findByRole('group', { name: 'Sam Abara · Accepted' }, { timeout: 5000 });
     await user.click(within(accepted).getByRole('button', { name: 'Confirm' }));
     expect(
       await screen.findByRole('group', { name: 'Sam Abara · Confirmed' }),

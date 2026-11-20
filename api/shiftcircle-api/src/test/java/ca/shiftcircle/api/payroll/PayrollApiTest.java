@@ -39,7 +39,7 @@ import tools.jackson.databind.ObjectMapper;
  */
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = "sc.demo.generate=false")
+    properties = {"sc.demo.generate=false", "sc.demo.today=2026-11-19"})
 @ActiveProfiles("demo")
 class PayrollApiTest {
 
@@ -70,9 +70,13 @@ class PayrollApiTest {
   private static final UUID PERIOD_OT = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-000000000003");
   private static final UUID PERIOD_RACE = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-000000000004");
   private static final UUID PERIOD_CSV = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-000000000005");
+  private static final UUID PERIOD_CLOCK = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-000000000006");
   private static final UUID OFFICER_LOCKED = UUID.fromString("33333333-3333-3333-3333-000000000101");
   private static final UUID OFFICER_MISSING = UUID.fromString("33333333-3333-3333-3333-000000000102");
   private static final UUID OFFICER_OT = UUID.fromString("33333333-3333-3333-3333-000000000103");
+  private static final UUID OFFICER_CLOCK = UUID.fromString("33333333-3333-3333-3333-000000000104");
+  private static final UUID CLOCK_ENDED = UUID.fromString("66666666-6666-6666-6666-000000000501");
+  private static final UUID CLOCK_NOT_ENDED = UUID.fromString("66666666-6666-6666-6666-000000000502");
   private static final UUID EMPLOYEE_USER = UUID.fromString("22222222-2222-2222-2222-000000000101");
 
   private static final UUID[] MISSING_ASSIGNMENTS = {
@@ -102,27 +106,33 @@ class PayrollApiTest {
   void fixtureAndLogins() throws Exception {
     // Unlock first: the trigger refuses deletes from a locked period, which is the point of T11.
     jdbc.update(
-        "UPDATE pay_period SET status = 'OPEN', locked_at = NULL WHERE id IN (?, ?, ?, ?, ?)",
+        "UPDATE pay_period SET status = 'OPEN', locked_at = NULL WHERE id IN (?, ?, ?, ?, ?, ?)",
         PERIOD_LOCK,
         PERIOD_MISSING,
         PERIOD_OT,
         PERIOD_RACE,
-        PERIOD_CSV);
+        PERIOD_CSV,
+        PERIOD_CLOCK);
     jdbc.update(
-        "DELETE FROM payroll_export WHERE pay_period_id IN (?, ?, ?, ?, ?)",
+        "DELETE FROM payroll_export WHERE pay_period_id IN (?, ?, ?, ?, ?, ?)",
         PERIOD_LOCK,
         PERIOD_MISSING,
         PERIOD_OT,
         PERIOD_RACE,
-        PERIOD_CSV);
-    jdbc.update("DELETE FROM absence WHERE employee_id IN (?, ?, ?)", OFFICER_LOCKED, OFFICER_MISSING, OFFICER_OT);
+        PERIOD_CSV,
+        PERIOD_CLOCK);
     jdbc.update(
-        "DELETE FROM time_entry WHERE employee_id IN (?, ?, ?)", OFFICER_LOCKED, OFFICER_MISSING, OFFICER_OT);
+        "DELETE FROM absence WHERE employee_id IN (?, ?, ?, ?)",
+        OFFICER_LOCKED, OFFICER_MISSING, OFFICER_OT, OFFICER_CLOCK);
     jdbc.update(
-        "DELETE FROM shift_assignment WHERE employee_id IN (?, ?, ?)",
+        "DELETE FROM time_entry WHERE employee_id IN (?, ?, ?, ?)",
+        OFFICER_LOCKED, OFFICER_MISSING, OFFICER_OT, OFFICER_CLOCK);
+    jdbc.update(
+        "DELETE FROM shift_assignment WHERE employee_id IN (?, ?, ?, ?)",
         OFFICER_LOCKED,
         OFFICER_MISSING,
-        OFFICER_OT);
+        OFFICER_OT,
+        OFFICER_CLOCK);
     jdbc.update(
         "DELETE FROM time_entry WHERE employee_id IN (?, ?, ?, ?, ?)", (Object[]) HOSTILE_EMPLOYEES);
     jdbc.update(
@@ -130,27 +140,37 @@ class PayrollApiTest {
         (Object[]) HOSTILE_EMPLOYEES);
     jdbc.update("DELETE FROM employee WHERE id IN (?, ?, ?, ?, ?)", (Object[]) HOSTILE_EMPLOYEES);
     jdbc.update(
-        "DELETE FROM pay_period WHERE id IN (?, ?, ?, ?, ?)",
+        "DELETE FROM pay_period WHERE id IN (?, ?, ?, ?, ?, ?)",
         PERIOD_LOCK,
         PERIOD_MISSING,
         PERIOD_OT,
         PERIOD_RACE,
-        PERIOD_CSV);
+        PERIOD_CSV,
+        PERIOD_CLOCK);
 
     jdbc.update(
         "INSERT INTO pay_period (id, start_date, end_date, status) VALUES"
             + " (?, DATE '2026-01-19', DATE '2026-02-01', 'OPEN'),"
             + " (?, DATE '2026-02-02', DATE '2026-02-15', 'OPEN'),"
             + " (?, DATE '2026-02-16', DATE '2026-03-01', 'OPEN'),"
-            + " (?, DATE '2026-03-16', DATE '2026-03-29', 'OPEN')",
+            + " (?, DATE '2026-03-16', DATE '2026-03-29', 'OPEN'),"
+            + " (?, DATE '2026-11-09', DATE '2026-11-22', 'OPEN')",
         PERIOD_LOCK,
         PERIOD_MISSING,
         PERIOD_OT,
-        PERIOD_RACE);
+        PERIOD_RACE,
+        PERIOD_CLOCK);
 
     insertOfficer(OFFICER_LOCKED, "E-PAY-L", "Locked", "Officer");
     insertOfficer(OFFICER_MISSING, "E-PAY-M", "Missing", "Officer");
     insertOfficer(OFFICER_OT, "E-PAY-O", "Overtime", "Officer");
+    insertOfficer(OFFICER_CLOCK, "E-PAY-C", "Clock", "Officer");
+    insertAssignment(
+        CLOCK_ENDED, OFFICER_CLOCK, "2026-11-19T07:00:00-06:00", "2026-11-19T12:00:00-06:00",
+        "2026-11-19");
+    insertAssignment(
+        CLOCK_NOT_ENDED, OFFICER_CLOCK, "2026-11-19T12:01:00-06:00", "2026-11-19T15:00:00-06:00",
+        "2026-11-19");
 
     // The locked period already has its actual.
     UUID lockedAssignment = UUID.fromString("66666666-6666-6666-6666-000000000101");
@@ -286,6 +306,48 @@ class PayrollApiTest {
 
   private String entriesPath(UUID period) {
     return "/api/v1/pay-periods/" + period + "/time-entries";
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void theBusinessClockDecidesWhichShiftsHaveEnded() throws Exception {
+    HttpResponse<String> listed =
+        send("GET", entriesPath(PERIOD_CLOCK), null, tokens.get("m.ellis"));
+    assertThat(listed.statusCode()).isEqualTo(200);
+    List<Map<String, Object>> entries = mapper.readValue(listed.body(), List.class);
+    Map<String, Object> ended =
+        entries.stream()
+            .filter(entry -> CLOCK_ENDED.toString().equals(entry.get("assignmentId")))
+            .findFirst()
+            .orElseThrow();
+    Map<String, Object> notEnded =
+        entries.stream()
+            .filter(entry -> CLOCK_NOT_ENDED.toString().equals(entry.get("assignmentId")))
+            .findFirst()
+            .orElseThrow();
+    assertThat(ended.get("needsActual")).as("ends exactly at the demo noon").isEqualTo(true);
+    assertThat(notEnded.get("needsActual")).as("ends after the demo noon").isEqualTo(false);
+
+    HttpResponse<String> refused =
+        send("POST", "/api/v1/pay-periods/" + PERIOD_CLOCK + "/lock", null, tokens.get("m.ellis"));
+    assertThat(refused.statusCode()).isEqualTo(409);
+    List<Map<String, Object>> missing = (List<Map<String, Object>>) json(refused).get("missing");
+    assertThat(missing).hasSize(1);
+    assertThat(missing.get(0).get("assignmentId")).isEqualTo(CLOCK_ENDED.toString());
+
+    assertThat(
+            send(
+                    "PUT",
+                    "/api/v1/time-entries/" + CLOCK_ENDED,
+                    "{\"workedAsScheduled\":true}",
+                    tokens.get("m.ellis"))
+                .statusCode())
+        .isEqualTo(200);
+    assertThat(
+            send("POST", "/api/v1/pay-periods/" + PERIOD_CLOCK + "/lock", null, tokens.get("m.ellis"))
+                .statusCode())
+        .as("the 12:01 shift has not ended at the demo noon")
+        .isEqualTo(200);
   }
 
   @Test

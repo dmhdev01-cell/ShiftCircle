@@ -84,6 +84,16 @@ public class ApiProblemAdvice {
     MissingServletRequestParameterException.class
   })
   public ResponseEntity<Map<String, Object>> onBadRequest(Exception exception) {
+    if (exception instanceof MethodArgumentTypeMismatchException mismatch) {
+      return problem(
+          HttpStatus.BAD_REQUEST,
+          "Bad request",
+          "The value '" + mismatch.getValue() + "' for '" + mismatch.getName() + "' is not valid.");
+    }
+    if (exception instanceof MissingServletRequestParameterException missing) {
+      return problem(
+          HttpStatus.BAD_REQUEST, "Bad request", "The field '" + missing.getParameterName() + "' is required.");
+    }
     return problem(
         HttpStatus.BAD_REQUEST, "Bad request", "The request body or its values could not be read.");
   }
