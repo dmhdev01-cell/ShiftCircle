@@ -55,6 +55,26 @@ describe('Rules admin', () => {
     ).toBeInTheDocument();
   });
 
+  it('composes the sentence with an article ("After a 16 h shift")', async () => {
+    const user = userEvent.setup();
+    renderRules();
+    await screen.findByRole('heading', { name: 'Rest between shifts' });
+    await actAsRulesAdmin(user);
+
+    const u03 = screen.getByLabelText('Minimum hours off for U-03');
+    await user.clear(u03);
+    await user.type(u03, '14');
+
+    expect(await screen.findByText(/After a 16 h shift, an officer needs at least 14 hours off/)).toBeInTheDocument();
+  });
+
+  it('makes the read-only decision table a focusable scroll region', async () => {
+    renderRules();
+
+    const region = await screen.findByRole('region', { name: 'Decision table, scrolls sideways' });
+    expect(region).toHaveAttribute('tabindex', '0');
+  });
+
   it('updates the sentence when the hours change', async () => {
     const user = userEvent.setup();
     renderRules();

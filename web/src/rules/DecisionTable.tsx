@@ -85,7 +85,12 @@ export function DecisionTable({
         ) : null}
       </Box>
 
-      <Box sx={{ overflowX: 'auto' }}>
+      <Box
+        role="region"
+        aria-label="Decision table, scrolls sideways"
+        tabIndex={0}
+        sx={{ overflowX: 'auto' }}
+      >
         <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr>

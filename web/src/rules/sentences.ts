@@ -27,7 +27,11 @@ export function composeSentence(row: RuleTableRow): string {
         ? ', and the supervisor has to acknowledge it'
         : '';
 
-  return `After ${after.toLowerCase()}, an officer needs at least ${hours} hours off. If they do not get it, ${what}${override}.`;
+  // "16 h shift" needs an article: "After a 16 h shift, ...". "Any shift"
+  // does not.
+  const subject = /^\d/.test(after) ? `a ${after.toLowerCase()}` : after.toLowerCase();
+
+  return `After ${subject}, an officer needs at least ${hours} hours off. If they do not get it, ${what}${override}.`;
 }
 
 /** The sentence to show: the one the api sent, or the composed one. */

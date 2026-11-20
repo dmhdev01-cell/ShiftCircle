@@ -90,6 +90,10 @@ describe('Time and attendance', () => {
     expect(screen.getByRole('button', { name: 'Unlock…' })).toBeInTheDocument();
     expect(screen.getByText(/Last export 9 Nov 08:14/)).toBeInTheDocument();
     expect(screen.getByText(/the actuals are read-only/)).toBeInTheDocument();
+    // A read-only grid still has to be reachable for keyboard scrolling.
+    expect(
+      await screen.findByRole('region', { name: 'Time entries, scrolls sideways' }),
+    ).toHaveAttribute('tabindex', '0');
   });
 
   it('asks for a reason before unlocking', async () => {

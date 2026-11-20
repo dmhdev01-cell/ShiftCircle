@@ -209,7 +209,12 @@ export function TimeGrid({ rows, days, locked, onPick }: TimeGridProps) {
         borderRadius: '10px',
       }}
     >
-      <Box sx={{ overflowX: 'auto' }}>
+      <Box
+        role="region"
+        aria-label="Time entries, scrolls sideways"
+        tabIndex={0}
+        sx={{ overflowX: 'auto' }}
+      >
         <table
           style={{
             width: '100%',
