@@ -2,6 +2,45 @@
 
 Internal note for the team; remove before submission (step 13) or fold into the build record.
 
+## Start here: exact commands
+
+Run the full API suite (the only supported way; the host has no JDK):
+
+```
+docker run --rm -v /Users/mharder/repos/ShiftCircle01/api:/src -v shiftcircle_m2:/root/.m2 -v /var/run/docker.sock:/var/run/docker.sock -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -w /src maven:3.9-eclipse-temurin-21 ./mvnw -B test
+```
+
+Verify from a clean checkout (do this before quoting any count):
+
+```
+git worktree add /tmp/sc-handoff-check HEAD
+docker run --rm -v /tmp/sc-handoff-check/api:/src -v shiftcircle_m2:/root/.m2 -v /var/run/docker.sock:/var/run/docker.sock -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -w /src maven:3.9-eclipse-temurin-21 ./mvnw -B test
+git worktree remove /tmp/sc-handoff-check
+```
+
+Full stack on this host (8080/5432/5433 are taken):
+
+```
+SC_WEB_PORT=18080 SC_API_PORT=28081 SC_DB_PORT=25432 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build --wait
+```
+
+Web tests and E2E: `web/` for `pnpm test`; `e2e/README.md` for the Playwright commands and the
+real-api vs fixtures split. A stale scratch worktree from an earlier seat may exist at
+`/tmp/opencode/sc-step6` (detached at an old commit); it is not on a branch, so check with
+`git worktree list` before removing it in case a reviewer pinned it.
+
+## Known gaps and half-made decisions (do not re-litigate silently)
+
+`docs/traceability.md` §"What is not claimed" is the authoritative list. Still open at this tip:
+FR-07 notice check and per-officer "changed since published" flag (only the count exists);
+NFR-09 generated OpenAPI/Swagger (no springdoc); ADR-015 shift-time editing is seed-level, not an
+admin screen; the performance layer is the JUnit `PerformanceSmokeTest` only (no Playwright timing
+assertion); the authorization matrix is grouped into area methods rather than one method per cell;
+and the rule tables have no Excel round-trip (`docs/10` §8). The scenario library lives in
+`RuleScenarioRunner` (Java), not the `scenarios/*.json` files the test-strategy header once claimed.
+Submission work that is the person's, not an agent's: the ≤ 5-minute demo recording (script is
+`docs/demo-script.md`, build record is `BUILD_RECORD.md`).
+
 ## Done, committed on `main`
 
 | Step | Commit(s) | Evidence |
