@@ -1,12 +1,12 @@
 # ShiftCircle — requirement-to-proof traceability
 
 **Derived from the test sources, not from the prose.** Checked on 2026-11-20 against `main` at
-`fe6487d` (code and docs) by grepping `@Test`, Playwright `test(...)` titles and the
-Flyway migrations. The latest clean-worktree run is **91 rules + 22 infrastructure + 171 api =
-284 tests, 0 failures** at `fe6487d`, run in the default class order and with a random seed
-(20261120). It is counted as `@Test` methods: 91 + 22 + 171 static annotations, and
-Surefire reports the same total with 0 skipped. A proof below names the test class and method that
-makes the claim, not the document that hopes it exists.
+`ca85c69` (code and docs) by grepping `@Test`, Playwright `test(...)` titles and the
+Flyway migrations. The latest clean-worktree run is **91 rules + 22 infrastructure + 178 api =
+291 tests, 0 failures** at `ca85c69`, run in the default class order and with a random seed
+(20261120). It is counted as `@Test` methods on their own line: 91 + 22 + 178 static annotations,
+and Surefire reports the same total with 0 skipped. A proof below names the test class and method
+that makes the claim, not the document that hopes it exists.
 
 **Path shorthand.** `RulesTest` = a class in `api/shiftcircle-rules/src/test/java/ca/shiftcircle/rules/`;
 `ApiTest` = a class in `api/shiftcircle-api/src/test/java/ca/shiftcircle/api/`;
@@ -88,7 +88,7 @@ reaches; E1 also calls `expectDisclaimer`. E2–E5 rely on the web shell test fo
 |---|---|---|---|---|
 | 1 | Synthetic data only | Fixed fictional units/users in `V3`; generated officers from a fixed seed; no real names in the UI | `DemoDataGeneratorTest#generatesADatasetThatPassesItsOwnSelfCheck` (100 officers, counts); `DisplayApiTest#theDisplayContainsNoNamesOrEmployeeIdentifiers`; `AppShell.test.tsx#does not use a government logo, wheat sheaf or coat of arms` | PARTIAL — a test can prove the generator's shape and that no names leak to the wall display, not that every name is fictional |
 | 2 | No secrets in the repo | `.env.example` only; compose requires the variables; the API refuses to start | `StartupSecretsTest#startsWhenBothSecretsAreSet`, `#refusesToStartWithoutTheDatabasePassword`, `#refusesToStartWithoutTheJwtSecret`, `#refusesAShortJwtSecret`; `README.md` §4 | PASS |
-| 3 | Never weaken a safeguard | 422/ack/override contract; maker/checker; locked-period trigger; append-only audit; no auto-approval | `AssignmentApiTest#aBlockRuleWithoutAnEmergencyOverrideCannotBeOverridden`, `#anEmergencyOverrideMustAlsoAcknowledgeTheWarnings`, `#aShortOverrideReasonIsRefused`; `AssignmentMoveCancelApiTest#cancelNeedsAReasonAndTheCurrentVersion`; `RuleSetApiTest#t10TheAuthorCannotApproveTheirOwnDraft`; `PayrollApiTest#aLockedPeriodIsReadOnlyInTheApiAndInTheDatabase`; `AuditApiTest#theTrailCannotBeChangedThroughTheApiOrTheDatabase`; `SchemaConstraintsTest#auditEventsCannotBeUpdatedOrDeleted` | PASS |
+| 3 | Never weaken a safeguard | 422/ack/override contract; maker/checker; locked-period trigger; append-only audit; no auto-approval; a database conflict answers a problem document, not a 500 | `AssignmentApiTest#aBlockRuleWithoutAnEmergencyOverrideCannotBeOverridden`, `#anEmergencyOverrideMustAlsoAcknowledgeTheWarnings`, `#aShortOverrideReasonIsRefused`; `AssignmentMoveCancelApiTest#cancelNeedsAReasonAndTheCurrentVersion`; `RuleSetApiTest#t10TheAuthorCannotApproveTheirOwnDraft`; `PayrollApiTest#aLockedPeriodIsReadOnlyInTheApiAndInTheDatabase`; `AuditApiTest#theTrailCannotBeChangedThroughTheApiOrTheDatabase`; `SchemaConstraintsTest#auditEventsCannotBeUpdatedOrDeleted`; `ConstraintProblemApiTest#anOverlappingEmergencyOverrideAnswersAConflictAndSavesNothing`, `#movingAShiftOntoAnotherOneAnswersAConflict` | PASS |
 | 4 | Every rule needs boundary tests, reviewed by a human | Rule boundary classes + scenario runner; **human review waived** by the lead, AI verifiers instead | `RestRulesTest`, `HoursAndRunsRulesTest`, `PayAndShiftLengthRulesTest`, `RuleRowValidatorTest`, `RuleScenarioRunnerTest`; exception recorded in `HANDOFF.md` §5 and `ai-dev-log` 24 | PARTIAL — automated boundary tests exist; no human review has taken place (waived, not hidden) |
 | 5 | Log AI use, corrections and rejections | `docs/ai-dev-log.md` (63 entries) and `docs/review-rounds.md` | Process only; the log is part of the submission | PROCESS |
 | 6 | Keep docs in sync; record new decisions as ADRs | `docs/decisions.md` ADR-001…ADR-023; this traceability file | Process only; this document is itself the sync check | PROCESS |
@@ -133,6 +133,7 @@ reaches; E1 also calls `expectDisclaimer`. E2–E5 rely on the web shell test fo
 | FR-05 overtime status live | `ScheduleApiTest#overtimeStatusChangesAtThePayPeriodThresholdBoundaries`; `#overtimeStatusUsesThePeriodThatContainsTheBoardDateAndCountsAMidnightCrossing`; `PlanningPage.test.tsx#shows the officer pay-period hours with the overtime status pill` | PASS |
 | FR-06 publish a period | `SchedulePublishApiTest#publishingIsScopedAuditedAndOneWay`, `#aDraftWeekReadsAsUnpublishedUntilItIsPublished`; `SchedulePeriodSeedApiTest#publishingASeededPeriodWorksOnAFreshDataset` (publishes a **generated** period, no planted row), `#theBoardCarriesThePeriodItReadsSoTheWebCanPublish` (the board hands over the id), `#theBoardCountsTheShiftsChangedAfterThePublication`, `#aPastWeekIsAlreadyPublishedAndCannotBePublishedAgain` | PASS |
 | FR-07 notice check and per-officer "changed" flag after publishing | The board counts the shifts changed after the publication (`publishedState.unpublishedChanges`, from the audit trail) and names the period; there is no P-05/S-01 rule row and no per-officer changed marker | **PARTIAL** — the count is real; the notice rule and the per-officer flag are not built (`docs/10` §8) |
+| Every error body is RFC 9457 problem+json, and a database conflict is a 409 rather than a 500 | `ConstraintProblemApiTest#anOverlappingEmergencyOverrideAnswersAConflictAndSavesNothing`, `#movingAShiftOntoAnotherOneAnswersAConflict`, `#anOvertimeConfirmThatWouldOverlapIsRefusedBeforeTheDatabaseIsAsked` (all over HTTP); `ApiProblemAdviceTest#theExclusionConstraintNamesTheConflictWithoutTheSql`, `#aUniqueConstraintBecomesA409Problem`, `#aNumericOverflowIsABadRequestNotAServerError`; `ProblemDetailsApiTest` (404 and 400 over HTTP) | PASS |
 | FR-20–23 open shift, eligible list, offers, direct assign | `OvertimeApiTest#creatingAnOpenShiftIsSupervisorOnlyAndAudited`, `#theRankedListIsFewestOvertimeThenSeniority`, `#offerAcceptAndConfirmCreateTheAssignment`, `#directAssignRunsTheRulesAndFillsTheShift`, `#anEmployeeCannotSendOrConfirmOffers` | PASS |
 | FR-50–54 actuals, pay codes, lock, payroll CSV | `PayrollApiTest` (13 tests); `PayrollExportGoldenTest`; `CsvTest` | PASS |
 | FR-60–62/64 hours, overtime, coverage reports and CSV | `ReportsApiTest#coverageHoursReconcileWithTheAssignmentsHourByHour`, `#hoursAndOvertimeReconcileWithTheTimeEntriesAndThePayrollExport`, `#csvExportsUseTheDocumentedHeaders`, `#m4DisplayIsDeniedEveryReport` | PASS |
