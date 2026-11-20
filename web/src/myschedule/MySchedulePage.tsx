@@ -500,8 +500,8 @@ export function MySchedulePage() {
                 {shiftTemplates[offer.openShift.shiftTemplate]?.endsNextDay ? ' +1' : ''}
               </Typography>
               <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
-                {offer.openShift.unit.name} · offered by {offer.offeredBy} at {offer.offeredAt} · paid
-                counts toward your pay-period hours
+                {offer.openShift.unit.name} · offered by {offer.offeredBy} at {offer.offeredAt} ·
+                these hours count toward your pay-period hours
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
                 {offerCheck(offer)}

@@ -139,7 +139,10 @@ describe('the employee My schedule', () => {
     await screen.findByText(/Sam Abara/);
 
     expect(screen.queryByText(/paid at overtime rates/)).not.toBeInTheDocument();
-    expect(screen.getAllByText(/counts toward your pay-period hours/).length).toBeGreaterThan(0);
+    // Overtime is a pay-period status, not a rate (ADR-016), and the sentence
+    // has to read as a sentence.
+    expect(screen.queryByText(/paid counts toward/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/count toward your pay-period hours/).length).toBeGreaterThan(0);
   });
 
   it('shows no colleague hours or absences', async () => {
