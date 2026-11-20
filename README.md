@@ -32,11 +32,11 @@ Three containers: **web** (nginx + React) · **api** (Java 21 + Spring Boot 4.x 
 
 ## Setup (clean clone)
 
-> **Status, 2026-11-20:** `main` has the api (steps 1–6 and part of step 8) and the web **scaffold** (app shell and version screen). The screens (planning board, overtime, My schedule, time and attendance, reports, rules admin) and the sign-in picker are on branch `web-step7-planning`, which isn't merged yet. Steps marked **UNVERIFIED** weren't run by the author of this section; QA runs them in the clean-clone check.
+Everything on `main` is merged: the api, all the screens, the mock sign-in and the e2e suite. Sections 1, 2 and 4 below were run from a fresh clone of `main` at `f1d696d` on 2026-11-20 (macOS, Docker Desktop); anything not run is marked **UNVERIFIED**.
 
 ### Prerequisites
 
-**Docker only:** Docker Desktop or Docker Engine with Compose v2, about 2 GB of free memory, and one free host port (8080 by default). No JDK, Maven, Node or database is needed on the host: everything builds inside containers.
+**Docker only:** Docker Desktop (macOS, Windows) or Docker Engine (Linux) with Compose v2, about 2 GB of free memory, and one free host port (8080 by default). No JDK, Maven, Node or database is needed on the host: everything, including the test dependencies, installs and builds inside containers.
 
 ### 1. Configure the secrets
 
@@ -56,28 +56,32 @@ If either is missing, `docker compose` stops before starting anything, with `req
 ### 2. Start
 
 ```sh
-docker compose up --build
+docker compose up -d --build --wait
 ```
 
-Then open **http://localhost:8080**. The api waits for the database to be healthy and the web waits for the api. On first start, the api runs the Flyway migrations and the `demo` profile generates the synthetic dataset (100 officers, 1 Oct – 29 Dec 2026, "today" = 19 Nov 2026, seed 20261001). That takes about 20 seconds on top of the build. **UNVERIFIED** end to end on a clean clone by this author; the reviewers' runs are in `docs/ai-dev-log.md` #17–#18.
+`--wait` returns when all three containers are healthy: the database first, then the api (after it has run the Flyway migrations and generated the synthetic dataset), then the web. Then open **http://localhost:8080** and you see the mock sign-in screen with the demo users.
+
+**How long:** with Docker's build cache warm, `up -d --build --wait` took **31 s**. Inside that, the api was ready about 6 s after it started, and the demo data took 2.8 s (`Demo data generated in 2814 ms: 6182 assignments, 193 absences, 194 open shifts, 309 offers` in `docker compose logs api`). The very first build also downloads the base images and the Maven and pnpm dependencies, which takes several minutes depending on the network (**UNVERIFIED** on a machine with an empty cache). The dataset: 100 fictional officers, 1 Oct – 29 Dec 2026, "today" fixed at 19 Nov 2026, seed 20261001.
 
 **Ports in use?** Only the web publishes a port. Set `SC_WEB_PORT` in `.env`, for example `SC_WEB_PORT=18080`, and open that port instead. For local debugging, `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build` also publishes the api (`SC_API_PORT`, default 8081) and the database (`SC_DB_PORT`, default 5433).
 
-Checks once it's up:
+Checks once it's up (both checked):
 - `http://localhost:8080/healthz` returns `ok`
-- `http://localhost:8080/api/v1/version` returns the build, git commit, live rule-set version and `asOf`
+- `http://localhost:8080/api/v1/version` returns the build, git commit, live rule-set version and `asOf`, for example `{"gitCommit":"f1d696d","ruleSetVersion":"v1","profiles":"demo","asOf":"2026-11-19",…}`
+
+Stop with `docker compose down`; add `-v` to delete the database and start from the seeded data again.
 
 Set `SC_GIT_COMMIT=$(git rev-parse --short HEAD)` in `.env` before building if you want the version screen to show the commit.
 
 ### 3. Sign in (mock)
 
-Sign-in is **simulated**. The sign-in screen lists fictional demo users (`GET /api/v1/auth/demo-users`). Picking one asks the api for a signed token (`POST /api/v1/auth/mock-login`, HS256 with `SC_JWT_SECRET`, 8-hour expiry). The api then validates that token on every request exactly as it would a real identity provider's token. Only the token issuer is fake. The `prod-like` profile (`SC_PROFILE=prod-like`) removes mock sign-in entirely. The sign-in picker is on branch `web-step7-planning` (**UNVERIFIED** on `main`).
+Sign-in is **simulated**. The sign-in screen lists fictional demo users (`GET /api/v1/auth/demo-users`). Picking one asks the api for a signed token (`POST /api/v1/auth/mock-login`, HS256 with `SC_JWT_SECRET`, 8-hour expiry). The api then validates that token on every request exactly as it would a real identity provider's token. Only the token issuer is fake. The `prod-like` profile (`SC_PROFILE=prod-like`) removes mock sign-in entirely.
 
 | User | Roles | Scope | Use it for |
 |---|---|---|---|
 | M. Ellis | Supervisor, Employee | Units A, B | Planning board, overtime, time and payroll |
 | J. Chen | Supervisor, Employee | Admissions, Control, Escort | Scope checks (can't see Unit B) |
-| T. Nakamura | Employee | own records | My schedule, offers, proposals |
+| T. Nakamura | Employee | own records | My schedule, offers (accept/decline) |
 | L. Fraser | Rules admin | — | Edit, build and submit rule changes |
 | P. Singh | Rules approver | — | Approve and publish (not their own drafts) |
 | A. Reviewer | Auditor | all, read-only | Reports and audit |
@@ -95,29 +99,51 @@ All in Docker.
 
 # API: rules boundary tests, repository tests (Testcontainers PostgreSQL), API and authorization tests.
 # Needs the Docker socket; .env must exist because compose reads the whole file.
-docker compose --profile test run --rm api-test
+# --build is required: compose otherwise reuses an old api-test image and a stale run can
+# report BUILD SUCCESS for a tip that never ran.
+docker compose --profile test run --rm --build api-test
 
 # Web unit tests (Vitest)
 docker run --rm -v "$PWD/web":/app -w /app node:24-alpine \
   sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm test"
 
-# End-to-end (Playwright, E1–E5, desktop and tablet, axe, keyboard-only E1/E3); see e2e/README.md
-pnpm --dir e2e install
-docker run --rm --network host -v "$PWD/e2e":/work -w /work \
-  -e BASE_URL=http://localhost:8080 \
-  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures
+# End-to-end (Playwright, E1–E5, axe, keyboard-only E1/E3) against the running stack; see e2e/README.md.
+# 1. Install the test dependencies in a container (no Node on the host):
+docker run --rm -v "$PWD/e2e":/app -w /app node:24-alpine \
+  sh -c "corepack enable && pnpm install --frozen-lockfile"
+# 2. Run the browser in a container. host.docker.internal reaches the host's port 8080 on
+#    Docker Desktop (macOS, Windows); --add-host makes the same name work on Linux.
+docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
+  -e BASE_URL=http://host.docker.internal:8080 \
+  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
 ```
 
-**UNVERIFIED by this author:**
-- The `api-test` compose service. The verifiers ran the same Maven build in a `maven:3.9-eclipse-temurin-21` container; see `docs/ai-dev-log.md`.
-- The web test command, which writes `web/node_modules` with Linux binaries, so use it on a clean clone.
-- The e2e run against the compose stack. The e2e suite **was** run against the fixtures-mode web (`e2e/README.md`; 25 passed, 3 failed on one real accessibility defect, 4 skipped), and it lives on branch `e2e-playwright` until merged.
+**Count:** a clean run is **91 rules + 22 infrastructure + 171 api = 284 tests**, counted as
+`@Test` methods; Surefire reports the same total with **0 skipped**. The order-proof runs on
+2026-11-20 (default order and random seed 20261120 at `fe6487d`; earlier, reverse class order and
+random seeds 20261120 and 20261121 at `22375d4`) each gave the same total for their tip.
 
-**Fixtures and the shared test database:** the API test classes share one PostgreSQL container. The
-schedule and display tests assert exact Unit A coverage for the demo day (19 Nov 2026), so a new
-fixture that adds, moves or cancels a shift on that day changes their numbers. Put new fixtures on
-dates after the demo day and delete them afterwards; a fixture on the demo day is a test-order bug
-waiting to happen.
+**One viewport per fresh stack.** The real-api specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop`, then `docker compose down -v && docker compose up -d --wait`, then `--project tablet`.
+
+**Checked on the fresh clone:** both viewports on one stack gave 21 passed, 1 skipped and 4 failed, all 4 on tablet after desktop had changed the data; tablet alone on a fresh stack gave 12 passed, 1 skipped (the TV-size check runs on desktop only). The `--add-host` line was run on macOS; on Linux it is **UNVERIFIED** here (`--network host` with `BASE_URL=http://localhost:8080` is the alternative). Not run by this author: the `api-test` service (the builders and QA run the same Maven build; counts per round are in `docs/review-rounds.md`) and the web unit-test line in this clone (the same command passes in the branch worktrees). The web unit tests write `web/node_modules` with Linux binaries.
+
+**Fixtures and the shared test database:** each API test class gets its **own database** inside the
+shared PostgreSQL container (`PostgresTestSupport` creates one per class, and Flyway builds the
+schema), so class order cannot leak a generated roster, a published rule set or a linked employee
+into another class. Keep new fixtures off the demo day (19 Nov 2026) where the schedule and display
+tests assert exact Unit A coverage; dates after it are safer. When you change shared test
+infrastructure, also run reverse and random class order so a future regression is caught:
+
+```sh
+docker run --rm -v "$PWD/api":/src -v /var/run/docker.sock:/var/run/docker.sock \
+  -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -w /src \
+  maven:3.9-eclipse-temurin-21 ./mvnw -B test -Dsurefire.runOrder=reversealphabetical
+
+docker run --rm -v "$PWD/api":/src -v /var/run/docker.sock:/var/run/docker.sock \
+  -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -w /src \
+  maven:3.9-eclipse-temurin-21 ./mvnw -B test \
+  -Dsurefire.runOrder=random -Dsurefire.runOrderRandomSeed=20261120
+```
 
 ### What is real and what is simulated
 

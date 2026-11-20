@@ -52,12 +52,23 @@ public class ScheduleQuery {
       UUID employeeId, String name, String rotation, List<String> qualifications,
       double payPeriodHours, double payPeriodThreshold, String overtimeStatus, List<DayCell> cells) {}
 
-  public record PublishedState(boolean published, int unpublishedChanges) {}
+  /**
+   * Whether the board's period is published, and how many of its shifts changed after the
+   * publication. The count is null when the period is not published: there is nothing to compare
+   * against yet, and the board says "not published".
+   */
+  public record PublishedState(boolean published, Integer unpublishedChanges) {}
+
+  /**
+   * The roster week the board shows: the period that covers the board's range, with the id the
+   * publish endpoint takes. Null when the range is not inside one period.
+   */
+  public record PeriodView(UUID id, String label, String status) {}
 
   public record SchedulePayload(
       UnitView unit, LocalDate from, LocalDate to, List<LocalDate> days, String asOf,
       List<BlockCoverage> coverage, List<OfficerRow> officers, int warnings,
-      int overridesThisPeriod, PublishedState publishedState) {}
+      int overridesThisPeriod, PublishedState publishedState, PeriodView period) {}
 
   public String unitCode(UUID unitId) {
     return jdbc.queryForObject("SELECT code FROM unit WHERE id = ?", String.class, unitId);
@@ -170,14 +181,23 @@ public class ScheduleQuery {
                   cells));
         });
 
-    Integer publishedCount =
-        jdbc.queryForObject(
-            "SELECT count(*) FROM schedule_period WHERE unit_id = ? AND status = 'PUBLISHED'"
-                + " AND start_date <= ? AND end_date >= ?",
-            Integer.class,
-            unitId,
-            to,
-            from);
+    // The period the board shows: the one whose dates contain the board's range. Its id is what
+    // POST /schedule-periods/{id}/publish takes, and its status is the board's published state.
+    PeriodRow periodRow = coveringPeriod(unitId, from, to);
+    PeriodView period =
+        periodRow == null
+            ? null
+            : new PeriodView(
+                periodRow.id(), label(periodRow.start(), periodRow.end()), periodRow.status());
+    boolean published = period != null && "PUBLISHED".equals(period.status());
+    // Changes made after the publication are the shifts the board shows as not published yet. The
+    // audit trail is the source: it is append-only and every assignment change writes an event.
+    Integer unpublishedChanges =
+        published
+            ? unpublishedChanges(
+                unitId, periodRow.start(), periodRow.end(), periodRow.publishedAt())
+            : null;
+
     Integer overrides =
         jdbc.queryForObject(
             "SELECT count(*) FROM shift_assignment WHERE unit_id = ? AND override_id IS NOT NULL"
@@ -197,7 +217,63 @@ public class ScheduleQuery {
         rows,
         0,
         overrides == null ? 0 : overrides,
-        new PublishedState(publishedCount != null && publishedCount > 0, 0));
+        new PublishedState(published, unpublishedChanges),
+        period);
+  }
+
+  /** The period whose dates contain the board's range, or null when the range is not inside one. */
+  private PeriodRow coveringPeriod(UUID unitId, LocalDate from, LocalDate to) {
+    List<PeriodRow> found = new ArrayList<>();
+    jdbc.query(
+        "SELECT id, start_date, end_date, status, published_at FROM schedule_period"
+            + " WHERE unit_id = ? AND start_date <= ? AND end_date >= ? ORDER BY start_date",
+        (org.springframework.jdbc.core.RowCallbackHandler)
+            resultSet ->
+                found.add(
+                    new PeriodRow(
+                        (UUID) resultSet.getObject("id"),
+                        localDate(resultSet.getObject("start_date")),
+                        localDate(resultSet.getObject("end_date")),
+                        resultSet.getString("status"),
+                        resultSet.getTimestamp("published_at"))),
+        unitId,
+        from,
+        to);
+    return found.isEmpty() ? null : found.get(0);
+  }
+
+  private record PeriodRow(
+      UUID id, LocalDate start, LocalDate end, String status, java.sql.Timestamp publishedAt) {}
+
+  /** "9 – 22 Nov 2026": the week the board shows, the same label the web fixtures use. */
+  private static String label(LocalDate start, LocalDate end) {
+    return start.getDayOfMonth()
+        + " – "
+        + end.getDayOfMonth()
+        + " "
+        + end.format(java.time.format.DateTimeFormatter.ofPattern("MMM yyyy"));
+  }
+
+  /**
+   * The shifts of that period that were assigned, moved or cancelled after it was published. The
+   * audit trail is the source, because it is append-only and every assignment change writes an
+   * event with the assignment id.
+   */
+  private Integer unpublishedChanges(
+      UUID unitId, LocalDate start, LocalDate end, java.sql.Timestamp publishedAt) {
+    if (publishedAt == null) {
+      return 0;
+    }
+    return jdbc.queryForObject(
+        "SELECT count(DISTINCT s.id) FROM shift_assignment s JOIN audit_event a"
+            + " ON a.entity_type = 'shift_assignment' AND a.entity_id = s.id"
+            + " WHERE s.unit_id = ? AND s.work_date BETWEEN ? AND ? AND a.occurred_at > ?"
+            + "   AND a.action IN ('assign_shift', 'move_assignment', 'cancel_assignment')",
+        Integer.class,
+        unitId,
+        start,
+        end,
+        publishedAt);
   }
 
   private Map<UUID, Double> periodHours(LocalDate from) {

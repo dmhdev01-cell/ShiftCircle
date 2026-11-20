@@ -5,6 +5,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -16,10 +18,21 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableMethodSecurity
 public class SecurityConfig {
 
+  /**
+   * The API authenticates JWTs only. This bean keeps Spring Boot's default in-memory user out of the
+   * context, which is what otherwise prints "Using generated security password" at startup. It
+   * throws for every username, so basic auth with the default 'user' gets 401, not a second way in.
+   */
+  @Bean
+  public UserDetailsService passwordAuthenticationIsDisabled() {
+    return username -> {
+      throw new UsernameNotFoundException("Password authentication is not enabled");
+    };
+  }
+
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http, JwtService jwtService)
-      throws Exception {
-    http.csrf(csrf -> csrf.disable())
+      throws Exception {    http.csrf(csrf -> csrf.disable())
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
             requests ->

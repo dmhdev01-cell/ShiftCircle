@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -641,5 +642,13 @@ class OvertimeApiTest {
 
     jdbc.update(
         "DELETE FROM open_shift WHERE id = ?", UUID.fromString((String) json(created).get("id")));
+  }
+
+  @AfterEach
+  void restoreDemoUserAndEmployeeFlags() {
+    // Defense in depth if the per-class database isolation is ever removed: leave the shared demo
+    // user and the employee flags as the migrations created them.
+    jdbc.update("UPDATE employee SET active = true");
+    jdbc.update("UPDATE app_user SET employee_id = NULL WHERE username = 't.nakamura'");
   }
 }

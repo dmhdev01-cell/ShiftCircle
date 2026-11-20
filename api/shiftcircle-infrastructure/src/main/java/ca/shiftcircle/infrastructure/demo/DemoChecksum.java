@@ -8,6 +8,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 /**
  * SHA-256 over the roster. Two runs with the same seed must produce the same string; the generator
  * test compares them, and the demo log prints it so the dataset can be identified.
+ *
+ * <p>The schedule periods are part of the dataset, so they are part of the checksum: the same seed
+ * must produce the same roster weeks and the same published history.
  */
 public final class DemoChecksum {
 
@@ -33,6 +36,21 @@ public final class DemoChecksum {
               .append(resultSet.getString("unit"))
               .append('|')
               .append(resultSet.getString("kind"))
+              .append('\n');
+        });
+    jdbc.query(
+        "SELECT u.code AS unit, s.start_date, s.end_date, s.status FROM schedule_period s"
+            + " JOIN unit u ON u.id = s.unit_id ORDER BY u.code, s.start_date",
+        resultSet -> {
+          canonical
+              .append("period|")
+              .append(resultSet.getString("unit"))
+              .append('|')
+              .append(resultSet.getDate("start_date"))
+              .append('|')
+              .append(resultSet.getDate("end_date"))
+              .append('|')
+              .append(resultSet.getString("status"))
               .append('\n');
         });
     return sha256(canonical.toString());

@@ -344,6 +344,21 @@ class AssignmentApiTest {
   }
 
   @Test
+  void anOverrideReasonLongerThanTheCapIsABadRequest() throws Exception {
+    String body =
+        changeBody(null).substring(0, changeBody(null).length() - 1)
+            + ",\"override\":{\"reason\":\""
+            + "x".repeat(501)
+            + "\"}}";
+
+    HttpResponse<String> response = post("/api/v1/assignments", body, login("m.ellis"));
+
+    assertThat(response.statusCode()).isEqualTo(400);
+    String title = (String) mapper.readValue(response.body(), Map.class).get("title");
+    assertThat(title).contains("override.reason").contains("500");
+  }
+
+  @Test
   void thePreviewReportsTheLiveRuleSetVersion() throws Exception {
     // The label must come from the same snapshot the rules evaluate under (review, hot-swap
     // window): a direct database relabel would be the mismatch this test used to accept.

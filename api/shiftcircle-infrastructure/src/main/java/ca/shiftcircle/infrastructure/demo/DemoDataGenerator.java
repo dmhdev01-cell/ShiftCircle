@@ -116,6 +116,7 @@ public class DemoDataGenerator implements ApplicationRunner {
     UUID ruleSetVersion = publishedRuleSetVersion();
 
     List<PayPeriod> payPeriods = createPayPeriods(settings);
+    List<SchedulePeriod> schedulePeriods = createSchedulePeriods(settings, units);
     List<Officer> officers = createOfficers(settings, random, units);
 
     RosterPlanner planner = new RosterPlanner();
@@ -139,6 +140,7 @@ public class DemoDataGenerator implements ApplicationRunner {
     Instant now = settings.today().atTime(LocalTime.NOON).atZone(BusinessTime.REGINA).toInstant();
     persistTimeEntries(settings, payPeriods, assignments, absences, now, random);
     new DemoPlantedCases(jdbc).apply();
+    linkAssignmentsToPeriods();
     assignPayCodes(payPeriods);
     lockPastPayPeriods(settings, payPeriods);
     persistAuditEvents(settings);
@@ -146,12 +148,13 @@ public class DemoDataGenerator implements ApplicationRunner {
     DemoDataSelfCheck.Summary summary = new DemoDataSelfCheck(jdbc, environment, now).verify();
     log.info(
         "Demo data generated in {} ms: {} assignments, {} absences, {} open shifts, {} offers,"
-            + " checksum {}",
+            + " {} schedule periods, checksum {}",
         System.currentTimeMillis() - started,
         summary.assignments(),
         summary.absences(),
         summary.openShifts(),
         summary.offers(),
+        schedulePeriods.size(),
         DemoChecksum.of(jdbc));
   }
 
@@ -235,6 +238,75 @@ public class DemoDataGenerator implements ApplicationRunner {
                     })
             .toList());
     return periods.stream().filter(period -> !period.end().isBefore(windowStart)).toList();
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Schedule periods (docs/10 §6.1): one roster week per unit, so a supervisor has a period to
+  // publish. Weeks that ended before "today" are published history; the current week and the weeks
+  // after it are drafts, which is what the planning board shows and what the demo publishes.
+  // ---------------------------------------------------------------------------------------------
+
+  record SchedulePeriod(
+      UUID id, UUID unitId, String unitCode, LocalDate start, LocalDate end, boolean published) {}
+
+  private List<SchedulePeriod> createSchedulePeriods(DemoSettings settings, Map<String, Unit> units) {
+    List<SchedulePeriod> periods = new ArrayList<>();
+    LocalDate week = weekStart(settings.windowStart());
+    while (!week.isAfter(settings.windowEnd())) {
+      LocalDate end = week.plusDays(6);
+      // A period that has ended is history and reads as published; the period "today" falls in and
+      // everything after it is still to be planned.
+      boolean published = end.isBefore(settings.today());
+      for (String unitCode : UNIT_CODES) {
+        Unit unit = units.get(unitCode);
+        periods.add(
+            new SchedulePeriod(
+                id("schedule-period:" + unitCode + ":" + week),
+                unit.id(),
+                unitCode,
+                week,
+                end,
+                published));
+      }
+      week = week.plusDays(7);
+    }
+    jdbc.batchUpdate(
+        "INSERT INTO schedule_period (id, unit_id, start_date, end_date, status, published_at)"
+            + " VALUES (?, ?, ?, ?, ?, ?)",
+        periods.stream()
+            .map(
+                period ->
+                    new Object[] {
+                      period.id(),
+                      period.unitId(),
+                      period.start(),
+                      period.end(),
+                      period.published() ? "PUBLISHED" : "DRAFT",
+                      period.published() ? ts(publishedAt(period.end())) : null
+                    })
+            .toList());
+    return periods;
+  }
+
+  /** Roster weeks start on Monday, like the pay periods. */
+  private static LocalDate weekStart(LocalDate date) {
+    return date.minusDays(date.getDayOfWeek().getValue() - 1L);
+  }
+
+  /**
+   * A past week was published the morning after it ended. The timestamp is derived from the period,
+   * not from the clock, so the same seed always produces the same dataset.
+   */
+  private static Instant publishedAt(LocalDate end) {
+    return end.plusDays(1).atTime(9, 0).atZone(DemoSettings.REGINA).toInstant();
+  }
+
+  /** Every rostered shift belongs to the period that covers its work date (docs/06). */
+  private void linkAssignmentsToPeriods() {
+    jdbc.update(
+        "UPDATE shift_assignment s SET schedule_period_id = p.id FROM schedule_period p"
+            + " WHERE p.unit_id = s.unit_id AND s.work_date BETWEEN p.start_date AND p.end_date"
+            + " AND s.schedule_period_id IS NULL");
   }
 
   // ---------------------------------------------------------------------------------------------

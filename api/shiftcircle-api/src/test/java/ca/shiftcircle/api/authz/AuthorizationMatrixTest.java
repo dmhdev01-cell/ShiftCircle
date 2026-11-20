@@ -70,6 +70,9 @@ class AuthorizationMatrixTest {
             + " ON CONFLICT DO NOTHING",
         EMPLOYEE,
         UNIT_A);
+    // A previous class may have linked this demo employee. The authz expectations are about the
+    // unlinked employee, so reset it before minting the tokens.
+    jdbc.update("UPDATE app_user SET employee_id = NULL WHERE username = 't.nakamura'");
 
     for (String user :
         new String[] {
@@ -262,15 +265,16 @@ class AuthorizationMatrixTest {
     assertThat(send("POST", shift + "/offers", offers, null).statusCode()).isEqualTo(401);
 
     // Own data only: with no linked officer the endpoints answer an empty list / 404, and never
-    // another officer's rows.
+    // another officer's rows. Mint a token after the link is removed; a token minted earlier still
+    // carries the old employee id, which is exactly the leak this test used to miss.
     jdbc.update("UPDATE app_user SET employee_id = NULL WHERE username = 't.nakamura'");
-    assertThat(send("GET", "/api/v1/me/offers", null, tokens.get("t.nakamura")).statusCode())
+    String unlinked = login("t.nakamura");
+    assertThat(send("GET", "/api/v1/me/offers", null, unlinked).statusCode())
         .isEqualTo(200);
     assertThat((java.util.List<?>) mapper.readValue(
-            send("GET", "/api/v1/me/offers", null, tokens.get("t.nakamura")).body(), java.util.List.class))
+            send("GET", "/api/v1/me/offers", null, unlinked).body(), java.util.List.class))
         .isEmpty();
-    assertThat(send("GET", "/api/v1/me/schedule", null, tokens.get("t.nakamura")).statusCode())
-        .isEqualTo(404);
+    assertThat(send("GET", "/api/v1/me/schedule", null, unlinked).statusCode()).isEqualTo(404);
     assertThat(send("GET", "/api/v1/me/schedule", null, null).statusCode()).isEqualTo(401);
   }
 

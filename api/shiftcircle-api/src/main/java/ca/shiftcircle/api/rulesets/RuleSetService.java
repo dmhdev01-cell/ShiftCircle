@@ -445,6 +445,10 @@ public class RuleSetService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "A rejection needs a reason of at least 10 characters");
     }
+    if (reason.trim().length() > 500) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "A rejection reason must be at most 500 characters");
+    }
     jdbc.update(
         "UPDATE rule_set_version SET status = 'REJECTED', change_reason = ? WHERE id = ?",
         reason,

@@ -14,7 +14,7 @@
 | Layer | Tool | What it covers | Runs |
 |---|---|---|---|
 | **Rule boundary tests** | JUnit 5 + AssertJ, in `shiftcircle-rules` (no Spring, no DB) | Each fact builder and each rule table row at under / exactly / over its limit (§3) | Every build, < 10 s |
-| **Scenario library** | Same module; scenarios as data files (`src/test/resources/scenarios/*.json`) | Named end-to-end rule scenarios with expected outcomes (§4). **Also run by the rules publish pipeline.** | Every build + every rule publish |
+| **Scenario library** | Same module; scenarios in `RuleScenarioRunner` (Java) | Named end-to-end rule scenarios with expected outcomes (§4). **The rules publish pipeline runs T1–T6** (T1–T5 plus the O-02 ranking check); T7–T14 are API/database tests. | Every build + every rule publish |
 | **Use-case / repository tests** | Spring Boot Test + Testcontainers PostgreSQL | Services with a real database: overlap constraint, locked-period trigger, audit append-only, maker/checker check, ranking, payroll classification | Every build |
 | **API and authorization tests** | Spring MockMvc or RestAssured against the running app (Testcontainers) | Every endpoint's happy path, the 422 rule contract, 412 stale ETag, and **one test per denied/scoped cell** of the permission matrix (`09-access-control.md`) | Every build |
 | **Payroll golden file** | Use-case test | Export for planted pay period PP-2026-11 must equal `golden/payroll-2026-10-26.csv` byte for byte | Every build |
@@ -22,22 +22,24 @@
 | **Frontend unit tests** | Vitest + React Testing Library | Components: `ShiftChip`, `RuleResultList`, decision-table editor validation, the preview → 422 → override hook | Every build |
 | **End-to-end** | Playwright against `docker compose up` | The 5 demo flows (§5), on desktop and tablet viewport | Before submission (and in CI if time allows) |
 | **Accessibility** | `@axe-core/playwright` in the E2E run | No serious/critical axe violations on each screen; keyboard-only run of flows E1 and E3 | Before submission |
-| **Performance smoke** | E2E timing + a JUnit timing test | Planning board (100 officers × 14 days) < 1 s; rule check < 200 ms; 90-day report < 2 s (NFR-05) | Before submission |
+| **Performance smoke** | JUnit timing test (`PerformanceSmokeTest`); Playwright does not assert timings | Planning board (100 officers × 14 days) < 1 s; rule check < 200 ms; 90-day report < 2 s (NFR-05) | Before submission |
 
 ### Measured performance (NFR-05, 2026-11-20)
 
-Full demo dataset (100 officers, 6,182 assignments, checksum `0f1ba078a793f450fbae1ddb31f70c6dcbe053b1f8c62415431973e2b71be6de`), PostgreSQL 17 in a Testcontainer, `PerformanceSmokeTest` in `maven:3.9-eclipse-temurin-21` on Docker Desktop for macOS. That is a VM, slower than the target host, so a pass here is pessimistic. Five warm-up calls, then 20 timed calls; the board range is four weeks (NFR-05 says 14 days, so this is stricter); the publish figures are single calls.
+Full demo dataset (100 officers, 6,182 assignments, 84 schedule periods, checksum `3390148255db715844c4df90f553ae342530417621539b23499f638c5b126539`), PostgreSQL 17 in a Testcontainer, `PerformanceSmokeTest` in `maven:3.9-eclipse-temurin-21` on Docker Desktop for macOS. That is a VM, slower than the target host, so a pass here is pessimistic. Five warm-up calls, then 20 timed calls; the board range is four weeks (NFR-05 says 14 days, so this is stricter); the publish figures are single calls.
 
 | Case | Median | p95 | Limit |
 |---|---|---|---|
-| Planning board, Unit A, 4 weeks (`GET /schedule`) | 54 ms | 58 ms | 1,000 ms |
-| Rule check, busiest officer, 28-day look-back (`POST /rule-checks`) | 4 ms | 7 ms | 200 ms |
-| 90-day coverage report (`GET /reports/coverage`) | 7 ms | 15 ms | 2,000 ms |
-| Rule-set build (compile + scenarios + dry run) | 655 ms | — | recorded, no NFR |
-| Rule-set publish (compiles again, then swaps) | 516 ms | — | recorded, no NFR |
+| Planning board, Unit A, 4 weeks (`GET /schedule`) | 11 ms | 15 ms | 1,000 ms |
+| Rule check, busiest officer, 28-day look-back (`POST /rule-checks`) | 2 ms | 4 ms | 200 ms |
+| 90-day coverage report (`GET /reports/coverage`) | 6 ms | 9 ms | 2,000 ms |
+| Rule-set build (compile + scenarios + dry run) | 498 ms | — | recorded, no NFR |
+| Rule-set publish (compiles again, then swaps) | 433 ms | — | recorded, no NFR |
 
-A second run on the same machine gave 59/65, 3/4 and 8/24 ms and a 954 ms build; the host is
-shared, so expect this spread. The test asserts the median and the p95 against the NFR limits, so a regression fails the build rather than being noticed in the demo.
+These figures are from the clean-worktree run at `fe6487d` (the dataset with the 84 roster weeks).
+An earlier run on a busier host gave 54/58, 4/7 and 7/15 ms with a 655 ms build and a 516 ms
+publish; the host is shared, so expect this spread. The test asserts the median and the p95 against
+the NFR limits, so a regression fails the build rather than being noticed in the demo.
 
 **Definition of done for any feature:** its rule and use-case tests pass, its endpoints have authorization tests, and the demo flow touching it passes in Playwright.
 
@@ -65,9 +67,16 @@ Each line is at least three tests: just under, exactly at, just over. Times are 
 | Pay-period lock precondition (ADR-017) | one shift ended 1 min before now with no actual → lock **409 missing-actuals** | shift ending exactly now (`end_at = now`) with no actual → **409** (it counts as ended); with an actual or absence → lock succeeds | shift ending 1 min after now with no actual → not counted; lock succeeds if all ended shifts are recorded |
 | Time zones / midnight | Night 23:00–07:00 crossing midnight: `work_date` = start date; a 12:00–24:00 shift **ends at 00:00 the next day** (not 23:59); 00:00–12:00 shift belongs to its own date; a 16 h shift 20:00–12:00 spans two dates; rest maths correct across midnight and month end (31 Oct → 1 Nov) | | |
 
+**U-15 is a board status, not a rule row.** The board reads the pay period that contains the
+requested `from` date and shows UNDER below 72 h, APPROACHING from 72 h, and IN_OVERTIME from 80 h.
+`ScheduleApiTest#overtimeStatusChangesAtThePayPeriodThresholdBoundaries` pins 71.99 h, exactly 72 h,
+79.99 h, exactly 80 h and 80.01 h (the `hours` column is 2 dp, so 71.99 h is 71 h 59 m 24 s);
+`#overtimeStatusUsesThePeriodThatContainsTheBoardDateAndCountsAMidnightCrossing` checks the last day,
+a 23:00–07:00 entry and a separate 2027 period.
+
 ## 4. Scenario library (named, reusable)
 
-These are the verification cases. Pick 2–5 for the build record (recommended: **T2, T3, T7, T8, T9**).
+These are the verification cases. Pick 2–5 for the build record (recommended: **T2, T3, T7, T8, T9**). The rules publish pipeline runs T1–T5 and the T6 ranking check (`RuleScenarioRunner`); T7–T14 are covered by their own API/database tests because a rule row cannot affect payroll, maker/checker or lock behaviour.
 
 | ID | Scenario | Expected |
 |---|---|---|
@@ -108,6 +117,7 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 | Window | 1 Oct – 29 Dec 2026 (90 days) |
 | "Today" | 19 Nov 2026 (`SC_DEMO_TODAY`): days before today get actuals; today and later are planned only |
 | Pay periods | Biweekly, Monday start: 28 Sep, 12 Oct, 26 Oct, 9 Nov, 23 Nov, 7 Dec, 21 Dec. Periods ending before today are **LOCKED**. |
+| Schedule periods | One roster week (Monday–Sunday) per unit, from the Monday before the window (28 Sep) to the week that starts in it (28 Dec): 14 weeks × 6 units = **84 rows**. Weeks that ended before "today" are **PUBLISHED** (the morning after they ended); the week "today" falls in and the weeks after it are **DRAFT**, so a supervisor has a period to publish. Every shift points at the period that covers its work date. |
 | Rule set | v1 from `05-union-rules.md`, published 1 Oct; the generator then creates demo versions v2–v7 (history only) so the Rules screen shows a realistic version list |
 
 ### 6.2 Units and required staffing (by block, ADR-013)
@@ -179,6 +189,7 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 6. Every person row has `is_synthetic = true`; no name appears outside the fixed lists. *(Enforced by construction, since names are drawn only from the fixed lists, rather than by a separate assertion.)*
 7. Re-running with the same seed produces identical row counts and a matching checksum of assignments.
 8. Every assignment that ended before "today" has an actual time entry or an absence (so every past period can be locked, ADR-017).
+9. Schedule periods: every unit has one Monday-to-Sunday period per week of the window, no two periods of a unit overlap, the weeks that ended before "today" are published and the current and later weeks are drafts, and every shift points at the period that covers its work date.
 
 ## 7. Test data hygiene
 
@@ -197,6 +208,9 @@ Things the design describes that the prototype does **not** have. They are liste
 | **My hours** (`/me/hours`) and a separate **rule version review** page (`/rules/{version}/review`) | Placeholder pages; the approver reviews and approves on the rules screen | docs/ui/README §6 |
 | **Withdrawing or expiring an overtime offer** | Offers are accepted or declined. The schema has `WITHDRAWN` and `EXPIRED` statuses, but nothing sets them | docs/07 §4.2 (move and cancel) |
 | **`ETag`/`If-Match` in general** | Only assignment move and cancel (docs/07 §4.2); rule drafts rely on the build fingerprint | docs/07 §1 |
+| **Per-officer "changed since published" flag and the short-notice check** (FR-07, P-05/S-01) | The board returns `publishedState.unpublishedChanges` as a real count (the shifts of the period changed after it was published, from the audit trail) and names the period in `period`; no P-05/S-01 rule row and no per-officer changed marker | FR-07, docs/06 `schedule_period`, docs/05 P-05/S-01 |
+| **OpenAPI document and Swagger UI** (NFR-09) | `docs/07` is the written contract. No springdoc dependency, no `/api/v1/openapi.json` and no Swagger UI | NFR-09, docs/07 §1 |
+| **Editing shift-template start times through the rules flow** (ADR-015, FR-02) | The six templates are seeded in `V2`. The rules screen's `/rules/{version}/shift-types` route resolves to the SHIFT_LENGTHS table (allowed lengths), not a shift-template editor | ADR-015, docs/ui/README §6 |
 | **Full token claims:** `nbf`, `iss`, `aud` | The mock issuer's tokens are checked for signature, `exp` and the identity claims only. A real identity provider over OIDC would bring the rest (pilot) | docs/09 §4 |
 | **A payroll-clerk role** for lock, unlock and export | Any supervisor with a unit in scope, audited (ADR-022) | ADR-022 pilot note |
 | **Arrow-key (roving tabindex) navigation** in the roster grid | Every chip is reachable by Tab, with a skip link; reaching one can take many presses | ai-dev-log #51 |

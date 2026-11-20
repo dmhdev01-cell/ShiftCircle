@@ -11,34 +11,42 @@ Specs find elements by role, label or text, never by CSS path. `BASE_URL` picks 
 
 ## Run against the fixtures-mode web
 
-The browser runs only in Docker. The host needs Node and pnpm for the install step.
+Everything runs in containers; the host needs only Docker. `host.docker.internal` reaches the host from a container on Docker Desktop (macOS, Windows); `--add-host=host.docker.internal:host-gateway` makes the same name work on Docker Engine (Linux). Checked on macOS; Linux is **UNVERIFIED** here (alternative: `--network host` with `localhost`).
 
 ```sh
-# 1. Install the test dependencies (host)
-pnpm --dir e2e install
-
-# 2. Build the web in fixtures mode and serve it with a single-page-app fallback
-VITE_API_MODE=fixtures pnpm --dir web build
-pnpm dlx serve@14.2.4 -s -l tcp://0.0.0.0:4317 web/dist
-
-# 3. Run the browser in Docker (host.docker.internal reaches the host on Docker Desktop)
-docker run --rm -v "$PWD/e2e":/work -w /work \
-  -e BASE_URL=http://host.docker.internal:4317 \
-  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test
+# Install the test dependencies (once)
+docker run --rm -v "$PWD/e2e":/app -w /app node:24-alpine \
+  sh -c "corepack enable && pnpm install --frozen-lockfile"
 ```
 
-`vite preview` won't do for step 2: it refuses the `host.docker.internal` host name with a 403 unless `preview.allowedHosts` is set.
+## Run against the fixtures-mode web
+
+```sh
+# 1. Build the web in fixtures mode
+docker run --rm -e VITE_API_MODE=fixtures -v "$PWD/web":/app -w /app node:24-alpine \
+  sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm build"
+
+# 2. Serve it with a single-page-app fallback on port 4317 (stop it with: docker stop sc-fixtures-web)
+docker run -d --rm --name sc-fixtures-web -p 4317:4317 -v "$PWD/web/dist":/site:ro \
+  node:24-alpine npx -y serve@14.2.4 -s -l tcp://0.0.0.0:4317 /site
+
+# 3. Run the browser, skipping the real-api specs
+docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
+  -e BASE_URL=http://host.docker.internal:4317 \
+  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @api
+```
+
+`vite preview` won't do for step 2: it refuses the `host.docker.internal` host name with a 403 unless `preview.allowedHosts` is set. Latest fixtures result (dev-qa): 35 passed, 3 skipped, 0 failed.
 
 ## Run against the compose stack
 
 ```sh
 docker compose up -d --build --wait
-docker run --rm --network host -v "$PWD/e2e":/work -w /work \
-  -e BASE_URL=http://localhost:8080 \
-  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures
+docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
+  -e BASE_URL=http://host.docker.internal:8080 \
+  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
 ```
 
-`--wait` is enough: the api's readiness stays DOWN until the demo dataset has finished generating,
-so the web container starts against a loaded board and no test needs a sleep. `E2E_WORKERS` sets
-parallelism (default 2; the shared machine made 7 workers flaky). The HTML report is in
-`playwright-report/`.
+The real-api specs change the data (offer confirmed, rule version published, period locked), so run **one viewport per fresh stack**: after `--project desktop`, run `docker compose down -v && docker compose up -d --wait`, then `--project tablet`. Fresh-clone result at `f1d696d`: tablet on a fresh stack 12 passed, 1 skipped; both viewports on one stack failed 4 tablet tests on the changed data.
+
+`E2E_WORKERS` sets parallelism (default 2; the shared machine made 7 workers flaky). The HTML report is in `playwright-report/`.

@@ -1,13 +1,13 @@
 # ShiftCircle — API Specification
 
-**Status:** Draft v1.0 · 2026-11-19 · REST + JSON · the generated OpenAPI document is the source of truth once code exists
+**Status:** Draft v1.0 · 2026-11-19 · REST + JSON · this document is the contract (no generated OpenAPI document exists in the prototype; docs/10 §8)
 
 ## 1. Conventions
 
 | Topic | Convention |
 |---|---|
 | Base path | `/api/v1` (nginx proxies `/api/` to the api container) |
-| Docs | OpenAPI 3 at `/api/v1/openapi.json`; Swagger UI at `/api/swagger-ui` (`demo` and `dev` profiles only) |
+| Docs | Planned: OpenAPI 3 at `/api/v1/openapi.json` and Swagger UI (`demo` and `dev` profiles only). **Not built** (NFR-09, docs/10 §8): this document is the contract |
 | Auth | `Authorization: Bearer <token>` from mock sign-in (see `09-access-control.md`) |
 | IDs | UUID strings |
 | Time | Instants as ISO-8601 with offset (`2026-11-21T07:00:00-06:00`); dates as `YYYY-MM-DD`; all in `America/Regina` |
@@ -123,6 +123,14 @@ Publishing is one-way in the prototype: it sets the period to `PUBLISHED`, recor
 A second publish answers `409`; an unknown period is `404`, and another unit's period is also `404`
 so its existence is not revealed. The board's `publishedState.published` reads the same rows.
 
+**A period is one roster week (Monday to Sunday) of one unit.** The demo dataset seeds one period
+per unit and per week of the demo window: the weeks that ended before the demo day are `PUBLISHED`
+(they are history), and the week the demo day falls in and the weeks after it are `DRAFT`, so a
+supervisor has a period to publish on a fresh stack. `GET /schedule` returns the period it shows as
+`period { id, label, status }` (see the board header below), and that id is what
+`POST /schedule-periods/{id}/publish` takes. The status column is `DRAFT` or `PUBLISHED`; there is
+no `UNPUBLISHED` status in the schema.
+
 **Move and cancel (`PATCH` / `DELETE /assignments/{id}`): the exact contract** (decided 2026-11-20 so the builder doesn't have to guess):
 
 | Topic | Rule |
@@ -135,10 +143,10 @@ so its existence is not revealed. The board's `publishedState.published` reads t
 | Move rules | The full §3 pipeline runs on the target, with the assignment's **own current slot left out** of the officer's existing shifts, so it can't conflict with itself. `422` blocked or warnings, and overrides, exactly as §3. Updated in place: same `id`, new `version`, a `move_assignment` audit event with `before`/`after`. If the officer changes, both officers' locks are taken in id order. Answers `200` with the save outcome. |
 | Locked period | `409 .../pay-period-locked` if the **current** work date is in a locked period (move and cancel), or the **target** work date is (move). |
 | Started shifts | `409 .../shift-started` if the assignment has started by the server's "today" clock (the demo clock on the demo profile). Past shifts are corrected in Time & attendance, not on the schedule. |
-| Recorded actual | `DELETE` answers `409 .../actual-recorded` when a time entry already references the shift, even if the start time alone would not have refused it. Correct the actual in Time & attendance instead. |
+| Recorded actual or absence | `DELETE` answers `409 .../actual-recorded` when a time entry already references the shift, and `409 .../absence-recorded` when an absence row does, even if the start time alone would not have refused it. Correct the record in Time & attendance instead. |
 | Filled open shift | Cancelling an assignment that filled an open shift (`open_shift.filled_assignment_id`) puts that open shift back to `OPEN` with `filled_assignment_id` cleared, so the gap is visible and can be offered again. **Offer rows are left unchanged** (not set to `WITHDRAWN`): the confirmed offer stays as history, and the cancellation is in the audit trail. **Moving** such an assignment is refused with `409 .../fills-open-shift`: cancel it and assign again. |
 | Offers | A pending offer (`offer: true` chip) is not an assignment, so these endpoints don't apply to it. Withdrawing an offer is **not built** (docs/10 §8). |
-| Order of checks | role (`403`) → unknown or out of scope (`404`) → body (`400`) → `If-Match` (`428`, `412`) → state (`409`: locked, started, actual recorded, already cancelled, fills open shift) → rules (`422`, move only). |
+| Order of checks | role (`403`) → unknown or out of scope (`404`) → body (`400`) → `If-Match` (`428`, `412`) → state (`409`: locked, started, actual or absence recorded, already cancelled, fills open shift) → rules (`422`, move only). |
 | Roles | SUPERVISOR, own units only. For a move, both the current and the target unit must be in scope. |
 
 **Coverage per block (ADR-013 revised, ADR-017):** coverage is hourly, so one number per block can hide a short hour. `GET /schedule` returns a flat `coverage` array (one entry per block per day); `GET /display/today` uses the same block shape. Each entry carries:
@@ -151,20 +159,26 @@ so its existence is not revealed. The board's `publishedState.published` reads t
 ```
 
 The payload also has `unit { id, name }`, `days` (ISO dates), `asOf` (the demo today), `officers`
-(rows with day cells of `SHIFT` items), `warnings`, `overridesThisPeriod` and
-`publishedState { published, unpublishedChanges }`, matching `web/src/api/types.ts`.
+(rows with day cells of `SHIFT` items), `warnings`, `overridesThisPeriod`,
+`publishedState { published, unpublishedChanges }` and `period { id, label, status }`, matching
+`web/src/api/types.ts`.
 
 `lowestHourly` is the minimum headcount over the block's hours; `shortHours` lists merged hour ranges below `required` (`to` is exclusive); `covered` is true when `shortHours` is empty. `actual` is present for past hours only. The display version has the same shape and still **no names**.
 
-**Board header fields:** three facts on the board are neither per-officer nor per-block, so `GET /schedule` returns them at the top level of the payload:
+**Board header fields:** four facts on the board are neither per-officer nor per-block, so `GET /schedule` returns them at the top level of the payload:
 
 ```json
 { "asOf": "2026-11-19",
   "overridesThisPeriod": 1,
-  "publishedState": { "published": true, "unpublishedChanges": 3 } }
+  "publishedState": { "published": true, "unpublishedChanges": 3 },
+  "period": { "id": "9f0a…", "label": "16 – 22 Nov 2026", "status": "PUBLISHED" } }
 ```
 
-`asOf` is the server's "today" (`SC_DEMO_TODAY` on the demo profile), so the board marks the same days the api does instead of guessing from the browser clock. `overridesThisPeriod` counts the emergency overrides recorded in the pay period on the board. `publishedState` says whether the period is published and how many changes are not published yet.
+`asOf` is the server's "today" (`SC_DEMO_TODAY` on the demo profile), so the board marks the same days the api does instead of guessing from the browser clock. `overridesThisPeriod` counts the emergency overrides recorded in the pay period on the board.
+
+`period` is the roster week the board shows: the `schedule_period` row whose dates **contain the board's range** (`from` and `to`). It is `null` when the range is not inside one period — a board that spans two weeks has no single period. `id` is what `POST /schedule-periods/{id}/publish` takes, `label` is the week for people ("16 – 22 Nov 2026") and `status` is `DRAFT` or `PUBLISHED`.
+
+`publishedState.published` is true when that period is published. `publishedState.unpublishedChanges` counts the shifts of that period that were **assigned, moved or cancelled after it was published**; the source is the append-only audit trail (the `assign_shift`, `move_assignment` and `cancel_assignment` events of those shifts). It is `null` when the period is not published: there is no publication to compare against, and the board says "not published" instead of a change count.
 
 ### 4.3 Overtime
 

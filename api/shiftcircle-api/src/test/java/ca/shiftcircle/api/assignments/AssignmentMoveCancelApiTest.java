@@ -129,6 +129,18 @@ class AssignmentMoveCancelApiTest {
         send("DELETE", "/api/v1/assignments/" + id, null, token, "\"0\"");
     assertThat(noBody.statusCode()).isEqualTo(400);
 
+    HttpResponse<String> tooLong =
+        send(
+            "DELETE",
+            "/api/v1/assignments/" + id,
+            "{\"reason\":\"" + "x".repeat(501) + "\"}",
+            token,
+            "\"0\"");
+    assertThat(tooLong.statusCode()).isEqualTo(400);
+    String tooLongTitle = (String) mapper.readValue(tooLong.body(), Map.class).get("title");
+    assertThat(tooLongTitle).contains("reason").contains("500");
+    assertThat(statusOf(id)).isEqualTo("PLANNED");
+
     HttpResponse<String> noIfMatch =
         send("DELETE", "/api/v1/assignments/" + id, "{\"reason\":\"Sick call, no relief\"}", token,
             null);
@@ -142,6 +154,11 @@ class AssignmentMoveCancelApiTest {
     assertThat(stale.statusCode()).isEqualTo(412);
     assertThat((String) mapper.readValue(stale.body(), Map.class).get("type"))
         .endsWith("/stale-version");
+
+    HttpResponse<String> weak =
+        send("DELETE", "/api/v1/assignments/" + id, "{\"reason\":\"Sick call, no relief\"}", token,
+            "W/\"0\"");
+    assertThat(weak.statusCode()).as("If-Match needs a strong validator").isEqualTo(400);
     assertThat(statusOf(id)).isEqualTo("PLANNED");
   }
 
@@ -204,6 +221,27 @@ class AssignmentMoveCancelApiTest {
       jdbc.update("DELETE FROM time_entry WHERE id = ?", entry);
       jdbc.update("DELETE FROM pay_period WHERE id = ?", period);
     }
+  }
+
+  @Test
+  void cancellingIsRefusedWhenAnAbsenceReferencesTheShift() throws Exception {
+    UUID id = insertAssignment("D8", "2027-02-01T07:00:00-06:00", "ROSTERED");
+    jdbc.update(
+        "INSERT INTO absence (id, employee_id, shift_assignment_id, type, start_at, end_at)"
+            + " VALUES (?, ?, ?, 'SICK', TIMESTAMPTZ '2027-02-01 07:00:00-06',"
+            + " TIMESTAMPTZ '2027-02-01 15:00:00-06')",
+        UUID.randomUUID(),
+        EMPLOYEE,
+        id);
+
+    HttpResponse<String> response =
+        send("DELETE", "/api/v1/assignments/" + id, "{\"reason\":\"Sick call, no relief\"}",
+            login("m.ellis"), "\"0\"");
+
+    assertThat(response.statusCode()).isEqualTo(409);
+    assertThat((String) mapper.readValue(response.body(), Map.class).get("type"))
+        .endsWith("/absence-recorded");
+    assertThat(statusOf(id)).isEqualTo("PLANNED");
   }
 
   @Test
