@@ -95,7 +95,9 @@ All in Docker.
 
 # API: rules boundary tests, repository tests (Testcontainers PostgreSQL), API and authorization tests.
 # Needs the Docker socket; .env must exist because compose reads the whole file.
-docker compose --profile test run --rm api-test
+# --build is required: compose otherwise reuses an old api-test image and a stale run can
+# report BUILD SUCCESS for a tip that never ran.
+docker compose --profile test run --rm --build api-test
 
 # Web unit tests (Vitest)
 docker run --rm -v "$PWD/web":/app -w /app node:24-alpine \

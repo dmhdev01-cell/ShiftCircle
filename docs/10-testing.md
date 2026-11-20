@@ -14,7 +14,7 @@
 | Layer | Tool | What it covers | Runs |
 |---|---|---|---|
 | **Rule boundary tests** | JUnit 5 + AssertJ, in `shiftcircle-rules` (no Spring, no DB) | Each fact builder and each rule table row at under / exactly / over its limit (§3) | Every build, < 10 s |
-| **Scenario library** | Same module; scenarios as data files (`src/test/resources/scenarios/*.json`) | Named end-to-end rule scenarios with expected outcomes (§4). **Also run by the rules publish pipeline.** | Every build + every rule publish |
+| **Scenario library** | Same module; scenarios in `RuleScenarioRunner` (Java) | Named end-to-end rule scenarios with expected outcomes (§4). **The rules publish pipeline runs T1–T6** (T1–T5 plus the O-02 ranking check); T7–T14 are API/database tests. | Every build + every rule publish |
 | **Use-case / repository tests** | Spring Boot Test + Testcontainers PostgreSQL | Services with a real database: overlap constraint, locked-period trigger, audit append-only, maker/checker check, ranking, payroll classification | Every build |
 | **API and authorization tests** | Spring MockMvc or RestAssured against the running app (Testcontainers) | Every endpoint's happy path, the 422 rule contract, 412 stale ETag, and **one test per denied/scoped cell** of the permission matrix (`09-access-control.md`) | Every build |
 | **Payroll golden file** | Use-case test | Export for planted pay period PP-2026-11 must equal `golden/payroll-2026-10-26.csv` byte for byte | Every build |
@@ -22,7 +22,7 @@
 | **Frontend unit tests** | Vitest + React Testing Library | Components: `ShiftChip`, `RuleResultList`, decision-table editor validation, the preview → 422 → override hook | Every build |
 | **End-to-end** | Playwright against `docker compose up` | The 5 demo flows (§5), on desktop and tablet viewport | Before submission (and in CI if time allows) |
 | **Accessibility** | `@axe-core/playwright` in the E2E run | No serious/critical axe violations on each screen; keyboard-only run of flows E1 and E3 | Before submission |
-| **Performance smoke** | E2E timing + a JUnit timing test | Planning board (100 officers × 14 days) < 1 s; rule check < 200 ms; 90-day report < 2 s (NFR-05) | Before submission |
+| **Performance smoke** | JUnit timing test (`PerformanceSmokeTest`); Playwright does not assert timings | Planning board (100 officers × 14 days) < 1 s; rule check < 200 ms; 90-day report < 2 s (NFR-05) | Before submission |
 
 ### Measured performance (NFR-05, 2026-11-20)
 
@@ -67,7 +67,7 @@ Each line is at least three tests: just under, exactly at, just over. Times are 
 
 ## 4. Scenario library (named, reusable)
 
-These are the verification cases. Pick 2–5 for the build record (recommended: **T2, T3, T7, T8, T9**).
+These are the verification cases. Pick 2–5 for the build record (recommended: **T2, T3, T7, T8, T9**). The rules publish pipeline runs T1–T5 and the T6 ranking check (`RuleScenarioRunner`); T7–T14 are covered by their own API/database tests because a rule row cannot affect payroll, maker/checker or lock behaviour.
 
 | ID | Scenario | Expected |
 |---|---|---|
@@ -197,6 +197,9 @@ Things the design describes that the prototype does **not** have. They are liste
 | **My hours** (`/me/hours`) and a separate **rule version review** page (`/rules/{version}/review`) | Placeholder pages; the approver reviews and approves on the rules screen | docs/ui/README §6 |
 | **Withdrawing or expiring an overtime offer** | Offers are accepted or declined. The schema has `WITHDRAWN` and `EXPIRED` statuses, but nothing sets them | docs/07 §4.2 (move and cancel) |
 | **`ETag`/`If-Match` in general** | Only assignment move and cancel (docs/07 §4.2); rule drafts rely on the build fingerprint | docs/07 §1 |
+| **Per-officer "changed since published" flag and the short-notice check** (FR-07, P-05/S-01) | The board returns `publishedState.unpublishedChanges` as a count; no P-05/S-01 rule row and no per-officer changed marker | FR-07, docs/06 `schedule_period`, docs/05 P-05/S-01 |
+| **OpenAPI document and Swagger UI** (NFR-09) | `docs/07` is the written contract. No springdoc dependency, no `/api/v1/openapi.json` and no Swagger UI | NFR-09, docs/07 §1 |
+| **Editing shift-template start times through the rules flow** (ADR-015, FR-02) | The six templates are seeded in `V2`. The rules screen's `/rules/{version}/shift-types` route resolves to the SHIFT_LENGTHS table (allowed lengths), not a shift-template editor | ADR-015, docs/ui/README §6 |
 | **Full token claims:** `nbf`, `iss`, `aud` | The mock issuer's tokens are checked for signature, `exp` and the identity claims only. A real identity provider over OIDC would bring the rest (pilot) | docs/09 §4 |
 | **A payroll-clerk role** for lock, unlock and export | Any supervisor with a unit in scope, audited (ADR-022) | ADR-022 pilot note |
 | **Arrow-key (roving tabindex) navigation** in the roster grid | Every chip is reachable by Tab, with a skip link; reaching one can take many presses | ai-dev-log #51 |
