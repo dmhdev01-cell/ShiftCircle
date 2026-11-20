@@ -9,7 +9,7 @@ import { api } from '../api/client';
 import type { PayPeriod, TimeEntry } from '../api/types';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
-import { workedOf } from './TimeAttendancePage';
+import { workedOf } from './workedHours';
 
 function renderScreen() {
   return render(
@@ -176,6 +176,29 @@ describe('Time and attendance', () => {
     expect(screen.queryByText('Sam Abara')).not.toBeInTheDocument();
   });
 
+  it('names the person who locked the period, and never invents one', async () => {
+    // V5: the pill said "Locked · a supervisor", which is nobody. With a name
+    // it shows the name; without one it shows the time only.
+    const current: PayPeriod = {
+      id: 'period-2026-11-09',
+      label: '9 – 22 Nov 2026',
+      from: '2026-11-09',
+      to: '2026-11-22',
+      status: 'LOCKED',
+      lockedAt: '20 Nov 08:48',
+      totals: { officers: 10, workedHours: 801, overtimeHours: 31 },
+      overtimeThresholdHours: 80,
+    };
+    vi.spyOn(api, 'getPayPeriods').mockResolvedValue([current]);
+    vi.spyOn(api, 'getTimeEntries').mockResolvedValue([]);
+
+    renderScreen();
+
+    expect(await screen.findByText('Locked · 20 Nov 08:48')).toBeInTheDocument();
+    expect(screen.queryByText(/a supervisor/)).not.toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+
   it('opens on the pay period that contains the demo day', async () => {
     // V3: the list runs newest first, so the first period was 21 Dec - 3 Jan.
     vi.stubGlobal(
@@ -226,6 +249,8 @@ describe('Time and attendance', () => {
       date: '2026-11-20',
       startAt: '2026-11-20T07:00:00-06:00',
       endAt: '2026-11-20T15:00:00-06:00',
+      shiftTemplate: 'D8',
+      worked: false,
       needsActual: false,
     };
     expect(workedOf(planned)).toBe(0);
