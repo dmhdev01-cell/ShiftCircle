@@ -17,8 +17,11 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
@@ -43,6 +46,7 @@ import tools.jackson.databind.ObjectMapper;
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = "sc.demo.generate=false")
 @ActiveProfiles("demo")
+@ExtendWith(OutputCaptureExtension.class)
 class ConstraintProblemApiTest {
 
   @DynamicPropertySource
@@ -88,7 +92,8 @@ class ConstraintProblemApiTest {
   // ---------------------------------------------------------------------------------------------
 
   @Test
-  void anOverlappingEmergencyOverrideAnswersAConflictAndSavesNothing() throws Exception {
+  void anOverlappingEmergencyOverrideAnswersAConflictAndSavesNothing(CapturedOutput output)
+      throws Exception {
     String token = login("m.ellis");
     // 15:00 on Friday sits inside the officer's existing 12:00 to 00:00 shift.
     String body = change("D8", "2026-11-20T15:00:00-06:00");
@@ -117,6 +122,12 @@ class ConstraintProblemApiTest {
         .as("nothing was saved")
         .isEqualTo(1);
     assertThat(count("SELECT count(*) FROM override")).as("no override row either").isZero();
+
+    // The caller gets the plain refusal; the operator gets the SQLSTATE and the constraint name.
+    assertThat(output)
+        .as("the operator can see which database rule refused the save")
+        .contains("sqlState=23P01")
+        .contains("constraint=no_overlapping_shifts");
   }
 
   @Test

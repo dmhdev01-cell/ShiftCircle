@@ -9,6 +9,8 @@ import ca.shiftcircle.rules.rows.RuleRowsV1;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import tools.jackson.databind.ObjectMapper;
@@ -21,6 +23,8 @@ import tools.jackson.databind.ObjectMapper;
  */
 @Repository
 public class RuleRowsRepository {
+
+  private static final Logger log = LoggerFactory.getLogger(RuleRowsRepository.class);
 
   private final JdbcTemplate jdbc;
   private final ObjectMapper mapper = new ObjectMapper();
@@ -50,6 +54,10 @@ public class RuleRowsRepository {
     } catch (RuntimeException unreadable) {
       // The rows exist but cannot be read back. Falling back to v1 here would silently serve a
       // rule set nobody published, so stop the boot with a plain message instead.
+      log.error(
+          "published rule rows {} could not be read, so ShiftCircle will not start",
+          label,
+          unreadable);
       throw new IllegalStateException(
           "The published rule rows "
               + label

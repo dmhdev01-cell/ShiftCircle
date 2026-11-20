@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.kie.api.KieBase;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -23,6 +25,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class PublishedRuleSet {
 
+  private static final Logger log = LoggerFactory.getLogger(PublishedRuleSet.class);
+
   /** One consistent triple: the version label, the rows and the base compiled from exactly them. */
   public record Snapshot(int version, RuleSet ruleSet, KieBase kieBase) {}
 
@@ -37,11 +41,19 @@ public class PublishedRuleSet {
     // let it serve rules nobody validated. The publish path runs the same validator.
     List<RuleRowValidator.Violation> violations = new RuleRowValidator().validate(initial);
     if (!violations.isEmpty()) {
+      String detail =
+          violations.stream().map(Object::toString).collect(Collectors.joining("; "));
+      // The refusal stops the boot; the log says why, so an operator does not have to guess from
+      // a wrapped exception in the startup dump.
+      log.error(
+          "published rule set {} is not valid, so ShiftCircle will not start: {}",
+          initial.version(),
+          detail);
       throw new IllegalStateException(
           "The published rule set "
               + initial.version()
               + " is not valid, so ShiftCircle will not start. "
-              + violations.stream().map(Object::toString).collect(Collectors.joining("; "))
+              + detail
               + ". Fix the rows or publish a valid version.");
     }
     this.current.set(

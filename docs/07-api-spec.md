@@ -62,7 +62,13 @@ rule, assignment or payroll advice:
 | A role or scope refusal from Spring Security | `403` with a problem body (before, it was an empty body) |
 | Not signed in | `401` with a problem body (the token filter answers it) |
 | Spring's own web failures (a wrong verb, a wrong media type) | Their own status (`405`, `415`) with a problem body |
-| Anything unexpected | `500` with a problem body that says nothing about the internals; the stack goes to the log |
+| Anything unexpected | `500` with a problem body that says nothing about the internals, plus a `traceId`; the exception and stack are logged at `ERROR` under that same id |
+
+A refusal also leaves a trace server-side, so hiding the cause from the caller does not hide it
+from the operator. A database conflict is logged at `WARN` with its SQLSTATE and constraint name,
+the rule-compile refusal at `WARN` with the compiler's detail, and a boot-validation refusal at
+`ERROR` before the app stops. None of that detail is in the response body; the body keeps plain
+words (and, for an unexpected `500`, the `traceId` to quote).
 
 ## 3. Rule checks: preview, save, override
 

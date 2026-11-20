@@ -8,8 +8,11 @@ import ca.shiftcircle.api.rulesets.RuleRowsRepository;
 import ca.shiftcircle.rules.RuleSetCompiler;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -24,6 +27,7 @@ import org.springframework.test.context.DynamicPropertySource;
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = "sc.demo.generate=false")
 @ActiveProfiles("demo")
+@ExtendWith(OutputCaptureExtension.class)
 class PublishedRuleSetBootTest {
 
   @DynamicPropertySource
@@ -36,7 +40,7 @@ class PublishedRuleSetBootTest {
   @Autowired private RuleRowsRepository rows;
 
   @Test
-  void aDirectEditToAPublishedRowRefusesToStartAndNamesTheProblem() {
+  void aDirectEditToAPublishedRowRefusesToStartAndNamesTheProblem(CapturedOutput output) {
     UUID published =
         jdbc.queryForObject(
             "SELECT id FROM rule_set_version WHERE status = 'PUBLISHED'"
@@ -56,6 +60,10 @@ class PublishedRuleSetBootTest {
           .hasMessageContaining("ShiftCircle will not start")
           .hasMessageContaining("U-01")
           .hasMessageContaining("8-hour");
+      assertThat(output)
+          .as("the refusal is in the log, not only in the exception")
+          .contains("is not valid, so ShiftCircle will not start")
+          .contains("U-01");
     } finally {
       restore(published, original);
     }
@@ -65,7 +73,7 @@ class PublishedRuleSetBootTest {
   }
 
   @Test
-  void aPublishedRowThatCannotBeReadRefusesToStartInsteadOfServingV1() {
+  void aPublishedRowThatCannotBeReadRefusesToStartInsteadOfServingV1(CapturedOutput output) {
     UUID published =
         jdbc.queryForObject(
             "SELECT id FROM rule_set_version WHERE status = 'PUBLISHED'"
@@ -83,6 +91,9 @@ class PublishedRuleSetBootTest {
           .isInstanceOf(IllegalStateException.class)
           .hasMessageContaining("ShiftCircle will not start")
           .hasMessageContaining("could not be read");
+      assertThat(output)
+          .as("the refusal is in the log, not only in the exception")
+          .contains("could not be read, so ShiftCircle will not start");
     } finally {
       restore(published, original);
     }

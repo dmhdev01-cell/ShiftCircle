@@ -3,6 +3,11 @@ package ca.shiftcircle.api.problems;
 import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -33,6 +38,9 @@ import org.springframework.web.server.ResponseStatusException;
 @RestControllerAdvice
 public class ApiProblemAdvice {
 
+  private static final Logger log = LoggerFactory.getLogger(ApiProblemAdvice.class);
+  private static final Pattern CONSTRAINT_NAME = Pattern.compile("constraint \"([^\"]+)\"");
+
   @ExceptionHandler(ResponseStatusException.class)
   public ResponseEntity<Map<String, Object>> onStatus(ResponseStatusException exception) {
     HttpStatus status = HttpStatus.valueOf(exception.getStatusCode().value());
@@ -56,6 +64,14 @@ public class ApiProblemAdvice {
    */
   @ExceptionHandler(DataIntegrityViolationException.class)
   public ResponseEntity<Map<String, Object>> onConflict(DataIntegrityViolationException exception) {
+    // A refusal the caller cannot see behind is a refusal the operator cannot diagnose either.
+    // The SQLSTATE and the constraint name stay in the log; the body gets plain words only.
+    String state = sqlState(exception);
+    String constraint = constraintName(exception);
+    log.warn(
+        "database conflict sqlState={} constraint={} answered with a problem document",
+        state,
+        constraint);
     // The database CHECK is the last line behind the app's maker/checker rule. If it fires, the
     // caller must see a refusal, not a 500 with a driver message (defense in depth).
     if (mentionsMakerChecker(exception)) {
@@ -65,7 +81,6 @@ public class ApiProblemAdvice {
           "The database refused the approval: a version must be approved by someone other than"
               + " its author.");
     }
-    String state = sqlState(exception);
     if ("22003".equals(state)) {
       // A numeric overflow is a bad request, not a server failure (docs/07 §4.5).
       return problem(
@@ -117,6 +132,22 @@ public class ApiProblemAdvice {
       cause = cause.getCause();
     }
     return false;
+  }
+
+  /** The constraint name a PostgreSQL driver puts in its message, for the log only. */
+  private static String constraintName(Throwable error) {
+    Throwable current = error;
+    while (current != null) {
+      String message = current.getMessage();
+      if (message != null) {
+        Matcher matcher = CONSTRAINT_NAME.matcher(message);
+        if (matcher.find()) {
+          return matcher.group(1);
+        }
+      }
+      current = current.getCause();
+    }
+    return "unknown";
   }
 
   @ExceptionHandler(ca.shiftcircle.api.overtime.CandidateUnavailableException.class)
@@ -176,18 +207,33 @@ public class ApiProblemAdvice {
   /**
    * Everything else. Spring's own web exceptions already know their status (405 for a wrong verb,
    * 415 for a wrong media type), and they keep it. Anything left is a server failure: the answer
-   * says so and nothing else, so no internals reach the caller. The stack goes to the log.
+   * says so and nothing else, so no internals reach the caller. The failure is logged at ERROR with
+   * its stack, under the same trace id the caller is given, so the operator can find it.
    */
   @ExceptionHandler(Exception.class)
   public ResponseEntity<Map<String, Object>> onUnexpected(Exception exception) {
     if (exception instanceof ErrorResponse errorResponse) {
       HttpStatus status = HttpStatus.valueOf(errorResponse.getStatusCode().value());
-      return problem(status, status.getReasonPhrase(), null);
+      if (!status.is5xxServerError()) {
+        return problem(status, status.getReasonPhrase(), null);
+      }
     }
-    return problem(
-        HttpStatus.INTERNAL_SERVER_ERROR,
-        "Something went wrong",
-        "The request could not be completed. Try again.");
+    String traceId = UUID.randomUUID().toString();
+    log.error(
+        "unexpected failure traceId={}; the caller sees only the problem document",
+        traceId,
+        exception);
+    Map<String, Object> body = new LinkedHashMap<>();
+    body.put("type", "https://shiftcircle.local/problems/500");
+    body.put("title", "Something went wrong");
+    body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+    body.put(
+        "detail",
+        "The request could not be completed. Quote traceId " + traceId + " when you report it.");
+    body.put("traceId", traceId);
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+        .body(body);
   }
 
   private ResponseEntity<Map<String, Object>> problem(

@@ -13,8 +13,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.core.env.Environment;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -33,6 +36,7 @@ import tools.jackson.databind.ObjectMapper;
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = "sc.demo.generate=false")
 @ActiveProfiles("demo")
+@ExtendWith(OutputCaptureExtension.class)
 class UnexpectedFailureApiTest {
 
   @DynamicPropertySource
@@ -51,7 +55,8 @@ class UnexpectedFailureApiTest {
   private static final UUID UNIT_A = UUID.fromString("11111111-1111-1111-1111-000000000001");
 
   @Test
-  void anUnexpectedFailureAnswersAProblemDocumentWithoutInternals() throws Exception {
+  void anUnexpectedFailureAnswersAProblemDocumentWithoutInternals(CapturedOutput output)
+      throws Exception {
     when(scheduleQuery.unitCode(any())).thenReturn("A");
     when(scheduleQuery.forUnit(any(), any(), any()))
         .thenThrow(new IllegalStateException("the internal detail that must not leak"));
@@ -69,6 +74,17 @@ class UnexpectedFailureApiTest {
         .doesNotContain("IllegalStateException")
         .doesNotContain("at ca.shiftcircle")
         .doesNotContain("org.springframework");
+
+    // Hiding the failure from the operator too would be worse than a raw 500: the same request
+    // must leave an ERROR with the exception and stack, tied to the id the caller can quote.
+    String traceId = (String) body.get("traceId");
+    assertThat(traceId).as("the caller gets a correlation id").isNotBlank();
+    assertThat(output)
+        .as("the operator can find this exact failure in the log")
+        .contains("unexpected failure")
+        .contains("traceId=" + traceId)
+        .contains("IllegalStateException")
+        .contains("the internal detail that must not leak");
   }
 
   @Test
