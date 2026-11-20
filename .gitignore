@@ -11,10 +11,12 @@ target/
 
 # Node / frontend
 node_modules/
-dist/
-build/
 coverage/
 .vite/
+# Anchored to the web container: an unanchored "build/" ignored
+# api/shiftcircle-rules/src/main/java/.../rules/build/ (caught in review, 2026-11-20).
+/web/build/
+/web/dist/
 
 # IDE / OS
 .idea/
