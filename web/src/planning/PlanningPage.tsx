@@ -178,6 +178,23 @@ export function PlanningPage() {
   return (
     <>
       <Box
+        component="a"
+        href="#roster"
+        sx={{
+          alignSelf: 'flex-start',
+          display: 'inline-flex',
+          alignItems: 'center',
+          minHeight: 44,
+          px: 2,
+          fontSize: 14,
+          fontWeight: 600,
+          color: colour.brand.link,
+        }}
+      >
+        Skip to roster
+      </Box>
+
+      <Box
         sx={{
           display: 'flex',
           flexWrap: 'wrap',
@@ -250,7 +267,13 @@ export function PlanningPage() {
       </Box>
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'flex-start' }}>
-        <Box sx={{ flex: '999 1 640px', minWidth: 0 }}>
+        <Box
+          component="section"
+          id="roster"
+          aria-label="Roster"
+          tabIndex={-1}
+          sx={{ flex: '999 1 640px', minWidth: 0, outline: 'none' }}
+        >
           <RosterGrid
             payload={payload}
             today={today}

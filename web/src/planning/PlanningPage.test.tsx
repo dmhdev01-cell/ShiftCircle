@@ -100,4 +100,34 @@ describe('the planning board', () => {
       }),
     ).toBeInTheDocument();
   });
+
+  it('offers a skip link straight to the roster', async () => {
+    renderBoard();
+
+    const link = await screen.findByRole('link', { name: 'Skip to roster' });
+    expect(link).toHaveAttribute('href', '#roster');
+    expect(document.getElementById('roster')).not.toBeNull();
+  });
+
+  it('B2: an emergency override acknowledges the warnings with it', async () => {
+    const user = userEvent.setup();
+    renderBoard();
+
+    // PC-01 blocks on U-01 and U-05 and also warns on U-14.
+    await user.click(await screen.findByRole('button', { name: /! D proposed for Nia Thompson/ }));
+    expect(await screen.findByText('Blocked: 2 rules fail')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Emergency override…' }));
+    expect(
+      await screen.findByText(/The warnings are acknowledged with the override: U-14/),
+    ).toBeInTheDocument();
+
+    await user.type(
+      screen.getByLabelText('Why is this override needed?'),
+      'Unit B is short and no eligible officer is left tonight',
+    );
+    await user.click(screen.getByRole('button', { name: 'Emergency override' }));
+
+    expect(await screen.findByText('Saved')).toBeInTheDocument();
+  });
 });
