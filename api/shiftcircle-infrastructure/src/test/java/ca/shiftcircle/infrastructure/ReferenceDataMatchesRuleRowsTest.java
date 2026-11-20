@@ -40,10 +40,27 @@ class ReferenceDataMatchesRuleRowsTest {
 
   @BeforeAll
   static void migrate() {
-    Flyway.configure()
-        .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
-        .load()
-        .migrate();
+    // The container readiness check can pass a moment before the server accepts an SSL handshake
+    // under load; a real migration error is stable and still fails on the third attempt.
+    RuntimeException last = null;
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        Flyway.configure()
+            .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+            .load()
+            .migrate();
+        return;
+      } catch (RuntimeException e) {
+        last = e;
+        try {
+          Thread.sleep(1000L * attempt);
+        } catch (InterruptedException interrupted) {
+          Thread.currentThread().interrupt();
+          throw e;
+        }
+      }
+    }
+    throw last;
   }
 
   @Test

@@ -20,8 +20,11 @@ Internal note for the team; remove before submission (step 13) or fold into the 
 | docs | `6ec99b2`, `3d373bc` | API spec matches the api and web shapes |
 | step 6 review fixes | `f73d6c5` | preview unit scope, per-officer save lock, override+warn acknowledgement, 28-day U-11 window, problem+json; 142 tests from a clean worktree (ADR-021) |
 | 8 overtime | `ba8f95f`, `6e68a8d` | `OvertimeRanker` + endpoints: ranked candidates (PC-07 tie, PC-08 offer→accept→confirm, PC-09 unavailable head, PC-02 exactly 8 h), `/me/schedule`, `/me/offers`, V4 `CONFIRMED`; 162 tests |
+| 9 time/payroll merge | `1714f76`, `2b5f3fe` | dev-build2's `api-time-payroll` (T8 golden CSV, T11, T12, T14, CSV quoting); 200 tests from a clean worktree |
+| 8 review fixes | `7489cf7` | F1 gate on offer/confirm/assign, F3 row locks + status guards, F2/F4/F6, F7 demo clock, F5 docs; 31 targeted tests |
+| 11 rules admin | `2dc1b1b`, `3cc55e6`, `a46580b` | `RuleRowValidator` (T13 + Must rows), `RuleScenarioRunner` (T1-T5 + ranking), drafts/rows/build/dry run/submit/approve/publish, atomic hot-swap snapshot, boot-time published rows; 206 tests |
 
-Latest full run: 66 rules + 20 infrastructure + 76 api = **162 tests**, all passing in Docker.
+Latest full run: 83 rules + 20 infrastructure + 103 api = **206 tests**, all passing in Docker.
 
 ## Next, in the lead's priority order
 
@@ -34,22 +37,23 @@ caller's unit scope (overtime totals are scope-only data); confirm accepts the o
 warnings but refuses a *new* one. Tests: `OvertimeRankerTest` (10), `OvertimeApiTest` (9),
 matrix cells.
 
-### b) Step 11 backend: rules publish pipeline (T7/E3, T10, T13) — DO THIS NEXT
+### b) Step 11 backend: rules publish pipeline (T7/E3, T10, T13)
 
-- Reads rows from PostgreSQL (the drift guard proves V2 == RuleRowsV1), validates against
-  `TemplateColumns`/builder limits (reject `windowHours` the builders never emit — docs/04 §5a,
-  and reject `skipIfBlocked=false`), compiles with `RuleSetCompiler`, runs scenarios T1–T13,
-  dry run with counts only (ADR-017), stores the build report, submit/approve (DB maker/checker
-  already enforced), publish with a hot-swapped `KieBase` bean (the current config compiles v1
-  at startup), version history, rollback. Audit each step.
-- T7: change U-10 from 4 to 3 nights on a draft, dry run lists PC-06's four-night runs as new
-  warnings; after approval/publish the same check warns. No code change.
-- The ranking policy must be read from the published rows too (a v2 draft that edits O-02 has
-  to change the list), so route `RankingPolicy.from` through the same published rule set.
+**Done** (commits `2dc1b1b`, `3cc55e6`). `RuleRowValidator` (T13), `RuleScenarioRunner`
+(T1-T5 + O-02 ranking), `RuleSetService`/`RuleSetController` (drafts, row edits, build with
+validate→compile→scenarios→dry run, submit, maker/checker approve/reject, publish with hot swap,
+row fingerprint), `RuleRowsRepository` + `PublishedRuleSet` boot from PostgreSQL, `/version`
+reports the live version. Tests: `RuleSetApiTest` 4 (T13, T10, T7 dry run + post-publish WARN,
+E3), validator 13, scenarios 3.
 
-### c) Leftovers only if time remains
+### c) Next in HANDOFF order: step 10 reports, then step 12 should-items
 
-`PATCH`/`DELETE /assignments/{id}`, `POST /schedule-periods/{id}/publish`, `POST /absences`.
+- **Step 10 reports:** `/reports/coverage|hours|overtime|overrides` + CSV, numbers reconcile with
+  time entries (NFR-05 timings). Step 9's time entries and the payroll export now exist.
+- **Step 12 if time:** wall display `GET /display/today` (E5, counts only), `PATCH`/`DELETE
+  /assignments`, `POST /schedule-periods/{id}/publish`, `POST /absences`, Excel round-trip.
+- **Before submission:** Playwright E2E E1-E5 against the real api (the web branch has the
+  fixtures run), README setup, BUILD_RECORD, demo script/recording.
 
 ## Gotchas for the next seat
 
