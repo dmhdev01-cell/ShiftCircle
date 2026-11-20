@@ -2,13 +2,13 @@ package ca.shiftcircle.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ca.shiftcircle.api.config.PublishedRuleSet;
 import ca.shiftcircle.rules.RuleEvaluator;
 import ca.shiftcircle.rules.facts.MinRestInWindowFact;
 import ca.shiftcircle.rules.facts.RuleOutcome;
 import ca.shiftcircle.rules.facts.RuleResult;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import org.kie.api.KieBase;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -26,13 +26,14 @@ class ShiftCircleApplicationTests {
     PostgresTestSupport.register(registry);
   }
 
-  @Autowired private KieBase publishedRuleBase;
+  @Autowired private PublishedRuleSet publishedRuleSet;
 
   @Autowired private RuleEvaluator ruleEvaluator;
 
   @Test
   void contextLoads() {
-    assertThat(publishedRuleBase).isNotNull();
+    assertThat(publishedRuleSet.kieBase()).isNotNull();
+    assertThat(publishedRuleSet.ruleSet()).isNotNull();
   }
 
   @Test
@@ -41,7 +42,7 @@ class ShiftCircleApplicationTests {
         new MinRestInWindowFact(
             "D8", 24, 4.0, 0, "D8 ends Thu 19 Nov 15:00, next shift starts 19:00 (4.00 h rest)");
 
-    List<RuleResult> results = ruleEvaluator.evaluate(publishedRuleBase, "v1", fact);
+    List<RuleResult> results = ruleEvaluator.evaluate(publishedRuleSet.kieBase(), "v1", fact);
 
     assertThat(results)
         .filteredOn(result -> result.ruleId().equals("U-01"))

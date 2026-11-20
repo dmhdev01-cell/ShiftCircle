@@ -1,6 +1,7 @@
 package ca.shiftcircle.api.overtime;
 
 import ca.shiftcircle.api.assignments.AssignmentService;
+import ca.shiftcircle.api.config.PublishedRuleSet;
 import ca.shiftcircle.api.rules.RuleCheckRequest;
 import ca.shiftcircle.api.rules.RuleCheckService;
 import ca.shiftcircle.api.rules.RuleViolationException;
@@ -13,7 +14,6 @@ import ca.shiftcircle.rules.facts.RuleResult;
 import ca.shiftcircle.rules.rank.OvertimeRanker;
 import ca.shiftcircle.rules.rank.OvertimeRanker.Eligibility;
 import ca.shiftcircle.rules.rank.RankingPolicy;
-import ca.shiftcircle.rules.rows.RuleRowsV1;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import org.kie.api.KieBase;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -87,9 +86,10 @@ public class OvertimeService {
   private final AssignmentService assignments;
   private final ScopeGuard scopeGuard;
   private final RuleEvaluator evaluator;
-  private final KieBase ruleBase;
+  private final PublishedRuleSet publishedRuleSet;
   private final OvertimeRanker ranker = new OvertimeRanker();
   private final ObjectMapper mapper = new ObjectMapper();
+  private final LocalDate asOf;
 
   public OvertimeService(
       JdbcTemplate jdbc,
@@ -97,13 +97,16 @@ public class OvertimeService {
       AssignmentService assignments,
       ScopeGuard scopeGuard,
       RuleEvaluator evaluator,
-      KieBase publishedRuleBase) {
+      PublishedRuleSet publishedRuleSet,
+      @org.springframework.beans.factory.annotation.Value("${sc.demo.today:2026-11-19}")
+          String today) {
     this.jdbc = jdbc;
     this.ruleChecks = ruleChecks;
     this.assignments = assignments;
     this.scopeGuard = scopeGuard;
     this.evaluator = evaluator;
-    this.ruleBase = publishedRuleBase;
+    this.publishedRuleSet = publishedRuleSet;
+    this.asOf = LocalDate.parse(today);
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -251,7 +254,7 @@ public class OvertimeService {
     }
 
     List<OvertimeRanker.Ranked> ranked =
-        ranker.rank(pool, RankingPolicy.from(RuleRowsV1.ruleSet()));
+        ranker.rank(pool, RankingPolicy.from(publishedRuleSet.ruleSet()));
 
     List<CandidateView> candidates = new ArrayList<>();
     long skipped = 0;
@@ -277,7 +280,7 @@ public class OvertimeService {
 
     List<RuleResult> policyResults =
         evaluator.evaluate(
-            ruleBase,
+            publishedRuleSet.kieBase(),
             String.valueOf(ruleSetVersion),
             new OvertimeRankingFact(
                 ranked.size(),
@@ -306,6 +309,9 @@ public class OvertimeService {
     if ("FILLED".equals(shift.get("status"))) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "This shift is already filled");
     }
+    if ("CANCELLED".equals(shift.get("status"))) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "This shift was cancelled");
+    }
 
     UUID unitId = (UUID) shift.get("unit_id");
     String templateCode = (String) shift.get("template_code");
@@ -315,6 +321,7 @@ public class OvertimeService {
     int rank = 0;
     for (UUID employeeId : request.employeeIds()) {
       rank++;
+      requireAvailable(employeeId, shift);
       RuleCheckService.OutcomeView outcome =
           ruleChecks.evaluate(
               new RuleCheckService.Change("EXTRA", employeeId, unitId, templateCode, startAt),
@@ -332,11 +339,17 @@ public class OvertimeService {
                   "outcome",
                   outcome));
 
+      // A declined or expired offer can be made again; a live one is left alone (review-r1 F4).
       jdbc.update(
           "INSERT INTO overtime_offer (id, open_shift_id, employee_id, rank, ordered, status,"
               + " rule_snapshot, offered_by) VALUES (?, ?, ?, ?, ?, 'OFFERED', ?::jsonb,"
               + " (SELECT id FROM app_user WHERE username = ?))"
-              + " ON CONFLICT (open_shift_id, employee_id) DO NOTHING",
+              + " ON CONFLICT (open_shift_id, employee_id) DO UPDATE SET"
+              + " status = 'OFFERED', offered_at = now(), offered_by = EXCLUDED.offered_by,"
+              + " rule_snapshot = EXCLUDED.rule_snapshot, rank = EXCLUDED.rank,"
+              + " ordered = EXCLUDED.ordered, responded_at = NULL,"
+              + " version = overtime_offer.version + 1"
+              + " WHERE overtime_offer.status IN ('DECLINED', 'EXPIRED', 'WITHDRAWN')",
           UUID.randomUUID(),
           openShiftId,
           employeeId,
@@ -397,7 +410,7 @@ public class OvertimeService {
 
   @Transactional
   public MyOfferView respond(UUID offerId, boolean accept, AuthPrincipal principal) {
-    Map<String, Object> offer = offerRow(offerId);
+    Map<String, Object> offer = offerRowForUpdate(offerId);
     if (principal.employeeId() == null
         || !principal.employeeId().equals(offer.get("employee_id"))) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Offer not found");
@@ -432,12 +445,17 @@ public class OvertimeService {
     }
 
     String status = accept ? "ACCEPTED" : "DECLINED";
-    jdbc.update(
-        "UPDATE overtime_offer SET status = ?, responded_at = now(),"
-            + " rule_snapshot = coalesce(?::jsonb, rule_snapshot) WHERE id = ?",
-        status,
-        snapshot,
-        offerId);
+    int updated =
+        jdbc.update(
+            "UPDATE overtime_offer SET status = ?, responded_at = now(),"
+                + " rule_snapshot = coalesce(?::jsonb, rule_snapshot)"
+                + " WHERE id = ? AND status = 'OFFERED'",
+            status,
+            snapshot,
+            offerId);
+    if (updated == 0) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "This offer was already answered");
+    }
     audit(principal, accept ? "accept_overtime_offer" : "decline_overtime_offer",
         "overtime_offer", offerId, Map.of("status", status));
 
@@ -446,7 +464,9 @@ public class OvertimeService {
 
   @Transactional
   public OfferRecordView confirm(UUID offerId, AuthPrincipal principal) {
-    Map<String, Object> offer = offerRow(offerId);
+    // Row lock: two supervisors confirming the same offer serialise here, so only one creates an
+    // assignment (review-r1 F3).
+    Map<String, Object> offer = offerRowForUpdate(offerId);
     Map<String, Object> shift = shiftRow((UUID) offer.get("open_shift_id"));
     scopeGuard.requireUnit(principal, (String) shift.get("unit_code"));
 
@@ -457,11 +477,15 @@ public class OvertimeService {
     if ("FILLED".equals(shift.get("status"))) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "This shift is already filled");
     }
+    if ("CANCELLED".equals(shift.get("status"))) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "This shift was cancelled");
+    }
 
     UUID employeeId = (UUID) offer.get("employee_id");
     UUID unitId = (UUID) shift.get("unit_id");
     String templateCode = (String) shift.get("template_code");
     Instant startAt = ((java.sql.Timestamp) shift.get("start_at")).toInstant();
+    requireAvailable(employeeId, shift);
 
     int ruleSetVersion = ruleChecks.publishedVersion();
     RuleCheckService.OutcomeView outcome =
@@ -486,7 +510,14 @@ public class OvertimeService {
                 null),
             principal);
 
-    jdbc.update("UPDATE overtime_offer SET status = 'CONFIRMED' WHERE id = ?", offerId);
+    int confirmed =
+        jdbc.update(
+            "UPDATE overtime_offer SET status = 'CONFIRMED' WHERE id = ? AND status = 'ACCEPTED'",
+            offerId);
+    if (confirmed == 0) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Only an accepted offer can be confirmed");
+    }
     jdbc.update(
         "UPDATE open_shift SET status = 'FILLED', filled_assignment_id = ? WHERE id = ?",
         assignmentId,
@@ -509,6 +540,10 @@ public class OvertimeService {
     if ("FILLED".equals(shift.get("status"))) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "This shift is already filled");
     }
+    if ("CANCELLED".equals(shift.get("status"))) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "This shift was cancelled");
+    }
+    requireAvailable(request.employeeId(), shift);
 
     UUID assignmentId =
         assignments.assign(
@@ -538,18 +573,22 @@ public class OvertimeService {
   // ---------------------------------------------------------------------------------------------
 
   private List<Map<String, Object>> officers(AuthPrincipal principal) {
+    // The demo clock decides the quarter, not the host clock (review-r1 F7).
+    LocalDate quarterStart =
+        asOf.withMonth(((asOf.getMonthValue() - 1) / 3) * 3 + 1).withDayOfMonth(1);
     List<Map<String, Object>> officers =
         jdbc.queryForList(
             "SELECT e.id, e.first_name || ' ' || e.last_name AS name, e.seniority_date,"
                 + " u.code AS home_unit,"
                 + " coalesce((SELECT sum(te.hours) FROM time_entry te"
                 + "   WHERE te.employee_id = e.id AND te.pay_code = 'OT15'"
-                + "   AND te.start_at >= date_trunc('quarter', now())), 0) AS overtime_hours,"
+                + "   AND te.start_at >= ?), 0) AS overtime_hours,"
                 + " coalesce((SELECT array_agg(q.code) FROM employee_qualification eq"
                 + "   JOIN qualification q ON q.id = eq.qualification_id"
                 + "   WHERE eq.employee_id = e.id), '{}') AS qualifications"
                 + " FROM employee e LEFT JOIN unit u ON u.id = e.home_unit_id"
-                + " WHERE e.active ORDER BY e.last_name, e.first_name");
+                + " WHERE e.active ORDER BY e.last_name, e.first_name",
+            java.sql.Timestamp.from(quarterStart.atStartOfDay(REGINA).toInstant()));
     // Candidates come from the caller's units only: the list shows overtime totals, which the
     // permission matrix limits to scope (docs/09 §2).
     return officers.stream()
@@ -591,6 +630,46 @@ public class OvertimeService {
         "SELECT id, open_shift_id, employee_id, status, rule_snapshot FROM overtime_offer"
             + " WHERE id = ?",
         id);
+  }
+
+  private Map<String, Object> offerRowForUpdate(UUID id) {
+    return jdbc.queryForMap(
+        "SELECT id, open_shift_id, employee_id, status, rule_snapshot FROM overtime_offer"
+            + " WHERE id = ? FOR UPDATE",
+        id);
+  }
+
+  /**
+   * The same qualification and overlap gate the ranked list shows (review-r1 F1). It must run on
+   * offer, confirm and direct assign too, or UNAVAILABLE would be display-only.
+   */
+  private void requireAvailable(UUID employeeId, Map<String, Object> shift) {
+    String required = requiredQualification((String) shift.get("unit_kind"));
+    if (required != null) {
+      Integer qualified =
+          jdbc.queryForObject(
+              "SELECT count(*) FROM employee_qualification eq"
+                  + " JOIN qualification q ON q.id = eq.qualification_id"
+                  + " WHERE eq.employee_id = ? AND q.code = ?",
+              Integer.class,
+              employeeId,
+              required);
+      if (qualified == null || qualified == 0) {
+        throw new CandidateUnavailableException(
+            "Does not hold the " + required + " qualification");
+      }
+    }
+    Integer overlapping =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM shift_assignment WHERE employee_id = ?"
+                + " AND status <> 'CANCELLED' AND start_at < ? AND end_at > ?",
+            Integer.class,
+            employeeId,
+            shift.get("end_at"),
+            shift.get("start_at"));
+    if (overlapping != null && overlapping > 0) {
+      throw new CandidateUnavailableException("Already scheduled for an overlapping shift");
+    }
   }
 
   private List<OfferRecordView> history(UUID openShiftId) {

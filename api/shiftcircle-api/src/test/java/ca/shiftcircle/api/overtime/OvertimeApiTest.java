@@ -15,6 +15,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -451,6 +456,146 @@ class OvertimeApiTest {
     assertThat(payPeriod.get("workedHours")).isEqualTo(4.0);
     Map<String, Object> overtime = (Map<String, Object>) body.get("overtimeThisQuarter");
     assertThat(overtime.get("hours")).isEqualTo(4.0);
+  }
+
+  @Test
+  void offeringToAnUnqualifiedOfficerIs422() throws Exception {
+    String body = "{\"employeeIds\":[\"" + CONTROL_LOW + "\"],\"ordered\":false}";
+
+    HttpResponse<String> response =
+        send("POST", "/api/v1/open-shifts/" + CONTROL_DAY + "/offers", body, "j.chen");
+    assertThat(response.statusCode()).isEqualTo(422);
+    assertThat((String) json(response).get("type")).endsWith("/officer-unavailable");
+    assertThat((String) json(response).get("detail")).contains("CONTROL");
+
+    String assign = "{\"employeeId\":\"" + CONTROL_LOW + "\"}";
+    assertThat(
+            send("POST", "/api/v1/open-shifts/" + CONTROL_DAY + "/assign", assign, "j.chen")
+                .statusCode())
+        .as("the gate is not display-only")
+        .isEqualTo(422);
+  }
+
+  @Test
+  void offeringToAnOfficerAlreadyScheduledOverTheShiftIs422() throws Exception {
+    insertAssignment(SENIOR, UNIT_B, "D8", "2026-11-21T06:00:00-06:00", 8);
+
+    HttpResponse<String> response =
+        send("POST", "/api/v1/open-shifts/" + B_DAY + "/offers", offersBody(SENIOR), "m.ellis");
+    assertThat(response.statusCode()).isEqualTo(422);
+    assertThat((String) json(response).get("detail")).contains("overlapping");
+  }
+
+  @Test
+  void aCancelledShiftTakesNoOffers() throws Exception {
+    jdbc.update("UPDATE open_shift SET status = 'CANCELLED' WHERE id = ?", B_DAY);
+
+    assertThat(
+            send("POST", "/api/v1/open-shifts/" + B_DAY + "/offers", offersBody(SENIOR), "m.ellis")
+                .statusCode())
+        .isEqualTo(409);
+  }
+
+  @Test
+  void doubleAcceptAndAcceptAfterConfirmAre409() throws Exception {
+    String offerId = offerTo(SENIOR);
+
+    assertThat(send("POST", "/api/v1/offers/" + offerId + "/accept", null, "t.nakamura")
+            .statusCode())
+        .isEqualTo(200);
+    assertThat(send("POST", "/api/v1/offers/" + offerId + "/accept", null, "t.nakamura")
+            .statusCode())
+        .as("the second answer cannot overwrite the first")
+        .isEqualTo(409);
+    assertThat(send("POST", "/api/v1/offers/" + offerId + "/decline", null, "t.nakamura")
+            .statusCode())
+        .isEqualTo(409);
+
+    assertThat(send("POST", "/api/v1/offers/" + offerId + "/confirm", null, "m.ellis")
+            .statusCode())
+        .isEqualTo(200);
+    assertThat(send("POST", "/api/v1/offers/" + offerId + "/accept", null, "t.nakamura")
+            .statusCode())
+        .isEqualTo(409);
+  }
+
+  @Test
+  void aParallelAcceptPairHasExactlyOneWinner() throws Exception {
+    String offerId = offerTo(SENIOR);
+    ExecutorService pool = Executors.newFixedThreadPool(2);
+    try {
+      CountDownLatch ready = new CountDownLatch(2);
+      CountDownLatch go = new CountDownLatch(1);
+      List<Future<HttpResponse<String>>> calls = new ArrayList<>();
+      for (int i = 0; i < 2; i++) {
+        calls.add(
+            pool.submit(
+                () -> {
+                  ready.countDown();
+                  go.await();
+                  return send(
+                      "POST", "/api/v1/offers/" + offerId + "/accept", null, "t.nakamura");
+                }));
+      }
+      assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+      go.countDown();
+
+      List<Integer> statuses = new ArrayList<>();
+      for (Future<HttpResponse<String>> call : calls) {
+        statuses.add(call.get(30, TimeUnit.SECONDS).statusCode());
+      }
+      assertThat(statuses).containsExactlyInAnyOrder(200, 409);
+    } finally {
+      pool.shutdownNow();
+    }
+  }
+
+  @Test
+  void reOfferingAfterADeclineMakesANewOffer() throws Exception {
+    String offerId = offerTo(SENIOR);
+    assertThat(send("POST", "/api/v1/offers/" + offerId + "/decline", null, "t.nakamura")
+            .statusCode())
+        .isEqualTo(200);
+
+    assertThat(send("POST", "/api/v1/open-shifts/" + B_DAY + "/offers", offersBody(SENIOR),
+            "m.ellis").statusCode())
+        .isEqualTo(200);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT status FROM overtime_offer WHERE id = ?",
+                String.class,
+                UUID.fromString(offerId)))
+        .as("a declined offer can be made again; the supervisor sees the effect")
+        .isEqualTo("OFFERED");
+  }
+
+  @Test
+  void anotherOfficersOfferIs404() throws Exception {
+    String offerId = offerTo(JUNIOR);
+
+    assertThat(send("POST", "/api/v1/offers/" + offerId + "/accept", null, "t.nakamura")
+            .statusCode())
+        .isEqualTo(404);
+    assertThat(send("POST", "/api/v1/offers/" + offerId + "/decline", null, "t.nakamura")
+            .statusCode())
+        .isEqualTo(404);
+  }
+
+  private String offersBody(UUID employeeId) {
+    return "{\"employeeIds\":[\"" + employeeId + "\"],\"ordered\":false}";
+  }
+
+  private String offerTo(UUID employeeId) throws Exception {
+    assertThat(
+            send("POST", "/api/v1/open-shifts/" + B_DAY + "/offers", offersBody(employeeId),
+                    "m.ellis")
+                .statusCode())
+        .isEqualTo(200);
+    return jdbc.queryForObject(
+        "SELECT id::text FROM overtime_offer WHERE open_shift_id = ? AND employee_id = ?",
+        String.class,
+        B_DAY,
+        employeeId);
   }
 
   @Test

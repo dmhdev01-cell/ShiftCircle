@@ -1,5 +1,6 @@
 package ca.shiftcircle.api.rules;
 
+import ca.shiftcircle.api.config.PublishedRuleSet;
 import ca.shiftcircle.rules.RuleEvaluator;
 import ca.shiftcircle.rules.build.ConsecutiveRunFactBuilder;
 import ca.shiftcircle.rules.build.DaysOffFactBuilder;
@@ -18,7 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.kie.api.KieBase;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -49,12 +49,12 @@ public class RuleCheckService {
       String outcome, int ruleSetVersion, boolean overridable, List<ResultView> ruleResults) {}
 
   private final JdbcTemplate jdbc;
-  private final KieBase ruleBase;
+  private final PublishedRuleSet published;
   private final RuleEvaluator evaluator = new RuleEvaluator();
 
-  public RuleCheckService(JdbcTemplate jdbc, KieBase publishedRuleBase) {
+  public RuleCheckService(JdbcTemplate jdbc, PublishedRuleSet published) {
     this.jdbc = jdbc;
-    this.ruleBase = publishedRuleBase;
+    this.published = published;
   }
 
   public OutcomeView evaluate(Change change) {
@@ -105,7 +105,7 @@ public class RuleCheckService {
     facts.addAll(new ShiftLengthFactBuilder().build(shifts));
 
     List<RuleResult> results =
-        evaluator.evaluate(ruleBase, String.valueOf(ruleSetVersion), facts.toArray());
+        evaluator.evaluate(published.kieBase(), String.valueOf(ruleSetVersion), facts.toArray());
     return summarise(results, ruleSetVersion);
   }
 

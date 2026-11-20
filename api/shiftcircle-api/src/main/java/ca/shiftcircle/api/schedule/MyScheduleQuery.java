@@ -249,15 +249,18 @@ public class MyScheduleQuery {
   }
 
   private OvertimeView overtime(UUID employeeId) {
+    LocalDate quarterStart =
+        asOf.withMonth(((asOf.getMonthValue() - 1) / 3) * 3 + 1).withDayOfMonth(1);
     List<Map<String, Object>> rows =
         jdbc.queryForList(
             "SELECT e.id, coalesce(sum(CASE WHEN te.pay_code IN ('OT15', 'OT20')"
                 + " THEN te.hours ELSE 0 END), 0) AS ot"
                 + " FROM employee e"
                 + " LEFT JOIN time_entry te ON te.employee_id = e.id"
-                + "   AND te.start_at >= date_trunc('quarter', now())"
+                + "   AND te.start_at >= ?"
                 + " WHERE e.active GROUP BY e.id, e.seniority_date"
-                + " ORDER BY ot, e.seniority_date, e.id");
+                + " ORDER BY ot, e.seniority_date, e.id",
+            java.sql.Timestamp.from(quarterStart.atStartOfDay(REGINA).toInstant()));
     int rank = 1;
     for (Map<String, Object> row : rows) {
       if (employeeId.equals(row.get("id"))) {

@@ -44,6 +44,19 @@ public class ApiProblemAdvice {
         "The change conflicts with another saved change. Reload and try again.");
   }
 
+  @ExceptionHandler(ca.shiftcircle.api.overtime.CandidateUnavailableException.class)
+  public ResponseEntity<Map<String, Object>> onUnavailable(
+      ca.shiftcircle.api.overtime.CandidateUnavailableException exception) {
+    Map<String, Object> body = new LinkedHashMap<>();
+    body.put("type", "https://shiftcircle.local/problems/officer-unavailable");
+    body.put("title", "Officer unavailable for this shift");
+    body.put("status", HttpStatus.UNPROCESSABLE_CONTENT.value());
+    body.put("detail", exception.getMessage());
+    return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
+        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+        .body(body);
+  }
+
   @ExceptionHandler({
     HttpMessageNotReadableException.class,
     MethodArgumentTypeMismatchException.class,
