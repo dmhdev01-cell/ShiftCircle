@@ -43,7 +43,7 @@ Change flow (built and verified at the api in step 6): preview (`POST /rule-chec
 
 The verifiers are a different model family from the builders. After the 05:06Z relaunch both builders are DeepSeek, so cross-checks between builders aren't model-independent; verification still is.
 
-**How it was verified.** 14 review and QA rounds plus an e2e round, each recorded with what was checked, found and fixed (`docs/review-rounds.md`; narrative in `docs/ai-dev-log.md`). Fixes were proved by reverting them and watching their test fail.
+**How it was verified.** 16 review and QA rounds plus two e2e runs, each recorded with what was checked, found and fixed (`docs/review-rounds.md`; narrative in `docs/ai-dev-log.md`). Fixes were proved by reverting them and watching their test fail.
 
 **AI suggestions and claims that were corrected or rejected:**
 
@@ -52,7 +52,8 @@ The verifiers are a different model family from the builders. After the 05:06Z r
 | **A `.gitignore` line swallowed a source package.** `build/` (meant for the web) ignored `…/rules/build/`. Every "68/68" so far had run on untracked files, including a QA PASS; a clean clone couldn't compile. | review-r2, clean worktree | log #25, R5 |
 | **A review claim disproved.** QA said the maker/checker CHECK rejects a NULL creator. A PostgreSQL CHECK that evaluates to NULL passes; the doc was reworded to match the code. | design seat, by reading the spec and the code | log #23 |
 | **Two spec numbers couldn't both hold.** A 12 h crew on 4 on, 4 off works 84 h per 2 weeks, so it's in overtime before any absence. 8% absences can't fit a 3–6% overtime band; changed to 2% + 2% and 3–8%. | builder, by arithmetic | log #27, ADR-020 |
-| **A check-then-write race.** Two concurrent saves for one officer, 30 minutes apart, both passed the Block rules (sequential: 201 then 422), breaking the "never weaken a safeguard" guardrail. Fixed in `f73d6c5`, re-verification pending. | review-r2, 25 HTTP probes | R13 S2 |
+| **Concurrent saves got past a Block rule until a reviewer sent two requests at once.** Every test passed, because each save was checked on its own. Two saves for one officer 30 minutes apart both got 201; sent one after the other, the second got 422. Fixed in `f73d6c5` with a per-officer lock, then proven: four concurrent saves keep the rest rule intact, and the fix fails its test when reverted. | review-r2, 25 HTTP probes | R13 S2, R16 |
+| **A reviewer corrected its own probe.** review-r2's live S4 check had an off-by-one in its setup (ten 16 h shifts span 30 days, so only nine were in the 28-day window), so it would have "passed" against correct code too. The finding from reading the code still stood; the corrected setup gives a genuine fail-before, pass-after pair. | review-r2, self-reported | R16 |
 | **Rejected:** a custom rule catalogue, in favour of Drools so non-technical staff can edit rules | project lead | log #5 |
 | **Corrected by the lead:** 16 h shifts treated as overtime-only doubles, and overtime treated per shift | project lead | log #13 |
 
@@ -65,9 +66,10 @@ The verifiers are a different model family from the builders. After the 05:06Z r
 | 1–3 | 6/6, then 28/28 + web 9/9 (R1–R3) |
 | 4 | 83/83, boundary matrix under/exactly/over, revert-the-fix checks (R6, R7) |
 | 5 | 84/84; checksum reproduced; overtime 6.54%; coverage 98.04% (R10) |
-| 6 | 125/125 with two high findings (R12, R13). Fixes in `f73d6c5` are **not yet re-verified** |
+| 6 | **Verified** at `f73d6c5`: 142/142, dev-qa PASS and review-r2 APPROVE with revert-the-fix checks (R15, R16), after two high findings in R12/R13 |
+| 7–11 | TODO (step 8 overtime backend in progress; 9 time/payroll and 11 publish pipeline not built; web screens on an unmerged branch) |
 
-Latest author-reported total on `main`: 130 tests (`PROGRESS.md`). E2E: 25 passed / 3 failed (one real accessibility defect) / 4 skipped (wall display not built), against the fixtures-mode web. <!-- TODO: final totals (unit / repository / api / web / e2e / axe), the command and the commit -->
+Latest verified total on `main`: 142/142 at `f73d6c5` (R15). E2E against the fixtures-mode web `a908c1f`: 26 passed, 2 failed (the fixture CSV header doesn't match docs/07, fixtures only), 4 skipped (wall display not built). The earlier accessibility defect is fixed (E2E-2). <!-- TODO: final totals (unit / repository / api / web / e2e / axe), the command and the commit -->
 
 | ID | Case | Expected | Result |
 |---|---|---|---|
@@ -81,8 +83,8 @@ Latest author-reported total on `main`: 130 tests (`PROGRESS.md`). E2E: 25 passe
 
 - **Synthetic data only:** 100 officers from fixed fictional name lists, seed 20261001, `is_synthetic` on every person; the generator self-check passes (R10).
 - **No secrets in the repo:** `.env.example` ships empty. Compose and the api both refuse to start without `POSTGRES_PASSWORD` (≥ 8) and `SC_JWT_SECRET` (≥ 32) (R2, R9).
-- **Safeguards:** Blocks need an EMERGENCY override with a reason of ≥ 10 trimmed characters, and warnings must be acknowledged. Maker/checker is enforced by the api and a DB CHECK. Audit is append-only. Locked periods are protected by a trigger. Overtime is authorized only by a supervisor (S-04). There's no auto-approval (R12, R13). <!-- TODO-VERIFY: f73d6c5 race fix -->
-- **Privacy:** role and unit scope on every endpoint, and out-of-scope returns `404` (R12; the one leak was fixed in `f73d6c5`, re-verification pending). The wall display shows counts only. <!-- TODO-VERIFY: wall display not built -->
+- **Safeguards:** Blocks need an EMERGENCY override with a reason of ≥ 10 trimmed characters, and warnings must be acknowledged. Maker/checker is enforced by the api and a DB CHECK. Audit is append-only. Locked periods are protected by a trigger. Overtime is authorized only by a supervisor (S-04). There's no auto-approval. Concurrent saves are serialized per officer, so a race can't slip past a Block (R12, R13, R16).
+- **Privacy:** role and unit scope on every endpoint, and out-of-scope returns `404` (R12; the one leak, rule preview without a scope check, was fixed in `f73d6c5` and verified in R15/R16). The wall display shows counts only. <!-- TODO-VERIFY: wall display not built -->
 - **Rule values** are labelled by source (Employment Act, agreement, MOCK). MOCK values and period-based overtime (ADR-016) are assumptions to confirm.
 - **Honest limits:**
   - **No human reviewed the boundary tests.** Guardrail 4 required it; the project lead waived it on 2026-11-20. AI verifiers reviewed them instead: dev-qa (PASS, mutation checks; R4, R6) and review-r2 (APPROVE after fixes; R5, R7), both GLM, independent of the DeepSeek author.
