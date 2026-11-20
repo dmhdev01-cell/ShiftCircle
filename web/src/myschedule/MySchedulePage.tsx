@@ -87,6 +87,28 @@ const OUTCOME_TEXT = {
 } as const;
 
 /**
+ * What the api said about this offer. The screen never claims a check it was
+ * not given: with no rule results there is nothing to claim.
+ */
+function offerCheck(offer: MyOffer) {
+  const results = offer.ruleResults;
+  if (!results || results.length === 0) {
+    return (
+      <Typography component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
+        No rule result from the api
+      </Typography>
+    );
+  }
+  if (results.some((result) => result.outcome === 'BLOCK')) {
+    return <StatusPill tone="block">A rule blocks this for you</StatusPill>;
+  }
+  if (results.some((result) => result.outcome === 'WARN')) {
+    return <StatusPill tone="warn">Rules OK, with a warning</StatusPill>;
+  }
+  return <StatusPill tone="pass">Rules OK for you</StatusPill>;
+}
+
+/**
  * The employee's My schedule (docs/ui/README.md §5.2). It shows only the
  * officer's own data: no colleague's hours, absences or overtime totals.
  *
@@ -461,10 +483,10 @@ export function MySchedulePage() {
               </Typography>
               <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
                 {offer.openShift.unit.name} · offered by {offer.offeredBy} at {offer.offeredAt} · paid
-                at overtime rates
+                counts toward your pay-period hours
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                <StatusPill tone="pass">Rules OK for you</StatusPill>
+                {offerCheck(offer)}
                 {offer.reason ? (
                   <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
                     {offer.reason}

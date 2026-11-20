@@ -10,12 +10,13 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Typography from '@mui/material/Typography';
 
 import { shiftTemplates } from '../api/shiftTemplates';
-import type { OfficerRow } from '../api/types';
+import type { OfficerRow, ShiftItem } from '../api/types';
 import { colour } from '../theme/tokens';
 import { KpiTile } from './KpiTile';
 import { OverrideDialog } from './OverrideDialog';
 import { RosterGrid } from './RosterGrid';
 import { RuleCheckPanel } from './RuleCheckPanel';
+import { ShiftActionsDialog } from './ShiftActionsDialog';
 import { useRuleCheckedMutation } from './useRuleCheckedMutation';
 import { useSchedule } from './useSchedule';
 
@@ -53,6 +54,10 @@ export function PlanningPage() {
   const { state, reload } = useSchedule();
   const mutation = useRuleCheckedMutation();
   const [pending, setPending] = useState<Pending | null>(null);
+  const [shiftActions, setShiftActions] = useState<{ officer: OfficerRow; item: ShiftItem } | null>(
+    null,
+  );
+  const [proposal, setProposal] = useState<{ officer: OfficerRow; item: ShiftItem } | null>(null);
   const [overrideOpen, setOverrideOpen] = useState(false);
 
   if (state.kind === 'loading') {
@@ -103,8 +108,36 @@ export function PlanningPage() {
   const approaching = payload.officers.filter((officer) => officer.overtimeStatus === 'APPROACHING');
   const threshold = payload.officers[0]?.payPeriodThreshold ?? 80;
 
+  const warnCodes =
+    mutation.state.outcome?.ruleResults
+      .filter(
+        (result) =>
+          result.outcome === 'WARN' && !mutation.state.acknowledged.includes(result.ruleCode),
+      )
+      .map((result) => result.ruleCode) ?? [];
+
   const startChoose = (officer: OfficerRow, date: string) => {
     setPending({ officer, date, template: 'D8' });
+  };
+
+  /**
+   * A chip is picked: a proposed shift opens the rule check for the proposal,
+   * and a rostered shift can be moved or cancelled.
+   */
+  const pickChip = (officer: OfficerRow, item: ShiftItem) => {
+    setPending(null);
+    if (item.proposed) {
+      setProposal({ officer, item });
+      void mutation.preview({
+        type: 'ASSIGN',
+        employeeId: officer.employeeId,
+        unitId: payload.unit.id,
+        shiftTemplate: item.shiftTemplate,
+        startAt: item.startAt,
+      });
+      return;
+    }
+    setShiftActions({ officer, item });
   };
 
   const chooseTemplate = (template: string) => {
@@ -128,11 +161,19 @@ export function PlanningPage() {
   const template = pending ? shiftTemplates[pending.template] : undefined;
   const panelTitle = pending
     ? `Assign ${pending.officer.name} → ${template?.label ?? pending.template}`
-    : '';
+    : proposal
+      ? `Assign ${proposal.officer.name} → ${shiftTemplates[proposal.item.shiftTemplate]?.label ?? proposal.item.shiftTemplate}`
+      : shiftActions
+        ? `${shiftActions.officer.name} · ${shiftTemplates[shiftActions.item.shiftTemplate]?.label ?? shiftActions.item.shiftTemplate}`
+        : '';
   const panelDetail =
     pending && template
       ? `${payload.unit.name} · ${longDay(pending.date)} · ${template.start} – ${template.end}${template.endsNextDay ? ' +1' : ''}`
-      : '';
+      : proposal
+        ? `${payload.unit.name} · ${longDay(proposal.item.startAt.slice(0, 10))} · ${shiftTemplates[proposal.item.shiftTemplate]?.start ?? ''} – ${shiftTemplates[proposal.item.shiftTemplate]?.end ?? ''}`
+        : shiftActions
+          ? `${shiftActions.officer.name} · ${shiftActions.item.startAt.slice(0, 10)}`
+          : '';
 
   return (
     <>
@@ -210,7 +251,12 @@ export function PlanningPage() {
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'flex-start' }}>
         <Box sx={{ flex: '999 1 640px', minWidth: 0 }}>
-          <RosterGrid payload={payload} today={today} onEmptyCell={startChoose} />
+          <RosterGrid
+            payload={payload}
+            today={today}
+            onEmptyCell={startChoose}
+            onPickChip={pickChip}
+          />
         </Box>
 
         <Box sx={{ flex: '1 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -287,6 +333,29 @@ export function PlanningPage() {
         </DialogActions>
       </Dialog>
 
+      {shiftActions ? (
+        <ShiftActionsDialog
+          officer={shiftActions.officer}
+          item={shiftActions.item}
+          onClose={() => setShiftActions(null)}
+          onMove={(startAt) => {
+            setShiftActions(null);
+            void mutation.preview({
+              type: 'MOVE',
+              assignmentId: shiftActions.item.assignmentId,
+              startAt,
+            });
+          }}
+          onCancelShift={() => {
+            setShiftActions(null);
+            void mutation.preview({
+              type: 'CANCEL',
+              assignmentId: shiftActions.item.assignmentId,
+            });
+          }}
+        />
+      ) : null}
+
       <OverrideDialog
         open={overrideOpen}
         ruleCodes={
@@ -294,11 +363,17 @@ export function PlanningPage() {
             .filter((result) => result.outcome === 'BLOCK')
             .map((result) => result.ruleCode) ?? []
         }
+        warningCodes={warnCodes}
         onClose={() => setOverrideOpen(false)}
         onConfirm={(reason) => {
           setOverrideOpen(false);
           if (mutation.state.change) {
-            void mutation.save(mutation.state.change, { override: { reason } });
+            // The warnings are acknowledged with the override, or the api
+            // refuses the change.
+            void mutation.save(mutation.state.change, {
+              override: { reason },
+              ...(warnCodes.length > 0 ? { acknowledgeWarnings: warnCodes } : {}),
+            });
           }
         }}
       />

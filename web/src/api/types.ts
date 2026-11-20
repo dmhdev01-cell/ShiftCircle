@@ -300,6 +300,8 @@ export interface MyOffer {
   /** The api's rule result for this officer and this shift. */
   eligibility: Eligibility;
   reason?: string;
+  /** The rule results, when the api sent them. */
+  ruleResults?: RuleResult[];
   status: OfferStatus;
 }
 
@@ -463,7 +465,13 @@ export interface OverrideRow {
 
 // --- Rules administration (docs/07-api-spec.md §4.7) ---
 
-export type RuleSetStatus = 'LIVE' | 'DRAFT' | 'SUBMITTED' | 'PUBLISHED' | 'REJECTED';
+export type RuleSetStatus =
+  | 'LIVE'
+  | 'DRAFT'
+  | 'SUBMITTED'
+  | 'APPROVED'
+  | 'PUBLISHED'
+  | 'REJECTED';
 
 export interface RuleSetVersion {
   version: number;
@@ -523,6 +531,38 @@ export interface BuildReport {
   scenarios: { total: number; passed: number };
 }
 
+// --- Mock sign-in (docs/09-access-control.md §4) ---
+
+export interface DemoUser {
+  id: string;
+  name: string;
+  roles: string[];
+  /** The scope in words, e.g. "Units A, B". */
+  scope: string;
+}
+
+export interface MockLoginResult {
+  token: string;
+  expiresAt: string;
+  user: DemoUser;
+}
+
+// --- Mock sign-in (docs/09-access-control.md §4) ---
+
+export interface DemoUser {
+  id: string;
+  name: string;
+  roles: string[];
+  /** The scope in words, e.g. "Units A, B". */
+  scope: string;
+}
+
+export interface MockLoginResult {
+  token: string;
+  expiresAt: string;
+  user: DemoUser;
+}
+
 // --- The client the screens use ---
 
 /** A change to save. The api runs the rules before it accepts the change. */
@@ -563,6 +603,14 @@ export interface ShiftCircleApi {
   getMyOffers(): Promise<MyOffer[]>;
   respondToOffer(offerId: string, response: OfferResponse): Promise<MyOffer>;
   submitProposals(note: string, items: RuleCheckChange[]): Promise<{ id: string; accepted: number }>;
+
+  // Mock sign-in.
+  getDemoUsers(): Promise<DemoUser[]>;
+  mockLogin(userId: string): Promise<MockLoginResult>;
+
+  // Mock sign-in.
+  getDemoUsers(): Promise<DemoUser[]>;
+  mockLogin(userId: string): Promise<MockLoginResult>;
 
   // Rules administration.
   getRuleSets(): Promise<RuleSetVersion[]>;

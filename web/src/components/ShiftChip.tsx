@@ -44,6 +44,10 @@ interface ShiftChipProps {
   proposed?: boolean;
   /** The smaller chip for the month calendar. */
   compact?: boolean;
+  /** Makes the chip a button, so a shift can be picked. */
+  onClick?: () => void;
+  /** Where the shift is, e.g. "for Nia Thompson on 2026-11-21". */
+  context?: string;
 }
 
 /**
@@ -59,6 +63,8 @@ export function ShiftChip({
   offer = false,
   proposed = false,
   compact = false,
+  onClick,
+  context,
 }: ShiftChipProps) {
   const text = chipTextFor(template);
 
@@ -81,7 +87,24 @@ export function ShiftChip({
   const what = shiftTemplates[template]?.label ?? template;
 
   return (
-    <Box component="span" title={`${what} · ${times}`} sx={chipBox(style, compact)}>
+    <Box
+      component={onClick ? 'button' : 'span'}
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      aria-label={context ? `${label} ${context}` : undefined}
+      title={`${what} · ${times}`}
+      sx={{
+        ...chipBox(style, compact),
+        ...(onClick
+          ? {
+              border: 0,
+              padding: 0,
+              fontFamily: 'inherit',
+              cursor: 'pointer',
+            }
+          : {}),
+      }}
+    >
       {worked ? '✓ ' : ''}
       {label}
     </Box>

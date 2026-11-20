@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
@@ -75,6 +76,19 @@ describe('the planning board', () => {
     expect(screen.getAllByText('In overtime').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Approaching').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Under').length).toBeGreaterThan(0);
+  });
+
+  it('B3: the proposed chip opens the rule check for the proposal', async () => {
+    const user = userEvent.setup();
+    renderBoard();
+
+    // Nia's Saturday proposal is the planted case PC-01.
+    const chip = await screen.findByRole('button', { name: /! D proposed for Nia Thompson/ });
+    await user.click(chip);
+
+    expect(await screen.findByRole('heading', { name: /Assign Nia Thompson/ })).toBeInTheDocument();
+    expect(await screen.findByText('Blocked: 2 rules fail')).toBeInTheDocument();
+    expect(screen.getByText(/U-01 · Minimum rest/)).toBeInTheDocument();
   });
 
   it('offers an assignment on the empty cells', async () => {

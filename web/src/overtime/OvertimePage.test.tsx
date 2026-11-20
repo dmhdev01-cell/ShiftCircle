@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
+import { api } from '../api/client';
 import { AppShellRoutes } from '../App';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
@@ -99,6 +100,25 @@ describe('the overtime board', () => {
 
     expect(await screen.findByText(/Fair-distribution order \(O-02, rule tables v7\)/)).toBeInTheDocument();
     expect(screen.getByText(/skipped without losing their place/)).toBeInTheDocument();
+  });
+
+  it('B1: acknowledging a warning on a direct assign assigns the open shift', async () => {
+    const user = userEvent.setup();
+    const assignOpenShift = vi.spyOn(api, 'assignOpenShift');
+    const saveChange = vi.spyOn(api, 'saveChange');
+    renderBoard();
+
+    // Tara is eligible with a warning, so the acknowledge path is offered.
+    await user.click(await screen.findByRole('checkbox', { name: 'Select Tara Nakamura for this shift' }));
+    await user.click(screen.getByRole('button', { name: 'Assign directly…' }));
+
+    await screen.findByRole('heading', { name: /Assign Tara/ });
+    await user.click(await screen.findByRole('button', { name: 'Acknowledge and assign' }));
+
+    expect(assignOpenShift).toHaveBeenCalled();
+    expect(saveChange).not.toHaveBeenCalled();
+    assignOpenShift.mockRestore();
+    saveChange.mockRestore();
   });
 
   it('shows the offer history, with a confirm action for an accepted offer', async () => {

@@ -4,7 +4,7 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 
 import { api } from '../api/client';
-import type { BuildReport, RuleSetVersion } from '../api/types';
+import type { BuildReport, RuleSetVersion, RuleSetStatus } from '../api/types';
 import { colour } from '../theme/tokens';
 
 interface PublishChecklistProps {
@@ -12,6 +12,10 @@ interface PublishChecklistProps {
   version: number;
   /** True when the viewer created the draft, so they cannot approve it. */
   isAuthor: boolean;
+  /** The role the viewer has, e.g. RULES_APPROVER. */
+  role: string;
+  /** The status of the draft, e.g. DRAFT or SUBMITTED. */
+  status: RuleSetStatus;
   /** True when the draft has been built and can be submitted. */
   canSubmit: boolean;
   onBuilt: (report: BuildReport) => void;
@@ -29,6 +33,8 @@ export function PublishChecklist({
   report,
   version,
   isAuthor,
+  role,
+  status,
   canSubmit,
   onBuilt,
   onSubmitted,
@@ -37,6 +43,11 @@ export function PublishChecklist({
 }: PublishChecklistProps) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  // Only a rules approver can approve, and only a submitted draft can be
+  // approved; only an approved version can be published.
+  const canApprove = role === 'RULES_APPROVER' && status === 'SUBMITTED';
+  const canPublish = role === 'RULES_APPROVER' && status === 'APPROVED';
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -166,35 +177,38 @@ export function PublishChecklist({
           <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
             You created this version. Another approver must review it.
           </Box>
-        ) : (
-          <>
-            <Button
-              variant="contained"
-              color="primary"
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  onApproved(await api.approveRuleSet(version));
-                })
-              }
-            >
-              Approve
-            </Button>
-            <Button
-              variant="outlined"
-              color="primary"
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  const today = new Date().toISOString().slice(0, 10);
-                  onPublished(await api.publishRuleSet(version, today));
-                })
-              }
-            >
-              Publish
-            </Button>
-          </>
-        )}
+        ) : null}
+
+        {canApprove ? (
+          <Button
+            variant="contained"
+            color="primary"
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                onApproved(await api.approveRuleSet(version));
+              })
+            }
+          >
+            Approve
+          </Button>
+        ) : null}
+
+        {canPublish ? (
+          <Button
+            variant="outlined"
+            color="primary"
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                const today = new Date().toISOString().slice(0, 10);
+                onPublished(await api.publishRuleSet(version, today));
+              })
+            }
+          >
+            Publish
+          </Button>
+        ) : null}
       </Box>
 
       <Typography component="span" sx={{ fontSize: 12, color: colour.text.secondary, lineHeight: 1.45 }}>

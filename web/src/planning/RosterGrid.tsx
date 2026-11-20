@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 
 import { AbsenceChip, OffChip, ShiftChip } from '../components/ShiftChip';
 import { StatusPill } from '../components/StatusPill';
-import type { Block, CellItem, OfficerRow, SchedulePayload } from '../api/types';
+import type { Block, CellItem, OfficerRow, SchedulePayload, ShiftItem } from '../api/types';
 import { colour } from '../theme/tokens';
 import { CoverageCell } from './CoverageCell';
 
@@ -38,9 +38,21 @@ interface RosterGridProps {
   today: string;
   /** Called when an empty cell is picked. */
   onEmptyCell?: (officer: OfficerRow, date: string) => void;
+  /** Called when a shift chip is picked. */
+  onPickChip?: (officer: OfficerRow, item: ShiftItem) => void;
 }
 
-function CellChips({ items }: { items: CellItem[] }) {
+function CellChips({
+  items,
+  officerName,
+  date,
+  onPick,
+}: {
+  items: CellItem[];
+  officerName: string;
+  date: string;
+  onPick?: (item: ShiftItem) => void;
+}) {
   if (items.length === 0) {
     return <OffChip />;
   }
@@ -57,6 +69,8 @@ function CellChips({ items }: { items: CellItem[] }) {
             worked={item.worked}
             offer={item.offer ?? false}
             proposed={item.proposed ?? false}
+            onClick={onPick ? () => onPick(item) : undefined}
+            context={`for ${officerName} on ${date}`}
           />
         ),
       )}
@@ -68,7 +82,7 @@ function CellChips({ items }: { items: CellItem[] }) {
  * The roster grid (docs/ui/README.md §5.1): coverage per block above the
  * officer rows, seven day columns, and the shift key below.
  */
-export function RosterGrid({ payload, today, onEmptyCell }: RosterGridProps) {
+export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGridProps) {
   const threshold = payload.officers[0]?.payPeriodThreshold ?? 80;
 
   return (
@@ -235,7 +249,12 @@ export function RosterGrid({ payload, today, onEmptyCell }: RosterGridProps) {
                         </Box>
                       ) : (
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                          <CellChips items={items} />
+                          <CellChips
+                            items={items}
+                            officerName={officer.name}
+                            date={date}
+                            onPick={onPickChip ? (item) => onPickChip(officer, item) : undefined}
+                          />
                         </Box>
                       )}
                     </td>

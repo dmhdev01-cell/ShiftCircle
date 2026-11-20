@@ -1,6 +1,8 @@
 import type {
   CoverageReport,
+  DemoUser,
   HoursReport,
+  MockLoginResult,
   MyOffer,
   MySchedulePayload,
   OvertimeReport,
@@ -29,6 +31,8 @@ import type {
   ScheduleQuery,
   ShiftCircleApi,
 } from './types';
+
+import { getToken } from './session';
 
 export const API_BASE = '/api/v1';
 
@@ -74,6 +78,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       headers: {
         Accept: 'application/json',
         ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
         ...init?.headers,
       },
     });
@@ -227,6 +232,17 @@ export function createHttpApi(): ShiftCircleApi {
       return request<{ id: string; accepted: number }>('/proposals', {
         method: 'POST',
         body: JSON.stringify({ note, items }),
+      });
+    },
+
+    getDemoUsers(): Promise<DemoUser[]> {
+      return request<DemoUser[]>('/auth/demo-users');
+    },
+
+    mockLogin(userId: string): Promise<MockLoginResult> {
+      return request<MockLoginResult>('/auth/mock-login', {
+        method: 'POST',
+        body: JSON.stringify({ userId }),
       });
     },
 

@@ -15,6 +15,8 @@ interface OverrideDialogProps {
   open: boolean;
   /** The rules the override applies to, for example "U-01, U-05". */
   ruleCodes: string[];
+  /** The warnings the override acknowledges with it. */
+  warningCodes?: string[];
   onClose: () => void;
   onConfirm: (reason: string) => void;
 }
@@ -24,7 +26,13 @@ interface OverrideDialogProps {
  * needs a written reason: it is saved to the audit log and flagged in
  * reports. Nothing is auto-approved (HANDOFF.md §5.3).
  */
-export function OverrideDialog({ open, ruleCodes, onClose, onConfirm }: OverrideDialogProps) {
+export function OverrideDialog({
+  open,
+  ruleCodes,
+  warningCodes = [],
+  onClose,
+  onConfirm,
+}: OverrideDialogProps) {
   const [reason, setReason] = useState('');
   const tooShort = reason.trim().length < MIN_REASON_LENGTH;
 
@@ -60,6 +68,11 @@ export function OverrideDialog({ open, ruleCodes, onClose, onConfirm }: Override
             ? `This overrides ${ruleCodes.join(', ')}. The rules are still recorded as broken.`
             : 'This overrides the rules that failed. They are still recorded as broken.'}
         </p>
+        {warningCodes.length > 0 ? (
+          <p style={{ marginTop: 8, marginBottom: 0, fontSize: 13, color: colour.text.secondary }}>
+            The warnings are acknowledged with the override: {warningCodes.join(', ')}.
+          </p>
+        ) : null}
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 3 }}>
         <Button variant="outlined" color="primary" onClick={close}>

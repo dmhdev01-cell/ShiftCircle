@@ -2,6 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
 
+import { resetFixtures } from '../api/fixtures/api';
 import { invalidateVersionCache } from '../api/useVersion';
 
 /**
@@ -25,6 +26,7 @@ if (typeof URL.createObjectURL !== 'function') {
 
 beforeEach(() => {
   invalidateVersionCache();
+  resetFixtures();
   vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({})));
 });
 

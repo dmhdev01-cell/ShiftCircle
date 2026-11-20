@@ -63,7 +63,8 @@ describe('the employee My schedule', () => {
     expect(screen.getByText('Sun 22 Nov · Night 8 h 23:00 – 07:00')).toBeInTheDocument();
     expect(screen.getByText(/offered by M. Ellis at 14:20/)).toBeInTheDocument();
     expect(screen.getByText(/offered by M. Ellis at 15:05/)).toBeInTheDocument();
-    expect(screen.getAllByText('Rules OK for you')).toHaveLength(2);
+    // Only the offer the api sent a rule result for claims a check.
+    expect(screen.getAllByText('Rules OK for you')).toHaveLength(1);
   });
 
   it('offers Accept and Decline on each pending offer', async () => {
@@ -118,6 +119,27 @@ describe('the employee My schedule', () => {
 
     const planner = await screen.findByRole('region', { name: 'Propose shifts' });
     expect(within(planner).getByRole('button', { name: 'Send to supervisor' })).toBeDisabled();
+  });
+
+  it('B4: does not claim a rule check the api did not send', async () => {
+    renderMySchedule();
+
+    await screen.findByText(/Sam Abara/);
+
+    // The second offer has no rule results, so no check is claimed for it.
+    const offers = screen.getAllByRole('region', { name: 'Overtime offer' });
+    expect(within(offers[1]).queryByText('Rules OK for you')).not.toBeInTheDocument();
+    // The first offer has a passing rule result, so the check is shown.
+    expect(within(offers[0]).getByText('Rules OK for you')).toBeInTheDocument();
+  });
+
+  it('B5: does not promise overtime rates on the offer', async () => {
+    renderMySchedule();
+
+    await screen.findByText(/Sam Abara/);
+
+    expect(screen.queryByText(/paid at overtime rates/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/counts toward your pay-period hours/).length).toBeGreaterThan(0);
   });
 
   it('shows no colleague hours or absences', async () => {

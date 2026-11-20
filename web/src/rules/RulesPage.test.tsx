@@ -88,7 +88,7 @@ describe('Rules admin', () => {
     expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
   });
 
-  it('offers the approve action to a second approver', async () => {
+  it('offers the approve action to a second approver once the draft is submitted', async () => {
     const user = userEvent.setup();
     renderRules();
 
@@ -98,7 +98,27 @@ describe('Rules admin', () => {
       'RULES_APPROVER',
     );
 
+    // A draft that has not been submitted has nothing to approve.
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Build and check' }));
+    await user.click(await screen.findByRole('button', { name: 'Submit for approval' }));
+
     expect(await screen.findByRole('button', { name: 'Approve' })).toBeInTheDocument();
+  });
+
+  it('B6: does not offer the approve action to a supervisor', async () => {
+    const user = userEvent.setup();
+    renderRules();
+
+    await screen.findByRole('heading', { name: 'Rest between shifts' });
+    await user.selectOptions(
+      screen.getByLabelText('Mock sign-in: choose a role'),
+      'SUPERVISOR',
+    );
+
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument();
   });
 
   it('shows the version history', async () => {

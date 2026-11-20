@@ -155,7 +155,15 @@ describe('the rule-check panel', () => {
     });
 
     expect(screen.getByRole('status')).toHaveTextContent('1 warning need acknowledging');
-    expect(screen.getByRole('button', { name: 'Acknowledge the warning' })).toBeInTheDocument();
+    // The label says that acknowledging saves the change.
+    expect(screen.getByRole('button', { name: 'Acknowledge and assign' })).toBeInTheDocument();
+  });
+
+  it('B2: does not offer to acknowledge while a rule blocks the change', () => {
+    // The blocked outcome carries a warning (U-14) as well as the blocks.
+    renderPanel();
+
+    expect(screen.queryByRole('button', { name: /Acknowledge/ })).not.toBeInTheDocument();
   });
 });
 

@@ -164,6 +164,14 @@ export function OvertimePage() {
     void mutation.preview(directAssignChange);
   };
 
+  const warnCodes =
+    mutation.state.outcome?.ruleResults
+      .filter(
+        (result) =>
+          result.outcome === 'WARN' && !mutation.state.acknowledged.includes(result.ruleCode),
+      )
+      .map((result) => result.ruleCode) ?? [];
+
   const directAssignTitle =
     activeShift && selected.length === 1
       ? `Assign ${payload?.candidates.find((c) => c.employeeId === selected[0])?.name ?? 'this officer'}`
@@ -395,8 +403,14 @@ export function OvertimePage() {
                 );
               }}
               onAcknowledge={(codes) => {
-                if (!directAssignChange) return;
-                void mutation.save(directAssignChange, { acknowledgeWarnings: codes });
+                if (!directAssignChange || !activeShift) return;
+                // The same saver as the save: the open shift is assigned, not
+                // a new assignment.
+                void mutation.save(
+                  directAssignChange,
+                  { acknowledgeWarnings: codes },
+                  () => api.assignOpenShift(activeShift.id, selected[0]),
+                );
               }}
               onOverride={() => setOverrideOpen(true)}
               onCancel={() => mutation.reset()}
@@ -451,12 +465,20 @@ export function OvertimePage() {
             .filter((result) => result.outcome === 'BLOCK')
             .map((result) => result.ruleCode) ?? []
         }
+        warningCodes={warnCodes}
         onClose={() => setOverrideOpen(false)}
         onConfirm={(reason) => {
           setOverrideOpen(false);
           if (!directAssignChange || !activeShift) return;
-          void mutation.save(directAssignChange, { override: { reason } }, () =>
-            api.assignOpenShift(activeShift.id, selected[0]),
+          // The warnings are acknowledged with the override, or the api
+          // refuses the change.
+          void mutation.save(
+            directAssignChange,
+            {
+              override: { reason },
+              ...(warnCodes.length > 0 ? { acknowledgeWarnings: warnCodes } : {}),
+            },
+            () => api.assignOpenShift(activeShift.id, selected[0]),
           );
         }}
       />

@@ -11,6 +11,8 @@ import { ApiError } from '../http';
 import type {
   BuildReport,
   CoverageReport,
+  DemoUser,
+  MockLoginResult,
   HoursReport,
   MyOffer,
   MySchedulePayload,
@@ -51,6 +53,7 @@ import {
   demoOvertimeReport,
   demoOverrides,
 } from './reports';
+import { demoUsers } from './demoUsers';
 import { demoBuildReport, demoRuleSets, demoRuleTables } from './rules';
 import { demoSchedule, PC01_CHANGE } from './schedule';
 import { demoPayPeriods, demoTimeEntries } from './timeAttendance';
@@ -131,7 +134,11 @@ function isZeroRest(change: RuleCheckChange): boolean {
 
 /** A change that only warns, so the acknowledge flow can be exercised. */
 function isWarnOnly(change: RuleCheckChange): boolean {
-  return change.type === 'ASSIGN' && change.employeeId === 'emp-aiden' && change.startAt === '2026-11-22T07:00:00-06:00';
+  if (change.type !== 'ASSIGN') return false;
+  // Tara is eligible with a warning, so the acknowledge path can be exercised
+  // with a candidate the supervisor can actually pick.
+  if (change.employeeId === 'emp-tara') return true;
+  return change.employeeId === 'emp-aiden' && change.startAt === '2026-11-22T07:00:00-06:00';
 }
 
 function evaluate(request: RuleCheckRequest): RuleCheckOutcome {
@@ -189,6 +196,21 @@ function shiftHours(entry: TimeEntry): number {
 }
 
 let assignmentCounter = 0;
+
+/**
+ * Put the fixtures back, so one test cannot change what the next one sees.
+ */
+export function resetFixtures(): void {
+  assignmentCounter = 0;
+  demoRuleSets.forEach((entry) => {
+    entry.status =
+      entry.version === 7 ? 'LIVE' : entry.version === 8 ? 'DRAFT' : ('PUBLISHED' as const);
+    entry.live = entry.version === 7;
+    entry.approvedBy = undefined;
+    entry.approvedAt = undefined;
+    entry.publishedAt = entry.version === 7 ? '20 Nov 13:50' : undefined;
+  });
+}
 
 export function createFixtureApi(): ShiftCircleApi {
   return {
@@ -366,6 +388,24 @@ export function createFixtureApi(): ShiftCircleApi {
       return { id: `p-fixture-${items.length}`, accepted: items.length };
     },
 
+    async getDemoUsers(): Promise<DemoUser[]> {
+      await wait(LATENCY_MS);
+      return demoUsers;
+    },
+
+    async mockLogin(userId: string): Promise<MockLoginResult> {
+      await wait(LATENCY_MS);
+      const user = demoUsers.find((entry) => entry.id === userId);
+      if (!user) {
+        throw new ApiError('That user is not in the fixture.', 404);
+      }
+      return {
+        token: `fixture-token-${user.id}`,
+        expiresAt: '2026-11-20T12:00:00Z',
+        user,
+      };
+    },
+
     async getRuleSets(): Promise<RuleSetVersion[]> {
       await wait(LATENCY_MS);
       return demoRuleSets;
@@ -416,7 +456,7 @@ export function createFixtureApi(): ShiftCircleApi {
       if (ruleSet.createdBy === 'L. Fraser') {
         throw new ApiError('You created this version. Another approver must review it.', 403);
       }
-      ruleSet.status = 'PUBLISHED';
+      ruleSet.status = 'APPROVED';
       ruleSet.approvedBy = 'P. Singh';
       ruleSet.approvedAt = 'now';
       return ruleSet;

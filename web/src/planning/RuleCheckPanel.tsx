@@ -70,6 +70,8 @@ interface RuleCheckPanelProps {
   /** The proposed change, in the supervisor's words. */
   title: string;
   detail: string;
+  /** What the save button says. */
+  saveLabel?: string;
   onSave: () => void;
   onAcknowledge: (codes: string[]) => void;
   onOverride: () => void;
@@ -86,6 +88,7 @@ export function RuleCheckPanel({
   state,
   title,
   detail,
+  saveLabel = 'Assign shift',
   onSave,
   onAcknowledge,
   onOverride,
@@ -228,19 +231,19 @@ export function RuleCheckPanel({
           </Button>
         ) : null}
 
-        {unacknowledged.length > 0 ? (
+        {unacknowledged.length > 0 && blocking.length === 0 ? (
           <Button
             variant="contained"
             color="primary"
             onClick={() => onAcknowledge(unacknowledged.map((result) => result.ruleCode))}
           >
-            Acknowledge {unacknowledged.length === 1 ? 'the warning' : `${unacknowledged.length} warnings`}
+            Acknowledge and assign
           </Button>
         ) : null}
 
         {state.kind === 'ready' && blocking.length === 0 && unacknowledged.length === 0 ? (
           <Button variant="contained" color="primary" onClick={onSave}>
-            Assign shift
+            {saveLabel}
           </Button>
         ) : null}
       </Box>

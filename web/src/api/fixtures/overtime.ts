@@ -112,7 +112,7 @@ export const demoCandidates: Candidate[] = [
     overtimeHoursThisQuarter: 31,
     seniorityDate: 'Jan 2020',
     eligibility: 'WARN',
-    reason: 'U-11: would make a 16 h shift with his Sat evening',
+    reason: 'U-11: would make a 16 h shift with their Sat evening',
   },
   {
     employeeId: 'emp-ruth',

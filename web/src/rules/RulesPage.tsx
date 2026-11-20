@@ -46,6 +46,9 @@ export function RulesPage() {
   const params = useParams();
   const [versions, setVersions] = useState<RuleSetVersion[] | null>(null);
   const [draft, setDraft] = useState<RuleSetVersion | null>(null);
+  // The version the screen is showing. It stays the same when the draft is
+  // submitted or approved, so the screen does not jump to the live version.
+  const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
   // The table comes from the route, so the screen can be linked to.
   const code =
     params.table && TABLE_CODES.includes(params.table) ? params.table : TABLE_CODES[0];
@@ -58,7 +61,10 @@ export function RulesPage() {
     void api.getRuleSets().then((sets) => {
       if (!active) return;
       setVersions(sets);
-      setDraft(sets.find((entry) => entry.status === 'DRAFT') ?? sets.find((entry) => entry.live) ?? null);
+      const first =
+        sets.find((entry) => entry.status === 'DRAFT') ?? sets.find((entry) => entry.live) ?? null;
+      setDraft(first);
+      setSelectedVersion(first?.version ?? null);
     });
     return () => {
       active = false;
@@ -88,6 +94,8 @@ export function RulesPage() {
   }
 
   const live = versions.find((entry) => entry.live);
+  // Keep showing the version that was picked, whatever its status is now.
+  const shown = versions.find((entry) => entry.version === selectedVersion) ?? draft;
   // The person who created the draft cannot approve it.
   const isAuthor = draft.createdBy === role.user;
 
@@ -106,7 +114,7 @@ export function RulesPage() {
           <Typography variant="h1">Rules</Typography>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
             <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
-              Live v{live?.version ?? '—'} · draft v{draft.version}
+              Live v{live?.version ?? '—'} · draft v{shown?.version ?? '—'}
             </Typography>
             <StatusPill tone={draft.status === 'DRAFT' ? 'warn' : 'info'}>
               {draft.status === 'DRAFT' ? 'Draft' : draft.status === 'SUBMITTED' ? 'Submitted' : 'Live'}
@@ -212,6 +220,8 @@ export function RulesPage() {
             report={report}
             version={draft.version}
             isAuthor={isAuthor}
+            role={role.id}
+            status={draft.status}
             canSubmit={report !== null && draft.status === 'DRAFT'}
             onBuilt={(built) => {
               setReport(built);

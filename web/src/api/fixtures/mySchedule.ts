@@ -108,6 +108,13 @@ export const demoMyOffers: MyOffer[] = [
     offeredAt: '14:20',
     eligibility: 'ELIGIBLE',
     reason: '56 h rest before · 72 h this pay period',
+    ruleResults: [
+      {
+        ruleCode: 'U-01',
+        outcome: 'PASS',
+        message: '56 hours of rest before the shift. The minimum is 8 consecutive hours.',
+      },
+    ],
     status: 'OFFERED',
   },
   {
