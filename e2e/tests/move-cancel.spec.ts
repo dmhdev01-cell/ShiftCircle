@@ -145,4 +145,68 @@ test.describe('move and cancel a rostered shift', () => {
 
     await expect(moved).toHaveCount(0);
   });
+
+/** A name with a regular expression meaning, so it can be used in a pattern. */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+  test('@fixtures moves a shift to a free day and cancels it with a reason', async ({ page }) => {
+    await page.goto('/login');
+    test.skip(
+      (await page.getByText('Demo fixtures').count()) === 0,
+      'the fixture run needs the fixtures-mode web',
+    );
+
+    await signIn(page, 'M. Ellis');
+    await navTo(page, 'Planning board');
+
+    const roster = page.getByRole('region', { name: 'Roster, scrolls sideways' });
+    // A rostered shift: not an extra, an offer or a proposal.
+    const chip = roster
+      .getByRole('button', { name: /^(D|E|N|A12|P12|L16) for .+ on [0-9]{4}-[0-9]{2}-[0-9]{2}$/ })
+      .first();
+    const label = (await chip.getAttribute('aria-label')) ?? '';
+    const parts = /^(.+) for (.+) on ([0-9]{4}-[0-9]{2}-[0-9]{2})$/.exec(label);
+    expect(parts, 'the name of the shift chip').toBeTruthy();
+    const chipText = parts![1];
+    const officer = parts![2];
+    const date = parts![3];
+
+    // A day the officer is off, so the move has somewhere to go.
+    const offs = roster.getByRole('button', {
+      name: new RegExp(
+        `^Off - assign a shift to ${escapeRegExp(officer)} on ([0-9]{4}-[0-9]{2}-[0-9]{2})$`,
+      ),
+    });
+    let target = '';
+    for (let index = 0; index < (await offs.count()); index += 1) {
+      const offLabel = (await offs.nth(index).getAttribute('aria-label')) ?? '';
+      const when = /on ([0-9]{4}-[0-9]{2}-[0-9]{2})$/.exec(offLabel)?.[1] ?? '';
+      if (when && when !== date) {
+        target = when;
+        break;
+      }
+    }
+    expect(target, 'a free day for the officer').not.toBe('');
+
+    await chip.click();
+    const dialog = page.getByRole('dialog', { name: new RegExp(escapeRegExp(officer)) });
+    await dialog.getByRole('button', { name: 'Move…' }).click();
+    await dialog.getByLabel('New date').fill(target);
+    await dialog.getByRole('button', { name: 'Move shift' }).click();
+
+    const moved = roster.getByRole('button', { name: `${chipText} for ${officer} on ${target}` });
+    await expect(moved).toBeVisible();
+
+    await moved.click();
+    const movedDialog = page.getByRole('dialog', { name: new RegExp(escapeRegExp(officer)) });
+    await movedDialog.getByRole('button', { name: 'Cancel shift…' }).click();
+    await movedDialog
+      .getByLabel('Why is this shift cancelled?')
+      .fill('Move/cancel spec: shift no longer needed');
+    await movedDialog.getByRole('button', { name: 'Cancel shift' }).click();
+
+    await expect(moved).toHaveCount(0);
+  });
 });

@@ -57,6 +57,11 @@ test.describe('E5 wall display', () => {
   });
 
   test('@api says it is not live when the api cannot be reached, and recovers', async ({ page }, testInfo) => {
+    await page.goto('/login');
+    test.skip(
+      (await page.getByText('Demo fixtures').count()) > 0,
+      'the network test needs the real api',
+    );
     await page.clock.install({ time: DEMO_TIME });
     await openAsDisplay(page);
     await expect(page.getByRole('alert')).toHaveCount(0);
