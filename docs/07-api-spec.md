@@ -123,6 +123,14 @@ Publishing is one-way in the prototype: it sets the period to `PUBLISHED`, recor
 A second publish answers `409`; an unknown period is `404`, and another unit's period is also `404`
 so its existence is not revealed. The board's `publishedState.published` reads the same rows.
 
+**A period is one roster week (Monday to Sunday) of one unit.** The demo dataset seeds one period
+per unit and per week of the demo window: the weeks that ended before the demo day are `PUBLISHED`
+(they are history), and the week the demo day falls in and the weeks after it are `DRAFT`, so a
+supervisor has a period to publish on a fresh stack. `GET /schedule` returns the period it shows as
+`period { id, label, status }` (see the board header below), and that id is what
+`POST /schedule-periods/{id}/publish` takes. The status column is `DRAFT` or `PUBLISHED`; there is
+no `UNPUBLISHED` status in the schema.
+
 **Move and cancel (`PATCH` / `DELETE /assignments/{id}`): the exact contract** (decided 2026-11-20 so the builder doesn't have to guess):
 
 | Topic | Rule |
@@ -151,20 +159,26 @@ so its existence is not revealed. The board's `publishedState.published` reads t
 ```
 
 The payload also has `unit { id, name }`, `days` (ISO dates), `asOf` (the demo today), `officers`
-(rows with day cells of `SHIFT` items), `warnings`, `overridesThisPeriod` and
-`publishedState { published, unpublishedChanges }`, matching `web/src/api/types.ts`.
+(rows with day cells of `SHIFT` items), `warnings`, `overridesThisPeriod`,
+`publishedState { published, unpublishedChanges }` and `period { id, label, status }`, matching
+`web/src/api/types.ts`.
 
 `lowestHourly` is the minimum headcount over the block's hours; `shortHours` lists merged hour ranges below `required` (`to` is exclusive); `covered` is true when `shortHours` is empty. `actual` is present for past hours only. The display version has the same shape and still **no names**.
 
-**Board header fields:** three facts on the board are neither per-officer nor per-block, so `GET /schedule` returns them at the top level of the payload:
+**Board header fields:** four facts on the board are neither per-officer nor per-block, so `GET /schedule` returns them at the top level of the payload:
 
 ```json
 { "asOf": "2026-11-19",
   "overridesThisPeriod": 1,
-  "publishedState": { "published": true, "unpublishedChanges": 3 } }
+  "publishedState": { "published": true, "unpublishedChanges": 3 },
+  "period": { "id": "9f0a…", "label": "16 – 22 Nov 2026", "status": "PUBLISHED" } }
 ```
 
-`asOf` is the server's "today" (`SC_DEMO_TODAY` on the demo profile), so the board marks the same days the api does instead of guessing from the browser clock. `overridesThisPeriod` counts the emergency overrides recorded in the pay period on the board. `publishedState` says whether the period is published and how many changes are not published yet.
+`asOf` is the server's "today" (`SC_DEMO_TODAY` on the demo profile), so the board marks the same days the api does instead of guessing from the browser clock. `overridesThisPeriod` counts the emergency overrides recorded in the pay period on the board.
+
+`period` is the roster week the board shows: the `schedule_period` row whose dates **contain the board's range** (`from` and `to`). It is `null` when the range is not inside one period — a board that spans two weeks has no single period. `id` is what `POST /schedule-periods/{id}/publish` takes, `label` is the week for people ("16 – 22 Nov 2026") and `status` is `DRAFT` or `PUBLISHED`.
+
+`publishedState.published` is true when that period is published. `publishedState.unpublishedChanges` counts the shifts of that period that were **assigned, moved or cancelled after it was published**; the source is the append-only audit trail (the `assign_shift`, `move_assignment` and `cancel_assignment` events of those shifts). It is `null` when the period is not published: there is no publication to compare against, and the board says "not published" instead of a change count.
 
 ### 4.3 Overtime
 

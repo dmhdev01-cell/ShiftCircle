@@ -1,10 +1,10 @@
 # ShiftCircle — requirement-to-proof traceability
 
 **Derived from the test sources, not from the prose.** Checked on 2026-11-20 against `main` at
-`62dd4fc` (code) / `7994eba` (docs) by grepping `@Test`, Playwright `test(...)` titles and the
-Flyway migrations. The latest clean-worktree run is **91 rules + 20 infrastructure + 165 api =
-276 tests, 0 failures** at `22375d4`, run in reverse class order and with two random seeds
-(20261120, 20261121). It is counted as `@Test` methods: 91 + 20 + 165 static annotations, and
+`fe6487d` (code and docs) by grepping `@Test`, Playwright `test(...)` titles and the
+Flyway migrations. The latest clean-worktree run is **91 rules + 22 infrastructure + 171 api =
+284 tests, 0 failures** at `fe6487d`, run in the default class order and with a random seed
+(20261120). It is counted as `@Test` methods: 91 + 22 + 171 static annotations, and
 Surefire reports the same total with 0 skipped. A proof below names the test class and method that
 makes the claim, not the document that hopes it exists.
 
@@ -131,14 +131,15 @@ reaches; E1 also calls `expectDisclaimer`. E2–E5 rely on the web shell test fo
 | FR-02 shift templates configurable | `SchemaConstraintsTest#migrationsApplyAndSeedTheReferenceData` (six seeded templates); `ReferenceApiTest#shiftTemplatesAndQualificationsAreReadableByAnySignedInRole` (read) | **PARTIAL** — start times/lengths are seed data, not editable in the prototype |
 | FR-03/04 required vs scheduled vs actual per block; qualifications | `ScheduleApiTest#reportsHourlyCoverageForTheDay`; `ReportsApiTest#coverageHoursReconcileWithTheAssignmentsHourByHour`; `OvertimeRankerTest#anUnqualifiedOfficerKeepsTheFairnessPlaceButIsUnavailable` | PASS |
 | FR-05 overtime status live | `ScheduleApiTest#overtimeStatusChangesAtThePayPeriodThresholdBoundaries`; `#overtimeStatusUsesThePeriodThatContainsTheBoardDateAndCountsAMidnightCrossing`; `PlanningPage.test.tsx#shows the officer pay-period hours with the overtime status pill` | PASS |
-| FR-06 publish a period | `SchedulePublishApiTest#publishingIsScopedAuditedAndOneWay`, `#aDraftWeekReadsAsUnpublishedUntilItIsPublished` | PASS |
-| FR-07 notice check and per-officer "changed" flag after publishing | Only `publishedState.unpublishedChanges` count exists; no P-05/S-01 rule row and no per-officer changed marker | **NOT COVERED** |
+| FR-06 publish a period | `SchedulePublishApiTest#publishingIsScopedAuditedAndOneWay`, `#aDraftWeekReadsAsUnpublishedUntilItIsPublished`; `SchedulePeriodSeedApiTest#publishingASeededPeriodWorksOnAFreshDataset` (publishes a **generated** period, no planted row), `#theBoardCarriesThePeriodItReadsSoTheWebCanPublish` (the board hands over the id), `#theBoardCountsTheShiftsChangedAfterThePublication`, `#aPastWeekIsAlreadyPublishedAndCannotBePublishedAgain` | PASS |
+| FR-07 notice check and per-officer "changed" flag after publishing | The board counts the shifts changed after the publication (`publishedState.unpublishedChanges`, from the audit trail) and names the period; there is no P-05/S-01 rule row and no per-officer changed marker | **PARTIAL** — the count is real; the notice rule and the per-officer flag are not built (`docs/10` §8) |
 | FR-20–23 open shift, eligible list, offers, direct assign | `OvertimeApiTest#creatingAnOpenShiftIsSupervisorOnlyAndAudited`, `#theRankedListIsFewestOvertimeThenSeniority`, `#offerAcceptAndConfirmCreateTheAssignment`, `#directAssignRunsTheRulesAndFillsTheShift`, `#anEmployeeCannotSendOrConfirmOffers` | PASS |
 | FR-50–54 actuals, pay codes, lock, payroll CSV | `PayrollApiTest` (13 tests); `PayrollExportGoldenTest`; `CsvTest` | PASS |
 | FR-60–62/64 hours, overtime, coverage reports and CSV | `ReportsApiTest#coverageHoursReconcileWithTheAssignmentsHourByHour`, `#hoursAndOvertimeReconcileWithTheTimeEntriesAndThePayrollExport`, `#csvExportsUseTheDocumentedHeaders`, `#m4DisplayIsDeniedEveryReport` | PASS |
 | FR-70/71/75/76 decision tables, versions, maker/checker, scenarios before publish | `RuleSetApiTest`; `RuleRowValidatorTest`; `RuleScenarioRunnerTest` | PASS |
 | FR-73 append-only audit | `AuditApiTest` (5 tests); `SchemaConstraintsTest#auditEventsCannotBeUpdatedOrDeleted`; payroll/override audit assertions | PASS |
 | FR-80/81/83/84 100 officers × 90 days, actuals before today, planted cases, fictional footer | `DemoDataGeneratorTest`; `AppShell.test.tsx#shows the required footer disclaimer on every screen` | PASS (fictionality is generator design, not proven by test) |
+| The demo's roster weeks are publishable (docs/10 §6.1) | `DemoDataGeneratorTest#seedsTheRosterWeeksEveryUnitCanPublish` (84 periods: one Monday-to-Sunday week per unit, past weeks published, current and later weeks drafts, every shift in its period), `#aMissingSchedulePeriodFailsTheSelfCheck`; `SchedulePeriodSeedApiTest#everyUnitHasARosterWeekForTheWindowAndOnlyThePastOnesArePublished` | PASS |
 | NFR-01 three containers, no paid services | `docker-compose.yml`; README §4 | PROCESS (no automated compose test) |
 | NFR-02 responsive desktop/tablet/TV | Playwright projects `desktop`/`tablet`; `e5-wall-display.spec.ts#fits a 1920×1080 TV and a 1366×768 screen without scrolling` | PASS |
 | NFR-03/04 consistent, accessible UI | `expectAccessible` in every e2e spec; web component tests; `keyboard.spec.ts` | PASS |

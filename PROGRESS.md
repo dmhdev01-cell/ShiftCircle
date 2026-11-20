@@ -37,8 +37,9 @@ Internal note for the team; remove before submission (step 13) or fold into the 
 | 12b audit viewer | `21af15c` | `GET /audit-events`: auditor facility-wide, supervisor scoped to their units, filters (actor/action/entity/date), keyset pages, read-only; 405s and the append-only trigger proven |
 | review S1-S5 | `e13ddeb`, `b572dff`, `444f685`, `03ceb19`, `35c225d` | DRL injection closed (codes/messages/regex validated before compile + escaped again), shift-kind bounded against ReDoS, message edits saved, Must policies pinned, limits capped + silent rule named, odd input 400/404 problems |
 | 12a wall display | `6649eb1`, `f191d07`, `6237258` | `GET /display/today` (ADR-017 hourly blocks, midnight-crossing night, no names, scope, roles); the `coverage/` ignore fix that a clean checkout caught; ignored-source guard script + README step; 209 tests from a clean worktree at `f191d07` |
+| 12f schedule periods | `4a24ca9`, `530ab82`, `fe6487d` | the generator seeds the 84 roster weeks a supervisor publishes (past weeks published, the current and later weeks drafts), every shift points at its period, and the self-check refuses a dataset without them; the board returns `period {id, label, status}` and a real `unpublishedChanges` count from the audit trail; `SchedulePeriodSeedApiTest` publishes a **generated** period; 284 tests |
 
-Latest full run: 91 rules + 20 infrastructure + 165 api = **276 tests**, all passing in Docker from a clean worktree at `22375d4`, in reverse class order and two random orders (seeds 20261120, 20261121). Counted as `@Test` methods; Surefire 0 skipped.
+Latest full run: 91 rules + 22 infrastructure + 171 api = **284 tests**, all passing in Docker from a clean worktree at `fe6487d`, in the default order and a random order (seed 20261120). Counted as `@Test` methods; Surefire 0 skipped. Dataset checksum `3390148255db715844c4df90f553ae342530417621539b23499f638c5b126539` (roster and the 84 roster weeks); the T8 golden file is byte-identical.
 
 ## Next, in the lead's priority order
 
@@ -65,7 +66,10 @@ E3), validator 13, scenarios 3.
 1. **Wall display** `GET /display/today` (`6649eb1`); screen merged at `17308b7`.
 2. **Audit viewer** `GET /audit-events` (`21af15c`).
 3. **Absences** already on main from step 9 (`POST /absences`, assignment + type, tested in
-   `PayrollApiTest`); **schedule publish** `POST /schedule-periods/{id}/publish` (`f300cd0`).
+   `PayrollApiTest`); **schedule publish** `POST /schedule-periods/{id}/publish` (`f300cd0`), and
+   the periods it publishes now exist (`4a24ca9`): the generator seeds one roster week per unit
+   and week, so a fresh stack has a draft week to publish, and the board hands over the id
+   (`530ab82`). The web's Publish action is dev-build2's (branch `publish-action`).
 4. **NFR-05 performance smoke** (`51a4cc5`, docs/10).
 5. **Boot validation** (`062da95`, `62dd4fc`): the published rows run the same validator as the
    publish path, and unreadable rows stop the boot instead of falling back to v1.
@@ -77,6 +81,8 @@ E3), validator 13, scenarios 3.
 - `PATCH`/`DELETE /assignments` are built (`c1dd6ad`); the exact shapes went to dev-build2 so the
   web can bring move/cancel back. Excel round-trip for rule tables remains **not built**, and
   docs/10 §8 says so plainly.
+- The demo script has no roster-publish beat yet: it can be written once the web's Publish action
+  lands (dev-build2). The api side is ready and proven on a fresh dataset.
 
 **Before submission:** Playwright E2E E1–E5 against the real api, README setup, BUILD_RECORD,
 demo script/recording.
