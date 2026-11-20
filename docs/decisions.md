@@ -165,3 +165,11 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Pilot:** allow cross-unit cover only for officers whom their home unit has explicitly shared (a cover pool), or ask the home unit's supervisor to approve, and review it under FOIP.
 **Consequences:** `09-access-control.md` §2 (assign row) and §3 (API scope); `07-api-spec.md` §4.2 Roles.
 
+## ADR-025: The sign-in token stays in memory only; a refresh asks for sign-in and returns to the screen
+**Status:** Accepted. **Confirmed by the person on 2026-11-20.** Raised by the UI test round (defect D11, found by dev-qa).
+**Context:** the web keeps the signed token in memory, not in `localStorage` or `sessionStorage`. A full page reload or a deep link therefore starts without a session. Before the fix, that showed four `401` answers and page errors on screens such as Reports instead of the sign-in screen.
+**Decision:** keep the token memory-only: no `localStorage`, no `sessionStorage`, no cookie written by the web. A screen opened without a session goes to `/login` with "Please sign in to continue." After sign-in the person returns to the screen they asked for. The return path is validated (`web/src/shell/returnPath.ts`: in-app paths only), so the sign-in screen cannot be used as an open redirect.
+**Why:** a token in web storage can be read by any script that runs on the page. The prototype's sessions are short (8 h), and a refresh is cheap with mock sign-in. A pilot moves to government SSO, where the session is the identity provider's.
+**Trade-off (stated plainly):** every refresh, new tab or deep link asks for sign-in again.
+**Consequences:** `web/src/shell/RequireSession.tsx`, `LoginPage.tsx`; e2e `session-and-nav.spec.ts` (reload on `/reports/coverage` and `/planning` lands on sign-in with the notice and no page errors, then returns); `10-testing.md` §8 and README list it as a known limit.
+

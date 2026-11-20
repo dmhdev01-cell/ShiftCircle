@@ -29,9 +29,9 @@ Only the web publishes a port. A published rule version is compiled and swapped 
 - **Final security review:** review-r3, Claude Sonnet 5.5.
 - **Lead:** Claude Sonnet 5.5. **Design, e2e and docs:** Claude Opus 5.5.
 
-**Independence, honestly:** builders and verifiers are different model families, except from about **10:07Z to 11:30Z**. The OpenCode credit ran out, and all five OpenCode seats ran on MiniMax (M3.1 Flash building, M3 verifying). The rounds in that window (R32–R34) have weaker independence. The **final full-state verification and security pass (R38, R39) were GLM 5.3 Flash**, a lower tier than the earlier rounds, though still independent of the DeepSeek authors.
+**Independence, honestly:** builders and verifiers are different model families, except from about **10:07Z to 11:30Z**. The OpenCode credit ran out, and all five OpenCode seats ran on MiniMax (M3.1 Flash building, M3 verifying). Those rounds (R32–R34) have weaker independence. **The final rounds (R38, R39, R41, R43–R46) were GLM 5.3 Flash**, a lower tier, still independent of the DeepSeek authors.
 
-**How it was verified:** 42 review and QA rounds, three e2e runs and two visual reviews, each recorded with what was checked, found and fixed (`docs/review-rounds.md`; narrative in `docs/ai-dev-log.md`). Fixes were proved by reverting them and watching their test fail.
+**How it was verified:** 46 review and QA rounds, three e2e runs and two visual reviews, each recorded with what was checked, found and fixed (`docs/review-rounds.md`; narrative in `docs/ai-dev-log.md`). Fixes were proved by reverting them and watching their test fail.
 
 **What verification caught** that had passed the author's own tests:
 
@@ -42,13 +42,14 @@ Only the web publishes a port. A published rule version is compiled and swapped 
 | **Source missing from git, twice** (web `.gitignore` lines hid Java packages); now a guard script | review-r2, builder | R5, log #25 |
 | **Stale wall display looked live and overflowed**; automated checks covered only the live state | visual review | Visual, R27 |
 | **Blank page for the auditor** (a `null` the fixtures never had); a **raw 500** whose handler was tested only directly; the payroll lock on the real clock; a test-order bug; a flaky web suite | dev-qa, real-api e2e | R25–R37 |
+| **UI test (80 screenshots reviewed):** date a day early, Confirm on a filled shift, stale board after a save, wrong chart axis, a reload lost the session; all fixed | dev-design, dev-qa | R43–R46 |
 | **What the GLM passes missed:** an open-shift **double fill** (3 officers filled one need; fixed by a shift-row lock and status re-check, with a conditional update as defence in depth), an **unscoped roster list**, an unlock audit overcount; all re-verified live | review-r3 (Claude) | R40, R42 |
 
 **Suggestions corrected or rejected:** the lead rejected a custom rule catalogue and 16 h shifts as overtime-only (log #5, #13). The builder rejected a catch-all handler that hid `403`s as `500`s, then built it safely (log #69).
 
 ## 4. Test cases and verified status
 
-**Final:** **348 tests** (97 + 27 + 224) green in two class orders at `c0dcaf3`, in an independent run (dev-qa, GLM 5.3 Flash, true clone; R41). Real-api Playwright: desktop 19, tablet 18 + 1 skipped; fixtures 43 / 3.
+**Final (independent, R46):** api **356** at `f4496c6`; vitest 239; Playwright desktop 86, tablet 85 + 1 skipped, 0 failed. One review of the last api changes is pending.
 
 | ID | Case | Expected | Result |
 |---|---|---|---|
@@ -67,12 +68,11 @@ Only the web publishes a port. A published rule version is compiled and swapped 
   - **No human reviewed the rule boundary tests.** Guardrail 4 required it; the project lead waived it on 2026-11-20, and GLM verifiers reviewed them instead (R4–R7).
   - **Locked periods:** time entries are guarded by the api and a trigger, but shifts only by the api: a raw SQL `UPDATE` can still cancel one (R38). The audit table is append-only by trigger.
   - **Rule ranges are sanity bounds, not business validation:** 280 of 297 hostile values were refused. A wrong but legal value, such as a 0.5 h overtime threshold, is stopped only by maker/checker, the scenarios and the dry-run counts, so approvers must read the dry run (R40).
-  - **Tokens:** valid for 8 h with no revocation; the header and `nbf` aren't checked.
-  - **Cross-unit cover (confirmed, ADR-024):** the rule preview shows another unit's officer's rest conflicts. Pilot option: a shared cover pool.
+  - **Tokens:** 8 h, no revocation, memory-only by decision: a refresh asks for sign-in (ADR-025).
   - Mock sign-in issuer (validation is real); nginx master runs as root. Not built: `docs/10-testing.md` §8.
 
 ## 6. Next steps (pilot)
 
 1. A practitioner reviews the rule boundary tests, and the centre validates the MOCK values.
-2. Government SSO with short-lived tokens; a payroll-clerk role for lock and export. Cross-unit cover is confirmed (ADR-024); a pilot can narrow it to a shared cover pool.
+2. Government SSO with short-lived tokens; a payroll-clerk role for lock and export.
 3. Separate database roles, with insert-only audit and a locked-period guard on shifts (ADR-018). Also non-root containers, TLS, a secrets manager, and CI with image scanning (`docs/08-deployment.md` §9).

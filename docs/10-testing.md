@@ -218,3 +218,4 @@ Things the design describes that the prototype does **not** have. They are liste
 | **Tablet-specific layouts** | Responsive layouts; the e2e suite runs at 768×1024 with axe. No tablet-specific design or touch testing | docs/ui/README §4 |
 | **Wall display "open shifts in the next 48 h" list** | Counts of open shifts today per unit and in total (the api returns counts only) | WallDisplay.dc.html |
 | **Notifications, shift trades** | Offers are in-app only | ADR-010 |
+| **A session that survives a refresh** (token persistence) | The token is memory-only by decision: a refresh, new tab or deep link shows "Please sign in to continue." and returns to the screen after sign-in | ADR-025 |
