@@ -29,6 +29,11 @@ public class JwtService {
   private final ObjectMapper mapper = new ObjectMapper();
 
   public JwtService(@Value("${SC_JWT_SECRET}") String secret) {
+    if (secret == null || secret.length() < 32) {
+      // The API already refuses to start without a 32-byte secret; the invariant is repeated here
+      // so a mis-wired test or tool cannot sign with a weak key (review A2).
+      throw new IllegalStateException("SC_JWT_SECRET must be at least 32 characters");
+    }
     this.key = secret.getBytes(StandardCharsets.UTF_8);
   }
 
@@ -50,7 +55,13 @@ public class JwtService {
     return header + "." + body + "." + base64(signature(header + "." + body));
   }
 
-  /** Verifies signature and expiry; returns the principal or throws {@link InvalidTokenException}. */
+  /**
+   * Verifies signature and expiry; returns the principal or throws {@link InvalidTokenException}.
+   *
+   * <p>The JOSE header is deliberately ignored: HMAC-SHA256 is always applied, so "alg": "none" or
+   * any other header cannot change how the token is checked (review A3). Any malformed or missing
+   * claim is a token failure, never a 500 (review A1).
+   */
   public AuthPrincipal verify(String token) {
     String[] parts = token.split("\\.");
     if (parts.length != 3) {
@@ -68,19 +79,44 @@ public class JwtService {
     }
 
     Map<String, Object> payload = readPayload(parts[1]);
-    long expiresAt = ((Number) payload.get("exp")).longValue();
-    if (Instant.now().getEpochSecond() >= expiresAt) {
-      throw new InvalidTokenException("Token expired");
-    }
 
-    return new AuthPrincipal(
-        (String) payload.get("sub"),
-        (String) payload.getOrDefault("name", payload.get("sub")),
-        stringList(payload.get("roles")),
-        stringList(payload.get("units")),
-        payload.get("employeeId") == null
-            ? null
-            : java.util.UUID.fromString((String) payload.get("employeeId")));
+    try {
+      Object rawExpiry = payload.get("exp");
+      if (!(rawExpiry instanceof Number expiry)) {
+        throw new InvalidTokenException("Missing or malformed exp claim");
+      }
+      if (Instant.now().getEpochSecond() >= expiry.longValue()) {
+        throw new InvalidTokenException("Token expired");
+      }
+
+      Object rawSubject = payload.get("sub");
+      if (!(rawSubject instanceof String subject) || subject.isBlank()) {
+        throw new InvalidTokenException("Missing or malformed sub claim");
+      }
+      Object rawName = payload.get("name");
+      String name = rawName instanceof String text && !text.isBlank() ? text : subject;
+
+      Object rawEmployee = payload.get("employeeId");
+      java.util.UUID employeeId = null;
+      if (rawEmployee != null) {
+        if (!(rawEmployee instanceof String employeeText)) {
+          throw new InvalidTokenException("Malformed employeeId claim");
+        }
+        try {
+          employeeId = java.util.UUID.fromString(employeeText);
+        } catch (IllegalArgumentException e) {
+          throw new InvalidTokenException("Malformed employeeId claim");
+        }
+      }
+
+      return new AuthPrincipal(
+          subject, name, stringList(payload.get("roles")), stringList(payload.get("units")),
+          employeeId);
+    } catch (InvalidTokenException e) {
+      throw e;
+    } catch (RuntimeException e) {
+      throw new InvalidTokenException("Malformed claims");
+    }
   }
 
   @SuppressWarnings("unchecked")

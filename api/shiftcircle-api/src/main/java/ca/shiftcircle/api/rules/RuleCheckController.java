@@ -26,7 +26,7 @@ public class RuleCheckController {
   @PreAuthorize("hasAnyRole('SUPERVISOR','EMPLOYEE')")
   public RuleCheckService.OutcomeView preview(
       @RequestBody ChangeRequest request, HttpServletRequest http) {
-    AuthPrincipal principal = scopeGuard.principal(http);
+    AuthPrincipal principal = scopeGuard.principal();
     // Employees may preview against themselves only; supervisors against their units.
     if (!principal.hasRole("SUPERVISOR")
         && !java.util.Objects.equals(principal.employeeId(), request.employeeId())) {

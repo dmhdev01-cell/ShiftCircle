@@ -32,7 +32,7 @@ public class AssignmentController {
   @ResponseStatus(HttpStatus.CREATED)
   @PreAuthorize("hasRole('SUPERVISOR')")
   public Map<String, Object> assign(@RequestBody ChangeRequest request, HttpServletRequest http) {
-    AuthPrincipal principal = scopeGuard.principal(http);
+    AuthPrincipal principal = scopeGuard.principal();
     UUID id = assignments.assign(request, principal);
     return Map.of("id", id.toString(), "status", "PLANNED");
   }

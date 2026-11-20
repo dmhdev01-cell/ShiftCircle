@@ -1,6 +1,5 @@
 package ca.shiftcircle.api.security;
 
-import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -14,7 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class ScopeGuard {
 
   /** The signed-in principal, from the security context. */
-  public AuthPrincipal principal(HttpServletRequest request) {
+  public AuthPrincipal principal() {
     org.springframework.security.core.Authentication authentication =
         org.springframework.security.core.context.SecurityContextHolder.getContext()
             .getAuthentication();

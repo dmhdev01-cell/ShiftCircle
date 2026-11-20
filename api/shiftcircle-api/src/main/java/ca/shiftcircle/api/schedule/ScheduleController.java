@@ -42,7 +42,7 @@ public class ScheduleController {
           HttpStatus.BAD_REQUEST, "from and to must span at most " + MAX_DAYS + " days, in order");
     }
 
-    AuthPrincipal principal = scopeGuard.principal(request);
+    AuthPrincipal principal = scopeGuard.principal();
     scopeGuard.requireUnit(principal, scheduleQuery.unitCode(unitId));
     return scheduleQuery.forUnit(unitId, from, to);
   }

@@ -10,6 +10,7 @@ package ca.shiftcircle.api.version;
  * @param gitCommit git commit the image was built from, or {@code unknown}
  * @param ruleSetVersion published rule-set version the engine is running
  * @param profiles active Spring profiles, comma separated
+ * @param asOf the demo "today" (ISO date) the UI clock should show
  */
 public record VersionResponse(
     String name,
@@ -17,4 +18,5 @@ public record VersionResponse(
     String buildTime,
     String gitCommit,
     String ruleSetVersion,
-    String profiles) {}
+    String profiles,
+    String asOf) {}

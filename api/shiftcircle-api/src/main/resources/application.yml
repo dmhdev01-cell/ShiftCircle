@@ -12,6 +12,9 @@ sc:
     version: v1
   build:
     git-commit: ${SC_GIT_COMMIT:unknown}
+  demo:
+    # The "today" the demo pretends it is: the UI clock and the schedule default to it.
+    today: ${SC_DEMO_TODAY:2026-11-19}
   business-tz: ${SC_BUSINESS_TZ:America/Regina}
 
 management:

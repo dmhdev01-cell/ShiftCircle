@@ -17,14 +17,17 @@ public class VersionController {
   private final ObjectProvider<BuildProperties> buildProperties;
   private final Environment environment;
   private final String ruleSetVersion;
+  private final String asOf;
 
   public VersionController(
       ObjectProvider<BuildProperties> buildProperties,
       Environment environment,
-      @Value("${sc.rules.version:v1}") String ruleSetVersion) {
+      @Value("${sc.rules.version:v1}") String ruleSetVersion,
+      @Value("${sc.demo.today:2026-11-19}") String asOf) {
     this.buildProperties = buildProperties;
     this.environment = environment;
     this.ruleSetVersion = ruleSetVersion;
+    this.asOf = asOf;
   }
 
   @GetMapping("/version")
@@ -38,6 +41,7 @@ public class VersionController {
         build == null || build.getTime() == null ? "unknown" : build.getTime().toString(),
         environment.getProperty("sc.build.git-commit", "unknown"),
         ruleSetVersion,
-        activeProfiles.length == 0 ? "default" : String.join(",", Arrays.asList(activeProfiles)));
+        activeProfiles.length == 0 ? "default" : String.join(",", Arrays.asList(activeProfiles)),
+        asOf);
   }
 }

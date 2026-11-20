@@ -21,7 +21,7 @@ public class MeController {
 
   @GetMapping("/me")
   public Map<String, Object> me(HttpServletRequest request) {
-    AuthPrincipal principal = scopeGuard.principal(request);
+    AuthPrincipal principal = scopeGuard.principal();
     return Map.of(
         "username", principal.username(),
         "displayName", principal.displayName(),

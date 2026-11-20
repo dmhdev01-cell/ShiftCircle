@@ -25,7 +25,8 @@ public class SecurityConfig {
             requests ->
                 requests
                     .requestMatchers(
-                        "/api/v1/auth/**",
+                        "/api/v1/auth/mock-login",
+                        "/api/v1/auth/demo-users",
                         "/api/v1/version",
                         "/actuator/health",
                         "/actuator/health/**",

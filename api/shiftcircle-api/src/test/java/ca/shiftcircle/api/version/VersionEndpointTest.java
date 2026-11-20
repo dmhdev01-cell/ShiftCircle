@@ -46,7 +46,8 @@ class VersionEndpointTest {
         .contains("\"name\":\"shiftcircle-api\"")
         .contains("\"gitCommit\":\"unknown\"")
         .contains("\"ruleSetVersion\":\"v1\"")
-        .contains("\"profiles\":");
+        .contains("\"profiles\":")
+        .contains("\"asOf\":\"2026-11-19\"");
   }
 
   @Test

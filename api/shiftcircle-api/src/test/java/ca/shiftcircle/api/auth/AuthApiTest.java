@@ -121,6 +121,24 @@ class AuthApiTest {
   }
 
   @Test
+  void aValidlySignedTokenWithHostileClaimsIsUnauthorizedNotServerError() throws Exception {
+    // Signed with the real key but without an expiry: must be 401, never 500 (review A1).
+    String header = java.util.Base64.getUrlEncoder().withoutPadding()
+        .encodeToString("{\"alg\":\"HS256\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    String body = java.util.Base64.getUrlEncoder().withoutPadding()
+        .encodeToString("{\"sub\":\"m.ellis\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+    mac.init(new javax.crypto.spec.SecretKeySpec(
+        "test-jwt-secret-that-is-at-least-32-bytes-long"
+            .getBytes(java.nio.charset.StandardCharsets.UTF_8), "HmacSHA256"));
+    String token = header + "." + body + "." + java.util.Base64.getUrlEncoder().withoutPadding()
+        .encodeToString(mac.doFinal((header + "." + body)
+            .getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+
+    assertThat(get("/api/v1/me", token).statusCode()).isEqualTo(401);
+  }
+
+  @Test
   void anUnknownDemoUserIsNotFound() throws Exception {
     assertThat(post("/api/v1/auth/mock-login", "{\"userId\":\"nobody\"}", null).statusCode())
         .isEqualTo(404);
