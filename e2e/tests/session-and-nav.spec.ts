@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 import { isFixtures } from './api';
-import { DISCLAIMER, expectDisclaimer, signIn, signInAgain, signOut } from './support';
+import { DISCLAIMER, expectDisclaimer, signIn, signOut } from './support';
 
 /**
  * Sign-in, where each role lands, the navigation each role gets, sign-out, a
@@ -153,20 +153,16 @@ test.describe('session and navigation', () => {
     await expect(page.getByRole('status').filter({ hasText: 'Your session ended. Sign in again.' })).toBeVisible();
   });
 
-  // DEFECT D11 (found by dev-qa): the token lives only in memory, so a full
-  // reload or a deep link loses the session; the screen then fires 401s and
-  // page errors instead of going to sign-in. Whether to persist the token is
-  // the person's security decision; either way the reload must land on sign-in
-  // with a notice, without page errors, and return to the route asked for.
-  // Remove test.fail when fixed.
+  // D11 was here: the token lives only in memory, so a full reload or a deep
+  // link lost the session and the screen fired 401s and page errors instead of
+  // going to sign-in. Whether to persist the token is the person's security
+  // decision (the default stays in memory); the guard now sends every route
+  // without a session to sign-in and returns there after the sign-in.
   for (const [link, path, heading] of [
     ['Reports', '/reports/coverage', 'Reports'],
     ['Planning board', '/planning', 'Planning board'],
   ] as const) {
     test(`a reload on ${path} lands on sign-in with a notice and no page errors`, async ({ page }) => {
-      // Measured at ac7e1cd: /planning already lands on sign-in with the
-      // notice (its 401 ends the session cleanly); /reports/coverage does not.
-      test.fail(path === '/reports/coverage', 'D11: a reload loses the in-memory session and shows errors instead of sign-in');
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
       await signIn(page, 'M. Ellis');
@@ -176,14 +172,15 @@ test.describe('session and navigation', () => {
 
       await page.reload();
       await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible({ timeout: 5_000 });
-      await expect(page.getByRole('status').filter({ hasText: /session|sign in again/i })).toBeVisible();
+      // An expired session says 'Your session ended. Sign in again.'; a reload
+      // with no session says 'Please sign in to continue.'
+      await expect(page.getByRole('status').filter({ hasText: /session|sign in/i })).toBeVisible();
       expect(errors, 'page errors after the reload').toEqual([]);
     });
 
     // M. Ellis lands on /planning anyway, so only another route can show a return.
     if (path === '/planning') continue;
     test(`after a reload on ${path}, signing in returns to that screen`, async ({ page }) => {
-      test.fail(true, 'D11: after the reload, sign-in goes to the role landing, not the asked route');
       await signIn(page, 'M. Ellis');
       await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: link }).click();
       await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible();
@@ -211,24 +208,6 @@ test.describe('session and navigation', () => {
     expect(version.asOf).toBe('2026-11-19');
     await signIn(page, 'M. Ellis');
     await expect(page.getByRole('banner')).toContainText('Thu 19 Nov 2026', { timeout: 5_000 });
-  });
-
-  test('a hard reload without the token asks for a sign-in and returns to the route', async ({ page }) => {
-    // D11: the token lives in memory, so a reload or a deep link arrives with
-    // no session. The screens used to render and call the api with no token.
-    const errors: string[] = [];
-    page.on('pageerror', (error) => errors.push(error.message));
-
-    await signIn(page, 'M. Ellis');
-    for (const path of ['/reports/coverage', '/planning']) {
-      await page.goto(path);
-      await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible();
-      await expect(page.getByText('Please sign in to continue.')).toBeVisible();
-      // Sign in where the guard put us, so the route that was asked for is kept.
-      await signInAgain(page, 'M. Ellis');
-      await expect(page).toHaveURL(new RegExp(`${path}$`));
-    }
-    expect(errors, 'page errors while reloading without a token').toEqual([]);
   });
 
   test('the footer line is on every route, including sign-in and the not-built screens', async ({ page }) => {

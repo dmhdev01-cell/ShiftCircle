@@ -88,15 +88,14 @@ test.describe('rules admin refusals', () => {
     await expect(page.getByRole('button', { name: 'Start a draft' })).toHaveCount(0);
     await signOut(page, 'P. Singh');
 
-    // DEFECT D6 (found by this spec): the api's `sentence` for U-01 and U-04
-    // reads "After .*, an officer needs at least 8 hours off ... the change is
-    // block." (GET /rule-sets/1/tables/REST): the raw pattern and the enum word
-    // leak into the plain language the admin reads.
+    // D6 was here: the api's `sentence` for U-01 and U-04 read "After .*, an
+    // officer needs at least 8 hours off ... the change is block." - the raw
+    // pattern and the enum word in the plain language the admin reads. Main
+    // fixes it (8c5d705): "any shift ... is blocked".
     await signInAgain(page, 'L. Fraser');
     await expect(page.getByRole('heading', { name: 'Rules', level: 1 })).toBeVisible();
     const sentence = page.getByText(/an officer needs at least \d+ hours off/).first();
     await expect(sentence).toBeVisible();
-    test.fail(true, 'D6: the plain-language sentence shows ".*" and "is block"');
     await expect(sentence).not.toContainText('.*', { timeout: 3_000 });
     // The bare enum words, with their full stop ("the change is block." /
     // "is warn."); the fixed wording "is blocked" must not match.
