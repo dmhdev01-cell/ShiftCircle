@@ -57,7 +57,7 @@ Only the web publishes a port. Rule rows compile into a rule base that is swappe
 
 ## 4. Test cases and verified status
 
-**Counts.** At the merged tip `5e7765f`: 91 rules + 27 infrastructure + 183 api = **301 tests, 0 failures**, from a clean worktree in the default order and a random order (seed 20261120), under the heavy-run lock; dev-qa's independent orders at the pre-merge tip `dcee43b` agree on that tip's 296 = 91 + 22 + 183. Earlier, as history: 295 at `a10688e`, 284 from a clean clone at `489b3e1` (R33), 276 in three class orders at `22375d4` (R31). Web: vitest 195 in 21 files, 0 failures; lint 0 errors (2 pre-existing warnings); build clean. E2E (Playwright, axe on every screen) in R34: real api desktop 20 passed, tablet 19 + 1 skipped; fixtures 43 passed / 3 skipped; the final real-api re-run at the merged tip is dev-build2's.
+**Counts.** The test sources at `211e8f9` hold 91 rules + 27 infrastructure + 200 api = **318 tests** (static count, `@Test` on its own line). The last full clean-worktree run is **301 = 91 + 27 + 183** at `5e7765f` (this author, default order and random seed 20261120); dev-qa's independent run at `211e8f9` is pending and will be recorded here. Earlier, as history: 296 = 91 + 22 + 183 at `dcee43b`, 295 at `a10688e`, 284 from a clean clone at `489b3e1` (R33), 276 in three class orders at `22375d4` (R31). Web: vitest 195 in 21 files, 0 failures; lint 0 errors (2 pre-existing warnings); build clean. E2E (Playwright, axe on every screen) in R34: real api desktop 20 passed, tablet 19 + 1 skipped; fixtures 43 passed / 3 skipped; the final real-api re-run at the merged tip is dev-build2's.
 
 | ID | Case | Expected | Result |
 |---|---|---|---|

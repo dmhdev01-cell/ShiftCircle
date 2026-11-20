@@ -1,12 +1,13 @@
 # ShiftCircle — requirement-to-proof traceability
 
 **Derived from the test sources, not from the prose.** Checked on 2026-11-20 against `main` at
-`5e7765f` by grepping `@Test`, Playwright `test(...)` titles and the Flyway migrations. The
-latest clean-worktree run is **91 rules + 27 infrastructure + 183 api = 301 tests, 0 failures**
-at `5e7765f`, run in the default class order and with a random seed (20261120). It is counted
-as `@Test` methods on their own line: 91 + 27 + 183 static annotations, and Surefire reports the
-same total with 0 skipped. A proof below names the test class and method that makes the claim,
-not the document that hopes it exists.
+`211e8f9` by grepping `@Test`, Playwright `test(...)` titles and the Flyway migrations. The
+sources hold **91 rules + 27 infrastructure + 200 api = 318 tests**, counted as `@Test` methods
+on their own line (no parameterised tests). The latest full clean-worktree run is **91 rules + 27
+infrastructure + 183 api = 301 tests, 0 failures** at `5e7765f`, run in the default class order
+and with a random seed (20261120); dev-qa's independent run at `211e8f9` is pending, and this
+page will say whose number it records when it lands. A proof below names the test class and
+method that makes the claim, not the document that hopes it exists.
 
 **Path shorthand.** `RulesTest` = a class in `api/shiftcircle-rules/src/test/java/ca/shiftcircle/rules/`;
 `ApiTest` = a class in `api/shiftcircle-api/src/test/java/ca/shiftcircle/api/`;
@@ -133,6 +134,7 @@ reaches; E1 also calls `expectDisclaimer`. E2–E5 rely on the web shell test fo
 | FR-05 overtime status live | `ScheduleApiTest#overtimeStatusChangesAtThePayPeriodThresholdBoundaries`; `#overtimeStatusUsesThePeriodThatContainsTheBoardDateAndCountsAMidnightCrossing`; `PlanningPage.test.tsx#shows the officer pay-period hours with the overtime status pill` | PASS |
 | FR-06 publish a period | `SchedulePublishApiTest#publishingIsScopedAuditedAndOneWay`, `#aDraftWeekReadsAsUnpublishedUntilItIsPublished`; `SchedulePeriodSeedApiTest#publishingASeededPeriodWorksOnAFreshDataset` (publishes a **generated** period, no planted row), `#theBoardCarriesThePeriodItReadsSoTheWebCanPublish` (the board hands over the id), `#theBoardCountsTheShiftsChangedAfterThePublication`, `#aPastWeekIsAlreadyPublishedAndCannotBePublishedAgain` | PASS |
 | FR-07 notice check and per-officer "changed" flag after publishing | The board counts the shifts changed after the publication (`publishedState.unpublishedChanges`, from the audit trail) and names the period; there is no P-05/S-01 rule row and no per-officer changed marker | **PARTIAL** — the count is real; the notice rule and the per-officer flag are not built (`docs/10` §8) |
+| A rules-admin row edit is saved or refused, and a stored bad value is a validation error, not a 500 | `RuleRowEditApiTest#aRawAfterShiftKindEditIsSavedInsteadOfDropped`, `#aFriendlyAfterLabelStillMapsToTheStoredPattern`, `#aHostileAfterShiftKindIsRefusedAndNothingIsSaved`, `#anUnknownParamsKeyIsRefusedNamingIt`, `#aStringInANumericColumnIsRefusedNamingTheColumn`, `#aStringInTheExtensionColumnIsRefusedNamingTheColumn`, `#aStringAllowedLengthsIsRefused`, `#aNullAllowedLengthsIsRefused`, `#aHugeAllowedLengthsListIsRefusedAtTheCap`, `#minRestHoursOutsideTheRangeIsRefused`, `#anUnsafeRuleCodeIsRefusedInPlainWords`, `#aBuildWithAStoredWrongTypeAnswersValidationNotAFiveHundred`, `#aBuildWithAStoredAllowedLengthsStringAnswersValidationNotAFiveHundred`, `#aBuildWithAStoredAllowedLengthsNullAnswersValidationNotAFiveHundred`, `#aBuildRefusesAStoredRestAboveTheCeiling`, `#aBuildDoesNotReturnThousandsOfErrorsForOneHugeList`, `#aBuildCapsTheNumberOfErrorsItReturns` (all over HTTP); `RuleRowValidatorTest` | PASS (static; the independent run at `211e8f9` is pending) |
 | Every error body is RFC 9457 problem+json, a database conflict is a 409 rather than a 500, and every hidden cause is logged server-side under the trace id the caller gets | `ConstraintProblemApiTest#anOverlappingEmergencyOverrideAnswersAConflictAndSavesNothing`, `#movingAShiftOntoAnotherOneAnswersAConflict`, `#anOvertimeConfirmThatWouldOverlapIsRefusedBeforeTheDatabaseIsAsked` (all over HTTP and pinning the WARN line); `ApiProblemAdviceTest#theExclusionConstraintNamesTheConflictWithoutTheSql`, `#aUniqueConstraintBecomesA409Problem`, `#aNumericOverflowIsABadRequestNotAServerError`, `#aCheckConstraintStaysAConflict`; `UnexpectedFailureApiTest#anUnexpectedFailureAnswersAProblemDocumentWithoutInternals` (body traceId matches the ERROR log), `#springWebFailuresKeepTheirOwnStatus`, `#aRoleRefusalKeepsItsStatusAndGetsAProblemBody`; `RuleSetServiceCompileFailureTest#aCompileFailureIsLoggedWithItsDetailAndRefusedInPlainWords`; `PublishedRuleSetBootTest#aDirectEditToAPublishedRowRefusesToStartAndNamesTheProblem`, `#aPublishedRowThatCannotBeReadRefusesToStartInsteadOfServingV1`; `ProblemDetailsApiTest` (404 and 400 over HTTP) | PASS |
 | FR-20–23 open shift, eligible list, offers, direct assign | `OvertimeApiTest#creatingAnOpenShiftIsSupervisorOnlyAndAudited`, `#theRankedListIsFewestOvertimeThenSeniority`, `#offerAcceptAndConfirmCreateTheAssignment`, `#directAssignRunsTheRulesAndFillsTheShift`, `#anEmployeeCannotSendOrConfirmOffers` | PASS |
 | FR-50–54 actuals, pay codes, lock, payroll CSV | `PayrollApiTest` (13 tests); `PayrollExportGoldenTest`; `CsvTest` | PASS |

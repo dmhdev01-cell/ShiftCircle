@@ -118,13 +118,14 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
   mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
 ```
 
-**Count:** a clean run at the merged tip `5e7765f` is **91 rules + 27 infrastructure + 183 api =
-301 tests**, counted as `@Test` methods; Surefire reports the same total with **0 skipped**. The
-infrastructure count is 27 on the web chain (it was 22 before the merge): the web branch added
-`DemoDataReadinessTest` and `ReferenceDataHealthIndicatorTest`. The order-proof runs on 2026-11-20
-(default order and random seed 20261120 at `5e7765f`; earlier, 296 = 91 + 22 + 183 at `dcee43b`,
-and default and random order at `fe6487d`, reverse class order and random seeds at `22375d4`)
-each gave the same total for their tip.
+**Count:** the sources at `211e8f9` hold **91 rules + 27 infrastructure + 200 api = 318 tests**,
+counted as `@Test` methods (a static grep, each annotation on its own line; no parameterised
+tests). The last full clean-worktree run is **91 + 27 + 183 = 301** at `5e7765f` (this author,
+default order and random seed 20261120). dev-qa's independent clean-worktree run at `211e8f9` is
+pending; when it lands, this paragraph records its number and order. The infrastructure count is
+27 on the web chain (it was 22 before the merge): the web branch added `DemoDataReadinessTest` and
+`ReferenceDataHealthIndicatorTest`. Earlier, 296 = 91 + 22 + 183 at `dcee43b`, and default and
+random order at `fe6487d`, reverse class order and random seeds at `22375d4`).
 
 **One viewport per fresh stack.** The real-api specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop`, then `docker compose down -v && docker compose up -d --wait`, then `--project tablet`.
 
