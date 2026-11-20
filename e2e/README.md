@@ -4,6 +4,12 @@ Flows E1–E5 from `docs/10-testing.md` §5, on a desktop (1440 × 900) and a ta
 
 Specs find elements by role, label or text, never by CSS path. `BASE_URL` picks the web under test (default `http://localhost:8080`).
 
+**Chromium only.** Both projects are Desktop Chrome; the config refuses any other browser (Firefox and WebKit took the project lead's window server down). What the suite covers, screen by role by state, and the product defects it found are in [COVERAGE.md](COVERAGE.md).
+
+**Known defects** are tests that assert the correct behaviour and carry `test.fail(true, 'Dn: …')`: they count as passed while the defect is there and report "expected to fail, but passed" once it is fixed; then remove the marker.
+
+**Screenshots.** `tests/screenshots.spec.ts` (and the rules refusal spec) save full-page captures as `<viewport>__<role>__<screen>__<state>.png` plus `index.json` to `SHOTS_DIR`, default `/private/tmp/sc-ui-shots/<RUN_ID>` (outside the repository; `RUN_ID` defaults to the run's start time). With the browser in Docker, mount that folder at the same path: `-v /private/tmp/sc-ui-shots:/private/tmp/sc-ui-shots`.
+
 ## Tags and skipped tests
 
 - **`@fixtures`**: the test relies on fixture-only data or writes state, such as publishing a rule version or saving an override. Against the real compose stack, skip these: `npx playwright test --grep-invert @fixtures`.
