@@ -53,3 +53,14 @@ Every independent check on the build, newest last. Each entry gives who checked,
 | R38 | Final full-state verification of the merged `main` `3a4bbbd`, from a true clone | dev-qa (GLM 5.3 Flash) | PASS so far (suites pending at the final tip) | README walk; no forbidden files or secrets; the demo script walked at the api level with exact figures (see `docs/demo-script.md`); safeguards sweep live. **Scope note:** for scheduled shifts the locked-period wall is the api's `409` only: a raw SQL `UPDATE` cancelled a shift in a locked period (time entries also have a trigger). Recorded as a known limit (`docs/06`). |
 | R39 | Final security pass, `3a4bbbd`, replayed at `211e8f9` | review-r2 (GLM 5.3 Flash) | 2 moderate findings, fixed and replayed | DRL injection isn't exploitable, proved through the api and by feeding payloads straight into the compiler with a control rule. **But** edits to the shift-kind column were silently dropped, and wrong-typed values crashed the build with a `500`. Both fixed in `211e8f9`: refused with `400` naming the column. CSV formula neutralisation proved with planted hostile values. JWT forgeries all `401`. **Missed:** the unscoped roster list and the cross-unit assignment that R40 found. |
 | R40 | Final security review, `211e8f9`, re-run at `c0dcaf3` | review-r3 (Claude Sonnet 5.5) | **SHIP WITH LISTED KNOWN LIMITS** | Seven scopes with live probes: rule rows (about 160 hostile saves), authorization (7 users × about 60 endpoints × 5 units), CSVs, 66 malformed requests, about 60 forged tokens, 8 boot variants, threaded races. **Found what the earlier passes missed:** **F8 HIGH, an open-shift double fill** (3 officers filled one need, 6 of 6 rounds); **F5, an unscoped roster list** (any supervisor saw all 100 officers); **F7, an unlock audit overcount** (5 rows for 1 unlock). **F1–F3** were rule-value gaps (an overtime rate of 1e308 could pass the build). **F6, cross-unit cover,** was kept as a decision (ADR-024). All re-verified live at `c0dcaf3`: double fill now 1 × `200` + 2 × `409`, 6 of 6 rounds. 280 of 297 hostile numeric values refused at save, 2 at build; the other 15 are low in-range values (e.g. a 0.5 h threshold). **Known limits:** ranges are sanity bounds; tokens last 8 h with no revocation; framework and nginx error pages aren't `problem+json`. |
+
+**Api test counts over time** (rules + infrastructure + api). Independent runs:
+- 276 at `22375d4` (R31);
+- 284 at `489b3e1` (R33);
+- 295 at `a10688e` (R35);
+- 296 at `dcee43b` (R36).
+
+Author runs:
+- 301 = 91 + 27 + 183 at the merge `5e7765f`;
+- 323 = 94 + 27 + 202 at `d2d120e`;
+- 348 = 97 + 27 + 224 at `c0dcaf3`, a static count (the independent full run is pending).
