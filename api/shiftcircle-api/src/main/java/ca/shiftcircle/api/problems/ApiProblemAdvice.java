@@ -1,5 +1,6 @@
 package ca.shiftcircle.api.problems;
 
+import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -36,6 +37,15 @@ public class ApiProblemAdvice {
     return problem(HttpStatus.NOT_FOUND, "Not found", null);
   }
 
+  /**
+   * Every database constraint failure comes back as a problem document.
+   *
+   * <p>One place maps them, and nothing rethrows: two advices claimed
+   * {@code DataIntegrityViolationException}, and the payroll one rethrew the SQLSTATEs it did not
+   * recognise. The rethrow aborted the handler resolution, so the generic conflict answer never
+   * ran and an emergency override that overlapped an existing shift reached the exclusion
+   * constraint and answered a raw 500 (dev-qa, 2026-11-20).
+   */
   @ExceptionHandler(DataIntegrityViolationException.class)
   public ResponseEntity<Map<String, Object>> onConflict(DataIntegrityViolationException exception) {
     // The database CHECK is the last line behind the app's maker/checker rule. If it fires, the
@@ -47,10 +57,46 @@ public class ApiProblemAdvice {
           "The database refused the approval: a version must be approved by someone other than"
               + " its author.");
     }
+    String state = sqlState(exception);
+    if ("22003".equals(state)) {
+      // A numeric overflow is a bad request, not a server failure (docs/07 §4.5).
+      return problem(
+          HttpStatus.BAD_REQUEST,
+          "invalid-hours",
+          "The hours are out of range",
+          "The actual times would record more hours than a pay entry can hold.");
+    }
+    if ("23P01".equals(state)) {
+      // The exclusion constraint: one officer cannot be in two places at once.
+      return problem(
+          HttpStatus.CONFLICT,
+          "shift-conflict",
+          "This officer already has a shift at that time",
+          "Move or cancel the other shift first.");
+    }
+    if ("23505".equals(state)) {
+      return problem(
+          HttpStatus.CONFLICT,
+          "duplicate-record",
+          "That record already exists",
+          "Reload and try again.");
+    }
     return problem(
         HttpStatus.CONFLICT,
         "State conflict",
         "The change conflicts with another saved change. Reload and try again.");
+  }
+
+  /** The SQLSTATE of the driver error behind the exception, if there is one. */
+  private static String sqlState(Throwable error) {
+    Throwable current = error;
+    while (current != null) {
+      if (current instanceof SQLException sql && sql.getSQLState() != null) {
+        return sql.getSQLState();
+      }
+      current = current.getCause();
+    }
+    return null;
   }
 
   private static boolean mentionsMakerChecker(Throwable error) {
@@ -100,8 +146,14 @@ public class ApiProblemAdvice {
 
   private ResponseEntity<Map<String, Object>> problem(
       HttpStatus status, String title, String detail) {
+    return problem(status, String.valueOf(status.value()), title, detail);
+  }
+
+  /** A problem document with its own type slug, so the caller can recognise the refusal. */
+  private ResponseEntity<Map<String, Object>> problem(
+      HttpStatus status, String slug, String title, String detail) {
     Map<String, Object> body = new LinkedHashMap<>();
-    body.put("type", "https://shiftcircle.local/problems/" + status.value());
+    body.put("type", "https://shiftcircle.local/problems/" + slug);
     body.put("title", title);
     body.put("status", status.value());
     if (detail != null) {

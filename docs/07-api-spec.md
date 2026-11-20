@@ -30,6 +30,29 @@
 | `428` | `If-Match` missing where it is required (assignment move and cancel, §4.2) |
 | `422` | **A rule blocked the change** (body includes `ruleResults`), or Warn results need acknowledgement |
 
+### 2.1 Database conflicts (problem types)
+
+A database constraint that fires under the api answers a problem document, never a raw 500 and never
+a driver message. One place maps them (`ApiProblemAdvice`): two advices claiming the same
+exception, with one of them rethrowing the SQLSTATEs it did not recognise, aborted the handler
+resolution and answered a 500 (dev-qa, 2026-11-20).
+
+| SQLSTATE | Problem type | Status | Title |
+|---|---|---|---|
+| `23P01` (exclusion) | `.../problems/shift-conflict` | `409` | This officer already has a shift at that time |
+| `23505` (unique) | `.../problems/duplicate-record` | `409` | That record already exists |
+| `23514` (check) | `.../problems/409` | `409` | State conflict (the locked-pay-period trigger is a check violation) |
+| `22003` (numeric overflow) | `.../problems/invalid-hours` | `400` | The hours are out of range |
+| maker/checker check | `.../problems/403` | `403` | The author of a rule version cannot approve it |
+
+The body carries no SQLSTATE, no constraint name, no driver message and no stack trace. The
+exclusion constraint is the one the api can meet: an emergency override lets the rule engine pass,
+and the database still refuses the overlap. The overtime confirm path checks the overlap itself
+and answers `422` (`.../problems/officer-unavailable`) before the database is asked. The unique and
+numeric-overflow paths are not reachable through the current endpoints (the offer path upserts, and
+the actual window is validated before the hours are computed); they are mapped for defence in
+depth.
+
 ## 3. Rule checks: preview, save, override
 
 Every schedule-changing endpoint runs the rules engine. Clients use the same body three ways:
