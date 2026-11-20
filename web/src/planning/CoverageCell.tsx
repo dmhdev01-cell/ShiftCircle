@@ -26,7 +26,12 @@ const TONES = {
  * short - one number per block can hide a two-hour gap.
  */
 export function CoverageCell({ block, today }: CoverageCellProps) {
-  const shown = block.actual ?? block.scheduled;
+  // Today and the days after it are shown as planned: the recorded actuals for
+  // a day in progress are a handful of hours, and reading them as the day's
+  // coverage said "0 / 5" at 10 a.m. for a shift that is 5/5. Past days keep
+  // their actuals (V1).
+  const showingActual = block.date < today && block.actual !== undefined;
+  const shown = showingActual ? (block.actual ?? block.scheduled) : block.scheduled;
   const lowest = shown.lowestHourly;
   const over = lowest > block.required;
   const short = shown.shortHours.length > 0;
@@ -37,8 +42,8 @@ export function CoverageCell({ block, today }: CoverageCellProps) {
     note = `+${lowest - block.required} over`;
   } else if (short) {
     note = `short ${shown.shortHours.map(shortRangeLabel).join(', ')}`;
-  } else if (block.actual) {
-    const extra = block.actual.maxHourly ? block.actual.maxHourly - block.required : 0;
+  } else if (showingActual) {
+    const extra = block.actual?.maxHourly ? block.actual.maxHourly - block.required : 0;
     note = extra > 0 ? `✓ ${lowest} worked (${extra} extra)` : `✓ ${lowest} worked`;
   } else if (block.date === today) {
     note = 'on shift';
@@ -52,7 +57,7 @@ export function CoverageCell({ block, today }: CoverageCellProps) {
       ? `Short ${shown.shortHours.map(shortRangeLabel).join(', ')}`
       : 'No short hours',
     shown.maxHourly ? `Peak ${shown.maxHourly}` : null,
-    block.actual ? 'Actuals recorded' : 'Planned only',
+    showingActual ? 'Actuals recorded' : 'Planned only',
   ]
     .filter(Boolean)
     .join(' · ');
