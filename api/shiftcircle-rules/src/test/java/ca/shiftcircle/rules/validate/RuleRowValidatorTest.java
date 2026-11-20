@@ -248,13 +248,37 @@ class RuleRowValidatorTest {
   }
 
   @Test
+  void unbalancedParenthesesAreRefusedBeforeCompile() {
+    for (String value : new String[] {"(D8", "D8)"}) {
+      assertThat(
+              validateWith(
+                  "U-01",
+                  params(
+                      "afterShiftKind",
+                      value,
+                      "windowHours",
+                      24,
+                      "minExtensionMinutes",
+                      0,
+                      "minRestHours",
+                      8)))
+          .as(value + " must be refused with a column message, not at compile")
+          .anySatisfy(
+              violation -> {
+                assertThat(violation.column()).isEqualTo("After this kind of shift");
+                assertThat(violation.message()).contains("balanced parentheses");
+              });
+    }
+  }
+
+  @Test
   void aNestedQuantifierRegexIsRefused() {
     List<RuleRowValidator.Violation> violations =
         validateWith(
             "U-01",
             params(
                 "afterShiftKind",
-                "(a+)+",
+                "((a+)+)",
                 "windowHours",
                 24,
                 "minExtensionMinutes",

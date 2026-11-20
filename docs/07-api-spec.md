@@ -12,7 +12,7 @@
 | IDs | UUID strings |
 | Time | Instants as ISO-8601 with offset (`2026-11-21T07:00:00-06:00`); dates as `YYYY-MM-DD`; all in `America/Regina` |
 | Lists | `?page=0&size=50`; response `{ "items": [...], "page": 0, "size": 50, "total": 123 }` |
-| Concurrency | Editable resources return `ETag: "<version>"`; updates require `If-Match`. A stale version gets `412 Precondition Failed`. |
+| Concurrency | Editable resources return `ETag: "<version>"`; updates require `If-Match`. A stale version gets `412 Precondition Failed`. **In the prototype this is built for assignment move and cancel only (§4.2).** Rule-table drafts are protected by the build fingerprint and the maker/checker states instead. |
 | Errors | RFC 9457 Problem Details (`application/problem+json`), with a `ruleResults` extension when rules decide (see §3) |
 | CSV | Report and export endpoints also answer `Accept: text/csv` |
 | Correlation | `X-Correlation-Id` is accepted or generated, echoed back, and written to logs and audit |
@@ -27,6 +27,7 @@
 | `404` | Not found, or outside the caller's scope (we don't reveal what exists) |
 | `409` | State conflict (e.g. pay period locked, offer already answered, lock refused because past shifts lack actuals) |
 | `412` | Stale `If-Match` version |
+| `428` | `If-Match` missing where it is required (assignment move and cancel, §4.2) |
 | `422` | **A rule blocked the change** (body includes `ruleResults`), or Warn results need acknowledgement |
 
 ## 3. Rule checks: preview, save, override
@@ -116,6 +117,29 @@ Content-Type: application/problem+json
 | DELETE | `/assignments/{id}` | Cancel (sets `CANCELLED`; never hard-deletes) | SUPERVISOR |
 | POST | `/schedule-periods/{id}/publish` | Publish a period | SUPERVISOR |
 | POST | `/absences` | Record sick, vacation or other (type only) | SUPERVISOR |
+
+Publishing is one-way in the prototype: it sets the period to `PUBLISHED`, records `published_at` and
+`published_by`, writes a `publish_schedule_period` audit row and answers `{id, status, publishedAt}`.
+A second publish answers `409`; an unknown period is `404`, and another unit's period is also `404`
+so its existence is not revealed. The board's `publishedState.published` reads the same rows.
+
+**Move and cancel (`PATCH` / `DELETE /assignments/{id}`): the exact contract** (decided 2026-11-20 so the builder doesn't have to guess):
+
+| Topic | Rule |
+|---|---|
+| Version | `shift_assignment.version` is the version. `GET /schedule` shift items carry `version`; `POST`, `PATCH` and `DELETE` answers carry `ETag: "<version>"`. Each successful move or cancel increments it. |
+| `If-Match` | **Required** on both. Missing: `428 Precondition Required` (`.../problems/if-match-required`). Stale: `412` (`.../problems/stale-version`). The `If-Match` check happens inside the per-officer lock (ADR-021), so two concurrent edits can't both pass it. |
+| Cancel body | `DELETE` takes a JSON body `{ "reason": "…" }`. The reason is **required, at least 10 characters after trimming** (same rule as overrides and unlock), else `400`. It isn't stored on the assignment: it goes into the `cancel_assignment` audit event (`before` = the assignment, `after` = `{ status: CANCELLED, reason }`). |
+| Cancel effect | Sets `status = CANCELLED`; never deletes. No rule check (removing a shift can't break a rest or hours rule; coverage shows any gap). Answers `200` with `{ id, status, version }`. A second cancel is `409` (`.../problems/already-cancelled`). |
+| Move body | `PATCH` takes the same body as `POST /assignments`: `change` with **all four** of `employeeId`, `unitId`, `shiftTemplate` and `startAt` (the full target, not a partial patch), plus optional `acknowledgeWarnings` and `override`. `kind` and `source` don't change. A move needs no separate reason; an override carries its own. |
+| Move rules | The full §3 pipeline runs on the target, with the assignment's **own current slot left out** of the officer's existing shifts, so it can't conflict with itself. `422` blocked or warnings, and overrides, exactly as §3. Updated in place: same `id`, new `version`, a `move_assignment` audit event with `before`/`after`. If the officer changes, both officers' locks are taken in id order. Answers `200` with the save outcome. |
+| Locked period | `409 .../pay-period-locked` if the **current** work date is in a locked period (move and cancel), or the **target** work date is (move). |
+| Started shifts | `409 .../shift-started` if the assignment has started by the server's "today" clock (the demo clock on the demo profile). Past shifts are corrected in Time & attendance, not on the schedule. |
+| Recorded actual | `DELETE` answers `409 .../actual-recorded` when a time entry already references the shift, even if the start time alone would not have refused it. Correct the actual in Time & attendance instead. |
+| Filled open shift | Cancelling an assignment that filled an open shift (`open_shift.filled_assignment_id`) puts that open shift back to `OPEN` with `filled_assignment_id` cleared, so the gap is visible and can be offered again. **Offer rows are left unchanged** (not set to `WITHDRAWN`): the confirmed offer stays as history, and the cancellation is in the audit trail. **Moving** such an assignment is refused with `409 .../fills-open-shift`: cancel it and assign again. |
+| Offers | A pending offer (`offer: true` chip) is not an assignment, so these endpoints don't apply to it. Withdrawing an offer is **not built** (docs/10 §8). |
+| Order of checks | role (`403`) → unknown or out of scope (`404`) → body (`400`) → `If-Match` (`428`, `412`) → state (`409`: locked, started, actual recorded, already cancelled, fills open shift) → rules (`422`, move only). |
+| Roles | SUPERVISOR, own units only. For a move, both the current and the target unit must be in scope. |
 
 **Coverage per block (ADR-013 revised, ADR-017):** coverage is hourly, so one number per block can hide a short hour. `GET /schedule` returns a flat `coverage` array (one entry per block per day); `GET /display/today` uses the same block shape. Each entry carries:
 
@@ -214,7 +238,7 @@ path (`POST /assignments`), so S-04 and the audit event still hold.
 | GET | `/rule-sets` | Versions and status | RULES_ADMIN, RULES_APPROVER, AUDITOR, SUPERVISOR (read) |
 | GET | `/rule-sets/{version}/tables/{code}` | Rows, column schema and plain-language sentences | same |
 | POST | `/rule-sets/drafts` | `{ "basedOn": 7, "reason" }` → new draft (also used to roll back to an older version) | RULES_ADMIN |
-| PUT | `/rule-sets/{version}/tables/{code}/rows` | Replace a table's rows in a draft (`If-Match`) | RULES_ADMIN |
+| PUT | `/rule-sets/{version}/tables/{code}/rows` | Replace a table's rows in a draft (no `If-Match` in the prototype: saving clears the build, and a stale build can't be submitted) | RULES_ADMIN |
 | POST | `/rule-sets/{version}/build` | Validate → compile (Drools) → run test scenarios → dry run on the published roster; returns the report | RULES_ADMIN |
 | POST | `/rule-sets/{version}/submit` | Submit a successfully built draft for approval | RULES_ADMIN |
 | POST | `/rule-sets/{version}/approve` · `/reject` | Second-person decision (`approved_by ≠ created_by`) | RULES_APPROVER |
@@ -227,8 +251,12 @@ the published version's rows from PostgreSQL, not a code constant, so a restart 
 rules. The dry run reports counts per rule, unit and old→new outcome, never names (ADR-017).
 Publishing an *older* approved version after a newer one is allowed and supersedes the newer one: it
 is the rollback path, and the audit row records which version went live.
-| GET | `/rule-sets/{version}/tables/{code}/export` | `.xlsx` Drools decision table | RULES_ADMIN, RULES_APPROVER |
-| POST | `/rule-sets/{version}/tables/{code}/import` | multipart `.xlsx` into a draft (then build as usual) | RULES_ADMIN |
+
+**Excel export and import: future work (not built in the prototype).** The design planned
+`GET /rule-sets/{version}/tables/{code}/export` (an `.xlsx` Drools decision table) and
+`POST …/import` (a multipart `.xlsx` into a draft, then build as usual). Neither exists, and there
+is no plan to build them for the prototype (docs/10 §8). If built, an import must go through the
+same validation as the grid (R24/R28: rule values are code input).
 
 ### 4.8 Wall display, audit, operations
 
@@ -246,6 +274,6 @@ is the rollback path, and the audit row records which version went live.
 | Planning board | `GET /schedule`, `POST /rule-checks`, `POST/PATCH/DELETE /assignments`, `POST /schedule-periods/{id}/publish` |
 | My schedule | `GET /me/schedule`, `GET /me/offers`, `POST /offers/{id}/accept`, `POST /rule-checks`, `POST /proposals` |
 | Overtime board | `GET /open-shifts`, `GET /open-shifts/{id}/candidates`, `POST /open-shifts/{id}/offers`, `POST /open-shifts/{id}/assign` |
-| Rules | `GET /rule-sets…`, `PUT …/rows`, `POST …/build`, `…/submit`, `…/approve`, `…/publish`, export/import |
+| Rules | `GET /rule-sets…`, `PUT …/rows`, `POST …/build`, `…/submit`, `…/approve`, `…/publish` (Excel export/import: not built) |
 | Reports | `GET /reports/*`, `GET /pay-periods/{id}/payroll-export` |
 | Wall display | `GET /display/today` every 60 s |

@@ -74,7 +74,7 @@ FR-40 and FR-41 (email/SMS outbox, message templates) are reserved for a later p
 | ID | Requirement | P |
 |---|---|---|
 | FR-70 | Rules are **Drools decision-table rows** that a non-technical admin edits in a friendly grid with plain-language previews (see `04-rules-engine.md`). | M |
-| FR-74 | Rule tables can be **downloaded and uploaded as Excel** (.xlsx); uploads go through the same validation and approval. | S |
+| FR-74 | Rule tables can be **downloaded and uploaded as Excel** (.xlsx); uploads go through the same validation and approval. **Not built in the prototype (future work, docs/10 §8).** | S |
 | FR-75 | **Maker/checker:** the person who edits a rule change can't publish it; a second approver reviews the impact and publishes. | M |
 | FR-76 | Before publishing, the **regression scenarios** run automatically against the staged rules; a failing scenario blocks publication. | M |
 | FR-71 | Every rule change is versioned, with who changed it, when, why, and an effective date. | M |

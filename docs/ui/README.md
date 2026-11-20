@@ -123,8 +123,8 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 - **Offer history:** time, who, status pill.
 
 ### 5.4 Rules (rules admin / approver) — `screens/Rules.dc.html`
-- **Route:** `/rules/{version}/{table}` · **API:** `GET /rule-sets…`, `PUT …/rows`, `POST …/build|submit|approve|publish`, export/import
-- **Header:** live version and draft version; "Download as Excel", "Upload Excel…".
+- **Route:** `/rules/{version}/{table}` · **API:** `GET /rule-sets…`, `PUT …/rows`, `POST …/build|submit|approve|publish`
+- **Header:** live version and draft version. The design file also shows "Download as Excel" and "Upload Excel…": **future work, not built**; the built screen leaves them out rather than show dead buttons (docs/10 §8).
 - **Left:** list of the 8 rule tables with row counts; active table highlighted.
 - **Decision table:** one row = one rule: On checkbox · rule code · "After this kind of shift…" select · "…needs at least [n] h off" number input (min enforced, e.g. U-01 ≥ 8) · "If not" select (Block/Warn/Info) · Override select · Source pill (Employment Act = green, Placeholder = amber). Changed rows tinted yellow; selected row tinted blue.
 - **Plain-language panel:** the generated sentence for the selected row, updating as values change, plus "Changed in draft: live v7 says 12 h".

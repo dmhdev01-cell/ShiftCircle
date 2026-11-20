@@ -49,7 +49,7 @@ public class MyScheduleQuery {
 
   public record ShiftItem(
       String type, String assignmentId, String shiftTemplate, String startAt, String endAt,
-      String kind, boolean worked) {}
+      String kind, boolean worked, int version) {}
 
   public record AbsenceItem(String type, String absenceType) {}
 
@@ -101,6 +101,7 @@ public class MyScheduleQuery {
 
     jdbc.query(
         "SELECT s.id, t.code AS template_code, s.start_at, s.end_at, s.work_date, s.kind,"
+            + " s.version,"
             + " EXISTS (SELECT 1 FROM time_entry te WHERE te.shift_assignment_id = s.id"
             + "   AND te.absence_type IS NULL) AS worked"
             + " FROM shift_assignment s JOIN shift_template t ON t.id = s.shift_template_id"
@@ -119,7 +120,8 @@ public class MyScheduleQuery {
                           resultSet.getTimestamp("start_at").toInstant().toString(),
                           resultSet.getTimestamp("end_at").toInstant().toString(),
                           resultSet.getString("kind"),
-                          resultSet.getBoolean("worked")));
+                          resultSet.getBoolean("worked"),
+                          resultSet.getInt("version")));
             },
         employeeId,
         first,

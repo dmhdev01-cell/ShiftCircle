@@ -58,7 +58,15 @@ public class RuleCheckService {
   }
 
   public OutcomeView evaluate(Change change) {
-    return evaluate(change, published.snapshot());
+    return evaluate(change, published.snapshot(), null);
+  }
+
+  /**
+   * Evaluate a move: the assignment's own current row is left out of the officer's existing shifts,
+   * so a shift cannot conflict with the slot it is replacing.
+   */
+  public OutcomeView evaluate(Change change, UUID excludeAssignmentId) {
+    return evaluate(change, published.snapshot(), excludeAssignmentId);
   }
 
   /**
@@ -68,6 +76,11 @@ public class RuleCheckService {
    * from the same publish; ranking 100 officers or checking a label must not straddle a hot swap.
    */
   public OutcomeView evaluate(Change change, PublishedRuleSet.Snapshot live) {
+    return evaluate(change, live, null);
+  }
+
+  public OutcomeView evaluate(
+      Change change, PublishedRuleSet.Snapshot live, UUID excludeAssignmentId) {
     Map<String, Object> employee =
         jdbc.queryForMap(
             "SELECT e.employee_no, u.code AS unit_code, u.allows_12h, u.allows_16h"
@@ -92,7 +105,8 @@ public class RuleCheckService {
             (Boolean) employee.get("allows_12h"),
             (Boolean) employee.get("allows_16h"));
 
-    List<ShiftFact> shifts = new ArrayList<>(existingShifts(change.employeeId(), change.startAt()));
+    List<ShiftFact> shifts =
+        new ArrayList<>(existingShifts(change.employeeId(), change.startAt(), excludeAssignmentId));
     shifts.add(proposed);
 
     List<Object> facts = new ArrayList<>();
@@ -114,15 +128,32 @@ public class RuleCheckService {
     return published.version();
   }
 
-  private List<ShiftFact> existingShifts(UUID employeeId, Instant around) {
+  private List<ShiftFact> existingShifts(
+      UUID employeeId, Instant around, UUID excludeAssignmentId) {
     List<ShiftFact> shifts = new ArrayList<>();
-    jdbc.query(
+    String sql =
         "SELECT s.id, e.employee_no, u.code AS unit_code, u.allows_12h, u.allows_16h,"
             + " t.code AS template_code, s.start_at, s.end_at, s.kind"
             + " FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
             + " JOIN unit u ON u.id = s.unit_id JOIN shift_template t ON t.id = s.shift_template_id"
             + " WHERE s.employee_id = ? AND s.status <> 'CANCELLED'"
-            + " AND s.start_at BETWEEN ? AND ?",
+            + " AND s.start_at BETWEEN ? AND ?"
+            + (excludeAssignmentId == null ? "" : " AND s.id <> ?");
+    Object[] args =
+        excludeAssignmentId == null
+            ? new Object[] {
+              employeeId,
+              Timestamp.from(around.minus(Duration.ofDays(28))),
+              Timestamp.from(around.plus(Duration.ofDays(14)))
+            }
+            : new Object[] {
+              employeeId,
+              Timestamp.from(around.minus(Duration.ofDays(28))),
+              Timestamp.from(around.plus(Duration.ofDays(14))),
+              excludeAssignmentId
+            };
+    jdbc.query(
+        sql,
         (org.springframework.jdbc.core.RowCallbackHandler)
             resultSet ->
                 shifts.add(
@@ -139,9 +170,7 @@ public class RuleCheckService {
                         0,
                         resultSet.getBoolean("allows_12h"),
                         resultSet.getBoolean("allows_16h"))),
-        employeeId,
-        Timestamp.from(around.minus(Duration.ofDays(28))),
-        Timestamp.from(around.plus(Duration.ofDays(14))));
+        args);
     return shifts;
   }
 

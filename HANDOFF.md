@@ -56,7 +56,7 @@ docs/ai-dev-log.md           AI-assisted development log (assessment requirement
 |---|---|
 | Three containers only: **web** (nginx + React/TS/MUI), **api** (Java 21 + Spring Boot 4.x + Drools 10.x embedded), **db** (PostgreSQL 17) | ADR-006, ADR-011, ADR-012, `08-deployment.md` |
 | **No AI at runtime**; rules engine decides; a supervisor approves every change | ADR-002, ADR-005 |
-| **Drools decision tables** edited by non-technical admins via an in-app grid (+ Excel round-trip); time maths in Java fact builders; maker/checker publish with tests and dry run | ADR-012, `04-rules-engine.md` |
+| **Drools decision tables** edited by non-technical admins via an in-app grid (Excel round-trip: future work, not built); time maths in Java fact builders; maker/checker publish with tests and dry run | ADR-012, `04-rules-engine.md` |
 | Coverage **by unit and block**, measured **hourly** | ADR-013 (revised), `10-testing.md` §6.3 |
 | **Shift times (configurable defaults):** 8 h 07–15 / 15–23 / 23–07; 12 h 00–12 / 12–24; 16 h 20:00–12:00 (regular shift on units that allow it). Edited as a "Shift types" table through the rules approval flow. | ADR-015 |
 | **Overtime = hours beyond the pay-period threshold** (default 80 h per 2 weeks; weekly 40 h selectable), not a property of a shift. Shifts are `ROSTERED` or `EXTRA`. | ADR-016 |
@@ -99,7 +99,7 @@ Each step lists its "done when" check. If time runs short, cut from the bottom o
 | 9 | **Time & attendance:** actuals, period-based overtime (P-01, P-01b, P-04), lock/unlock, **payroll CSV** | T8 golden file passes; E4 passes |
 | 10 | **Reports:** coverage (hourly-based), hours, overtime, overrides; CSV export | Numbers reconcile with time entries; NFR-05 timings met |
 | 11 | **Rules admin** (incl. the **Shift types** table, ADR-015): decision-table grid, plain-language sentences, build (validate → compile → scenarios → dry run), submit, approve, publish (hot swap), version history | T7, T10, T13 and E3 pass |
-| 12 | Should items if time allows: **wall display** (E5), shift planner/proposals, Excel round-trip, audit viewer | Their tests pass |
+| 12 | Should items if time allows: **wall display** (E5), shift planner/proposals, Excel round-trip (not built: docs/10 §8), audit viewer | Their tests pass |
 | 13 | **Submission:** `README.md` setup section, `BUILD_RECORD.md` (≤ 2 pages; architecture diagram, decisions, AI use with ≥ 1 rejected suggestion, 2–5 tests T2/T3/T7/T8/T9, governance and next steps; governance must state the guardrail 4 exception in §5, and next steps must list restoring human review of the boundary tests), `docs/demo-script.md`, ≤ 5-minute recording | A clean clone + `docker compose up` works on a second machine; the recording shows working vs simulated parts and one safeguard |
 
 ## 7. Testing: what's required (summary of `docs/10-testing.md`)

@@ -503,7 +503,7 @@ public class OvertimeService {
       throw new RuleViolationException(RuleViolationException.Kind.WARNINGS, outcome);
     }
 
-    UUID assignmentId =
+    ca.shiftcircle.api.assignments.AssignmentService.SaveView saved =
         assignments.assign(
             new RuleCheckRequest(
                 new RuleCheckRequest.Change(
@@ -511,6 +511,7 @@ public class OvertimeService {
                 currentWarnCodes,
                 null),
             principal);
+    UUID assignmentId = saved.id();
 
     int confirmed =
         jdbc.update(
@@ -551,7 +552,7 @@ public class OvertimeService {
     }
     requireAvailable(request.employeeId(), shift);
 
-    UUID assignmentId =
+    ca.shiftcircle.api.assignments.AssignmentService.SaveView saved =
         assignments.assign(
             new RuleCheckRequest(
                 new RuleCheckRequest.Change(
@@ -563,6 +564,7 @@ public class OvertimeService {
                 request.acknowledgeWarnings(),
                 request.override()),
             principal);
+    UUID assignmentId = saved.id();
 
     jdbc.update(
         "UPDATE open_shift SET status = 'FILLED', filled_assignment_id = ? WHERE id = ?",

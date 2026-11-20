@@ -92,7 +92,7 @@ Write operations take a "preview" flag, so the UI can show rule results live bef
 | Concern | Choice |
 |---|---|
 | Runtime | Java 21 (LTS), Spring Boot 4.x, subject to the Day 1 Drools compatibility spike (fallback: Spring Boot 3.5.x) |
-| Rules | Drools 10.x (Apache KIE) embedded via the KIE API: `drools-templates`, `drools-decisiontables`; Apache POI for Excel import/export |
+| Rules | Drools 10.x (Apache KIE) embedded via the KIE API: `drools-templates`, `drools-decisiontables`; Apache POI for Excel import/export (future work: not built, not a dependency in the prototype) |
 | Web / API | Spring Web MVC, Bean Validation, springdoc-openapi (Swagger UI in dev) |
 | Persistence | Spring Data JPA (Hibernate), PostgreSQL JDBC driver, Flyway |
 | Rule tables | Rows stored in PostgreSQL with versions; compiled into a Drools KieBase on publish |

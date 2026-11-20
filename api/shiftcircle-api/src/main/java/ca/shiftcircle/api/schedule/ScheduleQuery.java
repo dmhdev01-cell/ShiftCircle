@@ -44,7 +44,7 @@ public class ScheduleQuery {
 
   public record ShiftItem(
       String type, UUID assignmentId, String shiftTemplate, String startAt, String endAt,
-      String kind, boolean worked) {}
+      String kind, boolean worked, int version) {}
 
   public record DayCell(LocalDate date, List<ShiftItem> items) {}
 
@@ -79,7 +79,7 @@ public class ScheduleQuery {
     List<Map<String, Object>> assignments =
         jdbc.queryForList(
             "SELECT s.id, s.employee_id, e.first_name, e.last_name, t.code AS template_code,"
-                + " s.start_at, s.end_at, s.work_date, s.kind,"
+                + " s.start_at, s.end_at, s.work_date, s.kind, s.version,"
                 + " EXISTS (SELECT 1 FROM time_entry te WHERE te.shift_assignment_id = s.id"
                 + "   AND te.absence_type IS NULL) AS worked"
                 + " FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
@@ -152,7 +152,8 @@ public class ScheduleQuery {
                         format((java.sql.Timestamp) shift.get("start_at")),
                         format((java.sql.Timestamp) shift.get("end_at")),
                         (String) shift.get("kind"),
-                        Boolean.TRUE.equals(shift.get("worked"))));
+                        Boolean.TRUE.equals(shift.get("worked")),
+                        ((Number) shift.get("version")).intValue()));
           }
           List<DayCell> cells = new ArrayList<>();
           itemsByDay.forEach((date, items) -> cells.add(new DayCell(date, items)));

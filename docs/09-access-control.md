@@ -40,7 +40,7 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 | View rule tables and versions | — | read | ✓ | ✓ | ✓ | — |
 | Edit draft rule tables, build, submit | — | — | ✓ | — | — | — |
 | Approve, reject, publish rule versions | — | — | — | ✓ (not own drafts) | — | — |
-| View audit log | — | scope | own rule changes | rule changes | ✓ | — |
+| View audit log (`GET /audit-events`) | — | scope: events on shifts, open shifts, time entries, offers and pay periods in their units; **no rule-change (`rule_set_version`) events** | — (works from the rules screens; rule-change audit is the auditor's) | — (same) | ✓ facility-wide | — |
 | Wall display counts | — | ✓ | — | — | ✓ | ✓ |
 
 ## 3. How it's enforced

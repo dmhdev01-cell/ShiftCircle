@@ -23,11 +23,15 @@ Internal note for the team; remove before submission (step 13) or fold into the 
 | 9 time/payroll merge | `1714f76`, `2b5f3fe` | dev-build2's `api-time-payroll` (T8 golden CSV, T11, T12, T14, CSV quoting); 200 tests from a clean worktree |
 | 8 review fixes | `7489cf7` | F1 gate on offer/confirm/assign, F3 row locks + status guards, F2/F4/F6, F7 demo clock, F5 docs; 31 targeted tests |
 | 11 rules admin | `2dc1b1b`, `3cc55e6`, `a46580b` | `RuleRowValidator` (T13 + Must rows), `RuleScenarioRunner` (T1-T5 + ranking), drafts/rows/build/dry run/submit/approve/publish, atomic hot-swap snapshot, boot-time published rows; 206 tests |
+| merges | `c67488d`, `210e59b`, `1a7d231`, `17308b7` | integration2 (reports M1-M6), integration3 (demo clock, offers 404/400, PC-03 actor, guard fix), its docs, web-display (wall display screen); conflicts only ai-dev-log numbering |
+| review nits | `874926b` | balanced-parens validation; TemplateColumns' re-checks throw RuleCompilationException (plain refusal, no 500) |
+| 12c schedule publish | `f300cd0` | `POST /schedule-periods/{id}/publish`: scope 404, employee/auditor 403, one-way 409, audit row, board publishedState; absences were already on main from step 9 |
+| 12d NFR-05 perf | `51a4cc5` | `PerformanceSmokeTest`: board 4 weeks 54/58 ms, rule check 4/7 ms, 90-day coverage 7/15 ms, rule build 655 ms, publish 516 ms; recorded in docs/10 |
 | 12b audit viewer | `21af15c` | `GET /audit-events`: auditor facility-wide, supervisor scoped to their units, filters (actor/action/entity/date), keyset pages, read-only; 405s and the append-only trigger proven |
 | review S1-S5 | `e13ddeb`, `b572dff`, `444f685`, `03ceb19`, `35c225d` | DRL injection closed (codes/messages/regex validated before compile + escaped again), shift-kind bounded against ReDoS, message edits saved, Must policies pinned, limits capped + silent rule named, odd input 400/404 problems |
 | 12a wall display | `6649eb1`, `f191d07`, `6237258` | `GET /display/today` (ADR-017 hourly blocks, midnight-crossing night, no names, scope, roles); the `coverage/` ignore fix that a clean checkout caught; ignored-source guard script + README step; 209 tests from a clean worktree at `f191d07` |
 
-Latest full run: 89 rules + 20 infrastructure + 126 api = **235 tests**, all passing in Docker from a clean worktree at `35c225d`.
+Latest full run: 91 rules + 20 infrastructure + 140 api = **251 tests**, all passing in Docker from a clean worktree at `51a4cc5`.
 
 ## Next, in the lead's priority order
 
@@ -49,17 +53,21 @@ row fingerprint), `RuleRowsRepository` + `PublishedRuleSet` boot from PostgreSQL
 reports the live version. Tests: `RuleSetApiTest` 4 (T13, T10, T7 dry run + post-publish WARN,
 E3), validator 13, scenarios 3.
 
-### c) Step 12 should-items (lead's order; step 10 reports is dev-build2's `api-reports`, do not redo)
+### c) Step 12 should-items — all done
 
-1. **Wall display** `GET /display/today` — **done** (`6649eb1`): counts only, ADR-017 blocks
-   (night runs 23:00–07:00 across midnight), open shifts and officers in overtime, no names; the
-   test scans the payload for every employee name/number/id. Verified at `f191d07`.
-2. **Audit viewer API** `GET /audit-events` — **done** (`21af15c`, merged in `2b572c1`):
-   AUDITOR facility-wide, SUPERVISOR scoped, filters, keyset pages, read-only; tests prove
-   405 on write verbs and SQLSTATE 42501 on direct UPDATE/DELETE.
-3. **Absences** `POST /absences` (type only; affects coverage), then
-   `POST /schedule-periods/{id}/publish`; `PATCH`/`DELETE /assignments` only if time remains
-   (rules + locked-period gate; the web has no move/cancel screen now).
+1. **Wall display** `GET /display/today` (`6649eb1`); screen merged at `17308b7`.
+2. **Audit viewer** `GET /audit-events` (`21af15c`).
+3. **Absences** already on main from step 9 (`POST /absences`, assignment + type, tested in
+   `PayrollApiTest`); **schedule publish** `POST /schedule-periods/{id}/publish` (`f300cd0`).
+4. **NFR-05 performance smoke** (`51a4cc5`, docs/10).
+
+### d) Submission work (HANDOFF step 13)
+
+- Playwright E1-E5 against the real api on main (`e2e/`, dev-build2's specs merged at `17308b7`).
+- README setup pass, `BUILD_RECORD.md`, demo script/recording.
+- Optional Should items still open: `PATCH`/`DELETE /assignments` (not built; the web removed
+  move/cancel), Excel round-trip for rule tables (not built). Both are documented in docs/07; tell
+  the lead if they are wanted rather than letting a reviewer think they exist.
 
 **Before submission:** Playwright E2E E1–E5 against the real api, README setup, BUILD_RECORD,
 demo script/recording.
@@ -69,6 +77,9 @@ demo script/recording.
 - Host owns 8080/5432/5433: use `SC_WEB_PORT=18080 SC_API_PORT=28081 SC_DB_PORT=25432`.
 - Tests only in Docker; Testcontainers needs the socket and `TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal`.
 - `sc.demo.generate=false` enables the demo profile in tests without generating 100 officers.
+- Tests share one PostgreSQL container: a new fixture on the demo day (2026-11-19) can break
+  `DisplayApiTest`'s exact Unit A coverage and the schedule assertions. Fixtures go on dates after
+  the demo day and are deleted afterwards; the README says the same for humans.
 - Verify counts from a clean worktree (`git worktree add /tmp/x HEAD`); working-tree passes hid files once.
 - `.gitignore` patterns must be anchored to the build output (`/web/build/`, `/web/coverage/`): the
   unanchored forms each swallowed a Java package (`rules/build/`, `api/coverage/`). Run

@@ -112,9 +112,16 @@ public final class RuleRowValidator {
 
   private static void validateRest(RuleRow row, List<Violation> violations) {
     String afterShiftKind = row.text("afterShiftKind");
-    if (afterShiftKind == null
-        || afterShiftKind.length() > 64
-        || !SHIFT_KIND.matcher(afterShiftKind).matches()) {
+    boolean unbalancedParens =
+        afterShiftKind != null
+            && afterShiftKind.startsWith("(") != afterShiftKind.endsWith(")");
+    if (afterShiftKind == null || unbalancedParens) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "After this kind of shift",
+              "Use balanced parentheses: (D8|N8) or no parentheses, or .* for any shift."));
+    } else if (afterShiftKind.length() > 64 || !SHIFT_KIND.matcher(afterShiftKind).matches()) {
       violations.add(
           new Violation(
               row.code(),
