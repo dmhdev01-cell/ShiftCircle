@@ -18,7 +18,7 @@
 
 ## 2. Rule set (all values are configurable)
 
-Severity: **Block** = can't be saved (override only where marked) · **Warn** = needs acknowledgement · **Info** = guides the decision · **Pay** = affects how hours are classified for payroll.
+Severity: **Block** = can't be saved. An emergency override exists only where marked "emergency override" (U-01, U-03, U-05, and U-06 when built). Every other Block, including U-08, U-09 and U-14, can't be overridden in v1 (ADR-023) · **Warn** = needs acknowledgement · **Info** = guides the decision · **Pay** = affects how hours are classified for payroll.
 
 ### A. Rest and fatigue
 
@@ -29,15 +29,15 @@ Severity: **Block** = can't be saved (override only where marked) · **Warn** = 
 | U-03 | After a **16-hour shift**, at least 12 hours off before the next shift | 12 h | Block (emergency override) | **MOCK**. No public rule found. CX gives 12 h rest after court attendance, which is an analogous concept |
 | U-04 | After an **overtime extension of 4 h or more**, at least 10 hours off before the next shift | 10 h | Warn | **MOCK** |
 | U-05 | No more than **16 hours worked in any 24-hour period** | 16 h | Block (emergency override) | **SEA** |
-| U-06 | No more than **16 consecutive hours** on duty, and no more than **2 shifts back-to-back** | 16 h / 2 | Block (emergency override) | **NU** |
+| U-06 | No more than **16 consecutive hours** on duty, and no more than **2 shifts back-to-back** | 16 h / 2 | Block (emergency override), specified but not in rule set v1 (§3) | **NU** |
 | U-07 | **Forward rotation** preferred (days → evenings → nights); flag a backward rotation inside a work block | — | Warn | **MOCK** (common fatigue-management practice) |
 
 ### B. Consecutive shifts and days off
 
 | ID | Rule | Default | Severity | Based on |
 |---|---|---|---|---|
-| U-08 | Maximum **consecutive work days** (8-hour pattern) | 7 | Block (scheduled); Warn (overtime-caused) | **NWT**, **NU** (7); CX allows up to 8 |
-| U-09 | Maximum **consecutive 12-hour shifts** | 4 | Block (scheduled); Warn (overtime-caused) | **MOCK**, matching common "4 on, 4 off" patterns |
+| U-08 | Maximum **consecutive work days** (8-hour pattern) | 7 | Block (scheduled), no emergency override in v1 (override policy ACKNOWLEDGE; editable per rule through the rules admin approval flow); Warn (overtime-caused) | **NWT**, **NU** (7); CX allows up to 8 |
+| U-09 | Maximum **consecutive 12-hour shifts** | 4 | Block (scheduled), no emergency override in v1 (override policy ACKNOWLEDGE; editable per rule through the rules admin approval flow); Warn (overtime-caused) | **MOCK**, matching common "4 on, 4 off" patterns |
 | U-10 | Maximum **consecutive 12-hour overnight shifts** (00:00–12:00) | 4 | Warn | **MOCK** (fatigue) |
 | U-11 | Maximum **16-hour shifts**: 3 in any 7 days, 10 in any 28 days | 3 / 7 d · 10 / 28 d | Warn | **MOCK**, inspired by CX limits on 16-hour shifts within a work cycle |
 | U-12 | At least **2 consecutive days of rest** in each 7-day period; a break of 24 h or less doesn't count as a day of rest | 2 days / 7 | Warn | **CX**, **PSGE** (two consecutive rest days normally), **NU** |
@@ -47,7 +47,7 @@ Severity: **Block** = can't be saved (override only where marked) · **Warn** = 
 | ID | Rule | Default | Severity | Based on |
 |---|---|---|---|---|
 | U-13 | Regular hours **average** 8 h × working days over the rotation cycle | per pattern | Info | **PSGE** (modified patterns) |
-| U-14 | **Weekly ceiling**, including overtime: warn at 48 h, block at 60 h | 48 / 60 | Warn / Block (override) | **MOCK** |
+| U-14 | **Weekly ceiling**, including overtime: warn at 48 h, block at 60 h | 48 / 60 | Warn at 48 h; Block at 60 h, no emergency override in v1 (override policy ACKNOWLEDGE; editable per rule through the rules admin approval flow) | **MOCK** |
 | U-15 | **Overtime status** shown on the planning board: under / approaching (within 8 h of the threshold) / in overtime | per period | Info | **MOCK** (feature) |
 
 ### D. Pay classification (what feeds payroll)
@@ -95,7 +95,7 @@ To keep the build realistic, the prototype implements a core set and documents t
 |---|---|
 | U-01, U-02, U-03, U-04, U-05, U-08, U-09, U-10, U-11, U-12, U-14, U-15 · P-01, P-01b, P-04 · S-03, S-04 (workflow, ADR-019) · O-01, O-02, O-03 · L-01 | U-06, U-07, U-13 · P-02, P-03, P-05, P-06 · S-01, S-02 · O-04 · L-02 |
 
-**Implementation notes (2026-11-20).** U-04 is a live Warn row in rule set v1 (docs/04 §3 and docs/10 §3 already require its boundary tests; 4 h extension trigger, 10 h rest). U-15 stays a Must **feature** but is **not** a decision-table row: under / approaching / in-overtime is a pay-period status, computed with the pay classification (P-01) and shown on the planning board — a rolling hours window cannot express it. S-04 is enforced by the workflow (ADR-019). Rule set v1 therefore has 19 rows across the 8 tables.
+**Implementation notes (2026-11-20).** U-04 is a live Warn row in rule set v1 (docs/04 §3 and docs/10 §3 already require its boundary tests; 4 h extension trigger, 10 h rest). U-15 stays a Must **feature** but is **not** a decision-table row: under / approaching / in-overtime is a pay-period status, computed with the pay classification (P-01) and shown on the planning board — a rolling hours window cannot express it. S-04 is enforced by the workflow (ADR-019). Override policy (ADR-023): U-01, U-03 and U-05 are `EMERGENCY` (overridable with a reason of ≥ 10 characters, audited). U-08, U-09 and U-14 are Blocks with policy `ACKNOWLEDGE`, so the api refuses any override. The policy is a column of each rule row, changed through maker/checker like any value. Rule set v1 therefore has 19 rows across the 8 tables.
 
 ## 4. How these map onto the engine
 
@@ -137,6 +137,7 @@ rules:
     type: MaxConsecutive
     params: { unit: Shift, shiftKind: Regular12, max: 4 }
     severity: { scheduled: Block, overtime: Warn }
+    overridable: none   # override policy ACKNOWLEDGE in v1 (ADR-023)
     source: "MOCK"
   - code: U-11
     type: MaxCountInPeriod

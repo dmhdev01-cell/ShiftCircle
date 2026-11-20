@@ -5,7 +5,7 @@
 ## 1. Goals
 
 1. Prove every rule behaves correctly **at its limits** (the most likely place for bugs, and what labour relations will ask about).
-2. Prove the safeguards: blocks can't be bypassed without an override reason; maker/checker can't be skipped; locked pay periods can't change; employees can't see others' data.
+2. Prove the safeguards: an emergency-override Block (U-01, U-03, U-05) can't be bypassed without a reason, and any other Block (e.g. U-08, U-09, U-14) can't be bypassed at all (ADR-023); maker/checker can't be skipped; locked pay periods can't change; employees can't see others' data.
 3. Give the demo and the build record **repeatable** data and scenarios.
 4. Produce 2–5 clear test cases (expected vs actual, including a failure or boundary case) for the build record.
 
@@ -42,7 +42,7 @@ Each line is at least three tests: just under, exactly at, just over. Times are 
 | U-10 max 4 consecutive 12 h overnight (00–12) shifts | 4 → PASS | 5th → **WARN** | — |
 | U-11 16 h shifts: 3 per 7 d, 10 per 28 d | 3 in 7 d → PASS | 4th within 7 d → **WARN**; 11th within 28 d → **WARN** | 4th exactly 7 d after the 1st → PASS (window boundary) |
 | U-12 2 consecutive days off per 7 | 48 h off → PASS | 47 h 59 m off → **WARN** (a break of 24 h or less isn't a day of rest) | — |
-| U-14 weekly ceiling 48 warn / 60 block | 48 h → PASS | 48.25 h → **WARN**; 60.25 h → **BLOCK** | — |
+| U-14 weekly ceiling 48 warn / 60 block | 48 h → PASS | 48.25 h → **WARN**; 60.25 h → **BLOCK** (no override, ADR-023) | — |
 | P-01 overtime by pay period (threshold 80 h) | 80 h worked → 80 REG | 80.5 h → 80 REG + 0.5 OT15 | 96 h incl. a picked-up 16 h shift → 80 REG + 16 OT15; rostered 16 h shifts within 80 h → all REG |
 | P-02 day of rest: 2×, min 2 h (off by default; test when switched on) | 1 h worked → paid 2 h OT20 | 2 h → 2 h OT20 | 8 h → 8 h OT20 |
 | P-04 OT under 30 min unpaid | 29 m → 0 | 30 m → 0.5 h | — |
