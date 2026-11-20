@@ -826,11 +826,13 @@ public class PayrollService {
    */
   static String csvCell(String value) {
     String clean = value == null ? "" : value;
-    if (!clean.isEmpty() && "=+-@".indexOf(clean.charAt(0)) >= 0) {
+    // OWASP treats a leading TAB (0x09) and CR as formula prefixes too, not only = + - @.
+    if (!clean.isEmpty() && "=+-@\t\r".indexOf(clean.charAt(0)) >= 0) {
       clean = "'" + clean;
     }
     if (clean.indexOf(',') >= 0
         || clean.indexOf('"') >= 0
+        || clean.indexOf('\t') >= 0
         || clean.indexOf('\n') >= 0
         || clean.indexOf('\r') >= 0) {
       return '"' + clean.replace("\"", "\"\"") + '"';

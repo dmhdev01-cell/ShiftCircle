@@ -829,11 +829,12 @@ public class ReportsService {
   private static String cell(String value) {
     String clean = value == null ? "" : value;
     // Same protection as the payroll CSV: a leading = + - @ can be evaluated by a spreadsheet.
-    if (!clean.isEmpty() && "=+-@".indexOf(clean.charAt(0)) >= 0) {
+    if (!clean.isEmpty() && "=+-@\t\r".indexOf(clean.charAt(0)) >= 0) {
       clean = "'" + clean;
     }
     if (clean.indexOf(',') < 0
         && clean.indexOf('"') < 0
+        && clean.indexOf('\t') < 0
         && clean.indexOf('\n') < 0
         && clean.indexOf('\r') < 0) {
       return clean;
