@@ -19,7 +19,10 @@
   <description>ShiftCircle scheduling API: Spring Boot 4 + embedded Drools 10</description>
 
   <modules>
+    <module>shiftcircle-domain</module>
     <module>shiftcircle-rules</module>
+    <module>shiftcircle-application</module>
+    <module>shiftcircle-infrastructure</module>
     <module>shiftcircle-api</module>
   </modules>
 
@@ -50,6 +53,21 @@
       <dependency>
         <groupId>ca.shiftcircle</groupId>
         <artifactId>shiftcircle-rules</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>ca.shiftcircle</groupId>
+        <artifactId>shiftcircle-domain</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>ca.shiftcircle</groupId>
+        <artifactId>shiftcircle-application</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>ca.shiftcircle</groupId>
+        <artifactId>shiftcircle-infrastructure</artifactId>
         <version>${project.version}</version>
       </dependency>
     </dependencies>

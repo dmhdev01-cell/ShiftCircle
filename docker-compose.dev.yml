@@ -1,0 +1,10 @@
+# Local debugging only: publishes the api and db ports to the host.
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# The database host port is 5433 by default because a local PostgreSQL often owns 5432.
+services:
+  db:
+    ports:
+      - "${SC_DB_PORT:-5433}:5432"
+  api:
+    ports:
+      - "${SC_API_PORT:-8081}:8081"

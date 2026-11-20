@@ -1,0 +1,87 @@
+name: shiftcircle
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-shiftcircle}
+      POSTGRES_USER: ${POSTGRES_USER:-shiftcircle}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set - copy .env.example to .env and set it}
+      TZ: UTC
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [shiftcircle]
+
+  api:
+    build:
+      context: ./api
+      args:
+        GIT_COMMIT: ${SC_GIT_COMMIT:-unknown}
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SC_PROFILE:-demo}
+      POSTGRES_DB: ${POSTGRES_DB:-shiftcircle}
+      POSTGRES_USER: ${POSTGRES_USER:-shiftcircle}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set - copy .env.example to .env and set it}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-shiftcircle}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-shiftcircle}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set - copy .env.example to .env and set it}
+      SC_JWT_SECRET: ${SC_JWT_SECRET:?SC_JWT_SECRET is not set - copy .env.example to .env and set it}
+      SC_BUSINESS_TZ: America/Regina
+      SC_DEMO_TODAY: ${SC_DEMO_TODAY:-2026-11-19}
+      SC_DEMO_SEED: ${SC_DEMO_SEED:-20261001}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks: [shiftcircle]
+
+  web:
+    build: ./web
+    ports:
+      # Host port is configurable because the reviewer's machine may already use 8080.
+      - "${SC_WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [shiftcircle]
+
+  # Integration tests (Testcontainers needs the Docker socket). Opt in:
+  #   docker compose --profile test run --rm api-test
+  api-test:
+    profiles: ["test"]
+    build:
+      context: ./api
+      target: build
+    working_dir: /build
+    command: ["mvn", "-B", "verify"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - m2:/root/.m2
+    environment:
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+    networks: [shiftcircle]
+
+volumes:
+  pgdata: {}
+  m2: {}
+
+networks:
+  shiftcircle: {}

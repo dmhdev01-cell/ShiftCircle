@@ -17,7 +17,7 @@ flowchart LR
     V[(volume: pgdata)] --- D
 ```
 
-Only **web** publishes a port to the host. The API and database are reachable only inside the Docker network; a `docker-compose.dev.yml` override exposes them for local debugging.
+Only **web** publishes a port to the host (8080 by default; `SC_WEB_PORT` overrides it). The API and database are reachable only inside the Docker network; a `docker-compose.dev.yml` override exposes them for local debugging (api on 8081, db on 5433 by default).
 
 ## 2. Containers
 
@@ -25,8 +25,8 @@ Only **web** publishes a port to the host. The API and database are reachable on
 |---|---|---|---|
 | Build | Multi-stage: `node:24-alpine` (npm ci, vite build) → `nginx:stable-alpine` | Multi-stage: `maven:3.9-eclipse-temurin-21` (mvn verify) → `eclipse-temurin:21-jre-alpine` | `postgres:17-alpine` (official image) |
 | Runs as | nginx user (non-root) | `app` user (non-root), read-only root filesystem, `/tmp` tmpfs | postgres |
-| Port | 8080 (published) | 8081 (internal) | 5432 (internal) |
-| Health check | `wget -qO- http://localhost:8080/healthz` | `wget -qO- http://localhost:8081/actuator/health/readiness` | `pg_isready -U $POSTGRES_USER -d $POSTGRES_DB` |
+| Port | 80 (container), 8080 (published) | 8081 (internal) | 5432 (internal) |
+| Health check | `wget -qO- http://localhost:80/healthz` | `wget -qO- http://localhost:8081/actuator/health/readiness` | `pg_isready -U $POSTGRES_USER -d $POSTGRES_DB` |
 | Depends on | api (healthy) | db (healthy) | — |
 | Memory (guide) | 64 MB | 768 MB (`-XX:MaxRAMPercentage=75`) | 256 MB |
 
@@ -67,9 +67,9 @@ services:
 
   web:
     build: ./web
-    ports: [ "8080:8080" ]
+    ports: [ "${SC_WEB_PORT:-8080}:80" ]
     depends_on: { api: { condition: service_healthy } }
-    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"], interval: 10s }
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:80/healthz"], interval: 10s }
     networks: [ shiftcircle ]
 
 volumes: { pgdata: {} }
@@ -111,9 +111,11 @@ All settings come from environment variables. The repo ships **`.env.example` on
 |---|---|
 | First run | `cp .env.example .env` → set the two secrets → `docker compose up --build` |
 | Open | `http://localhost:8080` → pick a demo user (supervisor, employee, rules admin, approver, auditor, wall display) |
+| Port already in use | `SC_WEB_PORT=9090 docker compose up --build` (and open `http://localhost:9090`) |
+| Debug api/db from the host | `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build` (api 8081, db 5433) |
 | Reset all data | `docker compose down -v && docker compose up` |
 | Logs | `docker compose logs -f api` |
-| Run tests | `docker compose run --rm api-test` (Testcontainers needs Docker access), or `./mvnw verify` in `api/` |
+| Run tests | `docker compose --profile test run --rm api-test` (Testcontainers needs Docker access), or `./mvnw verify` in `api/` |
 
 Requirements: Docker Desktop or Docker Engine with Compose v2, about 2 GB free memory, ports 8080 free. No paid services, no licences, no internet needed after images are pulled (Google Fonts falls back to system fonts offline).
 

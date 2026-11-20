@@ -4,8 +4,31 @@ spring:
 
 server:
   port: 8081
+  shutdown: graceful
+
+sc:
+  rules:
+    # Published rule-set version the engine is running; replaced by the version table in step 11.
+    version: v1
+  build:
+    git-commit: ${SC_GIT_COMMIT:unknown}
+  business-tz: ${SC_BUSINESS_TZ:America/Regina}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
 
 logging:
+  structured:
+    format:
+      console: ecs
   level:
     root: info
     ca.shiftcircle: info
