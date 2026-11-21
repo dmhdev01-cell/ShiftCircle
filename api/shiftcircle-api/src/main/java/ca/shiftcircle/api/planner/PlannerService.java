@@ -1044,11 +1044,18 @@ public class PlannerService {
   /** Committed assignments around the window; the planner verifies against these, not the draft. */
   private Map<UUID, List<ShiftFact>> loadHistory(Instant from, Instant to) {
     Map<UUID, List<ShiftFact>> history = new HashMap<>();
+    // Committed history with a recorded actual is the shift that happened: the
+    // planner's rest and hours checks read it the way the board's do.
     jdbc.query(
         "SELECT s.employee_id, e.employee_no, u.code AS unit_code, u.allows_12h, u.allows_16h,"
-            + " t.code AS template_code, s.start_at, s.end_at, s.kind"
+            + " t.code AS template_code, t.duration_minutes,"
+            + " coalesce(te.start_at, s.start_at) AS start_at,"
+            + " coalesce(te.end_at, s.end_at) AS end_at, s.kind"
             + " FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
             + " JOIN unit u ON u.id = s.unit_id JOIN shift_template t ON t.id = s.shift_template_id"
+            + " LEFT JOIN LATERAL (SELECT start_at, end_at FROM time_entry"
+            + "   WHERE shift_assignment_id = s.id AND entry_type = 'ACTUAL'"
+            + "   AND absence_type IS NULL ORDER BY created_at DESC LIMIT 1) te ON true"
             + " WHERE s.status <> 'CANCELLED' AND s.start_at < ? AND s.end_at > ?",
         (RowCallbackHandler)
             rs ->
@@ -1063,12 +1070,20 @@ public class PlannerService {
                         rs.getTimestamp("start_at").toInstant(),
                         rs.getTimestamp("end_at").toInstant(),
                         "EXTRA".equals(rs.getString("kind")) ? ShiftKind.EXTRA : ShiftKind.ROSTERED,
-                        0,
+                        extensionMinutes(
+                            rs.getTimestamp("start_at").toInstant(),
+                            rs.getTimestamp("end_at").toInstant(),
+                            rs.getInt("duration_minutes")),
                         rs.getBoolean("allows_12h"),
                         rs.getBoolean("allows_16h"))),
         Timestamp.from(to),
         Timestamp.from(from));
     return history;
+  }
+
+  /** Minutes a shift runs beyond its template, when an actual end makes it longer. */
+  private static int extensionMinutes(Instant start, Instant end, int templateMinutes) {
+    return (int) Math.max(0, Duration.between(start, end).toMinutes() - templateMinutes);
   }
 
   private Map<String, Object> requireDraft(UUID id) {
