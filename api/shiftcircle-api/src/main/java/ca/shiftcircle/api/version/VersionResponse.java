@@ -1,5 +1,7 @@
 package ca.shiftcircle.api.version;
 
+import java.util.List;
+
 /**
  * Build information for {@code GET /api/v1/version} (docs/08-deployment.md §8), so a reviewer can
  * tell which build and which rule-set version produced what they are looking at.
@@ -21,4 +23,5 @@ public record VersionResponse(
     String ruleSetVersion,
     String profiles,
     String asOf,
-    boolean demoMode) {}
+    boolean demoMode,
+    List<String> datasets) {}

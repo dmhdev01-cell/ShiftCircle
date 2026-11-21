@@ -1,6 +1,8 @@
 package ca.shiftcircle.api.version;
 
+import ca.shiftcircle.api.demo.DemoResetService;
 import ca.shiftcircle.api.rules.RuleCheckService;
+import java.util.List;
 import java.util.Arrays;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,16 +21,19 @@ public class VersionController {
   private final ObjectProvider<BuildProperties> buildProperties;
   private final Environment environment;
   private final RuleCheckService ruleChecks;
+  private final ObjectProvider<DemoResetService> reset;
   private final String asOf;
 
   public VersionController(
       ObjectProvider<BuildProperties> buildProperties,
       Environment environment,
       RuleCheckService ruleChecks,
+      ObjectProvider<DemoResetService> reset,
       @Value("${sc.demo.today:2026-11-19}") String asOf) {
     this.buildProperties = buildProperties;
     this.environment = environment;
     this.ruleChecks = ruleChecks;
+    this.reset = reset;
     this.asOf = asOf;
   }
 
@@ -46,6 +51,7 @@ public class VersionController {
         "v" + ruleChecks.publishedVersion(),
         activeProfiles.length == 0 ? "default" : String.join(",", Arrays.asList(activeProfiles)),
         asOf,
-        environment.acceptsProfiles(Profiles.of("demo")));
+        environment.acceptsProfiles(Profiles.of("demo")),
+        reset.getIfAvailable() == null ? List.of() : reset.getIfAvailable().availableDatasets());
   }
 }

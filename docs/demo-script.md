@@ -84,3 +84,7 @@ Keep to that one sentence. The full list is in `BUILD_RECORD.md`.
 ---
 
 **Fallbacks if a step fails while recording:** don't fake it. Cut the segment and say what isn't finished (CLAUDE.md: honest errors over graceful degradation).
+
+## Planner demo datasets
+
+`GET /version` lists `datasets`; the About reset card can choose `100` (today's seed) or `120` (100 full-time D12/N12/E8 crews plus 20 casual relief officers). `120` sets ADM/ESC to 12 h crews for its own seed and resets back to `100` with the original checksum. The casual pool is not guaranteed hours: the planner does not take planned leave as input yet, so with the full-time crews covering every block the pool only fills coverage or rule gaps. Qualification minimums are seeded by crew but not checked by the planner; a draft is not qualification-verified.

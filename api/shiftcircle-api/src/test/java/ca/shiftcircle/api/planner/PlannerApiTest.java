@@ -404,6 +404,23 @@ class PlannerApiTest {
     int shifts = ((Number) preview.get("shiftsToWrite")).intValue();
     assertThat(shifts).isEqualTo(assignmentCount());
 
+    HttpResponse<String> missingIfMatch =
+        send(
+            "POST",
+            "/api/v1/planner/drafts/" + draftId + "/commit",
+            "{\"acceptedWarningCount\":" + warningCount + "}",
+            tokens.get("p.planner"));
+    assertThat(missingIfMatch.statusCode()).as("commit needs If-Match").isEqualTo(428);
+
+    HttpResponse<String> stale =
+        sendWithHeaders(
+            "POST",
+            "/api/v1/planner/drafts/" + draftId + "/commit",
+            "{\"acceptedWarningCount\":" + warningCount + "}",
+            tokens.get("p.planner"),
+            Map.of("If-Match", "\"999\""));
+    assertThat(stale.statusCode()).as("a stale version is 412").isEqualTo(412);
+
     UUID period = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO pay_period (id, start_date, end_date, status) VALUES (?, DATE '2027-01-04',"
