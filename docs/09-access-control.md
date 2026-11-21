@@ -15,6 +15,8 @@
 
 A user can hold several roles (e.g. a supervisor is usually also an employee). Separation of duties is enforced per action, not per person: the same person can't both create and approve the same rule version.
 
+**PLANNER (ADR-026, added 2026-11-21) is facility-wide.** A planner generates, reads, commits and discards quarter drafts; reads every officer's preferences; and reads the planning board and the schedule/report screens like the auditor (read-only, all units). A planner cannot edit a supervisor's board, save an assignment, lock a pay period, change a rule or approve one. Supervisors stay unit-scoped. An officer edits only their own preferences through `/me/preferences`; `/planner/preferences` answers only to PLANNER.
+
 ## 2. Permission matrix
 
 ✓ = allowed · **own** = only their own records · **scope** = only units in `user_unit_scope` · — = denied

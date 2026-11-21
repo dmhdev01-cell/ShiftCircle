@@ -43,6 +43,8 @@ public class ScopeGuard {
   }
 
   private boolean facilityWide(AuthPrincipal principal) {
-    return principal.hasRole("AUDITOR") || principal.hasRole("DISPLAY");
+    return principal.hasRole("AUDITOR")
+        || principal.hasRole("DISPLAY")
+        || principal.hasRole("PLANNER");
   }
 }

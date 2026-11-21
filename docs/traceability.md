@@ -212,3 +212,20 @@ runs E1 and E3 by keyboard only. The whole matrix, the captures and the defects 
 
 The phase's defects D1–D11 are pinned by these specs and fixed; the `test.fail` markers are gone and
 no assertion was weakened.
+
+## 9. Phase 3: trial fixes and the quarter planner (2026-11-21)
+
+| Proof | Test(s) | Status |
+|---|---|---|
+| An absence can be corrected to worked, worked to an absence, and cleared back to needs actual; locked period 409; pay codes recalculated | `PayrollApiTest#anAbsenceCanBeCorrectedToWorkedAndPayCodesRecalculate`, `#aWorkedShiftCanBeCorrectedToAnAbsence`, `#aClearedActualReturnsTheShiftToNeedsActual`, `#clearingAnActualInALockedPeriodIsRefused` | PASS |
+| The clear event is visible to the scoped supervisor and in the actor list (the dangling-entry bug) | `PayrollApiTest#aClearedActualReturnsTheShiftToNeedsActual` (audit GET + `/audit-events/actors`) | PASS |
+| The audit actor list is scoped like the trail | `AuditApiTest#theActorListIsScopedLikeTheEvents` (auditor sees all, j.chen cannot see m.ellis, 401 anonymous) | PASS |
+| Coverage reports "of which overtime/extra" per bucket and block | `ReportsApiTest#coverageHoursReconcileWithTheAssignmentsHourByHour` (hourly SQL reconciliation, block split sums to the total), `#csvExportsUseTheDocumentedHeaders` (`extra_hours,extra_day,extra_evening,extra_night`) | PASS |
+| The planner generates the same plan from the same seed and data | `PlannerApiTest#theSameSeedAndDataProduceTheSamePlan` | PASS |
+| No generated assignment violates a Block rule; default-pattern officers work 80 h per period | `PlannerApiTest#noDraftAssignmentViolatesABlockRuleAndDefaultPatternsStayAtEightyHours` (the whole draft re-run through the real engine, then the period hours) | PASS |
+| Newest-first nights hold; the scorecard carries thirds, share and nights against a wish | `PlannerApiTest#newestFirstNightsHoldsInTheScorecard` | PASS |
+| Preferences are editable by the officer and readable only by PLANNER | `PlannerApiTest#preferencesAreEditableAndPlannerCanReadThem` (12/EVENING/SAT,MON round-trip, 3 days 400, supervisor 403, 100 rows, delete 204) | PASS |
+| Commit writes every row atomically with one audit event; a second commit is 409 | `PlannerApiTest#previewAndCommitWriteEveryShiftAtomicallyAndAuditOnce` | PASS |
+| A draft that touches a locked period is refused at commit | `PlannerApiTest#aDraftThatTouchesALockedPeriodIsRefusedAtCommit` | PASS |
+| PLANNER reads the board but other roles cannot; discard leaves no open draft | `PlannerApiTest#plannerReadsTheBoardButCannotPublishOrSave`, `#discardLeavesNoOpenDraftAndTheRolesAreEnforced` | PASS |
+| The weekend rotation is chosen from engine evidence | `WeekendRotationProbeTest#aFixedDaysOffPairIsClean`, `#advancingThePairCreatesRestDayWarnings`, `#aPairMovingEarlierOncePerPayPeriodIsCleanAtEightyHours`, `#movingThePairEarlierEveryWeekWarns` | PASS |

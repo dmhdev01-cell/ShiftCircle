@@ -210,6 +210,29 @@ class ReportsApiTest {
       assertThat(scheduled).as("scheduled hours for %s", date).isCloseTo(expectedScheduled, within(0.02));
       assertThat(actual).as("actual hours for %s", date).isCloseTo(expectedActual, within(0.02));
 
+      double expectedExtra =
+          queryHours(
+              "SELECT count(*) FROM generate_series(?::timestamptz, ?::timestamptz"
+                  + " - interval '1 hour', interval '1 hour') AS h(hour_start)"
+                  + " JOIN shift_assignment s ON s.status <> 'CANCELLED'"
+                  + " AND (s.kind = 'EXTRA' OR s.source = 'OVERTIME_OFFER')"
+                  + " AND s.start_at < h.hour_start + interval '1 hour'"
+                  + " AND s.end_at > h.hour_start WHERE s.unit_id = ?",
+              dayStart,
+              dayEnd,
+              unitA);
+      double extra = number(day.get("extraHours"));
+      assertThat(extra).as("extra hours for %s", date).isCloseTo(expectedExtra, within(0.02));
+      @SuppressWarnings("unchecked")
+      Map<String, Object> extraByBlock = (Map<String, Object>) day.get("extraHoursByBlock");
+      assertThat(extraByBlock).containsKeys("DAY", "EVENING", "NIGHT");
+      assertThat(
+              extraByBlock.values().stream()
+                  .mapToDouble(ReportsApiTest::number)
+                  .sum())
+          .as("block split for %s", date)
+          .isCloseTo(extra, within(0.02));
+
       requiredTotal += number(day.get("requiredHours"));
       scheduledTotal += scheduled;
       actualTotal += actual;
@@ -454,7 +477,7 @@ class ReportsApiTest {
     Map<String, String> headers =
         Map.of(
             "/api/v1/reports/coverage?from=2026-10-26&to=2026-11-08",
-            "week,required_hours,scheduled_hours,actual_hours,scheduled_percent,actual_percent,planned",
+            "week,required_hours,scheduled_hours,actual_hours,scheduled_percent,actual_percent,planned,extra_hours,extra_day,extra_evening,extra_night",
             "/api/v1/reports/hours?from=2026-10-26&to=2026-11-08",
             "employee_no,name,scheduled,worked,regular,overtime_15,overtime_20,sick,vacation",
             "/api/v1/reports/overtime?from=2026-10-26&to=2026-11-08",

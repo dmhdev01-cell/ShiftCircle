@@ -113,6 +113,21 @@ public class AuditQuery {
     return new Page(items, nextBeforeId);
   }
 
+  /** The actors whose events this caller can see, for the audit screen's filter. */
+  public List<Actor> actors(AuthPrincipal principal) {
+    StringBuilder sql =
+        new StringBuilder(
+            "SELECT DISTINCT u.username, u.display_name FROM audit_event a"
+                + " JOIN app_user u ON u.id = a.actor_user_id WHERE 1 = 1");
+    List<Object> args = new ArrayList<>();
+    appendScope(sql, args, principal);
+    sql.append(" ORDER BY u.display_name, u.username");
+    return jdbc.query(
+        sql.toString(),
+        (rs, row) -> new Actor(rs.getString("username"), rs.getString("display_name")),
+        args.toArray());
+  }
+
   private void appendScope(StringBuilder sql, List<Object> args, AuthPrincipal principal) {
     if (principal.hasRole("AUDITOR")) {
       return;

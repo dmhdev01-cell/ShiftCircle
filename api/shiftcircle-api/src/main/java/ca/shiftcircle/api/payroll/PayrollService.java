@@ -371,7 +371,7 @@ public class PayrollService {
             "startAt", start.toString(),
             "endAt", end.toString()));
 
-    return result(assignmentId, principal);
+    return result(assignmentId, assignment.employeeId(), period.id(), principal);
   }
 
   @Transactional
@@ -385,6 +385,34 @@ public class PayrollService {
     PayPeriodRecord period = periodFor(assignment.workDate());
     requireOpen(period);
     return saveAbsence(assignment, period, input.type(), principal);
+  }
+
+  /**
+   * Clear an actual or absence: the shift goes back to "needs actual". The audit row keeps the id
+   * of the entry that was removed, so the change is traceable after the row is gone.
+   */
+  @Transactional
+  public PayrollViews.RecordActualResult clearActual(UUID assignmentId, AuthPrincipal principal) {
+    Assignment assignment = assignment(assignmentId);
+    scopeGuard.requireUnit(principal, assignment.unitCode());
+    PayPeriodRecord period = periodFor(assignment.workDate());
+    requireOpen(period);
+
+    List<UUID> entries =
+        jdbc.queryForList(
+            "SELECT id FROM time_entry WHERE shift_assignment_id = ?", UUID.class, assignmentId);
+    // Audit against the assignment, not the entry that is about to be deleted: a supervisor's
+    // scope resolves time_entry events through the row that is gone (finding 2026-11-21).
+    Map<String, Object> after = new LinkedHashMap<>();
+    after.put("assignmentId", assignmentId.toString());
+    if (!entries.isEmpty()) {
+      after.put("clearedEntryId", entries.get(0).toString());
+    }
+    jdbc.update("DELETE FROM time_entry WHERE shift_assignment_id = ?", assignmentId);
+    jdbc.update("DELETE FROM absence WHERE shift_assignment_id = ?", assignmentId);
+    recalculate(period.id());
+    audit(principal, "clear_actual", "shift_assignment", assignmentId, after);
+    return result(assignmentId, assignment.employeeId(), period.id(), principal);
   }
 
   private PayrollViews.RecordActualResult saveAbsence(
@@ -424,7 +452,7 @@ public class PayrollService {
         "time_entry",
         entryId,
         Map.of("assignmentId", assignment.id().toString(), "type", absence));
-    return result(assignment.id(), principal);
+    return result(assignment.id(), assignment.employeeId(), period.id(), principal);
   }
 
   private UUID upsertEntry(
@@ -482,7 +510,8 @@ public class PayrollService {
     return entryId;
   }
 
-  private PayrollViews.RecordActualResult result(UUID assignmentId, AuthPrincipal principal) {
+  private PayrollViews.RecordActualResult result(
+      UUID assignmentId, UUID employeeId, UUID periodId, AuthPrincipal principal) {
     List<PayrollViews.TimeEntryView> entries =
         jdbc.query(
             ENTRY_SELECT + " WHERE s.id = ?",
@@ -494,8 +523,8 @@ public class PayrollService {
             : entries.get(0);
     double employeeHours = 0;
     List<PayrollViews.PayCodeView> codes = new ArrayList<>();
-    if (entry != null) {
-      employeeHours = hoursFor(entry.employeeId(), assignmentPeriod(assignmentId));
+    if (entry != null || assignmentId != null) {
+      employeeHours = hoursFor(employeeId, periodId);
       PayClassification classification = classifier.classify(employeeHours, policy);
       double regular = round2(classification.totalHours() - classification.overtimeHours());
       if (regular > 0) {

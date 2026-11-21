@@ -2,6 +2,7 @@ package ca.shiftcircle.api.audit;
 
 import ca.shiftcircle.api.security.ScopeGuard;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.format.annotation.DateTimeFormat.ISO;
@@ -22,6 +23,13 @@ public class AuditController {
   public AuditController(AuditQuery audit, ScopeGuard scopeGuard) {
     this.audit = audit;
     this.scopeGuard = scopeGuard;
+  }
+
+  /** The actors the caller can filter by; the same scope as the events themselves. */
+  @GetMapping("/audit-events/actors")
+  @PreAuthorize("hasAnyRole('AUDITOR','SUPERVISOR')")
+  public List<AuditQuery.Actor> actors() {
+    return audit.actors(scopeGuard.principal());
   }
 
   @GetMapping("/audit-events")

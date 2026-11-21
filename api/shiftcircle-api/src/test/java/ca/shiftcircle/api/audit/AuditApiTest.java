@@ -229,6 +229,24 @@ class AuditApiTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  void theActorListIsScopedLikeTheEvents() throws Exception {
+    List<Map<String, Object>> all =
+        mapper.readValue(get("/api/v1/audit-events/actors", "a.reviewer").body(), List.class);
+    assertThat(usernames(all)).contains("m.ellis", "j.chen");
+
+    List<Map<String, Object>> chenOnly =
+        mapper.readValue(get("/api/v1/audit-events/actors", "j.chen").body(), List.class);
+    assertThat(usernames(chenOnly)).contains("j.chen").doesNotContain("m.ellis");
+
+    assertThat(get("/api/v1/audit-events/actors", null).statusCode()).isEqualTo(401);
+  }
+
+  private static List<String> usernames(List<Map<String, Object>> actors) {
+    return actors.stream().map(actor -> (String) actor.get("username")).toList();
+  }
+
+  @Test
   void theAuditorSeesEverythingAndTheFiltersNarrowIt() throws Exception {
     HttpResponse<String> response = get("/api/v1/audit-events?action=" + ACTION, "a.reviewer");
 

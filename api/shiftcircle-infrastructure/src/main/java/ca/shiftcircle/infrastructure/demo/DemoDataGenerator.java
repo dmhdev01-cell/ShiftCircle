@@ -118,6 +118,7 @@ public class DemoDataGenerator implements ApplicationRunner {
     List<PayPeriod> payPeriods = createPayPeriods(settings);
     List<SchedulePeriod> schedulePeriods = createSchedulePeriods(settings, units);
     List<Officer> officers = createOfficers(settings, random, units);
+    seedPreferences(settings, officers);
 
     RosterPlanner planner = new RosterPlanner();
     List<RosterPlanner.Shift> shifts = planShifts(settings, units, requirements, planner);
@@ -405,6 +406,39 @@ public class DemoDataGenerator implements ApplicationRunner {
     return new Officer(
         id, employeeNo, firstName, lastName, unitCode, units.get(unitCode).id(), seniority,
         qualifications);
+  }
+
+  /**
+   * Synthetic preferences for the planner, deterministic from the dataset seed and the officer
+   * number. They are demo data, not a checksum input (the checksum covers the roster and the
+   * schedule periods), so seeding them leaves the dataset checksum unchanged.
+   */
+  private void seedPreferences(DemoSettings settings, List<Officer> officers) {
+    String[] weekdays = {"MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"};
+    for (Officer officer : officers) {
+      int h = Math.floorMod((settings.seed() + "|" + officer.employeeNo()).hashCode(), 20);
+      int shiftLength = h == 0 ? 16 : h < 3 ? 12 : 8;
+      int t = Math.floorMod((settings.seed() + "|time|" + officer.employeeNo()).hashCode(), 20);
+      String timeOfDay = t == 0 ? "NIGHT" : t < 3 ? "EVENING" : t < 5 ? "DAY" : "NONE";
+      String dayOne = weekdays[Math.floorMod((officer.employeeNo() + "|off1").hashCode(), 7)];
+      String dayTwo = weekdays[Math.floorMod((officer.employeeNo() + "|off2").hashCode(), 7)];
+      jdbc.update(
+          connection -> {
+            var statement =
+                connection.prepareStatement(
+                    "INSERT INTO officer_preference (employee_id, shift_length, time_of_day,"
+                        + " days_off) VALUES (?, ?, ?, ?) ON CONFLICT (employee_id) DO NOTHING");
+            statement.setObject(1, officer.id());
+            statement.setInt(2, shiftLength);
+            statement.setString(3, timeOfDay);
+            statement.setArray(
+                4,
+                connection.createArrayOf(
+                    "text",
+                    dayOne.equals(dayTwo) ? new String[] {dayOne} : new String[] {dayOne, dayTwo}));
+            return statement;
+          });
+    }
   }
 
   /**

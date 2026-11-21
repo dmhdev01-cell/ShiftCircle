@@ -275,7 +275,8 @@ path (`POST /assignments`), so S-04 and the audit event still hold.
 |---|---|---|---|
 | GET | `/pay-periods` | Periods with status, the period's overtime threshold and the lock totals | SUPERVISOR, AUDITOR |
 | GET | `/pay-periods/{id}/time-entries?employeeId=` | Scheduled vs actual entries with pay codes, the officer's name and unit, the actual start and end, and the unpaid extension under 30 min (P-04) | SUPERVISOR, AUDITOR; EMPLOYEE (own) |
-| PUT | `/time-entries/{id}` | Record actuals (worked as scheduled / adjusted times / absence type) | SUPERVISOR |
+| PUT | `/time-entries/{id}` | Record actuals (worked as scheduled / adjusted times / absence type); changing a recorded absence to worked (or back) replaces the previous record | SUPERVISOR |
+| DELETE | `/time-entries/{id}` | Clear the actual or absence and return the shift to `needsActual`; a locked period answers `409`, and the change is audited (`clear_actual`) | SUPERVISOR |
 | POST | `/pay-periods/{id}/lock` | Lock: actuals become read-only. **Refused with `409`** (`type: .../problems/missing-actuals`, body lists `missing: [{ assignmentId, employeeId, start }]` and a count) while any shift in the period that has ended (`end_at ≤ now`) has no actual time entry or absence (ADR-017). **Idempotent:** locking a period that is already `LOCKED` returns `200` with the period view and writes no second audit row. Facility-wide: any supervisor with at least one unit in scope (ADR-022) | SUPERVISOR |
 | POST | `/pay-periods/{id}/unlock` | `{ "reason" }`; audited with actor and reason. Facility-wide (ADR-022). Concurrent unlocks apply once and write one audit row | SUPERVISOR |
 | GET | `/pay-periods/{id}/payroll-export` | `text/csv`; locked periods only; records a `payroll_export` row with the actor and file hash. Facility-wide: every officer in the period, not only the caller's units (ADR-022) | SUPERVISOR |
@@ -290,7 +291,7 @@ path (`POST /assignments`), so S-04 and the audit event still hold.
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
-| GET | `/reports/coverage?from=&to=&unitId=&groupBy=day\|week` | Required vs scheduled vs actual staff-hours and fill rate | SUPERVISOR, AUDITOR |
+| GET | `/reports/coverage?from=&to=&unitId=&groupBy=day\|week` | Required vs scheduled vs actual staff-hours and fill rate; each bucket also carries `extraHours` and `extraHoursByBlock` (`DAY`, `EVENING`, `NIGHT`) for assignments of kind `EXTRA` or source `OVERTIME_OFFER`, and the CSV adds `extra_hours,extra_day,extra_evening,extra_night` | SUPERVISOR, AUDITOR |
 | GET | `/reports/hours?from=&to=&employeeId=` | Scheduled, worked, and hours by pay code per officer | SUPERVISOR, AUDITOR; EMPLOYEE (own only) |
 | GET | `/reports/overtime?from=&to=&top=` | Overtime hours by officer and unit | SUPERVISOR, AUDITOR |
 | GET | `/reports/overrides?from=&to=` | Emergency overrides with reasons | SUPERVISOR, AUDITOR |
@@ -362,8 +363,38 @@ same validation as the grid (R24/R28: rule values are code input).
 |---|---|---|---|
 | GET | `/display/today` | Counts per unit and block, open shifts and overtime counts. **No names.** | DISPLAY, SUPERVISOR (own units), AUDITOR |
 | GET | `/audit-events?entityType=&entityId=&from=&to=` | Audit trail | AUDITOR, SUPERVISOR (own units) |
+| GET | `/audit-events/actors` | The actors whose events the caller can see, for the filter dropdown (same scope as the trail) | AUDITOR, SUPERVISOR (own units) |
 | GET | `/version` | Build version, git commit, live rule set version, and `asOf` (the server's "today", so the web's clock shows the demo day) | any |
 | GET | `/actuator/health` | Liveness and readiness. Internal only, not proxied by nginx. | container network |
+
+### 4.9 Quarter planner (ADR-026)
+
+| Method | Path | Purpose | Roles |
+|---|---|---|---|
+| GET | `/planner/plan` | Window (4 Jan – 11 Apr 2027, 7 periods), default seed, the 8 h patterns, current draft and last committed plan | PLANNER |
+| POST | `/planner/drafts` | `{seed, pattern8h?}` → generate a draft over the whole quarter; replaces the open draft | PLANNER |
+| GET | `/planner/drafts/{id}` | Draft summary and scorecard | PLANNER |
+| GET | `/planner/drafts/{id}/gaps` | Short block-days with unit, date, block, required and placed | PLANNER |
+| GET | `/planner/drafts/{id}/warnings` | All warnings, grouped by plain rule name | PLANNER |
+| GET | `/planner/drafts/{id}/commit-preview` | Version, shifts, officers, gaps and warning count the commit will ask to accept | PLANNER |
+| POST | `/planner/drafts/{id}/commit` | `If-Match: <version>`, `{acceptedWarningCount}` → write every assignment atomically and audit once; 412 stale, 422 per-assignment failures, 409 locked period or changed warnings | PLANNER |
+| POST | `/planner/drafts/{id}/discard` | Discard an open draft | PLANNER |
+| GET | `/planner/drafts/{id}/compare` | Draft vs the committed roster (counts and gaps) | PLANNER |
+| GET | `/planner/preferences?unitId=` | Every officer's preferences with how the open draft met them | PLANNER |
+| GET · PUT · DELETE | `/me/preferences` | The signed-in officer's own preferences (`shiftLength`, `timeOfDay`, up to 2 `daysOff`) | any account linked to an officer |
+
+**A draft is not a roster.** `plan_draft_assignment` is separate from `shift_assignment`; the
+planning board never reads it. Every generated assignment is verified by `RuleCheckService` against
+the draft's own assignments plus the committed history before the window, and a Block rule leaves a
+visible gap instead of a shift. Commit re-runs every check against the current committed state,
+refuses any Block with a per-assignment list, requires the exact warning count to be acknowledged
+(`acceptedWarningCount`), refuses a locked period, and writes all rows plus one `commit_plan` audit
+event in one transaction. Each written row carries `plan_draft_id`; overrides are never implied.
+The scorecard carries coverage gaps, warnings by plain rule name, preferences asked/met by kind,
+night share by seniority band plus the newest-first check, officers and hours over 80, generation
+time, and weekends worked per officer (min/avg/max). The default 8 h pattern is `ROTATING_5_2`
+(weekends rotate, 80 h per period); `5_ON_2_OFF` and `7_ON_3_OFF` are selectable, and 12 h/16 h
+patterns keep their 4-on/4-off and 1-on/2-off cycles.
 
 ## 5. Screen-to-endpoint map
 
