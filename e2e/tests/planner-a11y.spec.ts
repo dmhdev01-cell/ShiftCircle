@@ -24,7 +24,10 @@ test.describe('the planner, accessible and by keyboard', () => {
     await expect(page.getByRole('heading', { name: 'Quarter plan', level: 1 })).toBeVisible();
     await expectAccessible(page, testInfo, 'planner-landing');
 
-    await page.getByRole('button', { name: 'Generate draft' }).click();
+    // A stack that already holds a committed plan offers 'Generate a new
+    // draft' (the button's label), so accept both: this spec must run alone or
+    // after another spec committed.
+    await page.getByRole('button', { name: /^(Generate draft|Generate a new draft)$/ }).click();
     await expect(page.getByText('Coverage gaps')).toBeVisible({ timeout: 60_000 });
     await expectAccessible(page, testInfo, 'planner-scorecard');
 
