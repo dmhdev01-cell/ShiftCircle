@@ -83,7 +83,8 @@ class ReferenceApiTest {
     List<?> qualifications =
         mapper.readValue(get("/api/v1/qualifications", token).body(), List.class);
 
-    assertThat(templates).hasSize(6);
+    assertThat(templates).hasSize(8);
+    assertThat(templates.toString()).contains("D12").contains("N12");
     assertThat(qualifications).hasSize(3);
     assertThat(get("/api/v1/shift-templates", null).statusCode()).isEqualTo(401);
   }
