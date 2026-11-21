@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import type { APIRequestContext } from '@playwright/test';
 
 import { apiAs, isFixtures } from './api';
-import { navTo, selectUnit, signIn, signOut } from './support';
+import { ensurePlannableQuarter, navTo, selectUnit, signIn, signOut } from './support';
 
 /**
  * An empty cell in Unit A or B on the plan's first week that a shift can be
@@ -57,6 +57,10 @@ test.describe('the quarter plan', () => {
   });
 
   test('generate, read, commit, then a supervisor changes one shift', async ({ page, request }) => {
+    test.setTimeout(180_000);
+    // The demo's own way back from a committed quarter is a reset; this spec
+    // must generate, so it starts from the seeded uncommitted one.
+    await ensurePlannableQuarter(request);
     await signIn(page, 'P. Planner');
     await expect(page.getByRole('heading', { name: 'Quarter plan', level: 1 })).toBeVisible();
     // The window and the planner's own nav.
@@ -64,9 +68,7 @@ test.describe('the quarter plan', () => {
     const nav = page.getByRole('navigation', { name: 'Main' }).getByRole('link');
     await expect(nav).toHaveText(['Quarter plan', 'Preferences', 'Planning board', 'Reports', 'About & version']);
 
-    // A stack that already holds a committed plan (another spec committed one)
-    // offers 'Generate a new draft'; both labels generate.
-    await page.getByRole('button', { name: /^(Generate draft|Generate a new draft)$/ }).click();
+    await page.getByRole('button', { name: 'Generate draft' }).click();
     // The scorecard appears: the six tiles and the two panels.
     await expect(page.getByText('Coverage gaps')).toBeVisible({ timeout: 60_000 });
     for (const tile of ['Rule warnings', 'Preferences met', 'Night fairness', 'Overtime built in', 'Generated in']) {

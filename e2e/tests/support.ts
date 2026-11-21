@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect } from '@playwright/test';
-import type { Locator, Page, TestInfo } from '@playwright/test';
+import type { APIRequestContext, Locator, Page, TestInfo } from '@playwright/test';
+
+import { apiAs } from './api';
 
 /**
  * Shared steps for the flows. Everything is found by role, label or text,
@@ -39,6 +41,43 @@ export async function signInAgain(page: Page, displayName: string): Promise<void
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeHidden();
 }
 
+/**
+ * Reset the demo data through the api and wait for DONE. The api's own way to
+ * make a committed quarter plannable again, and to start a spec from the
+ * seeded 100 baseline whatever another spec did.
+ */
+export async function resetDemoData(
+  request: APIRequestContext,
+  dataset: '100' | '120' = '100',
+): Promise<void> {
+  const api = await apiAs(request, 'p.planner');
+  const started = await api.post('/demo/reset', { confirm: 'RESET', dataset });
+  expect([200, 202]).toContain(started.status);
+  for (let attempt = 0; attempt < 90; attempt += 1) {
+    const status = await api.get<{ state: string; error: string | null }>('/demo/reset/status');
+    if (status.state === 'DONE') return;
+    if (status.state === 'FAILED') throw new Error(`demo reset failed: ${status.error ?? 'no reason'}`);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+  throw new Error('demo reset did not finish');
+}
+
+/**
+ * Leave the planner with no open draft and an uncommitted quarter: reset the
+ * data when the quarter is committed (a new draft is refused then), discard an
+ * open draft otherwise. The planner screens need that starting point.
+ */
+export async function ensurePlannableQuarter(request: APIRequestContext): Promise<void> {
+  const api = await apiAs(request, 'p.planner');
+  const plan = await api.get<{ state: string; draft?: { id: string } | null }>('/planner/plan');
+  if (plan.draft) {
+    await api.post(`/planner/drafts/${plan.draft.id}/discard`);
+  }
+  if (plan.state === 'COMMITTED') {
+    await resetDemoData(request, '100');
+  }
+}
+
 /** Go to a screen through the main navigation. */
 export async function navTo(page: Page, name: string): Promise<void> {
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name }).click();
@@ -49,10 +88,17 @@ export async function navTo(page: Page, name: string): Promise<void> {
  * serious or critical axe violations, WCAG 2.1 AA). The full result is
  * attached to the report so moderate findings are visible too.
  */
-export async function expectAccessible(page: Page, testInfo: TestInfo, screenName: string): Promise<void> {
-  const results = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .analyze();
+export async function expectAccessible(
+  page: Page,
+  testInfo: TestInfo,
+  screenName: string,
+  include?: string,
+): Promise<void> {
+  let scan = new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']);
+  // A modal dims the page behind it; scanning only the dialog keeps the
+  // finding about the screen under test rather than the backdrop's blend.
+  if (include) scan = scan.include(include);
+  const results = await scan.analyze();
   await testInfo.attach(`axe-${screenName}`, {
     body: JSON.stringify(results.violations, null, 2),
     contentType: 'application/json',

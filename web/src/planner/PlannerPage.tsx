@@ -500,6 +500,14 @@ export function PlannerPage() {
                 Commit plan…
               </Button>
             </>
+          ) : planCommitted ? (
+            // The api refuses a new draft in a committed quarter
+            // (ALREADY_COMMITTED_WINDOW), so the landing must not offer one;
+            // the demo's way back is the reset card.
+            <Typography sx={{ fontSize: 13, color: colour.text.secondary, maxWidth: 460 }}>
+              This quarter is committed. To plan it again, reset the demo data on About &amp;
+              version.
+            </Typography>
           ) : (
             <Button
               variant="contained"
@@ -507,7 +515,7 @@ export function PlannerPage() {
               disabled={!seedOk || busy !== null}
               onClick={() => void generate()}
             >
-              {busy === 'generate' ? 'Generating…' : committed ? 'Generate a new draft' : 'Generate draft'}
+              {busy === 'generate' ? 'Generating…' : 'Generate draft'}
             </Button>
           )}
         </Box>
