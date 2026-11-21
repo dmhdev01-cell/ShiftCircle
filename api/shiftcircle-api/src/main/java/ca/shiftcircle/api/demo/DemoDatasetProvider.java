@@ -3,7 +3,7 @@ package ca.shiftcircle.api.demo;
 /**
  * A selectable demo dataset. The reset clean-migrates the schema first, then asks the selected
  * provider to seed the dataset and return its checksum. The 100 provider wraps today's
- * {@code DemoDataGenerator}; a 150 provider (dev-build2) is a second bean that sets the unit
+ * {@code DemoDataGenerator}; a 120 provider (dev-build2) is a second bean that sets the unit
  * agreements it needs, seeds its crews, and returns the same checksum shape.
  */
 public interface DemoDatasetProvider {

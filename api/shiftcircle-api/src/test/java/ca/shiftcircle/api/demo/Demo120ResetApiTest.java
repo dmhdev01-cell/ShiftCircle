@@ -49,6 +49,7 @@ class Demo120ResetApiTest {
 
   @Autowired private JdbcTemplate jdbc;
   @Autowired private RuleCheckService ruleCheck;
+  @Autowired private Demo120DatasetProvider provider;
   @Autowired private Environment environment;
 
   private final ObjectMapper mapper = new ObjectMapper();
@@ -64,6 +65,7 @@ class Demo120ResetApiTest {
   @Test
   void resetsToTheCrewDatasetTwiceThenBackTo100() throws Exception {
     String checksum120 = null;
+    List<String> names120 = null;
     for (int round = 0; round < 2; round++) {
       long start = System.nanoTime();
       HttpResponse<String> started =
@@ -99,6 +101,27 @@ class Demo120ResetApiTest {
 
       assertThat(jdbc.queryForObject("SELECT count(*) FROM employee", Integer.class))
           .isEqualTo(120);
+      assertThat(jdbc.queryForObject(
+              "SELECT count(*) FROM employee WHERE first_name ~ '^First[0-9]+$'"
+                  + " OR last_name ~ '^Last[0-9]+$'",
+              Integer.class))
+          .as("the 120 officers have synthetic names, not First92 Last92")
+          .isZero();
+      List<String> currentNames =
+          jdbc.queryForList(
+              "SELECT employee_no || '|' || first_name || ' ' || last_name FROM employee"
+                  + " ORDER BY employee_no",
+              String.class);
+      assertThat(currentNames).hasSize(120);
+      assertThat(currentNames.stream().map(row -> row.substring(row.indexOf('|') + 1)).distinct()
+              .count())
+          .as("no duplicate officer names")
+          .isEqualTo(120);
+      if (names120 == null) {
+        names120 = currentNames;
+      } else {
+        assertThat(currentNames).as("the names are stable across a reset").isEqualTo(names120);
+      }
       assertThat(jdbc.queryForObject(
               "SELECT count(*) FROM employee WHERE fte = 1.0", Integer.class))
           .isEqualTo(100);
@@ -156,7 +179,7 @@ class Demo120ResetApiTest {
                   "SELECT action FROM audit_event ORDER BY id LIMIT 1", String.class))
           .isEqualTo("demo_reset");
     }
-    assertThat(DemoChecksum.of(jdbc)).isEqualTo(checksum120);
+    assertThat(provider.checksum()).isEqualTo(checksum120);
 
     long generateStart = System.nanoTime();
     HttpResponse<String> generated =
@@ -186,6 +209,13 @@ class Demo120ResetApiTest {
     assertThat(gaps)
         .as("the 120 crews + 20 casuals cover 20-60 of 1,764 block-days")
         .isBetween(20, 60);
+    System.out.println(
+        "GAPS120 "
+            + jdbc.queryForList(
+                "SELECT u.code AS unit, g.block, count(*) AS gaps FROM plan_draft_gap g"
+                    + " JOIN unit u ON u.id = g.unit_id WHERE g.draft_id = ?"
+                    + " GROUP BY u.code, g.block ORDER BY u.code, g.block",
+                draftId));
     @SuppressWarnings("unchecked")
     Map<String, Object> warnings = (Map<String, Object>) scorecard.get("warnings");
     assertThat(((Number) warnings.get("total")).intValue())

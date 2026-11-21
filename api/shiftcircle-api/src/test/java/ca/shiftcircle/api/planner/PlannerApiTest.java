@@ -107,6 +107,10 @@ class PlannerApiTest {
         "warningNote", "generatedMs");
     assertThat(assignmentCount()).isGreaterThan(3000);
     assertThat(((Map<?, ?>) scorecard.get("coverage")).get("shortBlockDays")).isNotNull();
+    assertThat(scorecard.get("warnings").toString())
+        .as("U-14 is named by what a warning means: the 48 h level, not the 60 h Block")
+        .contains("Week over 48 hours")
+        .doesNotContain("Week over 60 hours");
     System.out.println("scorecard warnings: " + scorecard.get("warnings"));
     System.out.println("scorecard coverage: " + scorecard.get("coverage") + " quarterHours: " + scorecard.get("quarterHours"));
     List<Map<String, Object>> groups =
@@ -708,6 +712,17 @@ class PlannerApiTest {
       assertThat(byKey.get(key).get("board")).isEqualTo(byKey.get(key).get("draft"));
     }
 
+    // The compare's preference number is the scorecard's number, not a second definition.
+    Map<String, Object> draftBody =
+        json(send("GET", "/api/v1/planner/drafts/" + draftId, null, tokens.get("p.planner")));
+    Map<String, Object> draftScorecard = (Map<String, Object>) draftBody.get("scorecard");
+    int scorecardMet = ((Number) ((Map<String, Object>) draftScorecard.get("preferences")).get("met"))
+        .intValue();
+    assertThat(((Number) byKey.get("preferencesMet").get("draft")).intValue())
+        .as("compare preferencesMet == scorecard.preferences.met")
+        .isEqualTo(scorecardMet);
+    assertThat(byKey.get("preferencesMet").get("board")).isEqualTo(byKey.get("preferencesMet").get("draft"));
+
     // By unit, and the unit rows add up to the facility total.
     double unitDraftGaps = 0;
     int unitRows = 0;
@@ -767,6 +782,20 @@ class PlannerApiTest {
     int boardShifts = ((Number) before.get("committedShifts")).intValue();
     int draftShifts = ((Number) before.get("draftShifts")).intValue();
     assertThat(boardShifts).isEqualTo(draftShifts);
+
+    // After a commit the preference list evaluates the committed plan, not "No draft".
+    List<Map<String, Object>> preferences =
+        mapper.readValue(
+            send("GET", "/api/v1/planner/preferences", null, tokens.get("p.planner")).body(),
+            List.class);
+    assertThat(preferences).hasSize(100);
+    assertThat(preferences.stream().noneMatch(row -> "NO_DRAFT".equals(row.get("inDraft"))))
+        .as("every row evaluates the committed plan")
+        .isTrue();
+    assertThat(preferences.stream().anyMatch(row ->
+            List.of("MET", "PARTLY", "NOT_MET").contains(row.get("inDraft"))))
+        .as("at least one row has a real met/partly/not-met status")
+        .isTrue();
 
     // A supervisor edit after the commit: the board side must move, the committed plan must not.
     UUID cancelled =

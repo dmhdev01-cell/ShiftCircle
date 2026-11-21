@@ -1,6 +1,7 @@
 package ca.shiftcircle.api.demo;
 
 import ca.shiftcircle.infrastructure.demo.DemoChecksum;
+import ca.shiftcircle.infrastructure.demo.DemoNames;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
@@ -170,7 +171,21 @@ public class Demo120DatasetProvider implements DemoDatasetProvider {
 
   @Override
   public String checksum() {
-    return DemoChecksum.of(jdbc);
+    // The roster checksum is names-blind (the 100 checksum must stay); the 120 dataset includes
+    // the synthetic identities in its own checksum so a name change is visible.
+    StringBuilder names = new StringBuilder();
+    jdbc.query(
+        "SELECT employee_no, first_name, last_name FROM employee ORDER BY employee_no",
+        (org.springframework.jdbc.core.RowCallbackHandler)
+            rs ->
+                names
+                    .append(rs.getString("employee_no"))
+                    .append('|')
+                    .append(rs.getString("first_name"))
+                    .append('|')
+                    .append(rs.getString("last_name"))
+                    .append('\n'));
+    return DemoChecksum.sha256(DemoChecksum.of(jdbc) + "|" + names);
   }
 
   private Map<String, UUID> insertPatterns() {
@@ -209,6 +224,12 @@ public class Demo120DatasetProvider implements DemoDatasetProvider {
       int crewIndex) {
     UUID id = UUID.nameUUIDFromBytes(("120:employee:" + sequence).getBytes());
     String no = String.format("120-%04d", sequence);
+    int nameIndex = (sequence - 1) % DemoNames.FIRST_NAMES.size();
+    int lastNameIndex =
+        (nameIndex + (sequence - 1) / DemoNames.FIRST_NAMES.size())
+            % DemoNames.LAST_NAMES.size();
+    String firstName = DemoNames.FIRST_NAMES.get(nameIndex);
+    String lastName = DemoNames.LAST_NAMES.get(lastNameIndex);
     LocalDate seniority;
     if (crew.crew().startsWith("N12")) {
       seniority = LocalDate.of(2022, 1, 1).plusDays(crewIndex * 37L);
@@ -225,8 +246,8 @@ public class Demo120DatasetProvider implements DemoDatasetProvider {
             + " VALUES (?, ?, ?, ?, 'CO', ?, ?, ?, ?, true, true)",
         id,
         no,
-        "First" + sequence,
-        "Last" + sequence,
+        firstName,
+        lastName,
         units.get(crew.unit()),
         patterns.get(crew.crew()),
         fte,

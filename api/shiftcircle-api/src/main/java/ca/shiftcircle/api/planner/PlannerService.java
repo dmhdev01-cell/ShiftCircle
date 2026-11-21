@@ -931,35 +931,37 @@ public class PlannerService {
       }
       weekends.add(weekendDays.size());
       PlanGenerator.Pref pref = prefs.get(employeeId);
-      if (pref != null && !shifts.isEmpty()) {
-        boolean lengthMet =
-            pref.shiftLength() == null
-                || shifts.stream()
-                    .allMatch(
-                        shift ->
-                            ((Number) shift.get("duration_minutes")).intValue()
-                                == pref.shiftLength() * 60);
-        boolean timeMet =
-            pref.timeOfDay() == null
-                || "NONE".equals(pref.timeOfDay())
-                || shifts.stream()
-                    .allMatch(
-                        shift ->
-                            pref.timeOfDay().equals(timeOfDay(shift)));
-        boolean daysMet =
-            pref.daysOff() == null
-                || pref.daysOff().isEmpty()
-                || shifts.stream()
-                    .noneMatch(
-                        shift ->
-                            pref.daysOff()
-                                .contains(
-                                    ((java.sql.Date) shift.get("work_date"))
-                                        .toLocalDate()
-                                        .getDayOfWeek()
-                                        .name()
-                                        .substring(0, 3)));
-        if (lengthMet && timeMet && daysMet) {
+      if (pref != null) {
+        // Same definition as the scorecard's preferencesCard: each asked criterion counts once,
+        // not "all of this officer's wishes in one bucket". This is what keeps scorecard.met and
+        // the compare row equal.
+        if (pref.shiftLength() != null
+            && !shifts.isEmpty()
+            && shifts.stream()
+                .allMatch(
+                    shift ->
+                        ((Number) shift.get("duration_minutes")).intValue()
+                            == pref.shiftLength() * 60)) {
+          preferencesMet++;
+        }
+        if (pref.timeOfDay() != null
+            && !"NONE".equals(pref.timeOfDay())
+            && !shifts.isEmpty()
+            && shifts.stream().allMatch(shift -> pref.timeOfDay().equals(timeOfDay(shift)))) {
+          preferencesMet++;
+        }
+        if (pref.daysOff() != null
+            && !pref.daysOff().isEmpty()
+            && shifts.stream()
+                .noneMatch(
+                    shift ->
+                        pref.daysOff()
+                            .contains(
+                                ((java.sql.Date) shift.get("work_date"))
+                                    .toLocalDate()
+                                    .getDayOfWeek()
+                                    .name()
+                                    .substring(0, 3)))) {
           preferencesMet++;
         }
       }
@@ -1082,12 +1084,25 @@ public class PlannerService {
             .stream()
             .findFirst()
             .orElse(null);
+    if (draftId == null) {
+      // After a commit there is no open draft; the preference list still evaluates the committed
+      // plan (it is the current plan), instead of saying NO_DRAFT for every officer.
+      draftId =
+          jdbc.queryForList(
+                  "SELECT id FROM plan_draft WHERE status = 'COMMITTED'"
+                      + " ORDER BY committed_at DESC LIMIT 1",
+                  UUID.class)
+              .stream()
+              .findFirst()
+              .orElse(null);
+    }
+    UUID planId = draftId;
     Map<UUID, List<Map<String, Object>>> inDraft = new HashMap<>();
-    if (draftId != null) {
+    if (planId != null) {
       jdbc.queryForList(
               "SELECT a.employee_id, t.code, a.work_date FROM plan_draft_assignment a"
                   + " JOIN shift_template t ON t.id = a.shift_template_id WHERE a.draft_id = ?",
-              draftId)
+              planId)
           .forEach(row ->
               inDraft
                   .computeIfAbsent((UUID) row.get("employee_id"), key -> new ArrayList<>())
@@ -1141,7 +1156,7 @@ public class PlannerService {
             unmet.add("Preferred days off");
           }
           String status =
-              draftId == null
+              planId == null
                   ? "NO_DRAFT"
                   : length == null && time == null && days.isEmpty()
                       ? "NONE"
