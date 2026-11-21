@@ -106,25 +106,28 @@ public class UnitsService {
         input.reopensOn() == null
             ? null
             : input.reopensOn().atStartOfDay(REGINA).toInstant();
+    java.time.Instant todayStart = activeUnits.today().atStartOfDay(REGINA).toInstant();
     int shifts;
     if (end == null) {
       shifts =
           jdbc.queryForObject(
               "SELECT count(*) FROM shift_assignment WHERE unit_id = ?"
-                  + " AND status <> 'CANCELLED' AND start_at >= ? AND start_at > now()",
+                  + " AND status <> 'CANCELLED' AND start_at >= ? AND start_at > ?",
               Integer.class,
               unitId,
-              java.sql.Timestamp.from(start));
+              java.sql.Timestamp.from(start),
+              java.sql.Timestamp.from(todayStart));
     } else {
       shifts =
           jdbc.queryForObject(
               "SELECT count(*) FROM shift_assignment WHERE unit_id = ?"
                   + " AND status <> 'CANCELLED' AND start_at >= ? AND start_at < ?"
-                  + " AND start_at > now()",
+                  + " AND start_at > ?",
               Integer.class,
               unitId,
               java.sql.Timestamp.from(start),
-              java.sql.Timestamp.from(end));
+              java.sql.Timestamp.from(end),
+              java.sql.Timestamp.from(todayStart));
     }
     return new UnitsViews.Preview(officers, shifts);
   }
@@ -234,7 +237,7 @@ public class UnitsService {
             + "   AND s.work_date >= a.disabled_from"
             + "   AND (a.enabled_from IS NULL OR s.work_date < a.enabled_from)"
             + "   ORDER BY a.disabled_from DESC LIMIT 1) a ON true"
-            + " WHERE s.status <> 'CANCELLED' AND s.start_at > now()"
+            + " WHERE s.status <> 'CANCELLED' AND s.start_at > ?"
             + " ORDER BY s.work_date, u.code, e.last_name, e.first_name",
         (rs, row) ->
             new UnitsViews.FlaggedShift(
@@ -252,7 +255,8 @@ public class UnitsService {
                 rs.getTimestamp("start_at").toInstant(),
                 rs.getTimestamp("end_at").toInstant(),
                 rs.getDate("disabled_from").toLocalDate(),
-                rs.getString("reason")));
+                rs.getString("reason")),
+        java.sql.Timestamp.from(activeUnits.today().atStartOfDay(REGINA).toInstant()));
   }
 
   // ---------------------------------------------------------------------------------------------
