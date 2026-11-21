@@ -121,6 +121,7 @@ export const roles: RoleDescriptor[] = [
     nav: [
       { label: 'Quarter plan', to: '/planner' },
       { label: 'Preferences', to: '/planner/preferences' },
+      { label: 'Units', to: '/planner/units' },
       { label: 'Planning board', to: '/planning' },
       { label: 'Reports', to: '/reports/coverage' },
     ],

@@ -169,7 +169,15 @@ export interface OfficerRow {
 }
 
 export interface SchedulePayload {
-  unit: { id: string; name: string };
+  unit: {
+    id: string;
+    name: string;
+    closedFrom?: string | null;
+    closedTo?: string | null;
+    closedLabel?: string | null;
+    closedDates?: string[];
+    closedReason?: string | null;
+  };
   from: string;
   to: string;
   /** ISO dates of the days on the board. */
@@ -450,11 +458,21 @@ export interface CoverageWeek {
   extraHoursByBlock?: Record<string, number>;
 }
 
+export interface CoverageClosureNote {
+  unitId: string;
+  unitName: string;
+  closedFrom: string;
+  closedTo: string | null;
+  reason: string;
+}
+
 export interface CoverageReport {
   weeks: CoverageWeek[];
   /** The axis starts here, and the screen says so. */
   axisFrom: number;
   axisTo: number;
+  /** Closures that touch the reported range (release 3). */
+  closureNotes?: CoverageClosureNote[];
   requiredHours: number;
   scheduledHours: number;
   actualHours?: number;
@@ -877,6 +895,100 @@ export interface PlannerUnitCoverage {
   unitId: string;
   unitName: string;
   coverage: BlockCoverage[];
+  /** Plain words when the unit is closed for (part of) the range. */
+  closedFrom?: string | null;
+  closedTo?: string | null;
+  closedLabel?: string | null;
+  closedDates?: string[];
+  /** The closure's reason, when the api sends it (the roster and board notes). */
+  closedReason?: string | null;
+}
+
+/** A unit's dated closure (release 3, api contract v2). */
+export type UnitToday = 'OPEN' | 'CLOSED' | 'SWITCHED_OFF';
+export type ClosureState = 'FUTURE' | 'CURRENT' | 'ENDED';
+
+export interface UnitClosure {
+  id: string;
+  /** The first closed day. */
+  closedFrom: string;
+  /** The first open day again, or null when no reopening date is set. */
+  reopensOn: string | null;
+  reason: string;
+  createdBy: string;
+  createdAt: string;
+  state: ClosureState;
+}
+
+export interface PlannerUnit {
+  id: string;
+  code: string;
+  name: string;
+  kind: string;
+  /** The hard off switch; dated closures are separate. */
+  active: boolean;
+  /** Today's status, computed by the api (the web never compares dates). */
+  today: UnitToday;
+  todayNote: string | null;
+  allows12h: boolean;
+  allows16h: boolean;
+  allocated: number;
+  filled: number;
+  /** Oldest first. */
+  closures: UnitClosure[];
+}
+
+export interface FlaggedShift {
+  shiftId: string;
+  unitId: string;
+  unitCode: string;
+  unitName: string;
+  date: string;
+  templateCode: string;
+  /** e.g. "Day 07-19 (12 h)". */
+  shiftLabel: string;
+  officerName: string;
+  start: string;
+  end: string;
+  closedFrom: string;
+  reason: string;
+}
+
+export interface StaffingBreakdown {
+  posts12Day: number;
+  posts12Night: number;
+  posts8: number;
+  rawNeeded: number;
+  leaveAllowance: number;
+  needed: number;
+}
+
+export interface StaffingUnitRow {
+  unitId: string;
+  unitCode: string;
+  unitName: string;
+  /** True when the unit is closed for the whole period. */
+  closed: boolean;
+  allocated: number;
+  filled: number;
+  needed: number;
+  short: number;
+  breakdown: StaffingBreakdown;
+}
+
+export interface StaffingPeriod {
+  from: string;
+  to: string;
+  units: StaffingUnitRow[];
+  totals: { allocated: number; filled: number; needed: number; short: number };
+}
+
+export interface StaffingReport {
+  leaveAllowance: number;
+  periods: StaffingPeriod[];
+  note: string;
+  /** Present when more than three periods were collapsed. */
+  truncatedNote?: string;
 }
 
 export interface PlannerCompareRow {
@@ -963,6 +1075,26 @@ export interface ShiftCircleApi {
   putMyPreferences(input: MyPreferencesInput): Promise<MyPreferences>;
   deleteMyPreferences(): Promise<void>;
   getPlannerPreferences(unitId?: string): Promise<PlannerPreferenceRow[]>;
+  /** Release 3: units, their dated closures, flagged shifts and staffing. */
+  getPlannerUnits(): Promise<PlannerUnit[]>;
+  addUnitClosure(
+    unitId: string,
+    input: { closedFrom: string; reopensOn?: string | null; reason: string },
+  ): Promise<UnitClosure>;
+  updateUnitClosure(
+    unitId: string,
+    closureId: string,
+    input: { closedFrom?: string; reopensOn?: string | null; reason: string },
+  ): Promise<UnitClosure>;
+  removeUnitClosure(unitId: string, closureId: string): Promise<void>;
+  previewUnitClosure(
+    unitId: string,
+    input: { closedFrom: string; reopensOn?: string | null },
+  ): Promise<{ officersHomed: number; publishedShiftsAffected: number }>;
+  getFlaggedShifts(): Promise<FlaggedShift[]>;
+  getStaffing(): Promise<StaffingReport>;
+  setUnitAllocation(unitId: string, allocated: number, reason: string): Promise<StaffingUnitRow>;
+  setLeaveAllowance(percent: number, reason: string): Promise<{ leaveAllowance: number }>;
   getPlannerCommitPreview(draftId: string): Promise<PlannerCommitPreview>;
   commitPlannerDraft(
     draftId: string,
@@ -1059,6 +1191,9 @@ export interface DisplayUnit {
   coverage: DisplayBlock[];
   openShifts: number;
   officersInOvertime: number;
+  /** Release 3: the unit is closed today; the card says so instead of counts. */
+  closedToday?: boolean;
+  closedNote?: string | null;
 }
 
 /** `GET /display/today`: no names, employee numbers or employee ids, by contract. */

@@ -100,6 +100,17 @@ import {
   resetPlannerFixtures,
   savePlannerPattern,
 } from './planner';
+import {
+  addUnitClosure,
+  fixtureFlaggedShifts,
+  fixturePlannerUnits,
+  fixtureStaffing,
+  previewUnitClosure,
+  removeUnitClosure,
+  setLeaveAllowanceFixture,
+  setUnitAllocation,
+  updateUnitClosure,
+} from './plannerUnits';
 import { demoPayPeriods, demoTimeEntries, unitCodeFor } from './timeAttendance';
 
 /**
@@ -545,6 +556,42 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
       return fixturePlannerPreferences();
     },
 
+    async getPlannerUnits() {
+      await pause();
+      return fixturePlannerUnits();
+    },
+    async addUnitClosure(unitId: string, input: { closedFrom: string; reopensOn?: string | null; reason: string }) {
+      await pause();
+      return addUnitClosure(unitId, input);
+    },
+    async updateUnitClosure(unitId: string, closureId: string, input: { closedFrom?: string; reopensOn?: string | null; reason: string }) {
+      await pause();
+      return updateUnitClosure(unitId, closureId, input);
+    },
+    async removeUnitClosure(unitId: string, closureId: string) {
+      await pause();
+      removeUnitClosure(unitId, closureId);
+    },
+    async previewUnitClosure(unitId: string, input: { closedFrom: string; reopensOn?: string | null }) {
+      await pause();
+      return previewUnitClosure(unitId, input);
+    },
+    async getFlaggedShifts() {
+      await pause();
+      return fixtureFlaggedShifts();
+    },
+    async getStaffing() {
+      await pause();
+      return fixtureStaffing();
+    },
+    async setUnitAllocation(unitId: string, allocated: number, reason: string) {
+      await pause();
+      return setUnitAllocation(unitId, allocated, reason);
+    },
+    async setLeaveAllowance(percent: number, reason: string) {
+      await pause();
+      return setLeaveAllowanceFixture(percent, reason);
+    },
     async setPlannerOfficerPattern(employeeId: string, pattern: string) {
       await pause();
       try {

@@ -124,4 +124,51 @@ describe('the roster tab unit picker', () => {
     await user.click(within(strip).getByRole('button', { name: 'Unit A · Living unit' }));
     expect(changes).toContainEqual({ unit: 'unit-a' });
   });
+
+  it('says a unit is closed in the picker, the note and the cells', async () => {
+    vi.spyOn(api, 'getPlannerSchedule').mockImplementation(async (_draftId, query) => {
+      const base = plannerSchedule(query);
+      return {
+        ...base,
+        unit: {
+          ...base.unit,
+          id: 'unit-c',
+          name: 'Unit C · Living unit',
+          closedFrom: '2027-02-15',
+          closedTo: null,
+          closedLabel: 'Closed from 15 Feb 2027',
+          closedReason: 'Renovation (demo)',
+        },
+      };
+    });
+    vi.spyOn(api, 'getPlannerCoverage').mockResolvedValue([
+      {
+        unitId: 'unit-c',
+        unitName: 'Unit C · Living unit',
+        coverage: [],
+        closedFrom: '2027-02-15',
+        closedTo: null,
+        closedLabel: 'Closed from 15 Feb 2027',
+        closedReason: 'Renovation (demo)',
+      },
+    ]);
+    render(
+      <ThemeProvider theme={theme}>
+        <PlannerRosterTab
+          draftId="draft-1"
+          window={{ from: '2027-01-04', to: '2027-04-11' }}
+          gaps={[]}
+          units={[{ id: 'unit-c', name: 'Unit C · Living unit' }]}
+          unitParam="unit-c"
+          weekParam="2027-02-15"
+          onChange={() => undefined}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Unit C · Living unit' })).toBeInTheDocument();
+    expect(options()[0]).toContain('(closed from 15 Feb 2027)');
+    expect(screen.getByText(/Unit C is closed from Mon 15 Feb 2027/)).toBeInTheDocument();
+    expect(screen.getAllByText('Closed').length).toBeGreaterThanOrEqual(7);
+  });
 });

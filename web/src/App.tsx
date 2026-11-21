@@ -53,6 +53,9 @@ const LazyPlannerPreferencesPage = lazy(() =>
     default: module.PlannerPreferencesPage,
   })),
 );
+const LazyUnitsPage = lazy(() =>
+  import('./planner/UnitsPage').then((module) => ({ default: module.UnitsPage })),
+);
 
 const WallDisplayPage = lazy(() =>
   import('./display/WallDisplayPage').then((module) => ({ default: module.WallDisplayPage })),
@@ -89,6 +92,14 @@ export function AppRoutes() {
           element={
             <Suspense fallback={<RouteFallback />}>
               <LazyPlannerPreferencesPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/planner/units"
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <LazyUnitsPage />
             </Suspense>
           }
         />

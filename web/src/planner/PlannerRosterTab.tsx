@@ -10,6 +10,7 @@ import type { PlannerGap, PlannerUnitCoverage, SchedulePayload } from '../api/ty
 import { CoverageCell } from '../planning/CoverageCell';
 import { RosterGrid } from '../planning/RosterGrid';
 import { colour } from '../theme/tokens';
+import { weekdayDateWords } from './unitDates';
 
 const BLOCKS: { block: 'DAY' | 'EVENING' | 'NIGHT'; label: string }[] = [
   { block: 'DAY', label: 'Days 07–15' },
@@ -110,6 +111,15 @@ export function PlannerRosterTab({
     };
   }, [draftId, unit, week]);
 
+  /** A unit's closure words for the visible week, from the coverage strip. */
+  const closedFor = (unitId: string): string | null =>
+    strip.find((entry) => entry.unitId === unitId)?.closedLabel ?? null;
+  const closesOn = (unitId: string, day: string): boolean => {
+    const entry = strip.find((candidate) => candidate.unitId === unitId);
+    if (!entry?.closedFrom) return false;
+    return day >= entry.closedFrom && (!entry.closedTo || day <= entry.closedTo);
+  };
+
   const days = Array.from({ length: 7 }, (_, index) => addDays(week, index));
   const boardWeek = { from: week, to: addDays(week, 6) };
 
@@ -135,11 +145,16 @@ export function PlannerRosterTab({
                 backgroundColor: colour.bg.surface,
               }}
             >
-              {units.map((entry) => (
-                <option key={entry.id} value={entry.id}>
-                  {entry.name} · {gapWords(entry.id)}
-                </option>
-              ))}
+              {units.map((entry) => {
+                const closed = closedFor(entry.id);
+                return (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.name}
+                    {closed ? ` (${closed.charAt(0).toLowerCase()}${closed.slice(1)})` : ''} ·{' '}
+                    {gapWords(entry.id)}
+                  </option>
+                );
+              })}
             </Box>
           </Box>
 
@@ -207,7 +222,24 @@ export function PlannerRosterTab({
                         const cell = entry.coverage.find((item) => item.date === day && item.block === block);
                         return (
                           <td key={`${entry.unitId}-${block}-${day}`} style={{ padding: 2 }}>
-                            {cell ? <CoverageCell block={cell} today={window.from} /> : null}
+                            {closesOn(entry.unitId, day) ? (
+                              <Box
+                                title={`${entry.unitName.split(' · ')[0]} is closed on this day.`}
+                                sx={{
+                                  fontSize: 11,
+                                  px: 1,
+                                  py: 0.5,
+                                  borderRadius: '4px',
+                                  backgroundColor: colour.status.info.bg,
+                                  color: colour.status.info.text,
+                                  display: 'inline-block',
+                                }}
+                              >
+                                Closed
+                              </Box>
+                            ) : cell ? (
+                              <CoverageCell block={cell} today={window.from} />
+                            ) : null}
                           </td>
                         );
                       })}
@@ -250,6 +282,28 @@ export function PlannerRosterTab({
             <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
               {payload.unit.name}
             </Typography>
+            {payload.unit.closedFrom ? (
+              <Typography
+                role="note"
+                sx={{
+                  p: '10px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: colour.status.info.bg,
+                  color: colour.status.info.text,
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                {payload.unit.name.split(' · ')[0]} is closed from{' '}
+                {weekdayDateWords(payload.unit.closedFrom)}
+                {payload.unit.closedReason ? ` ("${payload.unit.closedReason}")` : ''}
+                {payload.unit.closedTo
+                  ? ` until it reopens on ${weekdayDateWords(addDays(payload.unit.closedTo, 1))}`
+                  : ''}
+                . It has no roster and needs no staff from that date. Its officers work as relief in
+                other units, shown under those units.
+              </Typography>
+            ) : null}
             <RosterGrid payload={payload} today={payload.asOf} />
           </>
         ) : null}

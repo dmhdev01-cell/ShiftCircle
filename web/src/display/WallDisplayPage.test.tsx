@@ -309,4 +309,28 @@ describe('Wall display', () => {
       expect(container.innerHTML, officer.name).not.toContain(officer.name);
     }
   });
+
+  it('says a closed unit is closed today instead of showing counts', async () => {
+    startAt(DAY_TIME);
+    vi.spyOn(api, 'getDisplayToday').mockResolvedValue({
+      asOf: '2026-11-19',
+      generatedAt: '2026-11-19T20:32:00Z',
+      totalOpenShifts: 0,
+      totalOfficersInOvertime: 0,
+      units: [
+        {
+          unit: { id: 'unit-c', name: 'Unit C · Living unit' },
+          coverage: [],
+          openShifts: 0,
+          officersInOvertime: 0,
+          closedToday: true,
+          closedNote: 'No reopening date is set.',
+        },
+      ],
+    });
+    renderDisplay();
+    await firstLoad();
+    expect(screen.getByText('Unit C is closed today')).toBeInTheDocument();
+    expect(screen.getByText('No reopening date is set.')).toBeInTheDocument();
+  });
 });

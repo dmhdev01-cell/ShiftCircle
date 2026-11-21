@@ -9,6 +9,7 @@ import { useLocation } from 'react-router-dom';
 import { AppShellRoutes } from '../App';
 import { api, ApiError } from '../api/client';
 import { demoRuleTables } from '../api/fixtures/rules';
+import { scheduleForRange } from '../api/fixtures/schedule';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
@@ -391,5 +392,27 @@ describe('the planning board', () => {
     await user.selectOptions(screen.getByLabelText('Mock sign-in: choose a role'), 'AUDITOR');
 
     expect(screen.queryByRole('button', { name: 'Publish period' })).not.toBeInTheDocument();
+  });
+
+  it('says when the shown unit is closed, in the api\'s words', async () => {
+    vi.spyOn(api, 'getSchedule').mockImplementation(async (query) => {
+      const base = scheduleForRange(query.from, query.to);
+      return {
+        ...base,
+        unit: {
+          ...base.unit,
+          closedFrom: '2027-02-15',
+          closedTo: null,
+          closedLabel: 'Closed from 15 Feb 2027',
+          closedReason: 'Renovation (demo)',
+        },
+      };
+    });
+    renderBoard();
+    await screen.findByText('Coverage gaps');
+    expect(
+      await screen.findByText(/Unit B is closed from Mon 15 Feb 2027 \("Renovation \(demo\)"\)\./),
+    ).toBeInTheDocument();
+    vi.restoreAllMocks();
   });
 });

@@ -47,7 +47,7 @@ describe('the quarter plan', () => {
 
     // The landing first: nothing generated, the window from the api.
     expect(await screen.findByRole('heading', { name: 'Quarter plan', level: 1 })).toBeInTheDocument();
-    expect(screen.getByText(/4 Jan – 11 Apr 2027/)).toBeInTheDocument();
+    expect(await screen.findByText(/4 Jan – 11 Apr 2027/)).toBeInTheDocument();
     expect(screen.getByText('No plan for this quarter yet.')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Generate draft' }));
@@ -66,7 +66,7 @@ describe('the quarter plan', () => {
     expect(screen.getByText(/Weekends worked: 4–11/)).toBeInTheDocument();
     // "What this means" explains each tile in the design's words, one at a time.
     const explained = screen.getAllByRole('button', { name: 'What this means' });
-    expect(explained).toHaveLength(6);
+    expect(explained).toHaveLength(7);
     await user.click(explained[0]);
     expect(
       screen.getByRole('region', { name: 'What Coverage gaps means' }),
@@ -128,7 +128,8 @@ describe('the quarter plan', () => {
 
     await user.click(await screen.findByRole('tab', { name: /Gaps/ }));
 
-    const table = await screen.findByRole('table');
+    const panel = await screen.findByRole('tabpanel');
+    const table = within(panel).getByRole('table');
     expect(within(table).getAllByText(/Unit A · Living unit/).length).toBeGreaterThan(0);
     expect(within(table).getAllByRole('button', { name: /Show week of/ }).length).toBeGreaterThan(0);
   });
@@ -155,7 +156,8 @@ describe('the quarter plan', () => {
 
     await user.click(await screen.findByRole('tab', { name: 'Compare' }));
 
-    const table = await screen.findByRole('table');
+    const panel = await screen.findByRole('tabpanel');
+    const table = within(panel).getByRole('table');
     expect(within(table).getByText('Block-days short')).toBeInTheDocument();
     expect(within(table).getByText('Rule warnings')).toBeInTheDocument();
     // Fewer gaps and fewer warnings in the draft: the api says lower is better.
@@ -189,6 +191,53 @@ describe('the quarter plan', () => {
     expect(week).toHaveTextContent('4 – 10 Jan 2027');
     expect(within(week).getByRole('button', { name: 'Previous week' })).toBeDisabled();
 
+  });
+
+  it('shows staffing before a draft, the tile after one, and the flagged shifts', async () => {
+    const user = userEvent.setup();
+    renderPlanner();
+    await asPlanner(user);
+
+    // No draft: the panel sits under the empty card, with the demo closure split.
+    expect(await screen.findByRole('heading', { name: 'Staffing by unit' })).toBeInTheDocument();
+    expect(screen.getByText('Leave allowance: 20%')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'How "needed" is worked out' })).toBeInTheDocument();
+    expect(screen.getAllByText(/4 Jan 2027 – 14 Feb 2027/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/15 Feb 2027 – 11 Apr 2027/).length).toBeGreaterThan(0);
+
+    // Published shifts in a closed unit are listed for a supervisor, never deleted.
+    expect(
+      screen.getByRole('heading', { name: 'Shifts in closed units (2)' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole('link', { name: /Show Unit C, week of 15 Feb 2027, on the planning board/ })
+        .length,
+    ).toBe(2);
+
+    await user.click(screen.getByRole('button', { name: 'Generate draft' }));
+    await screen.findByText('Coverage gaps');
+    expect(screen.getByText('Staffing', { exact: true })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'What this means' })).toHaveLength(7);
+    expect(screen.getByRole('heading', { name: 'Staffing by unit' })).toBeInTheDocument();
+
+    // The formula's own words, and the per-unit How line from the api breakdown.
+    await user.click(screen.getByRole('button', { name: 'How' }));
+    expect(screen.getAllByText(/day 12-hour posts × 2 =/).length).toBeGreaterThan(0);
+  });
+
+  it('changes the leave allowance and refreshes the numbers', async () => {
+    const user = userEvent.setup();
+    renderPlanner();
+    await asPlanner(user);
+    await screen.findByRole('heading', { name: 'Staffing by unit' });
+
+    await user.click(screen.getByRole('button', { name: 'Change leave allowance' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Leave allowance' });
+    await user.clear(within(dialog).getByLabelText('Leave allowance (%)'));
+    await user.type(within(dialog).getByLabelText('Leave allowance (%)'), '25');
+    await user.type(within(dialog).getByLabelText('Reason'), 'More training this year');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('Leave allowance: 25%')).toBeInTheDocument();
   });
 
   it('asks for the warnings to be accepted before committing, then commits', async () => {

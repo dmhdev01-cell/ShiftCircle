@@ -3,6 +3,7 @@ import Typography from '@mui/material/Typography';
 
 import type { CoverageReport } from '../api/types';
 import { colour } from '../theme/tokens';
+import { dateWords } from '../planner/unitDates';
 import { axisTicks } from './coverageAxis';
 import { barSegments, coverageSummary } from './coverageSummary';
 
@@ -204,6 +205,17 @@ export function CoverageChart({ report }: CoverageChartProps) {
         Extra shifts are shifts added on top of the roster, including accepted overtime offers. Payroll
         overtime (hours over the pay-period threshold) is on the Overtime tab and is counted differently.
       </Typography>
+
+      {report.closureNotes?.map((note) => (
+        <Typography
+          key={note.unitId}
+          role="note"
+          sx={{ fontSize: 13, color: colour.status.info.text }}
+        >
+          {note.unitName.split(' · ')[0]} is closed from {dateWords(note.closedFrom)}. From that date
+          it needs no staff, so its hours are not counted in required or scheduled.
+        </Typography>
+      ))}
 
       <Typography component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
         The axis starts at {axisFrom}% so small gaps are visible. The{' '}
