@@ -12,6 +12,7 @@ import type {
   PlannerCompare,
   MyPreferences,
   AuditActorChoice,
+  DemoResetStatus,
   MyPreferencesInput,
   PlannerPreferenceRow,
   PlannerUnitCoverage,
@@ -251,6 +252,15 @@ export function createHttpApi(): ShiftCircleApi {
     ): Promise<PlannerUnitCoverage[]> {
       const params = new URLSearchParams({ from: range.from, to: range.to });
       return request<PlannerUnitCoverage[]>(`/planner/drafts/${draftId}/coverage?${params.toString()}`);
+    },
+    resetDemo(confirm: string, dataset: string): Promise<DemoResetStatus> {
+      return request<DemoResetStatus>('/demo/reset', {
+        method: 'POST',
+        body: JSON.stringify({ confirm, dataset }),
+      });
+    },
+    getDemoResetStatus(): Promise<DemoResetStatus> {
+      return request<DemoResetStatus>('/demo/reset/status');
     },
     getAuditActors(): Promise<AuditActorChoice[]> {
       return request<AuditActorChoice[]>('/audit-events/actors');
