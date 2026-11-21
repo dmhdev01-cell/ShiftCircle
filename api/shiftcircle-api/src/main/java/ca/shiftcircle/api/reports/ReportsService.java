@@ -181,6 +181,7 @@ public class ReportsService {
       double[] values = entry.getValue();
       boolean planned = entry.getKey().isAfter(asOf);
       double scheduledPercent = values[0] > 0 ? values[2] / values[0] * 100.0 : 100.0;
+      double extraPercent = values[0] > 0 ? values[4] / values[0] * 100.0 : 0.0;
       Double actualPercent =
           planned || values[1] <= 0 ? null : values[3] / values[1] * 100.0;
       Map<String, Double> blocks = new LinkedHashMap<>();
@@ -193,6 +194,7 @@ public class ReportsService {
           new ReportsViews.CoverageWeek(
               label(entry.getKey(), ends.get(entry.getKey()), byWeek),
               round2(scheduledPercent),
+              round2(extraPercent),
               actualPercent == null ? null : round2(actualPercent),
               planned,
               round2(values[0]),
@@ -210,6 +212,7 @@ public class ReportsService {
     weeks.forEach(
         week -> {
           percentages.add(week.scheduledPercent());
+          percentages.add(week.scheduledPercent() - week.extraPercent());
           if (week.actualPercent() != null) {
             percentages.add(week.actualPercent());
           }

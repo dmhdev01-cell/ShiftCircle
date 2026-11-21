@@ -292,7 +292,7 @@ path (`POST /assignments`), so S-04 and the audit event still hold.
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
-| GET | `/reports/coverage?from=&to=&unitId=&groupBy=day\|week` | Required vs scheduled vs actual staff-hours and fill rate; each bucket also carries `extraHours` and `extraHoursByBlock` (`DAY`, `EVENING`, `NIGHT`) for assignments of kind `EXTRA` or source `OVERTIME_OFFER`, and the CSV adds `extra_hours,extra_day,extra_evening,extra_night` | SUPERVISOR, AUDITOR |
+| GET | `/reports/coverage?from=&to=&unitId=&groupBy=day\|week` | Required vs scheduled vs actual staff-hours and fill rate; each bucket carries `extraHours` and `extraHoursByBlock` (`DAY`, `EVENING`, `NIGHT`) for assignments of kind `EXTRA` or source `OVERTIME_OFFER`, plus `extraPercent` (the scheduled-percent points made of those hours: `extraHours / requiredHours * 100`, 0 if none), and the CSV adds `extra_hours,extra_day,extra_evening,extra_night`. The axis floor `axisFrom` includes `scheduledPercent - extraPercent` for every week, so the regular part is never clipped. `extraHours` is scheduled extra-shift hours, not payroll overtime | SUPERVISOR, AUDITOR |
 | GET | `/reports/hours?from=&to=&employeeId=` | Scheduled, worked, and hours by pay code per officer | SUPERVISOR, AUDITOR; EMPLOYEE (own only) |
 | GET | `/reports/overtime?from=&to=&top=` | Overtime hours by officer and unit | SUPERVISOR, AUDITOR |
 | GET | `/reports/overrides?from=&to=` | Emergency overrides with reasons | SUPERVISOR, AUDITOR |
@@ -385,7 +385,7 @@ same validation as the grid (R24/R28: rule values are code input).
 | GET | `/planner/drafts/{id}/compare` | Draft vs the board. Rows cover coverage gaps, unfilled gap hours, shifts, officers scheduled, planned hours, plan-added warnings, preferences met (the same per-criterion count as the scorecard's `preferences.met`), and weekends min/avg/max, each with `board`, `draft`, `unit` and `direction` (`LOWER_IS_BETTER`/`HIGHER_IS_BETTER`/`NEUTRAL`), plus one coverage-gap row per unit. Board measures come from the committed shifts through the board's own coverage code; draft measures from the plan tables | PLANNER |
 | POST | `/planner/absences` | `{employeeId, date, type}` → mark a future absence (SICK/VACATION/OTHER) inside the quarter; the next draft skips that officer on that date. Idempotent for the same officer/date/type (200 with the existing row); a different type on that date is 409. Read-only input, not leave management; PLANNER only | PLANNER |
 | GET | `/planner/preferences?unitId=` | Every officer's preferences with how the open draft met them; after a commit it evaluates the committed plan (MET/PARTLY/NOT_MET, with unmet reasons), not "No draft" | PLANNER |
-| GET · PUT · DELETE | `/me/preferences` | The signed-in officer's own preferences (`shiftLength`, `timeOfDay`, up to 2 `daysOff`) | any account linked to an officer |
+| GET · PUT · DELETE | `/me/preferences` | The signed-in officer's own preferences (`shiftLength`, `timesOfDay`, up to 2 `daysOff`). `timesOfDay` is an array of DAY/EVENING/NIGHT without duplicates; empty = no preference; responses carry `timesOfDay` only. The old single `timeOfDay` is accepted on input for one release and mapped to a one-element set (NONE/null to empty); if both are sent, `timesOfDay` wins | any account linked to an officer |
 
 **After a commit the plan is still readable.** `GET /planner/plan` answers `state: COMMITTED`, `draft: null`,
 `lastCommitted` as before, and a `committedDraft` with the same `DraftSummary` shape (`id`, `version`,
