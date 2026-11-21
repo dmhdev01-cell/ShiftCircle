@@ -79,23 +79,23 @@ function mondayOf(date: string): string {
   return addDays(date, -((value.getUTCDay() + 6) % 7));
 }
 
-/** Reset the stack to dataset 120 through the api, and wait for DONE. */
-async function resetTo120(request: APIRequestContext): Promise<void> {
+/** Reset the stack to a dataset through the api, and wait for DONE. */
+async function resetTo(request: APIRequestContext, dataset: '100' | '120'): Promise<void> {
   const api = await apiAs(request, 'p.planner');
-  const started = await api.post('/demo/reset', { confirm: 'RESET', dataset: '120' });
+  const started = await api.post('/demo/reset', { confirm: 'RESET', dataset });
   expect([200, 202]).toContain(started.status);
   for (let attempt = 0; attempt < 90; attempt += 1) {
     const status = await api.get<{ state: string; dataset?: string; error: string | null }>(
       '/demo/reset/status',
     );
     if (status.state === 'DONE') {
-      expect(status.dataset ?? '120').toBe('120');
+      expect(status.dataset ?? dataset).toBe(dataset);
       return;
     }
-    if (status.state === 'FAILED') throw new Error(`reset to 120 failed: ${status.error ?? 'no reason'}`);
+    if (status.state === 'FAILED') throw new Error(`reset to ${dataset} failed: ${status.error ?? 'no reason'}`);
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
-  throw new Error('reset to 120 did not finish');
+  throw new Error(`reset to ${dataset} did not finish`);
 }
 
 /** Commit a plan on the current stack and return its id. */
@@ -133,9 +133,10 @@ async function goToWeek(page: Page, current: { monday: string }, target: string)
  */
 async function fillableOfficer(
   request: APIRequestContext,
+  userId: string,
   gap: Gap,
 ): Promise<{ employeeId: string; name: string }> {
-  const api = await apiAs(request, 'm.ellis');
+  const api = await apiAs(request, userId);
   const from = mondayOf(gap.date);
   const schedule = await api.get<{ officers: Officer[] }>(
     `/schedule?unitId=${gap.unitId}&from=${from}&to=${addDays(from, 6)}`,
@@ -198,12 +199,19 @@ test.describe('dataset 120', () => {
     test.skip(await isFixtures(page), 'the crews and casuals need the real api');
   });
 
+  // Leave the seeded 100 dataset behind: the rest of the suite (and the demo)
+  // assumes the untouched baseline, and the reset is the only stack-wide write.
+  test.afterAll(async ({ request }) => {
+    test.setTimeout(180_000);
+    await resetTo(request, '100');
+  });
+
   test('shows the gaps, carries D12/N12, fills one, and refuses a fifth 12 h day', async ({
     page,
     request,
   }) => {
     test.setTimeout(300000);
-    await resetTo120(request);
+    await resetTo(request, '120');
     const draftId = await commitPlan(request);
 
     const planner = await apiAs(request, 'p.planner');
@@ -240,29 +248,44 @@ test.describe('dataset 120', () => {
     expect(count, 'the Gaps tab counts the short block-days').toBeGreaterThan(20);
     await signOut(page, 'P. Planner');
 
-    // A supervisor opens the committed plan: the 2027 week carries the 12 h
-    // crew chips, not raw codes. Walk the supervisor's own units until one
-    // shows a day or night crew (the crews are not in every unit).
-    await signIn(page, 'M. Ellis');
+    // A supervisor opens the committed plan. The crews live in specific units,
+    // and each supervisor sees only their own: use the supervisor whose units
+    // hold a gap (M. Ellis owns A/B, J. Chen the crew units). That supervisor
+    // also fills the gap (demo step 7).
+    const supervisors = [
+      { id: 'm.ellis', name: 'M. Ellis' },
+      { id: 'j.chen', name: 'J. Chen' },
+    ];
+    let actor:
+      | { id: string; name: string; units: Unit[]; gap: Gap }
+      | undefined;
+    for (const candidate of supervisors) {
+      const candidateApi = await apiAs(request, candidate.id);
+      const units = await candidateApi.get<Unit[]>('/units');
+      const gap = gaps.find((entry) => units.some((unit) => unit.id === entry.unitId));
+      if (gap) {
+        actor = { ...candidate, units, gap };
+        break;
+      }
+    }
+    expect(actor, 'a supervisor whose units hold a gap').toBeTruthy();
+    const supervisor = actor!;
+    const gap = supervisor.gap;
+
+    await signIn(page, supervisor.name);
     await navTo(page, 'Planning board');
     const current = { monday: DEMO_MONDAY };
     await goToWeek(page, current, PLAN_FROM);
     await expect(page.getByRole('group', { name: 'Week' })).toContainText('4 – 10 Jan 2027');
-    const supervisorApi = await apiAs(request, 'm.ellis');
-    const supervisorUnits = await supervisorApi.get<Unit[]>('/units');
     let chips = 0;
-    for (const unit of supervisorUnits) {
+    for (const unit of supervisor.units) {
       await selectUnit(page, unit.name);
       chips = await page.getByRole('button', { name: /^(D12|N12) for / }).count();
       if (chips > 0) break;
     }
     expect(chips, 'a D12 or N12 chip on the committed 2027 week').toBeGreaterThan(0);
 
-    // Demo step 7: fill one gap on the board, in a unit this supervisor owns.
-    const supervised = new Set(supervisorUnits.map((unit) => unit.id));
-    const gap = gaps.find((candidate) => supervised.has(candidate.unitId));
-    expect(gap, 'a gap in one of the supervisor\'s units').toBeTruthy();
-    const officer = await fillableOfficer(request, gap!);
+    const officer = await fillableOfficer(request, supervisor.id, gap);
     await selectUnit(page, gap!.unitName);
     await goToWeek(page, current, mondayOf(gap!.date));
     const off = page.getByRole('button', {

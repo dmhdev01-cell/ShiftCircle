@@ -101,7 +101,7 @@ test.describe('the audit filters', () => {
 
 /** The events table, once the first answer has landed. */
 async function screen_table(page: import('@playwright/test').Page) {
-  const table = page.getByRole('table', { name: 'Audit events, scrolls sideways' });
+  const table = page.getByRole('table', { name: 'Audit events' });
   await expect(table).toBeVisible();
   return table;
 }

@@ -36,6 +36,7 @@ test.describe('the planner, accessible and by keyboard', () => {
     await expectAccessible(page, testInfo, 'planner-gaps');
 
     // The dialog by keyboard: open it, axe it, tick with Space, close with Esc.
+    await page.getByRole('tab', { name: 'Scorecard' }).click();
     await page.getByRole('button', { name: 'Commit plan…' }).focus();
     await page.keyboard.press('Enter');
     const dialog = page.getByRole('dialog');
