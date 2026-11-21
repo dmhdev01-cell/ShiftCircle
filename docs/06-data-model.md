@@ -139,4 +139,7 @@ Tiny for PostgreSQL. The performance targets (NFR-05) come down to sensible inde
 | `V1__schema.sql` | Extensions (`btree_gist`, `pgcrypto`), types, tables, constraints, triggers (append-only audit, locked pay periods). **No role grants:** the prototype runs as one database user and the triggers are the proof of append-only audit; separate roles and grants are deferred to a pilot (ADR-018). |
 | `V2__reference_data.sql` | Shift templates, blocks, qualifications, rule tables, rule set **v1** from `05-union-rules.md` |
 | `V3__demo_units_and_users.sql` | Fictional units, unit requirements, demo users and roles |
-| Java `DemoDataGenerator` (`demo` profile) | 100 officers, rotations, 90 days of assignments, absences (~4%: 2% sick, 2% vacation, ADR-020), overtime fills, actuals for days before "today", and the planted test cases. Fixed seed, so it's reproducible. Runs only if the database is empty. |
+| `V4__overtime_offer_confirmed.sql` | The supervisor's confirmation state on an overtime offer |
+| `V5__planner.sql` | Planner draft/assignment/gap tables, the PLANNER role, preferences, `plan_draft_id` |
+| `V6__day_night_12h.sql` | D12/N12 templates and published rule-set v2 (U-02 additive kind list, U-10 19-07); no unit flags, so the 100 seed stays A12/P12/L16 |
+| Java `DemoDataGenerator` (`demo` profile) | 100 officers, rotations, 90 days of assignments, absences (~4%: 2% sick, 2% vacation, ADR-020), overtime fills, actuals for days before "today", and the planted test cases. Fixed seed, so it's reproducible. Runs only if the database is empty. The 150 dataset (100 FT crews + 50 casuals; see DATASET150-SPEC) is a separate provider, selected by `dataset: "150"` when it lands. |
