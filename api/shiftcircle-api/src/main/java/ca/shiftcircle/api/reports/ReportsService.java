@@ -99,21 +99,29 @@ public class ReportsService {
     long slotCount = java.time.Duration.between(start, end).toHours();
     int[] scheduled = new int[(int) slotCount];
     int[] actual = new int[(int) slotCount];
+    int[] extra = new int[(int) slotCount];
 
     // Count the intervals in Java rather than joining every hour slot to every shift in SQL: the
     // 90-day report then reads the shifts once (NFR-05).
     List<Map<String, Object>> assignments =
         jdbc.queryForList(
-            "SELECT start_at, end_at FROM shift_assignment s WHERE s.status <> 'CANCELLED'"
+            "SELECT start_at, end_at, kind, source FROM shift_assignment s"
+                + " WHERE s.status <> 'CANCELLED'"
                 + " AND s.unit_id IN (" + placeholders(scope.unitIds().size()) + ")"
                 + " AND s.start_at < ? AND s.end_at > ?",
             args(
                 scope.unitIds(),
                 List.of(Timestamp.from(end), Timestamp.from(start))));
     for (Map<String, Object> assignment : assignments) {
-      mark(scheduled, start, slotCount,
-          ((Timestamp) assignment.get("start_at")).toInstant(),
-          ((Timestamp) assignment.get("end_at")).toInstant());
+      Instant assignmentStart = ((Timestamp) assignment.get("start_at")).toInstant();
+      Instant assignmentEnd = ((Timestamp) assignment.get("end_at")).toInstant();
+      mark(scheduled, start, slotCount, assignmentStart, assignmentEnd);
+      boolean overtime =
+          "EXTRA".equals(String.valueOf(assignment.get("kind")))
+              || "OVERTIME_OFFER".equals(String.valueOf(assignment.get("source")));
+      if (overtime) {
+        mark(extra, start, slotCount, assignmentStart, assignmentEnd);
+      }
     }
 
     List<Map<String, Object>> entries =
@@ -133,6 +141,7 @@ public class ReportsService {
     }
 
     Map<LocalDate, double[]> totals = new LinkedHashMap<>();
+    Map<LocalDate, Map<String, double[]>> extraByBlock = new LinkedHashMap<>();
     Map<LocalDate, LocalDate> ends = new LinkedHashMap<>();
     Instant slotStart = start;
     for (int slot = 0; slot < slotCount; slot++, slotStart = slotStart.plusSeconds(3600)) {
@@ -147,13 +156,17 @@ public class ReportsService {
         required += blocks.getOrDefault(blockName(block), 0);
       }
 
-      double[] bucketTotals = totals.computeIfAbsent(bucket, key -> new double[4]);
+      double[] bucketTotals = totals.computeIfAbsent(bucket, key -> new double[5]);
       bucketTotals[0] += required;
       if (slotStart.isBefore(asOfInstant)) {
         bucketTotals[1] += required;
       }
       bucketTotals[2] += scheduled[slot];
       bucketTotals[3] += actual[slot];
+      bucketTotals[4] += extra[slot];
+      extraByBlock
+          .computeIfAbsent(bucket, key -> new LinkedHashMap<>())
+          .computeIfAbsent(blockName(block), key -> new double[1])[0] += extra[slot];
       ends.put(bucket, bucketEnd);
     }
 
@@ -161,6 +174,7 @@ public class ReportsService {
     double requiredTotal = 0;
     double scheduledTotal = 0;
     double actualTotal = 0;
+    double extraTotal = 0;
     List<Map.Entry<LocalDate, double[]>> ordered = new ArrayList<>(totals.entrySet());
     ordered.sort(Map.Entry.comparingByKey());
     for (Map.Entry<LocalDate, double[]> entry : ordered) {
@@ -169,6 +183,12 @@ public class ReportsService {
       double scheduledPercent = values[0] > 0 ? values[2] / values[0] * 100.0 : 100.0;
       Double actualPercent =
           planned || values[1] <= 0 ? null : values[3] / values[1] * 100.0;
+      Map<String, Double> blocks = new LinkedHashMap<>();
+      Map<String, double[]> perBlock = extraByBlock.get(entry.getKey());
+      for (String name : List.of("DAY", "EVENING", "NIGHT")) {
+        double[] value = perBlock == null ? null : perBlock.get(name);
+        blocks.put(name, round2(value == null ? 0 : value[0]));
+      }
       weeks.add(
           new ReportsViews.CoverageWeek(
               label(entry.getKey(), ends.get(entry.getKey()), byWeek),
@@ -177,10 +197,13 @@ public class ReportsService {
               planned,
               round2(values[0]),
               round2(values[2]),
-              planned ? null : round2(values[3])));
+              planned ? null : round2(values[3]),
+              round2(values[4]),
+              blocks));
       requiredTotal += values[0];
       scheduledTotal += values[2];
       actualTotal += values[3];
+      extraTotal += values[4];
     }
 
     List<Double> percentages = new ArrayList<>();
@@ -201,12 +224,18 @@ public class ReportsService {
 
     Double actualHours = from.isAfter(asOf) ? null : round2(actualTotal);
     return new ReportsViews.CoverageReport(
-        weeks, axisFrom, axisTo, round2(requiredTotal), round2(scheduledTotal), actualHours);
+        weeks,
+        axisFrom,
+        axisTo,
+        round2(requiredTotal),
+        round2(scheduledTotal),
+        actualHours,
+        round2(extraTotal));
   }
 
   private ReportsViews.CoverageReport emptyCoverage(LocalDate from, LocalDate to) {
     return new ReportsViews.CoverageReport(
-        List.of(), 98, 102, 0, 0, from.isAfter(asOf) ? null : 0.0);
+        List.of(), 98, 102, 0, 0, from.isAfter(asOf) ? null : 0.0, 0);
   }
 
   /** Adds one to each hour slot the interval covers, clipped to the report window. */
@@ -631,7 +660,8 @@ public class ReportsService {
     ReportsViews.CoverageReport report = coverage(principal, from, to, groupBy, unitId);
     StringBuilder csv =
         new StringBuilder(
-            "week,required_hours,scheduled_hours,actual_hours,scheduled_percent,actual_percent,planned\n");
+            "week,required_hours,scheduled_hours,actual_hours,scheduled_percent,actual_percent,"
+                + "planned,extra_hours,extra_day,extra_evening,extra_night\n");
     for (ReportsViews.CoverageWeek week : report.weeks()) {
       csv.append(Csv.cell(week.label()))
           .append(',')
@@ -646,6 +676,14 @@ public class ReportsService {
           .append(money(week.actualPercent()))
           .append(',')
           .append(week.planned())
+          .append(',')
+          .append(money(week.extraHours()))
+          .append(',')
+          .append(money(week.extraHoursByBlock().get("DAY")))
+          .append(',')
+          .append(money(week.extraHoursByBlock().get("EVENING")))
+          .append(',')
+          .append(money(week.extraHoursByBlock().get("NIGHT")))
           .append('\n');
     }
     return csv.toString();

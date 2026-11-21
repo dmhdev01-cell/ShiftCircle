@@ -275,7 +275,8 @@ path (`POST /assignments`), so S-04 and the audit event still hold.
 |---|---|---|---|
 | GET | `/pay-periods` | Periods with status, the period's overtime threshold and the lock totals | SUPERVISOR, AUDITOR |
 | GET | `/pay-periods/{id}/time-entries?employeeId=` | Scheduled vs actual entries with pay codes, the officer's name and unit, the actual start and end, and the unpaid extension under 30 min (P-04) | SUPERVISOR, AUDITOR; EMPLOYEE (own) |
-| PUT | `/time-entries/{id}` | Record actuals (worked as scheduled / adjusted times / absence type) | SUPERVISOR |
+| PUT | `/time-entries/{id}` | Record actuals (worked as scheduled / adjusted times / absence type); changing a recorded absence to worked (or back) replaces the previous record | SUPERVISOR |
+| DELETE | `/time-entries/{id}` | Clear the actual or absence and return the shift to `needsActual`; a locked period answers `409`, and the change is audited (`clear_actual`) | SUPERVISOR |
 | POST | `/pay-periods/{id}/lock` | Lock: actuals become read-only. **Refused with `409`** (`type: .../problems/missing-actuals`, body lists `missing: [{ assignmentId, employeeId, start }]` and a count) while any shift in the period that has ended (`end_at ≤ now`) has no actual time entry or absence (ADR-017). **Idempotent:** locking a period that is already `LOCKED` returns `200` with the period view and writes no second audit row. Facility-wide: any supervisor with at least one unit in scope (ADR-022) | SUPERVISOR |
 | POST | `/pay-periods/{id}/unlock` | `{ "reason" }`; audited with actor and reason. Facility-wide (ADR-022). Concurrent unlocks apply once and write one audit row | SUPERVISOR |
 | GET | `/pay-periods/{id}/payroll-export` | `text/csv`; locked periods only; records a `payroll_export` row with the actor and file hash. Facility-wide: every officer in the period, not only the caller's units (ADR-022) | SUPERVISOR |
@@ -290,7 +291,7 @@ path (`POST /assignments`), so S-04 and the audit event still hold.
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
-| GET | `/reports/coverage?from=&to=&unitId=&groupBy=day\|week` | Required vs scheduled vs actual staff-hours and fill rate | SUPERVISOR, AUDITOR |
+| GET | `/reports/coverage?from=&to=&unitId=&groupBy=day\|week` | Required vs scheduled vs actual staff-hours and fill rate; each bucket also carries `extraHours` and `extraHoursByBlock` (`DAY`, `EVENING`, `NIGHT`) for assignments of kind `EXTRA` or source `OVERTIME_OFFER`, and the CSV adds `extra_hours,extra_day,extra_evening,extra_night` | SUPERVISOR, AUDITOR |
 | GET | `/reports/hours?from=&to=&employeeId=` | Scheduled, worked, and hours by pay code per officer | SUPERVISOR, AUDITOR; EMPLOYEE (own only) |
 | GET | `/reports/overtime?from=&to=&top=` | Overtime hours by officer and unit | SUPERVISOR, AUDITOR |
 | GET | `/reports/overrides?from=&to=` | Emergency overrides with reasons | SUPERVISOR, AUDITOR |
@@ -362,6 +363,7 @@ same validation as the grid (R24/R28: rule values are code input).
 |---|---|---|---|
 | GET | `/display/today` | Counts per unit and block, open shifts and overtime counts. **No names.** | DISPLAY, SUPERVISOR (own units), AUDITOR |
 | GET | `/audit-events?entityType=&entityId=&from=&to=` | Audit trail | AUDITOR, SUPERVISOR (own units) |
+| GET | `/audit-events/actors` | The actors whose events the caller can see, for the filter dropdown (same scope as the trail) | AUDITOR, SUPERVISOR (own units) |
 | GET | `/version` | Build version, git commit, live rule set version, and `asOf` (the server's "today", so the web's clock shows the demo day) | any |
 | GET | `/actuator/health` | Liveness and readiness. Internal only, not proxied by nginx. | container network |
 

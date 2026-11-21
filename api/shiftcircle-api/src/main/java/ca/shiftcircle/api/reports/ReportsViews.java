@@ -1,6 +1,7 @@
 package ca.shiftcircle.api.reports;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** The report shapes the web builds against (web/src/api/types.ts, docs/07 §4.6). */
@@ -20,7 +21,9 @@ public final class ReportsViews {
       boolean planned,
       double requiredHours,
       double scheduledHours,
-      Double actualHours) {}
+      Double actualHours,
+      double extraHours,
+      Map<String, Double> extraHoursByBlock) {}
 
   public record CoverageReport(
       List<CoverageWeek> weeks,
@@ -28,7 +31,8 @@ public final class ReportsViews {
       int axisTo,
       double requiredHours,
       double scheduledHours,
-      Double actualHours) {}
+      Double actualHours,
+      double extraHours) {}
 
   public record HoursByOfficer(
       UUID employeeId,

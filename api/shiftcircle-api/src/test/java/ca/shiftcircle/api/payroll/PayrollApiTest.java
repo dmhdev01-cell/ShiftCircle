@@ -565,6 +565,176 @@ class PayrollApiTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  void anAbsenceCanBeCorrectedToWorkedAndPayCodesRecalculate() throws Exception {
+    assertThat(
+            send(
+                    "POST",
+                    "/api/v1/absences",
+                    "{\"assignmentId\":\"" + MISSING_ASSIGNMENTS[0] + "\",\"type\":\"SICK\"}",
+                    tokens.get("m.ellis"))
+                .statusCode())
+        .isEqualTo(201);
+
+    HttpResponse<String> response =
+        send(
+            "PUT",
+            "/api/v1/time-entries/" + MISSING_ASSIGNMENTS[0],
+            "{\"workedAsScheduled\":true}",
+            tokens.get("m.ellis"));
+
+    assertThat(response.statusCode()).isEqualTo(200);
+    Map<String, Object> entry = (Map<String, Object>) json(response).get("entry");
+    assertThat(entry.get("absence")).isNull();
+    assertThat(entry.get("needsActual")).isEqualTo(false);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM absence WHERE shift_assignment_id = ?",
+                Integer.class,
+                MISSING_ASSIGNMENTS[0]))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT pay_code FROM time_entry WHERE shift_assignment_id = ?",
+                String.class,
+                MISSING_ASSIGNMENTS[0]))
+        .isEqualTo("REG");
+    UUID entryId =
+        jdbc.queryForObject(
+            "SELECT id FROM time_entry WHERE shift_assignment_id = ?",
+            UUID.class,
+            MISSING_ASSIGNMENTS[0]);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM audit_event WHERE action = 'record_absence' AND entity_id = ?",
+                Integer.class,
+                entryId))
+        .isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM audit_event WHERE action = 'record_actual' AND entity_id = ?",
+                Integer.class,
+                entryId))
+        .isEqualTo(1);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void aWorkedShiftCanBeCorrectedToAnAbsence() throws Exception {
+    assertThat(
+            send(
+                    "PUT",
+                    "/api/v1/time-entries/" + MISSING_ASSIGNMENTS[1],
+                    "{\"workedAsScheduled\":true}",
+                    tokens.get("m.ellis"))
+                .statusCode())
+        .isEqualTo(200);
+
+    HttpResponse<String> response =
+        send(
+            "POST",
+            "/api/v1/absences",
+            "{\"assignmentId\":\"" + MISSING_ASSIGNMENTS[1] + "\",\"type\":\"VACATION\"}",
+            tokens.get("m.ellis"));
+
+    assertThat(response.statusCode()).isEqualTo(201);
+    Map<String, Object> entry = (Map<String, Object>) json(response).get("entry");
+    assertThat(entry.get("absence")).isEqualTo("VACATION");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT pay_code FROM time_entry WHERE shift_assignment_id = ?",
+                String.class,
+                MISSING_ASSIGNMENTS[1]))
+        .isEqualTo("VAC");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM absence WHERE shift_assignment_id = ?",
+                Integer.class,
+                MISSING_ASSIGNMENTS[1]))
+        .isEqualTo(1);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void aClearedActualReturnsTheShiftToNeedsActual() throws Exception {
+    assertThat(
+            send(
+                    "PUT",
+                    "/api/v1/time-entries/" + MISSING_ASSIGNMENTS[2],
+                    "{\"workedAsScheduled\":true}",
+                    tokens.get("m.ellis"))
+                .statusCode())
+        .isEqualTo(200);
+    UUID entryId =
+        jdbc.queryForObject(
+            "SELECT id FROM time_entry WHERE shift_assignment_id = ?",
+            UUID.class,
+            MISSING_ASSIGNMENTS[2]);
+
+    HttpResponse<String> response =
+        send(
+            "DELETE",
+            "/api/v1/time-entries/" + MISSING_ASSIGNMENTS[2],
+            null,
+            tokens.get("m.ellis"));
+
+    assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+    Map<String, Object> body = json(response);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> clearedEntry = (Map<String, Object>) body.get("entry");
+    assertThat(clearedEntry.get("needsActual")).isEqualTo(true);
+    assertThat(clearedEntry.get("worked")).isEqualTo(false);
+    assertThat(clearedEntry.get("absence")).isNull();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM time_entry WHERE shift_assignment_id = ?",
+                Integer.class,
+                MISSING_ASSIGNMENTS[2]))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM absence WHERE shift_assignment_id = ?",
+                Integer.class,
+                MISSING_ASSIGNMENTS[2]))
+        .isZero();
+    List<Map<String, Object>> entries =
+        mapper.readValue(
+            send(
+                    "GET",
+                    entriesPath(PERIOD_MISSING),
+                    null,
+                    tokens.get("m.ellis"))
+                .body(),
+            List.class);
+    Map<String, Object> cleared =
+        entries.stream()
+            .filter(row -> MISSING_ASSIGNMENTS[2].toString().equals(row.get("assignmentId")))
+            .findFirst()
+            .orElseThrow();
+    assertThat(cleared.get("needsActual")).isEqualTo(true);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM audit_event WHERE action = 'clear_actual' AND entity_id = ?",
+                Integer.class,
+                entryId))
+        .isEqualTo(1);
+  }
+
+  @Test
+  void clearingAnActualInALockedPeriodIsRefused() throws Exception {
+    HttpResponse<String> response =
+        send(
+            "DELETE",
+            "/api/v1/time-entries/66666666-6666-6666-6666-000000000101",
+            null,
+            tokens.get("m.ellis"));
+
+    assertThat(response.statusCode()).isEqualTo(409);
+    assertThat(json(response).get("type"))
+        .isEqualTo("https://shiftcircle.local/problems/pay-period-locked");
+  }
+
+  @Test
   void refusesToLockWithMissingActualsAndNamesThem() throws Exception {
     HttpResponse<String> response =
         send("POST", "/api/v1/pay-periods/" + PERIOD_MISSING + "/lock", null, tokens.get("m.ellis"));
