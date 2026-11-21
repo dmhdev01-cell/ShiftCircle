@@ -420,17 +420,19 @@ public class DemoDataGenerator implements ApplicationRunner {
       int shiftLength = h == 0 ? 16 : h < 3 ? 12 : 8;
       int t = Math.floorMod((settings.seed() + "|time|" + officer.employeeNo()).hashCode(), 20);
       String timeOfDay = t == 0 ? "NIGHT" : t < 3 ? "EVENING" : t < 5 ? "DAY" : "NONE";
+      String[] timesOfDay =
+          "NONE".equals(timeOfDay) ? new String[] {} : new String[] {timeOfDay};
       String dayOne = weekdays[Math.floorMod((officer.employeeNo() + "|off1").hashCode(), 7)];
       String dayTwo = weekdays[Math.floorMod((officer.employeeNo() + "|off2").hashCode(), 7)];
       jdbc.update(
           connection -> {
             var statement =
                 connection.prepareStatement(
-                    "INSERT INTO officer_preference (employee_id, shift_length, time_of_day,"
+                    "INSERT INTO officer_preference (employee_id, shift_length, times_of_day,"
                         + " days_off) VALUES (?, ?, ?, ?) ON CONFLICT (employee_id) DO NOTHING");
             statement.setObject(1, officer.id());
             statement.setInt(2, shiftLength);
-            statement.setString(3, timeOfDay);
+            statement.setArray(3, connection.createArrayOf("text", timesOfDay));
             statement.setArray(
                 4,
                 connection.createArrayOf(

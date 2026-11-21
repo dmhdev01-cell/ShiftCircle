@@ -350,6 +350,8 @@ class PlannerApiTest {
     Map<String, Object> mine =
         json(send("GET", "/api/v1/me/preferences", null, tokens.get("t.nakamura")));
     assertThat(mine.get("shiftLength")).isEqualTo(12);
+    assertThat(mine.get("timesOfDay")).isEqualTo(List.of("EVENING"));
+    assertThat(mine).doesNotContainKey("timeOfDay");
     assertThat(mine.get("daysOff")).isEqualTo(List.of("SAT", "MON"));
     assertThat(
             send("PUT", "/api/v1/me/preferences",
@@ -388,7 +390,8 @@ class PlannerApiTest {
             List.class);
     assertThat(all).hasSize(100);
     assertThat(all.get(0)).containsKeys(
-        "employeeId", "name", "shiftLength", "timeOfDay", "daysOff", "inDraft");
+        "employeeId", "name", "shiftLength", "timesOfDay", "daysOff", "inDraft");
+    assertThat(all.get(0)).doesNotContainKey("timeOfDay");
     assertThat(send("DELETE", "/api/v1/me/preferences", null, tokens.get("t.nakamura")).statusCode())
         .isEqualTo(204);
   }

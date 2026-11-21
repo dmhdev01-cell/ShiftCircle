@@ -957,16 +957,15 @@ public class PlannerService {
                             == pref.shiftLength() * 60)) {
           preferencesMet++;
         }
-        if (pref.timeOfDay() != null
-            && !"NONE".equals(pref.timeOfDay())
+        if (PreferenceTimes.asked(pref.timesOfDay())
             && !shifts.isEmpty()
             && shifts.stream()
                 .allMatch(
                     shift ->
-                        pref.timeOfDay()
-                            .equals(
-                                ShiftKinds.timeOfDay(
-                                    (java.sql.Time) shift.get("start_time"))))) {
+                        PreferenceTimes.matches(
+                            pref.timesOfDay(),
+                            ShiftKinds.timeOfDay(
+                                (java.sql.Time) shift.get("start_time"))))) {
           preferencesMet++;
         }
         if (pref.daysOff() != null
@@ -1002,7 +1001,7 @@ public class PlannerService {
   private Map<UUID, PlanGenerator.Pref> preferencesById() {
     Map<UUID, PlanGenerator.Pref> prefs = new HashMap<>();
     jdbc.query(
-        "SELECT employee_id, shift_length, time_of_day, days_off FROM officer_preference",
+        "SELECT employee_id, shift_length, times_of_day, days_off FROM officer_preference",
         (RowCallbackHandler)
             rs ->
                 prefs.put(
@@ -1011,7 +1010,7 @@ public class PlannerService {
                         rs.getObject("shift_length") == null
                             ? null
                             : rs.getInt("shift_length"),
-                        rs.getString("time_of_day"),
+                        timesOfDay(rs.getArray("times_of_day")),
                         daysOff(rs.getArray("days_off")))));
     return prefs;
   }
@@ -1119,7 +1118,7 @@ public class PlannerService {
     }
     String sql =
         "SELECT e.id, e.employee_no, e.first_name || ' ' || e.last_name AS name,"
-            + " u.name AS unit_name, e.seniority_date, p.shift_length, p.time_of_day, p.days_off,"
+            + " u.name AS unit_name, e.seniority_date, p.shift_length, p.times_of_day, p.days_off,"
             + " p.max_days_off, p.updated_at"
             + " FROM employee e JOIN unit u ON u.id = e.home_unit_id"
             + " LEFT JOIN officer_preference p ON p.employee_id = e.id"
@@ -1132,7 +1131,7 @@ public class PlannerService {
           UUID employeeId = rs.getObject("id", UUID.class);
           List<String> days = daysOff(rs.getArray("days_off"));
           Integer length = rs.getObject("shift_length", Integer.class);
-          String time = rs.getString("time_of_day");
+          List<String> times = timesOfDay(rs.getArray("times_of_day"));
           List<Map<String, Object>> shifts = inDraft.getOrDefault(employeeId, List.of());
           List<String> unmet = new ArrayList<>();
           if (length != null
@@ -1147,17 +1146,20 @@ public class PlannerService {
                     ? "Shift length 16 h: the planner does not roster 16-hour shifts"
                     : "Shift length " + length + " h");
           }
-          if (time != null
-              && !"NONE".equals(time)
-              && shifts.stream()
-                  .anyMatch(
-                      shift ->
-                          !time.equals(
-                              ShiftKinds.timeOfDay((java.sql.Time) shift.get("start_time"))))) {
-            unmet.add(
-                "NIGHT".equals(time) && (length == null || length == 8)
-                    ? "Time of day NIGHT: only 12-hour officers work nights"
-                    : "Time of day " + time);
+          if (PreferenceTimes.asked(times)) {
+            boolean impossibleNight = times.contains("NIGHT") && (length == null || length == 8);
+            boolean mismatch =
+                shifts.stream()
+                    .anyMatch(
+                        shift ->
+                            !PreferenceTimes.matches(
+                                times,
+                                ShiftKinds.timeOfDay((java.sql.Time) shift.get("start_time"))));
+            if (impossibleNight) {
+              unmet.add("Time of day NIGHT: only 12-hour officers work nights");
+            } else if (mismatch) {
+              unmet.add("Time of day " + String.join(", ", times));
+            }
           }
           if (!days.isEmpty()
               && shifts.stream()
@@ -1174,7 +1176,7 @@ public class PlannerService {
           String status =
               planId == null
                   ? "NO_DRAFT"
-                  : length == null && time == null && days.isEmpty()
+                  : length == null && times.isEmpty() && days.isEmpty()
                       ? "NONE"
                       : unmet.isEmpty() ? "MET" : unmet.size() >= 2 ? "NOT_MET" : "PARTLY";
           Timestamp updated = rs.getTimestamp("updated_at");
@@ -1185,7 +1187,7 @@ public class PlannerService {
               rs.getString("unit_name"),
               rs.getDate("seniority_date").toLocalDate(),
               length,
-              time,
+              times,
               days,
               rs.getInt("max_days_off"),
               status,
@@ -1205,7 +1207,7 @@ public class PlannerService {
             .orElse(Map.of());
     return new PlannerViews.MyPreferences(
         row.get("shift_length") == null ? null : ((Number) row.get("shift_length")).intValue(),
-        (String) row.get("time_of_day"),
+        row.get("times_of_day") == null ? List.of() : timesOfDay((Array) row.get("times_of_day")),
         row.get("days_off") == null
             ? List.of()
             : daysOff((Array) row.get("days_off")),
@@ -1222,10 +1224,14 @@ public class PlannerService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "shiftLength must be 8, 12, 16 or null");
     }
-    String time = input.timeOfDay() == null ? null : input.timeOfDay().toUpperCase(Locale.ROOT);
-    if (time != null && !TIMES.contains(time)) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "timeOfDay must be DAY, EVENING, NIGHT, NONE or null");
+    List<String> times;
+    try {
+      times =
+          input.timesOfDay() != null
+              ? PreferenceTimes.normalize(input.timesOfDay())
+              : PreferenceTimes.fromLegacy(input.timeOfDay());
+    } catch (IllegalArgumentException invalid) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, invalid.getMessage());
     }
     List<String> days =
         input.daysOff() == null
@@ -1246,11 +1252,11 @@ public class PlannerService {
         connection -> {
           var statement =
               connection.prepareStatement(
-                  "INSERT INTO officer_preference (employee_id, shift_length, time_of_day, days_off,"
+                  "INSERT INTO officer_preference (employee_id, shift_length, times_of_day, days_off,"
                       + " max_days_off, updated_at, updated_by) VALUES (?, ?, ?, ?, 2, now(),"
                       + " (SELECT id FROM app_user WHERE username = ?))"
                       + " ON CONFLICT (employee_id) DO UPDATE SET shift_length = EXCLUDED.shift_length,"
-                      + " time_of_day = EXCLUDED.time_of_day, days_off = EXCLUDED.days_off,"
+                      + " times_of_day = EXCLUDED.times_of_day, days_off = EXCLUDED.days_off,"
                       + " updated_at = now(), updated_by = EXCLUDED.updated_by");
           statement.setObject(1, employeeId);
           if (input.shiftLength() == null) {
@@ -1258,7 +1264,7 @@ public class PlannerService {
           } else {
             statement.setInt(2, input.shiftLength());
           }
-          statement.setString(3, time);
+          statement.setArray(3, connection.createArrayOf("text", times.toArray()));
           statement.setArray(4, connection.createArrayOf("text", days.toArray()));
           statement.setString(5, principal.username());
           return statement;
@@ -1303,7 +1309,7 @@ public class PlannerService {
     Map<UUID, Integer> phases = new HashMap<>();
     return jdbc.query(
         "SELECT e.id, e.employee_no, e.first_name || ' ' || e.last_name AS name,"
-            + " e.home_unit_id, e.seniority_date, e.fte, p.shift_length, p.time_of_day, p.days_off,"
+            + " e.home_unit_id, e.seniority_date, e.fte, p.shift_length, p.times_of_day, p.days_off,"
             + " rp.code AS crew"
             + " FROM employee e LEFT JOIN officer_preference p ON p.employee_id = e.id"
             + " LEFT JOIN rotation_pattern rp ON rp.id = e.rotation_pattern_id"
@@ -1338,7 +1344,7 @@ public class PlannerService {
               unit.code(),
               rs.getDate("seniority_date").toLocalDate(),
               rs.getDouble("fte"),
-              new PlanGenerator.Pref(preferred, rs.getString("time_of_day"), daysOff(rs.getArray("days_off"))),
+              new PlanGenerator.Pref(preferred, timesOfDay(rs.getArray("times_of_day")), daysOff(rs.getArray("days_off"))),
               effective,
               index % 7,
               crew);
@@ -1599,6 +1605,15 @@ public class PlannerService {
       }
       return List.of();
     } catch (Exception unreadable) {
+      return List.of();
+    }
+  }
+
+  private List<String> timesOfDay(Array array) {
+    try {
+      return PreferenceTimes.normalize(daysOff(array));
+    } catch (IllegalArgumentException invalid) {
+      // The V9 CHECK makes this unreachable; a hand-edited row is read as no preference.
       return List.of();
     }
   }

@@ -37,7 +37,7 @@ public final class PlanGenerator {
   private static final ZoneId REGINA = ZoneId.of("America/Regina");
   private static final List<String> BLOCKS = List.of("NIGHT", "DAY", "EVENING");
 
-  public record Pref(Integer shiftLength, String timeOfDay, List<String> daysOff) {}
+  public record Pref(Integer shiftLength, List<String> timesOfDay, List<String> daysOff) {}
 
   public record Employee(
       UUID id,
@@ -372,8 +372,8 @@ public final class PlanGenerator {
       // Preference first: DAY then EVENING; seniority breaks the tie.
       rest.sort(
           (a, b) -> {
-            int rankA = "DAY".equals(a.pref().timeOfDay()) ? 0 : "EVENING".equals(a.pref().timeOfDay()) ? 1 : 2;
-            int rankB = "DAY".equals(b.pref().timeOfDay()) ? 0 : "EVENING".equals(b.pref().timeOfDay()) ? 1 : 2;
+            int rankA = PreferenceTimes.rank(a.pref().timesOfDay());
+            int rankB = PreferenceTimes.rank(b.pref().timesOfDay());
             return rankA != rankB ? Integer.compare(rankA, rankB) : a.seniority().compareTo(b.seniority());
           });
       for (Employee employee : rest) {
@@ -420,8 +420,8 @@ public final class PlanGenerator {
     if ("NIGHT".equals(block)) {
       order =
           (a, b) -> {
-            boolean volunteerA = "NIGHT".equals(a.pref().timeOfDay());
-            boolean volunteerB = "NIGHT".equals(b.pref().timeOfDay());
+            boolean volunteerA = PreferenceTimes.nightVolunteer(a.pref().timesOfDay());
+            boolean volunteerB = PreferenceTimes.nightVolunteer(b.pref().timesOfDay());
             if (volunteerA != volunteerB) {
               return volunteerA ? -1 : 1;
             }
@@ -523,7 +523,7 @@ public final class PlanGenerator {
       return null;
     }
     if (length == 12) {
-      return templates.get("NIGHT".equals(block) || "NIGHT".equals(employee.pref().timeOfDay())
+      return templates.get("NIGHT".equals(block) || PreferenceTimes.nightVolunteer(employee.pref().timesOfDay())
           ? "A12"
           : "P12");
     }
@@ -575,9 +575,7 @@ public final class PlanGenerator {
   }
 
   private static String preferenceBlock(Pref pref) {
-    return pref.timeOfDay() == null || "NONE".equals(pref.timeOfDay())
-        ? "DAY"
-        : pref.timeOfDay();
+    return PreferenceTimes.preferredBlock(pref.timesOfDay());
   }
 
   /**
@@ -997,7 +995,7 @@ public final class PlanGenerator {
           lengthMet++;
         }
       }
-      if (pref.timeOfDay() != null && !"NONE".equals(pref.timeOfDay())) {
+      if (PreferenceTimes.asked(pref.timesOfDay())) {
         timeAsked++;
         if (!shifts.isEmpty()
             && shifts.stream()
@@ -1005,7 +1003,8 @@ public final class PlanGenerator {
                     shift -> {
                       Template template = templates.get(shift.templateCode());
                       return template != null
-                          && pref.timeOfDay().equals(ShiftKinds.timeOfDay(template.start()));
+                          && PreferenceTimes.matches(
+                              pref.timesOfDay(), ShiftKinds.timeOfDay(template.start()));
                     })) {
           timeMet++;
         }
@@ -1068,7 +1067,7 @@ public final class PlanGenerator {
       int avoidGiven = 0;
       long againstWish = 0;
       for (Employee member : members) {
-        boolean avoidsNights = "DAY".equals(member.pref().timeOfDay()) || "EVENING".equals(member.pref().timeOfDay());
+        boolean avoidsNights = PreferenceTimes.avoidsNights(member.pref().timesOfDay());
         if (!avoidsNights) {
           continue;
         }
@@ -1108,7 +1107,7 @@ public final class PlanGenerator {
             continue;
           }
           Employee officer = members.stream().filter(e -> e.id().equals(assignment.employeeId())).findFirst().orElse(null);
-          if (officer == null || "NIGHT".equals(officer.pref().timeOfDay())) {
+          if (officer == null || PreferenceTimes.nightVolunteer(officer.pref().timesOfDay())) {
             continue;
           }
           LocalDate checkDate = date;
@@ -1121,7 +1120,7 @@ public final class PlanGenerator {
                   .filter(other -> !working.contains(other.id()))
                   .filter(other -> works(other, checkDate, pattern8h))
                   .filter(other -> "NIGHT".equals(blockOf.getOrDefault(other.id(), "DAY")))
-                  .filter(other -> !"NIGHT".equals(other.pref().timeOfDay()))
+                  .filter(other -> !PreferenceTimes.nightVolunteer(other.pref().timesOfDay()))
                   // The generator chooses a night GROUP newest-first, not a person per day; a
                   // newer officer who also works nights is not being passed over.
                   .filter(other -> byEmployee.getOrDefault(other.id(), List.of()).stream()

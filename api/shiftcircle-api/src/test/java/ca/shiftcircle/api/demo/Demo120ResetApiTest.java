@@ -239,6 +239,12 @@ class Demo120ResetApiTest {
     Map<String, Object> preview120 = preview(draftId);
     int warnings120 = ((Number) preview120.get("warningCount")).intValue();
     int shifts120 = ((Number) preview120.get("shiftsToWrite")).intValue();
+    assertThat(jdbc.queryForObject(
+            "SELECT count(DISTINCT employee_id) FROM plan_draft_assignment WHERE draft_id = ?",
+            Integer.class,
+            draftId))
+        .as("the 120 plan still covers 107 officers")
+        .isEqualTo(107);
     HttpResponse<String> committed120 =
         sendWithHeaders(
             "POST",
