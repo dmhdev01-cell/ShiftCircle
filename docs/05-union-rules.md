@@ -38,7 +38,7 @@ Severity: **Block** = can't be saved. An emergency override exists only where ma
 |---|---|---|---|---|
 | U-08 | Maximum **consecutive work days** (8-hour pattern) | 7 | Block (scheduled), no emergency override in v1 (override policy ACKNOWLEDGE; editable per rule through the rules admin approval flow); Warn (overtime-caused) | **NWT**, **NU** (7); CX allows up to 8 |
 | U-09 | Maximum **consecutive 12-hour shifts** | 4 | Block (scheduled), no emergency override in v1 (override policy ACKNOWLEDGE; editable per rule through the rules admin approval flow); Warn (overtime-caused) | **MOCK**, matching common "4 on, 4 off" patterns |
-| U-10 | Maximum **consecutive 12-hour overnight shifts** (00:00–12:00) | 4 | Warn | **MOCK** (fatigue) |
+| U-10 | Maximum **consecutive 12-hour overnight shifts** (19:00–07:00; A12 00:00–12:00 and N12 19:00–07:00 count) | 4 | Warn | **MOCK** (fatigue) |
 | U-11 | Maximum **16-hour shifts**: 3 in any 7 days, 10 in any 28 days | 3 / 7 d · 10 / 28 d | Warn | **MOCK**, inspired by CX limits on 16-hour shifts within a work cycle |
 | U-12 | At least **2 consecutive days of rest** in each 7-day period; a break of 24 h or less doesn't count as a day of rest | 2 days / 7 | Warn | **CX**, **PSGE** (two consecutive rest days normally), **NU** |
 
