@@ -15,6 +15,11 @@ import { daysOffWords, sinceYear } from './preferenceWords';
 const LENGTH_WORDS: Record<number, string> = { 8: '8 h', 12: '12 h', 16: '16 h' };
 const TIME_WORDS: Record<string, string> = { DAY: 'Days', EVENING: 'Evenings', NIGHT: 'Nights' };
 
+/** "Days, Evenings": a set reads in words, never as its enum values. */
+function timeSetWords(parts: string[]): string {
+  return parts.length === 0 ? 'No preference' : parts.map((part) => TIME_WORDS[part] ?? part).join(', ');
+}
+
 const IN_DRAFT = {
   MET: { words: 'Met', tone: 'pass' as const },
   PARTLY: { words: 'Partly met', tone: 'warn' as const },
@@ -62,7 +67,7 @@ export function PlannerPreferencesPage() {
   });
 
   const gave = (rows ?? []).filter(
-    (row) => row.shiftLength !== null || row.timeOfDay !== null || row.daysOff.length > 0,
+    (row) => row.shiftLength !== null || row.timesOfDay.length > 0 || row.daysOff.length > 0,
   ).length;
 
   return (
@@ -177,7 +182,7 @@ export function PlannerPreferencesPage() {
                       {row.shiftLength ? LENGTH_WORDS[row.shiftLength] ?? `${row.shiftLength} h` : 'No preference'}
                     </td>
                     <td style={{ padding: '6px 8px' }}>
-                      {row.timeOfDay ? TIME_WORDS[row.timeOfDay] ?? row.timeOfDay : 'No preference'}
+                      {timeSetWords(row.timesOfDay)}
                     </td>
                     <td style={{ padding: '6px 8px' }}>{daysOffWords(row.daysOff)}</td>
                     <td style={{ padding: '6px 8px' }}>

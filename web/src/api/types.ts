@@ -796,9 +796,16 @@ export interface PlannerWarningGroup {
 export type PreferenceShiftLength = 8 | 12 | 16;
 export type PreferenceTimeOfDay = 'DAY' | 'EVENING' | 'NIGHT';
 
+/**
+ * The parts of the day an officer asked for (P3 preference multi-select): any
+ * mix, no duplicates, empty = no preference. Responses carry this field; the
+ * single `timeOfDay` is legacy input the api still accepts for one release.
+ */
+export type PreferenceTimesOfDay = PreferenceTimeOfDay[];
+
 export interface MyPreferences {
   shiftLength: PreferenceShiftLength | null;
-  timeOfDay: PreferenceTimeOfDay | null;
+  timesOfDay: PreferenceTimesOfDay;
   daysOff: string[];
   maxDaysOff: number;
   allowedLengths: PreferenceShiftLength[];
@@ -807,7 +814,7 @@ export interface MyPreferences {
 
 export interface MyPreferencesInput {
   shiftLength: PreferenceShiftLength | null;
-  timeOfDay: PreferenceTimeOfDay | null;
+  timesOfDay: PreferenceTimesOfDay;
   daysOff: string[];
 }
 
@@ -818,7 +825,7 @@ export interface PlannerPreferenceRow {
   unitName: string;
   seniorityDate: string;
   shiftLength: PreferenceShiftLength | null;
-  timeOfDay: PreferenceTimeOfDay | null;
+  timesOfDay: PreferenceTimesOfDay;
   daysOff: string[];
   maxDaysOff: number;
   inDraft: 'MET' | 'PARTLY' | 'NOT_MET' | 'NO_DRAFT' | 'NONE';

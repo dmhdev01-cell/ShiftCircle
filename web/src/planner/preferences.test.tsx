@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
+import { api } from '../api/client';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
@@ -30,7 +31,7 @@ describe('preferences', () => {
     expect(screen.getByText('Not set yet')).toBeInTheDocument();
 
     await user.click(screen.getByRole('radio', { name: '8 h' }));
-    await user.click(screen.getByRole('radio', { name: 'Days' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Days' }));
     await user.click(screen.getByRole('checkbox', { name: 'Sat' }));
     await user.click(screen.getByRole('checkbox', { name: 'Sun' }));
     await user.click(screen.getByRole('button', { name: 'Save preferences' }));
@@ -44,6 +45,43 @@ describe('preferences', () => {
     expect(await screen.findByText('Cleared.')).toBeInTheDocument();
   });
 
+  it('lets an officer choose more than one time of day, with No preference as the empty set', async () => {
+    const user = userEvent.setup();
+    const put = vi.spyOn(api, 'putMyPreferences');
+    renderAt('/me/schedule');
+    await screen.findByRole('heading', { name: 'My preferences' });
+
+    const days = screen.getByRole('checkbox', { name: 'Days' });
+    const evenings = screen.getByRole('checkbox', { name: 'Evenings' });
+    const nights = screen.getByRole('checkbox', { name: 'Nights' });
+    const none = screen.getByRole('checkbox', { name: 'No preference' });
+    // No preference is the empty set and is the starting state.
+    expect(none).toBeChecked();
+
+    await user.click(days);
+    await user.click(evenings);
+    expect(none).not.toBeChecked();
+    // The nights note is about the 12 h crews and appears only when Nights is chosen.
+    expect(screen.queryByText(/Only 12-hour night crews work nights/)).not.toBeInTheDocument();
+    await user.click(nights);
+    expect(screen.getByText(/Only 12-hour night crews work nights/)).toBeInTheDocument();
+    await user.click(nights);
+
+    // No preference clears every part; ticking a part clears No preference.
+    await user.click(none);
+    expect(days).not.toBeChecked();
+    expect(evenings).not.toBeChecked();
+    expect(none).toBeChecked();
+    await user.click(days);
+    expect(none).not.toBeChecked();
+
+    await user.click(evenings);
+    await user.click(screen.getByRole('button', { name: 'Save preferences' }));
+    expect(put).toHaveBeenCalledWith(expect.objectContaining({ timesOfDay: ['DAY', 'EVENING'] }));
+    expect(put.mock.calls[0][0]).not.toHaveProperty('timeOfDay');
+    vi.restoreAllMocks();
+  });
+
   it('shows the planner every officer\'s wishes, read-only', async () => {
     const user = userEvent.setup();
     renderAt('/planner/preferences');
@@ -53,6 +91,9 @@ describe('preferences', () => {
     const table = await screen.findByRole('table');
     expect(within(table).getByText('Tara Nakamura')).toBeInTheDocument();
     expect(within(table).getByText('8 h')).toBeInTheDocument();
+    // A set reads in words and never as raw enum text.
+    expect(within(table).getByText('Evenings, Nights')).toBeInTheDocument();
+    expect(within(table).queryByText(/EVENING|NIGHT/)).not.toBeInTheDocument();
     // No draft in the fixtures until one is generated: every row says so.
     expect(within(table).getAllByText('No draft').length).toBeGreaterThan(0);
     expect(screen.getByText(/3 officers · 3 gave preferences/)).toBeInTheDocument();
