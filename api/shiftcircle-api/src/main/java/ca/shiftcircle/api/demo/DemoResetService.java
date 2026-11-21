@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.Map;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -24,6 +25,7 @@ import tools.jackson.databind.ObjectMapper;
  */
 @Service
 @Profile("demo")
+@ConditionalOnProperty(name = "sc.demo.generate", havingValue = "true", matchIfMissing = true)
 public class DemoResetService {
 
   public record Status(

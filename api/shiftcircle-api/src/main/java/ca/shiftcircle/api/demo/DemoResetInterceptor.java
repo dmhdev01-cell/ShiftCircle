@@ -2,6 +2,7 @@ package ca.shiftcircle.api.demo;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -14,6 +15,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @Component
 @Profile("demo")
+@ConditionalOnProperty(name = "sc.demo.generate", havingValue = "true", matchIfMissing = true)
 public class DemoResetInterceptor implements HandlerInterceptor, WebMvcConfigurer {
 
   private final DemoResetService reset;
