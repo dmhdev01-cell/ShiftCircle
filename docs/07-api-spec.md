@@ -392,7 +392,8 @@ visible gap instead of a shift. Commit re-runs every check against the current c
 refuses any Block with a per-assignment list, requires the exact warning count to be acknowledged
 (`acceptedWarningCount`), refuses a locked period, and writes all rows plus one `commit_plan` audit
 event in one transaction. Each written row carries `plan_draft_id`; overrides are never implied.
-The scorecard carries coverage gaps, warnings by plain rule name, preferences asked/met by kind,
+The scorecard carries coverage gaps, warnings by plain rule name (only warnings the plan adds:
+each officer's history-only baseline is subtracted), preferences asked/met by kind,
 night share by seniority band plus the newest-first check, officers and hours over 80, generation
 time, and weekends worked per officer (min/avg/max). The default 8 h pattern is `5_ON_2_OFF`
 (fixed pair per officer, phases staggered, 80 h per period, no U-08/U-12/U-14); `ROTATING_5_2`

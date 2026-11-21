@@ -50,7 +50,7 @@ class WeekendRotationProbeTest {
   }
 
   @Test
-  void everyPhaseOfTheDefaultRotationIsClean() {
+  void everyPhaseOfARotatingSevenPeriodQuarterWarnsAtTheWrap() {
     for (int phase = 0; phase < 7; phase++) {
       List<ShiftFact> shifts = new ArrayList<>();
       for (int day = 0; day < 7 * 14; day++) {
@@ -63,7 +63,9 @@ class WeekendRotationProbeTest {
         }
         shifts.add(shift("officer", "D8", date.toString(), "07:00", 480));
       }
-      assertThat(warningsOf(shifts)).as("phase %s", phase).isEmpty();
+      assertThat(warningsOf(shifts))
+          .as("phase %s hits the Sun-Mon wrap inside seven periods", phase)
+          .isNotEmpty();
     }
   }
 
