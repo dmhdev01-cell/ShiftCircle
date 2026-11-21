@@ -91,7 +91,7 @@ function limitFor(code: string, params: Record<string, unknown>): string {
     case 'U-08':
       return `No more than ${num(params.max)} work days in a row.`;
     case 'U-09':
-      return `No more than ${num(params.max)} 12-hour shifts in a row.`;
+      return `No more than ${num(params.max)} shifts of 12 hours in a row.`;
     case 'U-10':
       return `No more than ${num(params.max)} overnight 12-hour shifts in a row.`;
     case 'U-11':
