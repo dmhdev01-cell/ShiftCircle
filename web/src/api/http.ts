@@ -14,6 +14,7 @@ import type {
   AuditActorChoice,
   MyPreferencesInput,
   PlannerPreferenceRow,
+  PlannerUnitCoverage,
   PlannerCommitResult,
   PlannerDraft,
   PlannerGap,
@@ -232,6 +233,24 @@ export function createHttpApi(): ShiftCircleApi {
     },
     getPlannerWarnings(draftId: string): Promise<PlannerWarningGroup[]> {
       return request<PlannerWarningGroup[]>(`/planner/drafts/${draftId}/warnings`);
+    },
+    getPlannerSchedule(
+      draftId: string,
+      query: { unitId: string; from: string; to: string },
+    ): Promise<SchedulePayload> {
+      const params = new URLSearchParams({
+        unitId: query.unitId,
+        from: query.from,
+        to: query.to,
+      });
+      return request<SchedulePayload>(`/planner/drafts/${draftId}/schedule?${params.toString()}`);
+    },
+    getPlannerCoverage(
+      draftId: string,
+      range: { from: string; to: string },
+    ): Promise<PlannerUnitCoverage[]> {
+      const params = new URLSearchParams({ from: range.from, to: range.to });
+      return request<PlannerUnitCoverage[]>(`/planner/drafts/${draftId}/coverage?${params.toString()}`);
     },
     getAuditActors(): Promise<AuditActorChoice[]> {
       return request<AuditActorChoice[]>('/audit-events/actors');

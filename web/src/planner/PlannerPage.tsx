@@ -25,6 +25,7 @@ import type {
   PlannerCompare,
 } from '../api/types';
 import { KpiTile } from '../planning/KpiTile';
+import { PlannerRosterTab } from './PlannerRosterTab';
 import { useRole } from '../shell/nav';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
@@ -99,6 +100,7 @@ export function PlannerPage() {
   const [gaps, setGaps] = useState<PlannerGap[]>([]);
   const [warnings, setWarnings] = useState<PlannerWarningGroup[]>([]);
   const [compare, setCompare] = useState<PlannerCompare | null>(null);
+  const [units, setUnits] = useState<{ id: string; name: string }[]>([]);
   const [commitOpen, setCommitOpen] = useState(false);
   const [preview, setPreview] = useState<PlannerCommitPreview | null>(null);
   const [accepted, setAccepted] = useState(false);
@@ -136,6 +138,22 @@ export function PlannerPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // The roster's unit picker: the same units the board offers.
+  useEffect(() => {
+    let active = true;
+    void api
+      .getUnits()
+      .then((loaded) => {
+        if (active) setUnits(loaded.map((unit) => ({ id: unit.id, name: unit.name })));
+      })
+      .catch(() => {
+        if (active) setUnits([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const draft: PlannerDraft | null = plan?.draft ?? null;
   const scorecard: PlannerScorecard | null = draft?.scorecard ?? null;
@@ -852,14 +870,21 @@ export function PlannerPage() {
 
           {tab === 'roster' ? (
             <Box role="tabpanel" id="planner-panel-roster" aria-labelledby="planner-tab-roster">
-              <Card>
-                <CardContent sx={{ p: 4 }}>
-                  <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
-                    The draft roster opens here once the api sends it (draft schedule and coverage).
-                    The gaps tab and the scorecard are the review for now.
-                  </Typography>
-                </CardContent>
-              </Card>
+              <PlannerRosterTab
+                draftId={draft.id}
+                window={plan.window}
+                gaps={gaps}
+                units={units}
+                unitParam={searchParams.get('unit')}
+                weekParam={searchParams.get('week')}
+                onChange={(next) => {
+                  const params = new URLSearchParams(searchParams);
+                  if (next.unit) params.set('unit', next.unit);
+                  if (next.week) params.set('week', next.week);
+                  params.set('tab', 'roster');
+                  setSearchParams(params, { replace: true });
+                }}
+              />
             </Box>
           ) : null}
         </>

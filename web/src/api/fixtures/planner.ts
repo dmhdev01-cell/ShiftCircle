@@ -19,7 +19,10 @@ import type {
   MyPreferences,
   MyPreferencesInput,
   PlannerPreferenceRow,
+  PlannerUnitCoverage,
+  SchedulePayload,
 } from '../types';
+import { scheduleForRange } from './schedule';
 
 export const PLANNER_WINDOW = { from: '2027-01-04', to: '2027-04-11', periods: 7 };
 export const PLANNER_DEFAULT_SEED = 20261001;
@@ -253,6 +256,29 @@ export function fixturePlannerPreferences(): PlannerPreferenceRow[] {
       unmet: [],
       updatedAt: null,
     },
+  ];
+}
+
+/** The draft's own roster, in the board's shape (no EXTRA, no offers). */
+export function plannerSchedule(query: { unitId: string; from: string; to: string }): SchedulePayload {
+  const base = scheduleForRange(query.from, query.to);
+  return {
+    ...base,
+    unit: base.unit.id === query.unitId ? base.unit : base.unit,
+    period: null,
+    publishedState: { published: false, unpublishedChanges: null },
+  };
+}
+
+export function plannerCoverage(range: { from: string; to: string }): PlannerUnitCoverage[] {
+  const base = scheduleForRange(range.from, range.to);
+  return [
+    { unitId: base.unit.id, unitName: base.unit.name, coverage: base.coverage },
+    ...['unit-a', 'control'].map((unitId) => ({
+      unitId,
+      unitName: unitId === 'control' ? 'Control' : 'Unit A · Living unit',
+      coverage: base.coverage.map((entry) => ({ ...entry, required: Math.max(1, entry.required - 1) })),
+    })),
   ];
 }
 

@@ -105,6 +105,25 @@ describe('the quarter plan', () => {
     expect(within(table).getAllByText('better').length).toBeGreaterThan(0);
   });
 
+  it('shows the draft roster with the all-units strip and the not-on-the-board note', async () => {
+    const user = userEvent.setup();
+    renderPlanner();
+    await asPlanner(user);
+    await user.click(await screen.findByRole('button', { name: 'Generate draft' }));
+
+    await user.click(await screen.findByRole('tab', { name: 'Roster' }));
+
+    expect(await screen.findByRole('note')).toHaveTextContent(/not on the planning board yet/);
+    expect(
+      await screen.findByRole('region', { name: /All units · 4 – 10 Jan 2027/ }),
+    ).toBeInTheDocument();
+    // The grid is the board's own, read-only here.
+    expect(await screen.findByRole('region', { name: 'Roster, scrolls sideways' })).toBeTruthy();
+    const week = screen.getByRole('group', { name: 'Week' });
+    expect(week).toHaveTextContent('4 – 10 Jan 2027');
+    expect(within(week).getByRole('button', { name: 'Previous week' })).toBeDisabled();
+  });
+
   it('asks for the warnings to be accepted before committing, then commits', async () => {
     const user = userEvent.setup();
     renderPlanner();

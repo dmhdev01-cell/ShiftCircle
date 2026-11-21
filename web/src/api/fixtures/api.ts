@@ -86,6 +86,8 @@ import {
   generatePlannerDraft,
   plannerCommitPreview,
   plannerCompare,
+  plannerCoverage,
+  plannerSchedule,
   clearMyPreferences,
   fixtureMyPreferences,
   fixturePlannerPreferences,
@@ -470,6 +472,16 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
     async getPlannerWarnings() {
       await pause();
       return plannerWarnings();
+    },
+
+    async getPlannerSchedule(_draftId: string, query: { unitId: string; from: string; to: string }) {
+      await pause();
+      return plannerSchedule(query);
+    },
+
+    async getPlannerCoverage(_draftId: string, range: { from: string; to: string }) {
+      await pause();
+      return plannerCoverage(range);
     },
 
     async getAuditActors() {

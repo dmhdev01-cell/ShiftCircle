@@ -799,6 +799,13 @@ export interface AuditActorChoice {
   displayName: string;
 }
 
+/** `GET /planner/drafts/{id}/coverage`: one entry per unit for the strip. */
+export interface PlannerUnitCoverage {
+  unitId: string;
+  unitName: string;
+  coverage: BlockCoverage[];
+}
+
 export interface PlannerCompareRow {
   key: string;
   label: string;
@@ -858,6 +865,14 @@ export interface ShiftCircleApi {
   getPlannerDraft(draftId: string): Promise<PlannerDraft>;
   getPlannerGaps(draftId: string): Promise<PlannerGap[]>;
   getPlannerWarnings(draftId: string): Promise<PlannerWarningGroup[]>;
+  getPlannerSchedule(
+    draftId: string,
+    query: { unitId: string; from: string; to: string },
+  ): Promise<SchedulePayload>;
+  getPlannerCoverage(
+    draftId: string,
+    range: { from: string; to: string },
+  ): Promise<PlannerUnitCoverage[]>;
   getAuditActors(): Promise<AuditActorChoice[]>;
   getPlannerCompare(draftId: string): Promise<PlannerCompare>;
 
