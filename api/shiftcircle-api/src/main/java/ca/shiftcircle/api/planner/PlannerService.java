@@ -1232,18 +1232,31 @@ public class PlannerService {
     Map<UUID, Integer> phases = new HashMap<>();
     return jdbc.query(
         "SELECT e.id, e.employee_no, e.first_name || ' ' || e.last_name AS name,"
-            + " e.home_unit_id, e.seniority_date, e.fte, p.shift_length, p.time_of_day, p.days_off"
+            + " e.home_unit_id, e.seniority_date, e.fte, p.shift_length, p.time_of_day, p.days_off,"
+            + " rp.code AS crew"
             + " FROM employee e LEFT JOIN officer_preference p ON p.employee_id = e.id"
+            + " LEFT JOIN rotation_pattern rp ON rp.id = e.rotation_pattern_id"
             + " ORDER BY e.home_unit_id, e.employee_no",
         (rs, row) -> {
           UUID unitId = rs.getObject("home_unit_id", UUID.class);
           PlanGenerator.Unit unit = byId.get(unitId);
           int index = phases.merge(unitId, 1, Integer::sum) - 1;
           Integer preferred = rs.getObject("shift_length", Integer.class);
+          String crew = rs.getString("crew");
           int effective = 8;
           // The planner does not roster 16-hour patterns: a 16 h preference is stored, shown
           // unmet with that reason, and planned as 12 h (or 8 h) so no L16 is generated.
-          if (preferred != null && preferred >= 12 && unit.allows12h()) {
+          if (crew != null
+              && (crew.startsWith("N12")
+                  || crew.startsWith("D12")
+                  || crew.startsWith("CASUAL_12"))) {
+            effective = 12;
+          } else if (crew != null
+              && (crew.startsWith("D8")
+                  || crew.startsWith("E8")
+                  || crew.startsWith("CASUAL_8"))) {
+            effective = 8;
+          } else if (preferred != null && preferred >= 12 && unit.allows12h()) {
             effective = 12;
           }
           return new PlanGenerator.Employee(
@@ -1256,7 +1269,8 @@ public class PlannerService {
               rs.getDouble("fte"),
               new PlanGenerator.Pref(preferred, rs.getString("time_of_day"), daysOff(rs.getArray("days_off"))),
               effective,
-              index % 7);
+              index % 7,
+              crew);
         });
   }
 

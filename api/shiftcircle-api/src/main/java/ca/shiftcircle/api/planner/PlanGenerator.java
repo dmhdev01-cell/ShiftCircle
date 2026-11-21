@@ -49,7 +49,25 @@ public final class PlanGenerator {
       double fte,
       Pref pref,
       int effectiveLength,
-      int phase) {}
+      int phase,
+      String crew) {
+
+    /** Existing callers and the 100 seed: no crew row, so the planner uses the old patterns. */
+    public Employee(
+        UUID id,
+        String employeeNo,
+        String name,
+        UUID unitId,
+        String unitCode,
+        LocalDate seniority,
+        double fte,
+        Pref pref,
+        int effectiveLength,
+        int phase) {
+      this(id, employeeNo, name, unitId, unitCode, seniority, fte, pref, effectiveLength, phase,
+          null);
+    }
+  }
 
   public record Unit(
       UUID id,
@@ -213,10 +231,18 @@ public final class PlanGenerator {
               || !works(employee, date, pattern8h)) {
             continue;
           }
+          String crew = crewOf(employee);
           String preferredBlock =
-              effectiveLength(employee) == 8
-                  ? blockOf.getOrDefault(employee.id(), "DAY")
-                  : preferenceBlock(employee.pref());
+              crew != null
+                  ? switch (crew) {
+                    case "N12" -> "NIGHT";
+                    case "D12", "D8" -> "DAY";
+                    case "E8" -> "EVENING";
+                    default -> "DAY";
+                  }
+                  : effectiveLength(employee) == 8
+                      ? blockOf.getOrDefault(employee.id(), "DAY")
+                      : preferenceBlock(employee.pref());
           Template template = templateFor(employee, unit, preferredBlock, templates);
           if (template == null || !covers(template, preferredBlock)) {
             continue;
@@ -307,8 +333,21 @@ public final class PlanGenerator {
       // Only 12-hour officers work nights (person, 2026-11-21): an 8-hour officer is
       // assigned to DAY or EVENING and never has an N8 shift. An 8 h NIGHT preference stays
       // stored and is shown unmet with that plain reason.
-      List<Employee> rest = new ArrayList<>(candidates);
-      int dayNeed = (int) Math.ceil(unit.required().getOrDefault("DAY", 0) * 7.0 / 5.0);
+      // Fixed 8 h crews keep their block; the flexible remainder fills the day need.
+      int fixedDay = 0;
+      for (Employee employee : candidates) {
+        String crew = crewOf(employee);
+        if ("D8".equals(crew)) {
+          blocks.put(employee.id(), "DAY");
+          fixedDay++;
+        } else if ("E8".equals(crew)) {
+          blocks.put(employee.id(), "EVENING");
+        }
+      }
+      List<Employee> rest = new ArrayList<>();
+      candidates.stream().filter(employee -> !blocks.containsKey(employee.id())).forEach(rest::add);
+      int dayNeed = Math.max(
+          0, (int) Math.ceil(unit.required().getOrDefault("DAY", 0) * 7.0 / 5.0) - fixedDay);
       int dayCount = 0;
       // Preference first: DAY then EVENING; seniority breaks the tie.
       rest.sort(
@@ -344,7 +383,12 @@ public final class PlanGenerator {
           || !works(employee, date, pattern8h)) {
         continue;
       }
-      if (effectiveLength(employee) == 8
+      String crew = crewOf(employee);
+      if (crew != null) {
+        if (!crewCovers(crew, block)) {
+          continue;
+        }
+      } else if (effectiveLength(employee) == 8
           && !block.equals(blockOf.getOrDefault(employee.id(), "DAY"))) {
         continue;
       }
@@ -415,9 +459,44 @@ public final class PlanGenerator {
     return employee.effectiveLength();
   }
 
+  /** The crew code from rotation_pattern, normalised to D12/N12/D8/E8, or null. */
+  private static String crewOf(Employee employee) {
+    String code = employee.crew();
+    if (code == null) {
+      return null;
+    }
+    if (code.startsWith("N12") || code.startsWith("CASUAL_12")) {
+      return "N12";
+    }
+    if (code.startsWith("D12")) {
+      return "D12";
+    }
+    if (code.startsWith("D8")) {
+      return "D8";
+    }
+    if (code.startsWith("E8")) {
+      return "E8";
+    }
+    return null;
+  }
+
+  private static boolean crewCovers(String crew, String block) {
+    return switch (crew) {
+      case "N12" -> "NIGHT".equals(block) || "EVENING".equals(block);
+      case "D12" -> "DAY".equals(block) || "EVENING".equals(block);
+      case "D8" -> "DAY".equals(block);
+      case "E8" -> "EVENING".equals(block);
+      default -> true;
+    };
+  }
+
   private static Template templateFor(
       Employee employee, Unit unit, String block, Map<String, Template> templates) {
     int length = effectiveLength(employee);
+    String crew = crewOf(employee);
+    if (crew != null) {
+      return crewCovers(crew, block) ? templates.get(crew) : null;
+    }
     if (length == 8 && "NIGHT".equals(block)) {
       return null;
     }
@@ -439,6 +518,8 @@ public final class PlanGenerator {
       case "N8" -> "NIGHT".equals(block);
       case "D8" -> "DAY".equals(block);
       case "E8" -> "EVENING".equals(block);
+      case "D12" -> "DAY".equals(block) || "EVENING".equals(block);
+      case "N12" -> "NIGHT".equals(block) || "EVENING".equals(block);
       case "A12" -> "NIGHT".equals(block) || "DAY".equals(block);
       case "P12" -> "DAY".equals(block) || "EVENING".equals(block);
       case "L16" -> "DAY".equals(block) || "EVENING".equals(block);
@@ -662,9 +743,17 @@ public final class PlanGenerator {
         result.add(employee);
         continue;
       }
-      int cycle = employee.effectiveLength() == 12 ? 8 : 7;
-      String key = employee.unitId() + "|" + blockOf.getOrDefault(employee.id(), "DAY");
+      int length = employee.effectiveLength();
+      String crew = crewOf(employee);
+      String key =
+          length == 12
+              ? employee.unitId() + "|" + (crew == null ? "12" : crew)
+              : employee.unitId() + "|" + blockOf.getOrDefault(employee.id(), "DAY");
       int index = counters.merge(key, 1, Integer::sum) - 1;
+      // 12 h crews are paired: two officers per post take phases j and j+4 of the 8-day cycle,
+      // so exactly the post count is on duty every day. Sequential phases would put a 2-officer
+      // crew all on for four days and all off for four. 8 h phases stay sequential.
+      int phase = length == 12 ? Math.floorMod(index / 2 + (index % 2) * 4, 8) : index % 7;
       result.add(
           new Employee(
               employee.id(),
@@ -676,7 +765,8 @@ public final class PlanGenerator {
               employee.fte(),
               employee.pref(),
               employee.effectiveLength(),
-              index % cycle));
+              phase,
+              employee.crew()));
     }
     return result;
   }
@@ -958,10 +1048,27 @@ public final class PlanGenerator {
         }
       }
     }
+    long n12Shifts =
+        assignments.stream().filter(shift -> "N12".equals(shift.templateCode())).count();
+    long n12Officers =
+        employees.stream()
+            .filter(
+                employee ->
+                    byEmployee.getOrDefault(employee.id(), List.of()).stream()
+                        .anyMatch(shift -> "N12".equals(shift.templateCode())))
+            .count();
     Map<String, Object> result = new LinkedHashMap<>();
     result.put("bands", bands);
     result.put("newestFirstHeld", held);
     result.put("check", check);
+    result.put("n12Officers", n12Officers);
+    result.put("n12NightShifts", n12Shifts);
+    if (n12Shifts > 0) {
+      result.put(
+          "crewNote",
+          "D12 and N12 are fixed separate crews; the 150 dataset seeds the newest officers into the"
+              + " night crew, so nights are not re-picked day by day.");
+    }
     return result;
   }
 
@@ -1048,7 +1155,10 @@ public final class PlanGenerator {
   }
 
   private static boolean isNight(String templateCode) {
-    return "N8".equals(templateCode) || "A12".equals(templateCode) || "L16".equals(templateCode);
+    return "N8".equals(templateCode)
+        || "A12".equals(templateCode)
+        || "N12".equals(templateCode)
+        || "L16".equals(templateCode);
   }
 
   private static double round1(double value) {
