@@ -144,8 +144,12 @@ test.describe('session and navigation', () => {
   test('a 401 from the api sends the person back to sign in with a notice', async ({ page }) => {
     await signIn(page, 'M. Ellis');
     await expect(page.getByRole('heading', { name: 'Planning board', level: 1 })).toBeVisible();
-    // The token stops being accepted (expired or revoked).
-    await page.route('**/api/v1/**', (route) =>
+    // The token stops being accepted (expired or revoked). Route only the
+    // call the Overtime screen makes: a broad 401 route also fails the board's
+    // background refresh, which signs the person out before the click lands -
+    // the link then detaches mid-click and the test races the product's own
+    // (correct) sign-out.
+    await page.route('**/api/v1/open-shifts*', (route) =>
       route.fulfill({ status: 401, contentType: 'application/problem+json', json: { title: 'Not signed in', status: 401 } }),
     );
     await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Overtime' }).click();
