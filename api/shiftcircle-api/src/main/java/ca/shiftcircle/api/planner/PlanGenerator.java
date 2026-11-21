@@ -1,5 +1,6 @@
 package ca.shiftcircle.api.planner;
 
+import ca.shiftcircle.api.coverage.CoverageCalculator;
 import ca.shiftcircle.rules.build.ShiftFact;
 import ca.shiftcircle.rules.build.ShiftKind;
 import java.time.DayOfWeek;
@@ -693,25 +694,37 @@ public final class PlanGenerator {
     return result;
   }
 
+  /**
+   * Gaps are absolute-time coverage (ADR-013/017), the same measure the planning board shows: the
+   * NIGHT block on date D runs 23:00 D to 07:00 D+1, so a 23:00 shift counts in the hours after
+   * midnight. Using the board's calculator keeps the plan's gap count and the board's identical.
+   */
   private static List<Gap> recomputeGaps(
       List<Unit> units, List<Assignment> assignments) {
-    Map<String, int[]> coverage = new HashMap<>();
+    Map<UUID, List<CoverageCalculator.Interval>> intervalsByUnit = new HashMap<>();
     for (Assignment assignment : assignments) {
-      String key = assignment.unitId() + "|" + assignment.date();
-      addHours(coverage.computeIfAbsent(key, k -> new int[24]),
-          assignment.start().atZone(REGINA).getHour(),
-          (int) Duration.between(assignment.start(), assignment.end()).toMinutes());
+      intervalsByUnit
+          .computeIfAbsent(assignment.unitId(), key -> new ArrayList<>())
+          .add(new CoverageCalculator.Interval(assignment.start(), assignment.end()));
     }
+    CoverageCalculator calculator = new CoverageCalculator();
     List<Gap> gaps = new ArrayList<>();
     for (Unit unit : units) {
+      List<CoverageCalculator.Interval> intervals =
+          intervalsByUnit.getOrDefault(unit.id(), List.of());
       for (LocalDate date = FROM; !date.isAfter(TO); date = date.plusDays(1)) {
-        int[] hours = coverage.getOrDefault(unit.id() + "|" + date, new int[24]);
-        for (String block : BLOCKS) {
-          int required = unit.required().getOrDefault(block, 0);
-          int placed = minimumCoverage(hours, block);
-          if (placed < required) {
-            gaps.add(new Gap(unit.id(), unit.code(), date, block, required, placed,
-                "No eligible officer left without a Block rule; a supervisor fills this"));
+        for (CoverageCalculator.BlockCoverage block :
+            calculator.forDay(date, unit.required(), intervals)) {
+          if (!block.covered()) {
+            gaps.add(
+                new Gap(
+                    unit.id(),
+                    unit.code(),
+                    date,
+                    block.block(),
+                    block.required(),
+                    block.coverage().lowestHourly(),
+                    "No eligible officer left without a Block rule; a supervisor fills this"));
           }
         }
       }
