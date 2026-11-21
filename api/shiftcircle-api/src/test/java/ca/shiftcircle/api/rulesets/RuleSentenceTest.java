@@ -36,6 +36,27 @@ class RuleSentenceTest {
   }
 
   @Test
+  void anAcknowledgeBlockSaysItCannotBeSaved() {
+    for (String code : List.of("U-08", "U-09", "U-14")) {
+      RuleRow row = rows.stream().filter(candidate -> code.equals(candidate.code())).findFirst().orElseThrow();
+      assertThat(RuleSentence.of(row))
+          .as(code)
+          .contains("cannot be saved")
+          .contains("no override")
+          .doesNotContain("acknowledge");
+    }
+    RuleRow acknowledgeWarn =
+        rows.stream()
+            .filter(row -> row.overridePolicy() == ca.shiftcircle.rules.model.OverridePolicy.ACKNOWLEDGE)
+            .filter(row -> row.severity() == ca.shiftcircle.rules.facts.RuleOutcome.WARN)
+            .findFirst()
+            .orElseThrow();
+    assertThat(RuleSentence.of(acknowledgeWarn))
+        .as(acknowledgeWarn.code())
+        .contains("acknowledge");
+  }
+
+  @Test
   void theRestSentenceNamesTheShiftAndTheOutcomeInWords() {
     RuleRow u01 = rows.stream().filter(row -> "U-01".equals(row.code())).findFirst().orElseThrow();
 

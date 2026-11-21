@@ -153,10 +153,28 @@ public class Demo120DatasetProvider implements DemoDatasetProvider {
     // Three 16 h preferences and 10% deliberate mismatches; the crew still drives placement.
     for (int index = 0; index < fullTime.size(); index += 10) {
       Person person = fullTime.get(index);
-      jdbc.update(
-          "UPDATE officer_preference SET time_of_day = ? WHERE employee_id = ?",
-          "N12_NIGHT_4ON4OFF".equals(person.crew()) ? "DAY" : "NIGHT",
-          person.id());
+      setTimes(
+          person.id(),
+          "N12_NIGHT_4ON4OFF".equals(person.crew()) ? "DAY" : "NIGHT");
+    }
+    // A handful of mixed sets so the multi-select is visible in the demo. They are chosen on
+    // crews whose placement does not depend on the extra part (a D12 stays day, an N12 stays
+    // night, an E8 stays evening), so the 120 plan should stay the same; the run reports it.
+    int mixed = 0;
+    for (Person person : fullTime) {
+      if (mixed >= 6) {
+        break;
+      }
+      if (person.crew().startsWith("D12")) {
+        setTimes(person.id(), "DAY", "EVENING");
+        mixed++;
+      } else if (person.crew().startsWith("N12")) {
+        setTimes(person.id(), "EVENING", "NIGHT");
+        mixed++;
+      } else if (person.crew().startsWith("E8") || person.crew().startsWith("D8")) {
+        setTimes(person.id(), "DAY", "EVENING");
+        mixed++;
+      }
     }
     for (int index : new int[] {0, 8, 19}) {
       jdbc.update(
@@ -242,8 +260,9 @@ public class Demo120DatasetProvider implements DemoDatasetProvider {
     }
     jdbc.update(
         "INSERT INTO employee (id, employee_no, first_name, last_name, classification,"
-            + " home_unit_id, rotation_pattern_id, fte, seniority_date, active, is_synthetic)"
-            + " VALUES (?, ?, ?, ?, 'CO', ?, ?, ?, ?, true, true)",
+            + " home_unit_id, rotation_pattern_id, fte, seniority_date, active, is_synthetic,"
+            + " shift_pattern)"
+            + " VALUES (?, ?, ?, ?, 'CO', ?, ?, ?, ?, true, true, 'ROTATING_5_2')",
         id,
         no,
         firstName,
@@ -253,11 +272,16 @@ public class Demo120DatasetProvider implements DemoDatasetProvider {
         fte,
         seniority);
     jdbc.update(
-        "INSERT INTO officer_preference (employee_id, shift_length, time_of_day, days_off)"
-            + " VALUES (?, ?, ?, '{}')",
-        id,
-        crew.length(),
-        crew.time());
+        connection -> {
+          var statement =
+              connection.prepareStatement(
+                  "INSERT INTO officer_preference (employee_id, shift_length, times_of_day, days_off)"
+                      + " VALUES (?, ?, ?, '{}')");
+          statement.setObject(1, id);
+          statement.setInt(2, crew.length());
+          statement.setArray(3, connection.createArrayOf("text", new String[] {crew.time()}));
+          return statement;
+        });
     String qualification = qualificationFor(crew, crewIndex, sequence);
     if (qualification != null) {
       jdbc.update(
@@ -267,6 +291,18 @@ public class Demo120DatasetProvider implements DemoDatasetProvider {
           qualifications.get(qualification));
     }
     return new Person(id, no, crew.unit(), crew.crew(), crew.length(), crew.time(), crewIndex);
+  }
+
+  private void setTimes(UUID employeeId, String... times) {
+    jdbc.update(
+        connection -> {
+          var statement =
+              connection.prepareStatement(
+                  "UPDATE officer_preference SET times_of_day = ? WHERE employee_id = ?");
+          statement.setArray(1, connection.createArrayOf("text", times));
+          statement.setObject(2, employeeId);
+          return statement;
+        });
   }
 
   private String qualificationFor(Crew crew, int crewIndex, int sequence) {

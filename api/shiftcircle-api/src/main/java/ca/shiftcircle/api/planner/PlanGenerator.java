@@ -37,7 +37,7 @@ public final class PlanGenerator {
   private static final ZoneId REGINA = ZoneId.of("America/Regina");
   private static final List<String> BLOCKS = List.of("NIGHT", "DAY", "EVENING");
 
-  public record Pref(Integer shiftLength, String timeOfDay, List<String> daysOff) {}
+  public record Pref(Integer shiftLength, List<String> timesOfDay, List<String> daysOff) {}
 
   public record Employee(
       UUID id,
@@ -50,7 +50,8 @@ public final class PlanGenerator {
       Pref pref,
       int effectiveLength,
       int phase,
-      String crew) {
+      String crew,
+      String pattern) {
 
     /** Existing callers and the 100 seed: no crew row, so the planner uses the old patterns. */
     public Employee(
@@ -65,7 +66,24 @@ public final class PlanGenerator {
         int effectiveLength,
         int phase) {
       this(id, employeeNo, name, unitId, unitCode, seniority, fte, pref, effectiveLength, phase,
-          null);
+          null, null);
+    }
+
+    /** A crew officer with no explicit pattern; 8 h falls back to the rotating default. */
+    public Employee(
+        UUID id,
+        String employeeNo,
+        String name,
+        UUID unitId,
+        String unitCode,
+        LocalDate seniority,
+        double fte,
+        Pref pref,
+        int effectiveLength,
+        int phase,
+        String crew) {
+      this(id, employeeNo, name, unitId, unitCode, seniority, fte, pref, effectiveLength, phase,
+          crew, null);
     }
   }
 
@@ -163,8 +181,9 @@ public final class PlanGenerator {
     baseStaff.values().forEach(list -> list.sort(Comparator.comparing(Employee::seniority)));
     Map<UUID, String> blockOf = assignBlocks(units, baseStaff);
     // Allocation improvement: stagger phases inside each unit's block group, not across the whole
-    // unit, so a day group always works the same number of days on each weekday.
-    List<Employee> rephased = rephase(employees, blockOf);
+    // unit, so a day group always works the same number of days on each weekday. With option C the
+    // group is the pattern cohort, so a fixed and a rotating officer do not share a phase counter.
+    List<Employee> rephased = rephase(employees, blockOf, pattern8h);
     Map<UUID, List<Employee>> staff = new HashMap<>();
     rephased.forEach(employee -> staff.computeIfAbsent(employee.unitId(), k -> new ArrayList<>()).add(employee));
     staff.values().forEach(list -> list.sort(Comparator.comparing(Employee::seniority)));
@@ -372,8 +391,8 @@ public final class PlanGenerator {
       // Preference first: DAY then EVENING; seniority breaks the tie.
       rest.sort(
           (a, b) -> {
-            int rankA = "DAY".equals(a.pref().timeOfDay()) ? 0 : "EVENING".equals(a.pref().timeOfDay()) ? 1 : 2;
-            int rankB = "DAY".equals(b.pref().timeOfDay()) ? 0 : "EVENING".equals(b.pref().timeOfDay()) ? 1 : 2;
+            int rankA = PreferenceTimes.rank(a.pref().timesOfDay());
+            int rankB = PreferenceTimes.rank(b.pref().timesOfDay());
             return rankA != rankB ? Integer.compare(rankA, rankB) : a.seniority().compareTo(b.seniority());
           });
       for (Employee employee : rest) {
@@ -420,8 +439,8 @@ public final class PlanGenerator {
     if ("NIGHT".equals(block)) {
       order =
           (a, b) -> {
-            boolean volunteerA = "NIGHT".equals(a.pref().timeOfDay());
-            boolean volunteerB = "NIGHT".equals(b.pref().timeOfDay());
+            boolean volunteerA = PreferenceTimes.nightVolunteer(a.pref().timesOfDay());
+            boolean volunteerB = PreferenceTimes.nightVolunteer(b.pref().timesOfDay());
             if (volunteerA != volunteerB) {
               return volunteerA ? -1 : 1;
             }
@@ -455,12 +474,13 @@ public final class PlanGenerator {
     if (length == 12) {
       return Math.floorMod(day + phase, 8) < 4;
     }
-    if ("7_ON_3_OFF".equals(pattern8h)) {
+    String pattern = patternOf(employee, pattern8h);
+    if ("7_ON_3_OFF".equals(pattern)) {
       return Math.floorMod(day + phase, 10) < 7;
     }
     int period = (int) (day / 14);
     int dayInPeriod = (int) (day % 14);
-    if ("ROTATING_5_2".equals(pattern8h)) {
+    if ("ROTATING_5_2".equals(pattern)) {
       int pair = Math.floorMod(phase - period, 7);
       if (pair == 6) {
         // The wrap takes a 3-day break (Mon-Wed) plus Mon-Tue in the second week, so the
@@ -475,6 +495,34 @@ public final class PlanGenerator {
     int pairStart = Math.floorMod(phase, 7);
     int weekDay = date.getDayOfWeek().getValue() - 1;
     return weekDay != pairStart && weekDay != (pairStart + 1) % 7;
+  }
+
+  /** The 8 h pattern in force: a one-release override wins, then the officer's own setting. */
+  static String patternOf(Employee employee, String pattern8h) {
+    int length = effectiveLength(employee);
+    if (length == 12 || length == 16) {
+      return "4_ON_4_OFF";
+    }
+    if (pattern8h != null) {
+      return pattern8h;
+    }
+    String pattern = employee.pattern();
+    return pattern == null
+            || !("ROTATING_5_2".equals(pattern)
+                || "5_ON_2_OFF".equals(pattern)
+                || "7_ON_3_OFF".equals(pattern))
+        ? "ROTATING_5_2"
+        : pattern;
+  }
+
+  /** Every officer's pattern in the words the planner screens use (never a raw code). */
+  static String patternWords(String pattern) {
+    return switch (pattern) {
+      case "5_ON_2_OFF" -> "Fixed 5 on, 2 off";
+      case "7_ON_3_OFF" -> "7 on, 3 off";
+      case "4_ON_4_OFF" -> "4 on, 4 off";
+      default -> "Rotating 5 on, 2 off (weekends rotate)";
+    };
   }
 
   private static int effectiveLength(Employee employee) {
@@ -523,7 +571,7 @@ public final class PlanGenerator {
       return null;
     }
     if (length == 12) {
-      return templates.get("NIGHT".equals(block) || "NIGHT".equals(employee.pref().timeOfDay())
+      return templates.get("NIGHT".equals(block) || PreferenceTimes.nightVolunteer(employee.pref().timesOfDay())
           ? "A12"
           : "P12");
     }
@@ -575,9 +623,7 @@ public final class PlanGenerator {
   }
 
   private static String preferenceBlock(Pref pref) {
-    return pref.timeOfDay() == null || "NONE".equals(pref.timeOfDay())
-        ? "DAY"
-        : pref.timeOfDay();
+    return PreferenceTimes.preferredBlock(pref.timesOfDay());
   }
 
   /**
@@ -757,7 +803,7 @@ public final class PlanGenerator {
   }
 
   private static List<Employee> rephase(
-      List<Employee> employees, Map<UUID, String> blockOf) {
+      List<Employee> employees, Map<UUID, String> blockOf, String pattern8h) {
     Map<String, Integer> counters = new HashMap<>();
     List<Employee> result = new ArrayList<>();
     for (Employee employee : employees) {
@@ -772,7 +818,11 @@ public final class PlanGenerator {
       String key =
           length == 12
               ? employee.unitId() + "|" + (crew == null ? "12" : crew)
-              : employee.unitId() + "|" + blockOf.getOrDefault(employee.id(), "DAY");
+              : employee.unitId()
+                  + "|"
+                  + blockOf.getOrDefault(employee.id(), "DAY")
+                  + "|"
+                  + patternOf(employee, pattern8h);
       int index = counters.merge(key, 1, Integer::sum) - 1;
       // 12 h crews are paired: two officers per post take phases j and j+4 of the 8-day cycle,
       // so exactly the post count is on duty every day. Sequential phases would put a 2-officer
@@ -790,7 +840,8 @@ public final class PlanGenerator {
               employee.pref(),
               employee.effectiveLength(),
               phase,
-              employee.crew()));
+              employee.crew(),
+              employee.pattern()));
     }
     return result;
   }
@@ -884,7 +935,33 @@ public final class PlanGenerator {
     scorecard.put("weekends", weekendsCard(employees, byEmployee));
     scorecard.put("fteBands", fteBandsCard(employees, byEmployee));
     scorecard.put("quarterHours", quarterHoursCard(employees, byEmployee));
-    if ("ROTATING_5_2".equals(pattern8h)) {
+    scorecard.put(
+        "patterns",
+        Map.of(
+            "officers",
+            employees.stream()
+                .map(
+                    employee -> {
+                      String pattern = patternOf(employee, pattern8h);
+                      Map<String, Object> row = new LinkedHashMap<>();
+                      row.put("employeeNo", employee.employeeNo());
+                      row.put("name", employee.name());
+                      row.put("unitCode", employee.unitCode());
+                      row.put("pattern", pattern);
+                      row.put("words", patternWords(pattern));
+                      return row;
+                    })
+                .toList(),
+            "note",
+            "Every officer has a pattern. The planner changes an 8-hour officer's pattern on"
+                + " Preferences; a 12-hour officer keeps the crew's 4 on, 4 off cycle."));
+    boolean anyRotating =
+        employees.stream()
+            .anyMatch(
+                employee ->
+                    effectiveLength(employee) == 8
+                        && "ROTATING_5_2".equals(patternOf(employee, pattern8h)));
+    if (anyRotating) {
       scorecard.put(
           "warningNote",
           "At the weekend-rotation changeover an officer has one ordinary rest-day warning"
@@ -997,7 +1074,7 @@ public final class PlanGenerator {
           lengthMet++;
         }
       }
-      if (pref.timeOfDay() != null && !"NONE".equals(pref.timeOfDay())) {
+      if (PreferenceTimes.asked(pref.timesOfDay())) {
         timeAsked++;
         if (!shifts.isEmpty()
             && shifts.stream()
@@ -1005,7 +1082,8 @@ public final class PlanGenerator {
                     shift -> {
                       Template template = templates.get(shift.templateCode());
                       return template != null
-                          && pref.timeOfDay().equals(ShiftKinds.timeOfDay(template.start()));
+                          && PreferenceTimes.matches(
+                              pref.timesOfDay(), ShiftKinds.timeOfDay(template.start()));
                     })) {
           timeMet++;
         }
@@ -1068,7 +1146,7 @@ public final class PlanGenerator {
       int avoidGiven = 0;
       long againstWish = 0;
       for (Employee member : members) {
-        boolean avoidsNights = "DAY".equals(member.pref().timeOfDay()) || "EVENING".equals(member.pref().timeOfDay());
+        boolean avoidsNights = PreferenceTimes.avoidsNights(member.pref().timesOfDay());
         if (!avoidsNights) {
           continue;
         }
@@ -1108,7 +1186,7 @@ public final class PlanGenerator {
             continue;
           }
           Employee officer = members.stream().filter(e -> e.id().equals(assignment.employeeId())).findFirst().orElse(null);
-          if (officer == null || "NIGHT".equals(officer.pref().timeOfDay())) {
+          if (officer == null || PreferenceTimes.nightVolunteer(officer.pref().timesOfDay())) {
             continue;
           }
           LocalDate checkDate = date;
@@ -1121,7 +1199,7 @@ public final class PlanGenerator {
                   .filter(other -> !working.contains(other.id()))
                   .filter(other -> works(other, checkDate, pattern8h))
                   .filter(other -> "NIGHT".equals(blockOf.getOrDefault(other.id(), "DAY")))
-                  .filter(other -> !"NIGHT".equals(other.pref().timeOfDay()))
+                  .filter(other -> !PreferenceTimes.nightVolunteer(other.pref().timesOfDay()))
                   // The generator chooses a night GROUP newest-first, not a person per day; a
                   // newer officer who also works nights is not being passed over.
                   .filter(other -> byEmployee.getOrDefault(other.id(), List.of()).stream()

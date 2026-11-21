@@ -99,12 +99,14 @@ class PlannerApiTest {
     Map<String, Object> body = json(response);
     draftId = UUID.fromString((String) body.get("id"));
 
-    assertThat(body.get("pattern8h")).isEqualTo("ROTATING_5_2");
+    assertThat(body.get("pattern8h"))
+        .as("no request pattern means every officer's own pattern")
+        .isNull();
     @SuppressWarnings("unchecked")
     Map<String, Object> scorecard = (Map<String, Object>) body.get("scorecard");
     assertThat(scorecard).containsKeys(
         "coverage", "warnings", "preferences", "nights", "overtime", "weekends", "quarterHours",
-        "warningNote", "generatedMs");
+        "patterns", "warningNote", "generatedMs");
     assertThat(assignmentCount()).isGreaterThan(3000);
     assertThat(((Map<?, ?>) scorecard.get("coverage")).get("shortBlockDays")).isNotNull();
     assertThat(scorecard.get("warnings").toString())
@@ -350,6 +352,8 @@ class PlannerApiTest {
     Map<String, Object> mine =
         json(send("GET", "/api/v1/me/preferences", null, tokens.get("t.nakamura")));
     assertThat(mine.get("shiftLength")).isEqualTo(12);
+    assertThat(mine.get("timesOfDay")).isEqualTo(List.of("EVENING"));
+    assertThat(mine).doesNotContainKey("timeOfDay");
     assertThat(mine.get("daysOff")).isEqualTo(List.of("SAT", "MON"));
     assertThat(
             send("PUT", "/api/v1/me/preferences",
@@ -388,7 +392,8 @@ class PlannerApiTest {
             List.class);
     assertThat(all).hasSize(100);
     assertThat(all.get(0)).containsKeys(
-        "employeeId", "name", "shiftLength", "timeOfDay", "daysOff", "inDraft");
+        "employeeId", "name", "shiftLength", "timesOfDay", "daysOff", "inDraft");
+    assertThat(all.get(0)).doesNotContainKey("timeOfDay");
     assertThat(send("DELETE", "/api/v1/me/preferences", null, tokens.get("t.nakamura")).statusCode())
         .isEqualTo(204);
   }

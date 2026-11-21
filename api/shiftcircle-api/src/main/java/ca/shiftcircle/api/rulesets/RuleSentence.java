@@ -2,6 +2,7 @@ package ca.shiftcircle.api.rulesets;
 
 import ca.shiftcircle.rules.model.OverridePolicy;
 import ca.shiftcircle.rules.model.RuleRow;
+import ca.shiftcircle.rules.facts.RuleOutcome;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -19,7 +20,7 @@ public final class RuleSentence {
 
   public static String of(RuleRow row) {
     Map<String, Object> params = row.params();
-    String override = override(row.overridePolicy());
+    String override = override(row.overridePolicy(), row.severity());
     String outcome = outcome(row.severity());
     return switch (row.table()) {
       case REST -> "After "
@@ -126,10 +127,12 @@ public final class RuleSentence {
     };
   }
 
-  private static String override(OverridePolicy policy) {
+  private static String override(OverridePolicy policy, RuleOutcome severity) {
     return switch (policy) {
       case EMERGENCY -> " A supervisor may override only in an emergency, with a written reason.";
-      case ACKNOWLEDGE -> " A supervisor must acknowledge it before the change is saved.";
+      case ACKNOWLEDGE -> severity == RuleOutcome.BLOCK
+          ? " It cannot be saved and has no override."
+          : " A supervisor must acknowledge it before the change is saved.";
       case NONE -> " It cannot be overridden.";
     };
   }

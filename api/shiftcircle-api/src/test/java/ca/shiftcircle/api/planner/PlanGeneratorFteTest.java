@@ -108,7 +108,7 @@ class PlanGeneratorFteTest {
         unit,
         LocalDate.of(2006, 1, 1).plusDays((suffix.hashCode() & 0x7fffffff) % (19 * 365)),
         fte,
-        new PlanGenerator.Pref(8, "NONE", List.of()),
+        new PlanGenerator.Pref(8, List.of(), List.of()),
         8,
         Math.floorMod(phase, 7));
   }

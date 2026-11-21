@@ -118,7 +118,10 @@ class PlanGeneratorCrewTest {
         "A",
         LocalDate.of(2020, 1, 1).plusDays(index * 37L),
         1.0,
-        new PlanGenerator.Pref(length, time, List.of()),
+        new PlanGenerator.Pref(
+            length,
+            "NONE".equals(time) || time == null ? List.of() : List.of(time),
+            List.of()),
         length,
         0,
         crew);

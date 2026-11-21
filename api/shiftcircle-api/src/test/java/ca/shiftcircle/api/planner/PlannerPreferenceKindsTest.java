@@ -82,7 +82,7 @@ class PlannerPreferenceKindsTest {
             "SELECT e.id FROM employee e JOIN rotation_pattern r ON r.id = e.rotation_pattern_id"
                 + " JOIN officer_preference p ON p.employee_id = e.id"
                 + " WHERE r.code = 'N12_NIGHT_4ON4OFF' AND p.shift_length = 12"
-                + " AND p.time_of_day = 'NIGHT' AND e.fte = 1 LIMIT 1",
+                + " AND p.times_of_day @> ARRAY['NIGHT']::text[] AND e.fte = 1 LIMIT 1",
             UUID.class);
     Map<String, Object> n12Row = preferenceRow(n12);
     assertThat(n12Row.get("inDraft"))
@@ -96,7 +96,7 @@ class PlannerPreferenceKindsTest {
                 + " WHERE r.code = 'D12_DAY_4ON4OFF' AND e.fte = 1 LIMIT 1",
             UUID.class);
     jdbc.update(
-        "UPDATE officer_preference SET shift_length = 8, time_of_day = 'EVENING'"
+        "UPDATE officer_preference SET shift_length = 8, times_of_day = ARRAY['EVENING']"
             + " WHERE employee_id = ?",
         d12);
     UUID second = generate();

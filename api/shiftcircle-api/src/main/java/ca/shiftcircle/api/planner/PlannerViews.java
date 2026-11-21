@@ -78,22 +78,26 @@ public final class PlannerViews {
       String unitName,
       LocalDate seniorityDate,
       Integer shiftLength,
-      String timeOfDay,
+      List<String> timesOfDay,
       List<String> daysOff,
       int maxDaysOff,
+      String pattern,
+      String patternWords,
+      boolean patternEditable,
       String inDraft,
       List<String> unmet,
       String updatedAt) {}
 
   public record MyPreferences(
       Integer shiftLength,
-      String timeOfDay,
+      List<String> timesOfDay,
       List<String> daysOff,
       int maxDaysOff,
       List<Integer> allowedLengths,
       String updatedAt) {}
 
-  public record PreferenceInput(Integer shiftLength, String timeOfDay, List<String> daysOff) {}
+  public record PreferenceInput(
+      Integer shiftLength, List<String> timesOfDay, String timeOfDay, List<String> daysOff) {}
 
   /** A planned absence and whether this call created it (false = the same absence already existed). */
   public record PlannedAbsenceResult(Map<String, Object> body, boolean created) {}

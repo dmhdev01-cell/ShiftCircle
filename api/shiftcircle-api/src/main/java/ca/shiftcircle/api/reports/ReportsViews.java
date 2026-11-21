@@ -17,6 +17,7 @@ public final class ReportsViews {
   public record CoverageWeek(
       String label,
       double scheduledPercent,
+      double extraPercent,
       Double actualPercent,
       boolean planned,
       double requiredHours,
