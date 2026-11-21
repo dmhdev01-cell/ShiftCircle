@@ -287,6 +287,43 @@ describe('Time and attendance', () => {
     vi.restoreAllMocks();
   });
 
+  it('clears a record back to needs actual', async () => {
+    // Observation #11: there was no undo - an absence or a wrong actual stayed.
+    const worked: TimeEntry = {
+      assignmentId: 'assignment-worked',
+      employeeId: 'emp-tara',
+      employeeName: 'Tara Nakamura',
+      unitId: 'unit-b',
+      unitName: 'Unit B · Living unit',
+      date: '2026-11-18',
+      startAt: '2026-11-18T07:00:00-06:00',
+      endAt: '2026-11-18T15:00:00-06:00',
+      shiftTemplate: 'D8',
+      worked: true,
+      needsActual: false,
+      actualStart: '2026-11-18T07:00:00-06:00',
+      actualEnd: '2026-11-18T15:00:00-06:00',
+    };
+    vi.spyOn(api, 'getTimeEntries').mockResolvedValue([worked]);
+    const clear = vi.spyOn(api, 'clearActual').mockResolvedValue({
+      entry: { ...worked, worked: false, needsActual: true },
+      payCodes: [],
+      periodHours: 0,
+    });
+    const user = userEvent.setup();
+
+    renderScreen();
+
+    await screen.findByText('Tara Nakamura');
+    const grid = await screen.findByRole('region', { name: 'Time entries, scrolls sideways' });
+    await user.click(within(grid).getAllByRole('button')[0]);
+    await user.click(await screen.findByRole('button', { name: 'Clear (back to needs actual)' }));
+
+    await waitFor(() => expect(clear).toHaveBeenCalledWith('assignment-worked'));
+    expect(await screen.findByText(/The record is cleared/)).toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+
   it('writes a night shift\'s adjusted end on the next day', async () => {
     // A 23:00-07:00 shift used to send an end before its start (400).
     const night: TimeEntry = {

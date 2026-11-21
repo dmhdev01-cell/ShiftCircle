@@ -1008,6 +1008,21 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
       return demoTimeEntries.filter((entry) => entry.date >= period.from && entry.date <= period.to);
     },
 
+    async clearActual(assignmentId: string): Promise<RecordActualResult> {
+      await pause();
+      const entry = demoTimeEntries.find((candidate) => candidate.assignmentId === assignmentId);
+      if (!entry) {
+        throw new ApiError('That time entry is not in the fixture.', 404);
+      }
+      entry.worked = false;
+      entry.needsActual = true;
+      entry.absence = undefined;
+      entry.actualStart = undefined;
+      entry.actualEnd = undefined;
+      entry.payCodes = [];
+      return { entry, payCodes: [], periodHours: 0 };
+    },
+
     async recordActual(entryId: string, input: RecordActualInput): Promise<RecordActualResult> {
       await pause();
       const entry = demoTimeEntries.find((candidate) => candidate.assignmentId === entryId);

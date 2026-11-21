@@ -21,6 +21,8 @@ interface RecordActualPanelProps {
   result?: { periodHours: number; payCodes: PayCode[] | undefined };
   onSave: (input: RecordActualInput) => void;
   onCancel: () => void;
+  /** Back to "needs actual"; only for a cell that already holds a record. */
+  onClear?: () => void;
 }
 
 function clock(instant: string): string {
@@ -38,7 +40,13 @@ function nextDay(date: string): string {
  * The record-actual panel (docs/ui/build-notes.md §2.2): worked as scheduled,
  * adjusted times, or absent.
  */
-export function RecordActualPanel({ entry, result, onSave, onCancel }: RecordActualPanelProps) {
+export function RecordActualPanel({
+  entry,
+  result,
+  onSave,
+  onCancel,
+  onClear,
+}: RecordActualPanelProps) {
   // No default: one hasty click must not record a full day of payroll hours.
   // A cell that already holds an absence opens on it, so the supervisor sees
   // what is recorded and can correct it (observation #11).
@@ -240,6 +248,11 @@ export function RecordActualPanel({ entry, result, onSave, onCancel }: RecordAct
         <Button variant="text" color="primary" onClick={onCancel}>
           {result ? 'Done' : 'Cancel'}
         </Button>
+        {onClear ? (
+          <Button variant="text" color="primary" onClick={onClear}>
+            Clear (back to needs actual)
+          </Button>
+        ) : null}
       </Box>
     </Box>
   );
