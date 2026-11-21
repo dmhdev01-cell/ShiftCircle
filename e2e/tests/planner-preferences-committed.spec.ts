@@ -28,7 +28,7 @@ interface PreferenceRow {
   name: string;
   unitName: string;
   shiftLength: number | null;
-  timeOfDay: string | null;
+  timesOfDay: string[];
   inDraft: string;
   unmet: string[];
 }
@@ -94,7 +94,7 @@ test.describe('preferences after a commit', () => {
     const api = await apiAs(request, 'p.planner');
     const prefs = await api.get<PreferenceRow[]>('/planner/preferences');
     const nightCrew = prefs.filter(
-      (row) => row.shiftLength === 12 && row.timeOfDay === 'NIGHT' && row.inDraft === 'MET',
+      (row) => row.shiftLength === 12 && row.timesOfDay.includes('NIGHT') && row.inDraft === 'MET',
     );
     expect(nightCrew.length, 'N12 crew officers who asked for 12 h nights').toBeGreaterThan(0);
     const officer = nightCrew[0];
