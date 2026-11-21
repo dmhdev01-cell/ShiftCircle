@@ -68,8 +68,8 @@ test.describe('audit log', () => {
     await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Audit log' }).click();
     await expect(page.getByRole('heading', { name: 'Audit log', level: 1 })).toBeVisible();
 
-    await page.getByLabel('Actor').fill('j.chen');
-    await page.getByLabel('Action').fill('override_rule');
+    await page.getByLabel('Done by').selectOption('j.chen');
+    await page.getByLabel('Action').selectOption('override_rule');
     await page.getByRole('button', { name: 'Apply' }).click();
 
     const row = page.getByRole('row').filter({ hasText: 'Rule override' });

@@ -132,7 +132,7 @@ describe('leaving the wall display', () => {
     renderDisplay();
     await firstLoad();
 
-    const exit = screen.getByRole('button', { name: 'Exit the wall display' });
+    const exit = screen.getByRole('button', { name: 'Exit wall display' });
     expect(exit).toBeVisible();
 
     // A direct click: the page's clock is fake, so user-event's timers would
@@ -169,7 +169,7 @@ describe('leaving the wall display', () => {
     renderDisplay();
     await firstLoad();
 
-    expect(screen.queryByRole('button', { name: 'Exit the wall display' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Exit wall display' })).not.toBeInTheDocument();
     await act(async () => {
       fireEvent.keyDown(window, { key: 'Escape' });
     });

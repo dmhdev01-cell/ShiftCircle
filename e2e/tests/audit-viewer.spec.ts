@@ -31,15 +31,17 @@ test.describe('audit viewer', () => {
       await expect.poll(async () => rows.count()).toBeGreaterThan(before);
     }
 
-    // An actor nobody has: nothing matches, in plain words.
-    await page.getByLabel('Actor').fill('nobody.at.all');
+    // Nothing matches, in plain words: no event has happened by 2027, and the
+    // Done by picker only offers people who exist (it replaced the free-text
+    // 'Actor' filter: acceptance row 2).
+    await page.getByLabel('From').fill('2027-01-01');
     await page.getByRole('button', { name: 'Apply' }).click();
     await expect(page.getByText('No audit events match these filters.')).toBeVisible();
     await expect(rows).toHaveCount(1);
 
     // An entity filter narrows to that kind of record.
     await page.getByRole('button', { name: 'Clear' }).click();
-    await expect(page.getByLabel('Actor')).toHaveValue('');
+    await expect(page.getByLabel('Done by')).toHaveValue('');
     await expect(rows.nth(1)).toBeVisible();
     // Filter on the kind of record the newest event is about, so the result is
     // never empty, and every row left must be of that kind.

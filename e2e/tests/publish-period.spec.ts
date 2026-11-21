@@ -61,6 +61,8 @@ test.describe('publish the roster period', () => {
     await signIn(page, 'A. Reviewer');
     await expect(page.getByRole('banner')).toContainText('Auditor');
     await navTo(page, 'Audit log');
-    await expect(page.getByText('Period published').first()).toBeVisible();
+    await expect(
+      page.getByText('Published. The officers see this roster as final.').first(),
+    ).toBeVisible();
   });
 });
