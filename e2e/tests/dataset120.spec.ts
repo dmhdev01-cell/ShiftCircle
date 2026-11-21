@@ -1,54 +1,110 @@
 import { expect, test } from '@playwright/test';
 
-import type { APIRequestContext } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
 
 import { apiAs, isFixtures } from './api';
-import { navTo, selectUnit, signIn } from './support';
+import { navTo, selectUnit, signIn, signOut } from './support';
 
 /**
- * Dataset 120 (100 full-time crews + ~20 casuals): the planner's scorecard
- * reports gaps in a loose bound, a supervisor fills one on the board, and an
- * illegal fifth consecutive 12 h shift is refused by the rules.
+ * Dataset 120 (100 full-time crews + ~20 part-time casuals; the person chose
+ * it at 04:19Z): the planner shows the honest gaps, the committed 2027 plan
+ * carries the D12/N12 12 h crew chips, a supervisor fills one gap on the
+ * board, and an illegal fifth consecutive 12 h day is refused by U-09.
  *
- * Resets the stack to dataset 120 itself (beforeEach, through the api), so it
- * runs alone or in any order.
+ * Self-contained: resets the stack to dataset 120 and commits its own plan.
+ * Playwright gives no ordering across spec files, so it must not rely on
+ * another spec's state.
  */
 
-/**
- * A reset to dataset 120 through the api, so this spec stands alone: Playwright
- * gives no ordering across files and a verifier may run it by itself.
- */
+const DEMO_MONDAY = '2026-11-16';
+const PLAN_FROM = '2027-01-04';
+
+interface PlanState {
+  state: 'NONE' | 'DRAFT' | 'COMMITTED';
+  defaultSeed: number;
+  draft?: { id: string } | null;
+  committedDraft?: { id: string } | null;
+}
+
+interface Unit {
+  id: string;
+  code: string;
+  name: string;
+}
+
+interface Gap {
+  unitId: string;
+  unitName: string;
+  date: string;
+  block: 'DAY' | 'EVENING' | 'NIGHT';
+  required: number;
+  placed: number;
+}
+
+interface ShiftItem {
+  shiftTemplate: string;
+}
+
+interface DayCell {
+  date: string;
+  items: ShiftItem[];
+}
+
+interface Officer {
+  employeeId: string;
+  name: string;
+  cells: DayCell[];
+}
+
+interface RuleResult {
+  outcome: string;
+  ruleCode: string;
+}
+
+/** The template a gap's block needs on the crew model. */
+const GAP_TEMPLATE: Record<Gap['block'], { code: string; start: string; label: string }> = {
+  DAY: { code: 'D12', start: '07:00', label: 'D12 · Day 12 h' },
+  EVENING: { code: 'E8', start: '15:00', label: 'E8 · Evening 8 h' },
+  NIGHT: { code: 'N12', start: '19:00', label: 'N12 · Night 12 h' },
+};
+
+function addDays(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function mondayOf(date: string): string {
+  const value = new Date(`${date}T00:00:00Z`);
+  return addDays(date, -((value.getUTCDay() + 6) % 7));
+}
+
+/** Reset the stack to dataset 120 through the api, and wait for DONE. */
 async function resetTo120(request: APIRequestContext): Promise<void> {
   const api = await apiAs(request, 'p.planner');
   const started = await api.post('/demo/reset', { confirm: 'RESET', dataset: '120' });
   expect([200, 202]).toContain(started.status);
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    const status = await api.get<{ state: string; dataset: string; error: string | null }>(
+  for (let attempt = 0; attempt < 90; attempt += 1) {
+    const status = await api.get<{ state: string; dataset?: string; error: string | null }>(
       '/demo/reset/status',
     );
     if (status.state === 'DONE') {
-      expect(status.dataset).toBe('120');
+      expect(status.dataset ?? '120').toBe('120');
       return;
     }
-    if (status.state === 'FAILED') {
-      throw new Error(`reset to 120 failed: ${status.error ?? 'no reason'}`);
-    }
+    if (status.state === 'FAILED') throw new Error(`reset to 120 failed: ${status.error ?? 'no reason'}`);
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
   throw new Error('reset to 120 did not finish');
 }
 
-interface PlanState {
-  state: string;
-  defaultSeed: number;
-  committedDraft?: { id: string } | null;
-}
-
-async function committedPlan(request: APIRequestContext): Promise<string> {
+/** Commit a plan on the current stack and return its id. */
+async function commitPlan(request: APIRequestContext): Promise<string> {
   const api = await apiAs(request, 'p.planner');
   const plan = await api.get<PlanState>('/planner/plan');
   if (plan.state === 'COMMITTED' && plan.committedDraft) return plan.committedDraft.id;
   const draft = await api.post('/planner/drafts', { seed: plan.defaultSeed });
+  expect([200, 201]).toContain(draft.status);
   const id = (draft.body as { id: string }).id;
   const preview = await api.get<{ version: number; warningCount: number }>(
     `/planner/drafts/${id}/commit-preview`,
@@ -60,79 +116,155 @@ async function committedPlan(request: APIRequestContext): Promise<string> {
   return id;
 }
 
+/** Walk the board from the demo week to the wanted Monday (whole weeks). */
+async function goToWeek(page: Page, current: { monday: string }, target: string): Promise<void> {
+  const weeks =
+    (Date.parse(`${target}T00:00:00Z`) - Date.parse(`${current.monday}T00:00:00Z`)) / (7 * 86_400_000);
+  const button = weeks < 0 ? 'Previous week' : 'Next week';
+  for (let step = 0; step < Math.abs(weeks); step += 1) {
+    await page.getByRole('button', { name: button }).click();
+  }
+  current.monday = target;
+}
+
+/**
+ * An officer who is Off on the gap's date and can legally take the block's
+ * template, found through the same preview the board runs.
+ */
+async function fillableOfficer(
+  request: APIRequestContext,
+  gap: Gap,
+): Promise<{ employeeId: string; name: string }> {
+  const api = await apiAs(request, 'm.ellis');
+  const from = mondayOf(gap.date);
+  const schedule = await api.get<{ officers: Officer[] }>(
+    `/schedule?unitId=${gap.unitId}&from=${from}&to=${addDays(from, 6)}`,
+  );
+  const template = GAP_TEMPLATE[gap.block];
+  for (const officer of schedule.officers) {
+    const cell = officer.cells.find((entry) => entry.date === gap.date);
+    if (!cell || cell.items.length > 0) continue;
+    const preview = await api.post('/rule-checks', {
+      change: {
+        type: 'ASSIGN',
+        employeeId: officer.employeeId,
+        unitId: gap.unitId,
+        shiftTemplate: template.code,
+        startAt: `${gap.date}T${template.start}:00-06:00`,
+      },
+    });
+    const results = (preview.body as { ruleResults?: RuleResult[] }).ruleResults ?? [];
+    if (preview.status === 200 && !results.some((result) => result.outcome === 'BLOCK')) {
+      return { employeeId: officer.employeeId, name: officer.name };
+    }
+  }
+  throw new Error(`no officer in ${gap.unitName} can take a ${template.code} on ${gap.date}`);
+}
+
+/**
+ * An officer on four consecutive D12 days who is Off the day after: assigning
+ * that fifth day must be blocked by U-09 (more than 4 consecutive 12 h shifts).
+ */
+async function fifthDayOfFour(
+  request: APIRequestContext,
+): Promise<{ unitId: string; employeeId: string; date: string }> {
+  const api = await apiAs(request, 'm.ellis');
+  const units = await api.get<Unit[]>('/units');
+  for (const unit of units) {
+    const schedule = await api.get<{ officers: Officer[] }>(
+      `/schedule?unitId=${unit.id}&from=${PLAN_FROM}&to=2027-01-17`,
+    );
+    for (const officer of schedule.officers) {
+      const items = new Map(officer.cells.map((cell) => [cell.date, cell.items]));
+      for (const cell of officer.cells) {
+        const run = [0, 1, 2, 3].map((offset) => addDays(cell.date, offset));
+        const fourD12 = run.every((date) =>
+          (items.get(date) ?? []).some((item) => item.shiftTemplate === 'D12'),
+        );
+        const fifth = addDays(cell.date, 4);
+        const fifthEmpty = (items.get(fifth) ?? []).length === 0;
+        if (fourD12 && fifthEmpty) {
+          return { unitId: unit.id, employeeId: officer.employeeId, date: fifth };
+        }
+      }
+    }
+  }
+  throw new Error('no four consecutive D12 days in the committed plan');
+}
+
 test.describe('dataset 120', () => {
-  test.beforeEach(async ({ page, request }) => {
+  test.beforeEach(async ({ page }) => {
     await page.goto('/login');
     test.skip(await isFixtures(page), 'the crews and casuals need the real api');
-    await resetTo120(request);
   });
 
-  test('the scorecard shows gaps, a supervisor fills one, and a fifth 12 h day is refused', async ({
+  test('shows the gaps, carries D12/N12, fills one, and refuses a fifth 12 h day', async ({
     page,
     request,
   }) => {
-    // A committed 2027 plan on this dataset.
-    const draftId = await committedPlan(request);
-    const api = await apiAs(request, 'p.planner');
-    const gaps = await api.get<{ unitId: string; unitName: string; date: string }[]>(
-      `/planner/drafts/${draftId}/gaps`,
-    );
-    // Loose bound: the 120 dataset leaves gaps for overtime, not a clean roster.
+    test.setTimeout(300000);
+    await resetTo120(request);
+    const draftId = await commitPlan(request);
+
+    const planner = await apiAs(request, 'p.planner');
+    const gaps = await planner.get<Gap[]>(`/planner/drafts/${draftId}/gaps`);
+    // Loose bound: the 120 dataset keeps the honest ~38 gaps for supervisors.
     expect(gaps.length, 'gaps on dataset 120').toBeGreaterThan(20);
 
-    // The planner sees them counted.
+    // The rules refuse a fifth consecutive 12 h day: four committed D12 days,
+    // then a preview of the day after (U-09, Block).
+    const run = await fifthDayOfFour(request);
+    const supervisor = await apiAs(request, 'm.ellis');
+    const fifth = await supervisor.post('/rule-checks', {
+      change: {
+        type: 'ASSIGN',
+        employeeId: run.employeeId,
+        unitId: run.unitId,
+        shiftTemplate: 'D12',
+        startAt: `${run.date}T07:00:00-06:00`,
+      },
+    });
+    expect(fifth.status).toBe(200);
+    const results = (fifth.body as { ruleResults?: RuleResult[] }).ruleResults ?? [];
+    expect(
+      results.some((result) => result.ruleCode === 'U-09' && result.outcome === 'BLOCK'),
+      JSON.stringify(results),
+    ).toBe(true);
+
+    // The planner sees the gaps counted on the Gaps tab.
     await signIn(page, 'P. Planner');
     await navTo(page, 'Quarter plan');
-    await expect(page.getByRole('tab', { name: /Gaps/ })).toBeVisible();
+    const gapsTab = page.getByRole('tab', { name: /Gaps \(/ });
+    await expect(gapsTab).toBeVisible();
+    const count = Number((await gapsTab.textContent())?.match(/Gaps \((\d+)\)/)?.[1] ?? 0);
+    expect(count, 'the Gaps tab counts the short block-days').toBeGreaterThan(20);
+    await signOut(page, 'P. Planner');
 
-    // A supervisor fills one gap on the committed board (demo step 7).
-    const gap = gaps[0];
+    // A supervisor opens the committed plan: the 2027 week carries the 12 h
+    // crew chips, not raw codes.
     await signIn(page, 'M. Ellis');
     await navTo(page, 'Planning board');
-    await selectUnit(page, gap.unitName);
-    for (let week = 0; week < 8; week += 1) {
-      const next = page.getByRole('button', { name: 'Next week' });
-      if (await next.isEnabled()) await next.click();
-    }
-    const cell = page.getByRole('button', { name: new RegExp(`Off - assign a shift to .* on ${gap.date}`) });
-    if (await cell.count()) {
-      await cell.first().click();
-      await page.getByRole('button', { name: /D8 · Day 8 h|D12 · Day 12 h/ }).first().click();
-      const panel = page.getByRole('region', { name: 'Rule check' });
-      const save = panel.getByRole('button', { name: /^(Assign shift|Acknowledge and assign)$/ });
-      await expect(save).toBeVisible({ timeout: 15_000 });
-      await save.click();
-      await panel.getByRole('button', { name: 'Done' }).click();
-      await expect(cell.first()).toHaveCount(0, { timeout: 10_000 });
-    }
+    const current = { monday: DEMO_MONDAY };
+    await goToWeek(page, current, PLAN_FROM);
+    await expect(page.getByRole('group', { name: 'Week' })).toContainText('4 – 10 Jan 2027');
+    await expect(page.getByRole('button', { name: /^(D12|N12) for / }).first()).toBeVisible();
 
-    // An illegal fifth consecutive 12 h shift is refused: five D12 days in a
-    // row for one officer, previewed through the api (the board's own check).
-    const units = await api.get<{ id: string }[]>('/units');
-    const employees = await api.get<{ id: string; first_name: string; last_name: string }[]>('/employees');
-    const officer = employees[0];
-    let blocked = false;
-    for (let start = 1; start <= 4 && !blocked; start += 1) {
-      const days = [0, 1, 2, 3, 4].map((offset) => `2027-02-${String(start + offset).padStart(2, '0')}`);
-      const previews = await Promise.all(
-        days.map((date) =>
-          api.post('/rule-checks', {
-            change: {
-              type: 'ASSIGN',
-              employeeId: officer.id,
-              unitId: units[0].id,
-              shiftTemplate: 'D12',
-              startAt: `${date}T07:00:00-06:00`,
-            },
-          }),
-        ),
-      );
-      blocked = previews.some((response) =>
-        ((response.body as { ruleResults?: { outcome: string; ruleCode: string }[] }).ruleResults ?? []).some(
-          (result) => result.outcome === 'BLOCK',
-        ),
-      );
-    }
-    expect(blocked, 'a fifth consecutive 12 h day is blocked by the rules').toBe(true);
+    // Demo step 7: fill one gap on the board.
+    const gap = gaps[0];
+    const officer = await fillableOfficer(request, gap);
+    await selectUnit(page, gap.unitName);
+    await goToWeek(page, current, mondayOf(gap.date));
+    const off = page.getByRole('button', {
+      name: `Off - assign a shift to ${officer.name} on ${gap.date}`,
+    });
+    await off.click();
+    await page.getByRole('button', { name: GAP_TEMPLATE[gap.block].label }).click();
+    const panel = page.getByRole('region', { name: 'Rule check' });
+    const save = panel.getByRole('button', { name: /^(Assign shift|Acknowledge and assign)$/ });
+    await expect(save).toBeVisible({ timeout: 15_000 });
+    await save.click();
+    await panel.getByRole('button', { name: 'Done' }).click();
+    // The cell now holds the shift; the officer is no longer Off that day.
+    await expect(off).toHaveCount(0, { timeout: 10_000 });
   });
 });

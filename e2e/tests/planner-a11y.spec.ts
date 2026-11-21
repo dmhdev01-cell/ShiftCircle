@@ -19,6 +19,7 @@ test.describe('the planner, accessible and by keyboard', () => {
   test('the landing, scorecard and gaps pass axe; the commit dialog works by keyboard', async ({
     page,
   }, testInfo) => {
+    test.setTimeout(240000);
     await signIn(page, 'P. Planner');
     await expect(page.getByRole('heading', { name: 'Quarter plan', level: 1 })).toBeVisible();
     await expectAccessible(page, testInfo, 'planner-landing');

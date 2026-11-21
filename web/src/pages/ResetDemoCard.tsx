@@ -31,7 +31,11 @@ export function ResetDemoCard({
   datasets?: { id: string; name: string }[];
 }) {
   const [confirm, setConfirm] = useState('');
-  const [dataset, setDataset] = useState(datasets[0]?.id ?? '100');
+  // Default to the seeded 100 dataset when the api offers it (its checksum and
+  // golden are the untouched baseline); any other list defaults to its first.
+  const [dataset, setDataset] = useState(
+    datasets.some((entry) => entry.id === '100') ? '100' : (datasets[0]?.id ?? '100'),
+  );
   const [status, setStatus] = useState<DemoResetStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
