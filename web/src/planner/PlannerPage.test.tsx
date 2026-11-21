@@ -70,6 +70,21 @@ describe('the quarter plan', () => {
     expect(within(table).getAllByRole('button', { name: /Show week of/ }).length).toBeGreaterThan(0);
   });
 
+  it("compares the draft with what is on the board, in the api's direction", async () => {
+    const user = userEvent.setup();
+    renderPlanner();
+    await asPlanner(user);
+    await user.click(await screen.findByRole('button', { name: 'Generate draft' }));
+
+    await user.click(await screen.findByRole('tab', { name: 'Compare' }));
+
+    const table = await screen.findByRole('table');
+    expect(within(table).getByText('Block-days short')).toBeInTheDocument();
+    expect(within(table).getByText('Rule warnings')).toBeInTheDocument();
+    // Fewer gaps and fewer warnings in the draft: the api says lower is better.
+    expect(within(table).getAllByText('better').length).toBeGreaterThan(0);
+  });
+
   it('asks for the warnings to be accepted before committing, then commits', async () => {
     const user = userEvent.setup();
     renderPlanner();

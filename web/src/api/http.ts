@@ -9,6 +9,7 @@ import type {
   OverrideRow,
   PayPeriod,
   PlannerCommitPreview,
+  PlannerCompare,
   PlannerCommitResult,
   PlannerDraft,
   PlannerGap,
@@ -227,6 +228,9 @@ export function createHttpApi(): ShiftCircleApi {
     },
     getPlannerWarnings(draftId: string): Promise<PlannerWarningGroup[]> {
       return request<PlannerWarningGroup[]>(`/planner/drafts/${draftId}/warnings`);
+    },
+    getPlannerCompare(draftId: string): Promise<PlannerCompare> {
+      return request<PlannerCompare>(`/planner/drafts/${draftId}/compare`);
     },
     getPlannerCommitPreview(draftId: string): Promise<PlannerCommitPreview> {
       return request<PlannerCommitPreview>(`/planner/drafts/${draftId}/commit-preview`);

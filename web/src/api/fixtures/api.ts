@@ -84,6 +84,7 @@ import {
   discardPlannerDraft,
   generatePlannerDraft,
   plannerCommitPreview,
+  plannerCompare,
   plannerDraft,
   plannerGaps,
   plannerPlan,
@@ -464,6 +465,11 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
     async getPlannerWarnings() {
       await pause();
       return plannerWarnings();
+    },
+
+    async getPlannerCompare() {
+      await pause();
+      return plannerCompare();
     },
 
     async getPlannerCommitPreview() {

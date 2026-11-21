@@ -10,6 +10,7 @@
 import type {
   Block,
   PlannerCommitPreview,
+  PlannerCompare,
   PlannerCommitResult,
   PlannerDraft,
   PlannerGap,
@@ -175,6 +176,21 @@ export function plannerWarnings(): PlannerWarningGroup[] {
       ],
     },
   ];
+}
+
+export function plannerCompare(): PlannerCompare {
+  const current = plannerDraft();
+  return {
+    draftShifts: 4212,
+    draftGaps: current.scorecard.coverage.shortBlockDays,
+    committedShifts: committed?.shiftsWritten ?? 0,
+    rows: [
+      { key: 'shifts', label: 'Shifts', board: committed?.shiftsWritten ?? 0, draft: 4212, unit: 'count', direction: 'NEUTRAL' },
+      { key: 'gaps', label: 'Block-days short', board: 52, draft: current.scorecard.coverage.shortBlockDays, unit: 'count', direction: 'LOWER_IS_BETTER' },
+      { key: 'warnings', label: 'Rule warnings', board: 140, draft: current.scorecard.warnings.total, unit: 'count', direction: 'LOWER_IS_BETTER' },
+      { key: 'overtime', label: 'Overtime hours built in', board: 702, draft: current.scorecard.overtime.hoursOver, unit: 'hours', direction: 'LOWER_IS_BETTER' },
+    ],
+  };
 }
 
 export function plannerCommitPreview(): PlannerCommitPreview {

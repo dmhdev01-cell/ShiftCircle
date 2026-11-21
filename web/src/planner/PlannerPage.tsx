@@ -22,6 +22,7 @@ import type {
   PlannerPlan,
   PlannerScorecard,
   PlannerWarningGroup,
+  PlannerCompare,
 } from '../api/types';
 import { KpiTile } from '../planning/KpiTile';
 import { useRole } from '../shell/nav';
@@ -72,7 +73,7 @@ function seconds(ms: number): string {
   return `${(ms / 1000).toFixed(1)} s`;
 }
 
-type Tab = 'scorecard' | 'gaps' | 'roster';
+type Tab = 'scorecard' | 'gaps' | 'roster' | 'compare';
 
 export function PlannerPage() {
   const { role } = useRole();
@@ -87,6 +88,7 @@ export function PlannerPage() {
   const [explain, setExplain] = useState<string | null>(null);
   const [gaps, setGaps] = useState<PlannerGap[]>([]);
   const [warnings, setWarnings] = useState<PlannerWarningGroup[]>([]);
+  const [compare, setCompare] = useState<PlannerCompare | null>(null);
   const [commitOpen, setCommitOpen] = useState(false);
   const [preview, setPreview] = useState<PlannerCommitPreview | null>(null);
   const [accepted, setAccepted] = useState(false);
@@ -103,12 +105,14 @@ export function PlannerPage() {
       setPattern(next.patterns8h?.[0] ?? 'ROTATING_5_2');
       setState('ready');
       if (next.draft) {
-        const [gapRows, warningRows] = await Promise.all([
+        const [gapRows, warningRows, comparison] = await Promise.all([
           api.getPlannerGaps(next.draft.id),
           api.getPlannerWarnings(next.draft.id),
+          api.getPlannerCompare(next.draft.id),
         ]);
         setGaps(gapRows);
         setWarnings(warningRows);
+        setCompare(comparison);
       } else {
         setGaps([]);
         setWarnings([]);
@@ -191,12 +195,14 @@ export function PlannerPage() {
       });
       setPlan({ ...plan, draft: created, state: 'DRAFT' });
       setTab('scorecard');
-      const [gapRows, warningRows] = await Promise.all([
+      const [gapRows, warningRows, comparison] = await Promise.all([
         api.getPlannerGaps(created.id),
         api.getPlannerWarnings(created.id),
+        api.getPlannerCompare(created.id),
       ]);
       setGaps(gapRows);
       setWarnings(warningRows);
+      setCompare(comparison);
       setMessage(
         `Draft generated: ${created.scorecard.coverage.shortBlockDays} block-days short, ${created.scorecard.warnings.total} warnings, took ${seconds(created.generatedMs)}.`,
       );
@@ -504,6 +510,7 @@ export function PlannerPage() {
                 ['scorecard', 'Scorecard'],
                 ['gaps', `Gaps (${draft.scorecard.coverage.shortBlockDays})`],
                 ['roster', 'Roster'],
+                ['compare', 'Compare'],
               ] as const
             ).map(([id, label]) => (
               <Box
@@ -753,6 +760,81 @@ export function PlannerPage() {
                       No coverage gaps. Every hour of every block meets its staffing.
                     </Typography>
                   ) : null}
+                </CardContent>
+              </Card>
+            </Box>
+          ) : null}
+
+          {tab === 'compare' ? (
+            <Box role="tabpanel" id="planner-panel-compare" aria-labelledby="planner-tab-compare">
+              <Card>
+                <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <Typography sx={{ fontSize: 14 }}>
+                    {compare && compare.committedShifts === 0
+                      ? `Nothing is on the planning board for ${windowWords(plan.window.from, plan.window.to)} yet. Committing writes the whole draft.`
+                      : `The draft against the plan already on the board for ${windowWords(plan.window.from, plan.window.to)}.`}
+                  </Typography>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr>
+                        {['Measure', 'On the board now', 'Draft', 'Change'].map((heading) => (
+                          <th
+                            key={heading}
+                            style={{
+                              textAlign: 'left',
+                              padding: '6px 8px',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: colour.text.secondary,
+                              borderBottom: `1px solid ${colour.border.default}`,
+                            }}
+                          >
+                            {heading}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(compare?.rows ?? []).map((row) => {
+                        const change = row.draft - row.board;
+                        const better =
+                          row.direction === 'NEUTRAL' || change === 0
+                            ? null
+                            : row.direction === 'LOWER_IS_BETTER'
+                              ? change < 0
+                              : change > 0;
+                        const unitWord = row.unit === 'hours' ? ' h' : row.unit === 'percent' ? ' pts' : '';
+                        return (
+                          <tr key={row.key}>
+                            <td style={{ padding: '6px 8px', fontWeight: 600 }}>{row.label}</td>
+                            <td className="num" style={{ padding: '6px 8px' }}>
+                              {row.board.toLocaleString('en-CA')}
+                              {unitWord}
+                            </td>
+                            <td className="num" style={{ padding: '6px 8px' }}>
+                              {row.draft.toLocaleString('en-CA')}
+                              {unitWord}
+                            </td>
+                            <td style={{ padding: '6px 8px' }}>
+                              {change === 0 ? (
+                                <span style={{ color: colour.text.secondary }}>same</span>
+                              ) : better === null ? (
+                                <span className="num">
+                                  {change > 0 ? '+' : ''}
+                                  {change}
+                                  {unitWord}
+                                </span>
+                              ) : (
+                                <StatusPill tone={better ? 'pass' : 'warn'}>
+                                  {better ? 'better' : 'worse'}
+                                </StatusPill>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </CardContent>
               </Card>
             </Box>

@@ -760,6 +760,22 @@ export interface PlannerWarningGroup {
   items: PlannerWarningItem[];
 }
 
+export interface PlannerCompareRow {
+  key: string;
+  label: string;
+  board: number;
+  draft: number;
+  unit: 'count' | 'hours' | 'percent';
+  direction: 'LOWER_IS_BETTER' | 'HIGHER_IS_BETTER' | 'NEUTRAL';
+}
+
+export interface PlannerCompare {
+  draftShifts: number;
+  draftGaps: number;
+  committedShifts: number;
+  rows: PlannerCompareRow[];
+}
+
 export interface PlannerCommitPreview {
   version: number;
   shiftsToWrite: number;
@@ -803,6 +819,7 @@ export interface ShiftCircleApi {
   getPlannerDraft(draftId: string): Promise<PlannerDraft>;
   getPlannerGaps(draftId: string): Promise<PlannerGap[]>;
   getPlannerWarnings(draftId: string): Promise<PlannerWarningGroup[]>;
+  getPlannerCompare(draftId: string): Promise<PlannerCompare>;
   getPlannerCommitPreview(draftId: string): Promise<PlannerCommitPreview>;
   commitPlannerDraft(
     draftId: string,
