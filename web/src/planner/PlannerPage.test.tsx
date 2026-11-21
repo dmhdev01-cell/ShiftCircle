@@ -1,19 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
-function renderPlanner() {
+function SearchProbe() {
+  const location = useLocation();
+  return <div data-testid="search">{location.search}</div>;
+}
+
+function renderPlanner(path = '/planner') {
   return render(
     <ThemeProvider theme={theme}>
       <RoleProvider>
-        <MemoryRouter initialEntries={['/planner']}>
+        <MemoryRouter initialEntries={[path]}>
           <AppShellRoutes />
+          <SearchProbe />
         </MemoryRouter>
       </RoleProvider>
     </ThemeProvider>,
@@ -57,6 +63,20 @@ describe('the quarter plan', () => {
     expect(screen.getByRole('tab', { name: /Gaps/ })).toBeInTheDocument();
   });
 
+  it('keeps the tab in the address, so a link and Back land on it', async () => {
+    const user = userEvent.setup();
+    const first = renderPlanner();
+    await asPlanner(user);
+    await user.click(await screen.findByRole('button', { name: 'Generate draft' }));
+    await user.click(await screen.findByRole('tab', { name: /Gaps/ }));
+    expect(screen.getByTestId('search').textContent).toContain('tab=gaps');
+
+    // A fresh load of that address opens on Gaps (the fixture draft survives).
+    first.unmount();
+    renderPlanner('/planner?tab=gaps');
+    expect(await screen.findByRole('tab', { name: /Gaps/ })).toHaveAttribute('aria-selected', 'true');
+  });
+
   it('lists the gaps and can show a gap week', async () => {
     const user = userEvent.setup();
     renderPlanner();
@@ -68,6 +88,40 @@ describe('the quarter plan', () => {
     const table = await screen.findByRole('table');
     expect(within(table).getAllByText(/Unit A · Living unit/).length).toBeGreaterThan(0);
     expect(within(table).getAllByRole('button', { name: /Show week of/ }).length).toBeGreaterThan(0);
+  });
+
+  it("compares the draft with what is on the board, in the api's direction", async () => {
+    const user = userEvent.setup();
+    renderPlanner();
+    await asPlanner(user);
+    await user.click(await screen.findByRole('button', { name: 'Generate draft' }));
+
+    await user.click(await screen.findByRole('tab', { name: 'Compare' }));
+
+    const table = await screen.findByRole('table');
+    expect(within(table).getByText('Block-days short')).toBeInTheDocument();
+    expect(within(table).getByText('Rule warnings')).toBeInTheDocument();
+    // Fewer gaps and fewer warnings in the draft: the api says lower is better.
+    expect(within(table).getAllByText('better').length).toBeGreaterThan(0);
+  });
+
+  it('shows the draft roster with the all-units strip and the not-on-the-board note', async () => {
+    const user = userEvent.setup();
+    renderPlanner();
+    await asPlanner(user);
+    await user.click(await screen.findByRole('button', { name: 'Generate draft' }));
+
+    await user.click(await screen.findByRole('tab', { name: 'Roster' }));
+
+    expect(await screen.findByRole('note')).toHaveTextContent(/not on the planning board yet/);
+    expect(
+      await screen.findByRole('region', { name: /All units · 4 – 10 Jan 2027/ }),
+    ).toBeInTheDocument();
+    // The grid is the board's own, read-only here.
+    expect(await screen.findByRole('region', { name: 'Roster, scrolls sideways' })).toBeTruthy();
+    const week = screen.getByRole('group', { name: 'Week' });
+    expect(week).toHaveTextContent('4 – 10 Jan 2027');
+    expect(within(week).getByRole('button', { name: 'Previous week' })).toBeDisabled();
   });
 
   it('asks for the warnings to be accepted before committing, then commits', async () => {

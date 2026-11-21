@@ -7,10 +7,10 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { api, ApiError } from '../api/client';
-import type { AuditEvent, AuditQuery } from '../api/types';
+import type { AuditActorChoice, AuditEvent, AuditQuery } from '../api/types';
 import { colour } from '../theme/tokens';
 import { ScrollShadows } from '../components/ScrollShadows';
-import { ENTITY_FILTER_CHOICES } from './auditCodes';
+import { ACTION_CHOICES, ENTITY_FILTER_CHOICES } from './auditCodes';
 import { actionLabel, entityLabel, formatAt, summaryOf } from './auditText';
 
 const PAGE_SIZE = 20;
@@ -39,7 +39,25 @@ export function AuditPage() {
   const [next, setNext] = useState<number | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error' | 'denied'>('loading');
   const [message, setMessage] = useState<string | null>(null);
+  const [actors, setActors] = useState<AuditActorChoice[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void api
+      .getAuditActors()
+      .then((choices) => {
+        if (active) setActors(choices);
+      })
+      .catch(() => {
+        // A filter is a convenience: if the list cannot be read, the picker
+        // offers Anyone and the events still load.
+        if (active) setActors([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -168,22 +186,40 @@ export function AuditPage() {
           }}
           sx={{ p: 4, display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 3 }}
         >
+          {/* Observations #5 and #6: the filters took typed codes, and "Actor"
+              is not the word the person uses. Both are pickers now. */}
           <TextField
-            label="Actor"
+            select
+            label="Done by"
             size="small"
             value={draft.actor}
             onChange={(event) => setDraft((current) => ({ ...current, actor: event.target.value }))}
-            helperText="Username, e.g. m.ellis"
+            slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
             sx={{ minWidth: 180 }}
-          />
+          >
+            <option value="">Anyone</option>
+            {actors.map((actor) => (
+              <option key={actor.username} value={actor.username}>
+                {actor.displayName}
+              </option>
+            ))}
+          </TextField>
           <TextField
+            select
             label="Action"
             size="small"
             value={draft.action}
             onChange={(event) => setDraft((current) => ({ ...current, action: event.target.value }))}
-            helperText="Code, e.g. override_rule"
-            sx={{ minWidth: 180 }}
-          />
+            slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+            sx={{ minWidth: 220 }}
+          >
+            <option value="">Any action</option>
+            {ACTION_CHOICES.map((choice) => (
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
+            ))}
+          </TextField>
           <TextField
             select
             label="Entity"
@@ -263,11 +299,19 @@ export function AuditPage() {
         >
           <thead>
             <tr>
-              {['Time', 'Actor', 'Action', 'Entity', 'Summary'].map((heading) => (
+              {[
+                ['Time', 150],
+                ['Done by', 170],
+                ['Action', 190],
+                ['Entity', 160],
+                ['Summary', 0],
+              ].map(([heading, width]) => (
                 <th
-                  key={heading}
+                  key={String(heading)}
                   style={{
                     textAlign: 'left',
+                    verticalAlign: 'top',
+                    ...(Number(width) > 0 ? { width: Number(width), minWidth: Number(width) } : {}),
                     padding: '8px 10px',
                     fontSize: 12,
                     fontWeight: 600,
@@ -289,13 +333,20 @@ export function AuditPage() {
                   className="num"
                   style={{
                     padding: '8px 10px',
+                    verticalAlign: 'top',
                     whiteSpace: 'nowrap',
                     borderBottom: `1px solid ${colour.border.default}`,
                   }}
                 >
                   {formatAt(event.occurredAt)}
                 </td>
-                <td style={{ padding: '8px 10px', borderBottom: `1px solid ${colour.border.default}` }}>
+                <td
+                  style={{
+                    padding: '8px 10px',
+                    verticalAlign: 'top',
+                    borderBottom: `1px solid ${colour.border.default}`,
+                  }}
+                >
                   {event.actor ? (
                     <>
                       <strong>{event.actor.displayName}</strong>
@@ -308,10 +359,10 @@ export function AuditPage() {
                     'System'
                   )}
                 </td>
-                <td style={{ padding: '8px 10px', borderBottom: `1px solid ${colour.border.default}` }}>
+                <td style={{ padding: '8px 10px', verticalAlign: 'top', borderBottom: `1px solid ${colour.border.default}` }}>
                   {actionLabel(event.action)}
                 </td>
-                <td style={{ padding: '8px 10px', borderBottom: `1px solid ${colour.border.default}` }}>
+                <td style={{ padding: '8px 10px', verticalAlign: 'top', borderBottom: `1px solid ${colour.border.default}` }}>
                   {entityLabel(event.entityType)}
                   {event.entityId ? (
                     <span style={{ fontSize: 12, color: colour.text.secondary }}>
@@ -320,7 +371,7 @@ export function AuditPage() {
                     </span>
                   ) : null}
                 </td>
-                <td style={{ padding: '8px 10px', borderBottom: `1px solid ${colour.border.default}` }}>
+                <td style={{ padding: '8px 10px', verticalAlign: 'top', borderBottom: `1px solid ${colour.border.default}` }}>
                   {summaryOf(event)}
                 </td>
               </tr>

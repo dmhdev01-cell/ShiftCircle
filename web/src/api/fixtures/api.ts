@@ -17,6 +17,7 @@ import type {
   CoverageReport,
   DemoUser,
   MockLoginResult,
+  MyPreferencesInput,
   HoursReport,
   MyOffer,
   MySchedulePayload,
@@ -84,6 +85,13 @@ import {
   discardPlannerDraft,
   generatePlannerDraft,
   plannerCommitPreview,
+  plannerCompare,
+  plannerCoverage,
+  plannerSchedule,
+  clearMyPreferences,
+  fixtureMyPreferences,
+  fixturePlannerPreferences,
+  saveMyPreferences,
   plannerDraft,
   plannerGaps,
   plannerPlan,
@@ -464,6 +472,50 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
     async getPlannerWarnings() {
       await pause();
       return plannerWarnings();
+    },
+
+    async getPlannerSchedule(_draftId: string, query: { unitId: string; from: string; to: string }) {
+      await pause();
+      return plannerSchedule(query);
+    },
+
+    async getPlannerCoverage(_draftId: string, range: { from: string; to: string }) {
+      await pause();
+      return plannerCoverage(range);
+    },
+
+    async getAuditActors() {
+      await pause();
+      return [
+        { username: 'm.ellis', displayName: 'M. Ellis' },
+        { username: 'p.singh', displayName: 'P. Singh' },
+        { username: 'a.reviewer', displayName: 'A. Reviewer' },
+      ];
+    },
+
+    async getMyPreferences() {
+      await pause();
+      return fixtureMyPreferences();
+    },
+
+    async putMyPreferences(input: MyPreferencesInput) {
+      await pause();
+      return saveMyPreferences(input);
+    },
+
+    async deleteMyPreferences() {
+      await pause();
+      clearMyPreferences();
+    },
+
+    async getPlannerPreferences() {
+      await pause();
+      return fixturePlannerPreferences();
+    },
+
+    async getPlannerCompare() {
+      await pause();
+      return plannerCompare();
     },
 
     async getPlannerCommitPreview() {

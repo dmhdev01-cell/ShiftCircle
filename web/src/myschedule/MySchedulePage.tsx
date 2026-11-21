@@ -11,11 +11,14 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { api } from '../api/client';
+import { AbsenceChip, ShiftChip } from '../components/ShiftChip';
+import { Legend, LegendItem } from '../components/Legend';
 import { qualificationLabel } from '../api/qualifications';
 import { shiftTemplates } from '../api/shiftTemplates';
 import type { MyOffer, RuleCheckChange, RuleCheckOutcome } from '../api/types';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
+import { MyPreferencesCard } from '../planner/MyPreferencesCard';
 import { CalendarGrid } from './CalendarGrid';
 import type { CalendarCell } from './CalendarGrid';
 import { useMyOffers, useMySchedule } from './useMySchedule';
@@ -343,6 +346,28 @@ export function MySchedulePage() {
           ].join(' · ')}
         </Typography>
       </Box>
+
+      {/* Observation #1: the calendar's chips and the offer states had no key. */}
+      <Card>
+        <Legend title="Key">
+          <LegendItem>
+            <ShiftChip template="D8" /> <span>rostered shift, with its times</span>
+          </LegendItem>
+          <LegendItem>
+            <ShiftChip template="D8" worked /> <span>worked (actual recorded)</span>
+          </LegendItem>
+          <LegendItem>
+            <AbsenceChip absenceType="SICK" /> <span>Sick</span>
+          </LegendItem>
+          <LegendItem>
+            <AbsenceChip absenceType="VACATION" /> <span>Vacation</span>
+          </LegendItem>
+          <span>Offers: waiting for reply · accepted · declined · confirmed</span>
+          <span>Overtime = pay-period hours over {payload.payPeriod.thresholdHours} h (status pill)</span>
+        </Legend>
+      </Card>
+
+      <MyPreferencesCard />
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
         <Box

@@ -50,12 +50,14 @@ describe('the audit log', () => {
     ).toBeInTheDocument();
   });
 
-  it('filters by actor', async () => {
+  it('filters by the person who did it, chosen from a list', async () => {
     const user = userEvent.setup();
     renderAudit();
     await auditRows();
 
-    await user.type(screen.getByLabelText('Actor'), 'm.ellis');
+    // Observation #5/#6: a picker with names, labelled "Done by" - not a
+    // typed username under the word "Actor".
+    await user.selectOptions(screen.getByLabelText('Done by'), 'm.ellis');
     await user.click(screen.getByRole('button', { name: 'Apply' }));
 
     await waitFor(() => expect(screen.queryByText('j.chen')).not.toBeInTheDocument());
@@ -71,7 +73,7 @@ describe('the audit log', () => {
     renderAudit();
     await auditRows();
 
-    await user.type(screen.getByLabelText('Action'), 'no-such-action');
+    await user.type(screen.getByLabelText('From'), '2030-01-01');
     await user.click(screen.getByRole('button', { name: 'Apply' }));
 
     expect(await screen.findByText('No audit events match these filters.')).toBeInTheDocument();

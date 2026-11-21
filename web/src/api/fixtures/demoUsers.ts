@@ -56,6 +56,14 @@ export const demoUsers: DemoUser[] = [
     employeeId: '',
   },
   {
+    id: 'p-planner',
+    username: 'p.planner',
+    displayName: 'P. Planner',
+    roles: ['PLANNER'],
+    units: ['A', 'B', 'C', 'ADM', 'CTL', 'ESC'],
+    employeeId: '',
+  },
+  {
     id: 'unit-office-tv',
     username: 'tv.display',
     displayName: 'Unit office TV',

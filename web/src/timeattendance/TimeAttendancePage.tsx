@@ -10,6 +10,8 @@ import { api, ApiError } from '../api/client';
 import type { RecordActualInput, TimeEntry } from '../api/types';
 import { useVersion } from '../api/useVersion';
 import { StatusPill } from '../components/StatusPill';
+import { AbsenceChip, ShiftChip } from '../components/ShiftChip';
+import { Legend, LegendItem } from '../components/Legend';
 import { KpiTile } from '../planning/KpiTile';
 import { colour } from '../theme/tokens';
 import { LockPeriodDialog, UnlockDialog } from './PeriodDialogs';
@@ -343,7 +345,7 @@ export function TimeAttendancePage() {
               0,
             ),
           )}
-          note="P-01"
+          note={`hours over ${period?.overtimeThresholdHours ?? 80} h in a pay period`}
         />
         <KpiTile
           label="Shifts needing actuals"
@@ -353,7 +355,7 @@ export function TimeAttendancePage() {
         <KpiTile
           label="Short extensions"
           value={shortExtensions.length}
-          note="under 30 min, unpaid (P-04)"
+          note="under 30 min, unpaid"
         />
       </Box>
 
@@ -508,6 +510,32 @@ export function TimeAttendancePage() {
           }}
         />
       ) : null}
+
+      {/* Observation #8: the cells, the tiles and the pills had no key. */}
+      <Card>
+        <Legend title="Key">
+          <LegendItem>
+            <ShiftChip template="D8" /> <span>worked as rostered, with its times</span>
+          </LegendItem>
+          <LegendItem>
+            <Box component="span" sx={{ px: 1, py: 0.25, borderRadius: '6px', backgroundColor: colour.status.warn.bg, color: colour.status.warn.text, fontWeight: 600 }}>
+              no actual
+            </Box>
+            <span>shift that has ended: click to record what happened</span>
+          </LegendItem>
+          <LegendItem>
+            <AbsenceChip absenceType="SICK" /> <span>Sick</span>
+          </LegendItem>
+          <LegendItem>
+            <AbsenceChip absenceType="VACATION" /> <span>Vacation</span>
+          </LegendItem>
+          <span>— = no shift</span>
+          <span>Short extension = under 30 min, unpaid</span>
+          <span>Overtime = hours over {period?.overtimeThresholdHours ?? 80} h in a pay period</span>
+          <span>Hours pill: under · approaching (within 8 h of the threshold) · in overtime</span>
+          <span>Pay period: Open (record and change) · Locked (read-only, exported)</span>
+        </Legend>
+      </Card>
 
       <Drawer
         anchor="right"

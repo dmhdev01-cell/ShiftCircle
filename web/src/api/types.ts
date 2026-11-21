@@ -760,6 +760,68 @@ export interface PlannerWarningGroup {
   items: PlannerWarningItem[];
 }
 
+export type PreferenceShiftLength = 8 | 12 | 16;
+export type PreferenceTimeOfDay = 'DAY' | 'EVENING' | 'NIGHT';
+
+export interface MyPreferences {
+  shiftLength: PreferenceShiftLength | null;
+  timeOfDay: PreferenceTimeOfDay | null;
+  daysOff: string[];
+  maxDaysOff: number;
+  allowedLengths: PreferenceShiftLength[];
+  updatedAt: string | null;
+}
+
+export interface MyPreferencesInput {
+  shiftLength: PreferenceShiftLength | null;
+  timeOfDay: PreferenceTimeOfDay | null;
+  daysOff: string[];
+}
+
+export interface PlannerPreferenceRow {
+  employeeId: string;
+  name: string;
+  employeeNo: string;
+  unitName: string;
+  seniorityDate: string;
+  shiftLength: PreferenceShiftLength | null;
+  timeOfDay: PreferenceTimeOfDay | null;
+  daysOff: string[];
+  maxDaysOff: number;
+  inDraft: 'MET' | 'PARTLY' | 'NOT_MET' | 'NO_DRAFT' | 'NONE';
+  unmet: string[];
+  updatedAt: string | null;
+}
+
+/** `GET /audit-events/actors`: the actors the caller may filter by. */
+export interface AuditActorChoice {
+  username: string;
+  displayName: string;
+}
+
+/** `GET /planner/drafts/{id}/coverage`: one entry per unit for the strip. */
+export interface PlannerUnitCoverage {
+  unitId: string;
+  unitName: string;
+  coverage: BlockCoverage[];
+}
+
+export interface PlannerCompareRow {
+  key: string;
+  label: string;
+  board: number;
+  draft: number;
+  unit: 'count' | 'hours' | 'percent';
+  direction: 'LOWER_IS_BETTER' | 'HIGHER_IS_BETTER' | 'NEUTRAL';
+}
+
+export interface PlannerCompare {
+  draftShifts: number;
+  draftGaps: number;
+  committedShifts: number;
+  rows: PlannerCompareRow[];
+}
+
 export interface PlannerCommitPreview {
   version: number;
   shiftsToWrite: number;
@@ -803,6 +865,22 @@ export interface ShiftCircleApi {
   getPlannerDraft(draftId: string): Promise<PlannerDraft>;
   getPlannerGaps(draftId: string): Promise<PlannerGap[]>;
   getPlannerWarnings(draftId: string): Promise<PlannerWarningGroup[]>;
+  getPlannerSchedule(
+    draftId: string,
+    query: { unitId: string; from: string; to: string },
+  ): Promise<SchedulePayload>;
+  getPlannerCoverage(
+    draftId: string,
+    range: { from: string; to: string },
+  ): Promise<PlannerUnitCoverage[]>;
+  getAuditActors(): Promise<AuditActorChoice[]>;
+  getPlannerCompare(draftId: string): Promise<PlannerCompare>;
+
+  /** Preferences: the officer's own, and the planner's read of everyone's. */
+  getMyPreferences(): Promise<MyPreferences>;
+  putMyPreferences(input: MyPreferencesInput): Promise<MyPreferences>;
+  deleteMyPreferences(): Promise<void>;
+  getPlannerPreferences(unitId?: string): Promise<PlannerPreferenceRow[]>;
   getPlannerCommitPreview(draftId: string): Promise<PlannerCommitPreview>;
   commitPlannerDraft(
     draftId: string,

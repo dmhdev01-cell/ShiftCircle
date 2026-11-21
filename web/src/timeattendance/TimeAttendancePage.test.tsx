@@ -287,6 +287,58 @@ describe('Time and attendance', () => {
     vi.restoreAllMocks();
   });
 
+  it('writes a night shift\'s adjusted end on the next day', async () => {
+    // A 23:00-07:00 shift used to send an end before its start (400).
+    const night: TimeEntry = {
+      assignmentId: 'assignment-night',
+      employeeId: 'emp-sam',
+      employeeName: 'Sam Abara',
+      unitId: 'unit-b',
+      unitName: 'Unit B · Living unit',
+      date: '2026-11-18',
+      startAt: '2026-11-18T23:00:00-06:00',
+      endAt: '2026-11-19T07:00:00-06:00',
+      shiftTemplate: 'N8',
+      worked: false,
+      needsActual: true,
+    };
+    vi.spyOn(api, 'getTimeEntries').mockResolvedValue([night]);
+    const record = vi.spyOn(api, 'recordActual').mockResolvedValue({
+      entry: night,
+      payCodes: [],
+      periodHours: 8,
+    });
+    const user = userEvent.setup();
+
+    renderScreen();
+
+    await user.click(await screen.findByRole('button', { name: /needs actual/ }));
+    await user.click(screen.getByRole('radio', { name: 'Adjusted times' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(record).toHaveBeenCalledWith('assignment-night', {
+        workedAsScheduled: false,
+        actualStart: '2026-11-18T23:00:00-06:00',
+        actualEnd: '2026-11-19T07:00:00-06:00',
+      }),
+    );
+    vi.restoreAllMocks();
+  });
+
+  it('explains its chips, tiles and pills in a key', async () => {
+    // Observation #8: the cells and pill codes (P-01, P-04) were unexplained.
+    renderScreen();
+
+    const key = await screen.findByRole('region', { name: 'Key' });
+    expect(within(key).getByText(/click to record what happened/)).toBeInTheDocument();
+    expect(within(key).getByText(/Short extension = under 30 min, unpaid/)).toBeInTheDocument();
+    expect(within(key).getByText(/Overtime = hours over 80 h in a pay period/)).toBeInTheDocument();
+    // No bare rule codes in the tiles.
+    expect(screen.queryByText('P-01')).not.toBeInTheDocument();
+    expect(screen.queryByText(/P-04/)).not.toBeInTheDocument();
+  });
+
   it('reopens a sickness record and changes it to worked', async () => {
     // Observation #11: an absence cell was a plain span, so a Sick or Vac
     // record could never be reopened or corrected.
