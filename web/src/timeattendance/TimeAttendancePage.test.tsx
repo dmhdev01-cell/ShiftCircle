@@ -237,6 +237,56 @@ describe('Time and attendance', () => {
     vi.restoreAllMocks();
   });
 
+  it('keeps the grid and its scroll position while a save refreshes it', async () => {
+    // Observation #9: the reload changed the cache key, the whole grid was
+    // replaced by a loading line and the browser jumped to the top.
+    const user = userEvent.setup();
+    let release: (() => void) | undefined;
+    const first = api.getTimeEntries.bind(api);
+    const entries = await first('period-2026-11-09');
+    vi.spyOn(api, 'getTimeEntries')
+      .mockResolvedValueOnce(entries)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            release = () => resolve(entries);
+          }),
+      );
+    vi.spyOn(api, 'recordActual').mockResolvedValue({
+      entry: entries[0],
+      payCodes: [],
+      periodHours: 8,
+    });
+
+    renderScreen();
+
+    // Scroll the grid down, then record an actual.
+    const grid = await screen.findByRole('region', { name: 'Time entries, scrolls sideways' });
+    grid.scrollTop = 240;
+    await user.click((await screen.findAllByRole('button', { name: /needs actual/ }))[0]);
+    await user.click(screen.getByRole('radio', { name: 'Worked as scheduled' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    // While the refresh is in flight the rows are still there and the grid is
+    // the same element, so its scroll position survives.
+    expect(await screen.findByText('Updating the entries…')).toBeInTheDocument();
+    expect(screen.queryByText('Loading the time entries…')).not.toBeInTheDocument();
+    // The modal drawer hides the page from the accessibility tree; the grid is
+    // still in the document, and after Done it is the same element.
+    expect(document.querySelector('[aria-label="Time entries, scrolls sideways"]')).not.toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    // The drawer's close transition clears aria-hidden on the page; until then
+    // the grid is out of the accessibility tree.
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: 'Time entries, scrolls sideways' })).toBe(grid),
+    );
+    expect(grid.scrollTop).toBe(240);
+
+    release?.();
+    await waitFor(() => expect(screen.queryByText('Updating the entries…')).not.toBeInTheDocument());
+    vi.restoreAllMocks();
+  });
+
   it('reopens a sickness record and changes it to worked', async () => {
     // Observation #11: an absence cell was a plain span, so a Sick or Vac
     // record could never be reopened or corrected.

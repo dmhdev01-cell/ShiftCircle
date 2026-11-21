@@ -69,14 +69,27 @@ export function RecordActualPanel({ entry, result, onSave, onCancel }: RecordAct
         gap: 3,
       }}
     >
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <Typography component="h2" sx={{ m: 0, fontSize: 17, fontWeight: 700 }}>
-          Record actual · {entry.employeeName}
-        </Typography>
-        <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
-          {entry.date} · {chipTextFor(entry.shiftTemplate)} · scheduled{' '}
-          {clock(entry.startAt)} – {clock(entry.endAt)}
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Typography component="h2" sx={{ m: 0, fontSize: 17, fontWeight: 700 }}>
+            Record actual · {entry.employeeName}
+          </Typography>
+          <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
+            {entry.date} · {chipTextFor(entry.shiftTemplate)} · scheduled{' '}
+            {clock(entry.startAt)} – {clock(entry.endAt)}
+          </Box>
         </Box>
+        {/* Observation #10: Esc and the outside click worked, but nothing on the
+            panel said how to close it. */}
+        <Button
+          variant="text"
+          color="primary"
+          aria-label="Close the record actual panel"
+          onClick={onCancel}
+          sx={{ minWidth: 44, minHeight: 44, fontSize: 18, lineHeight: 1, p: 0 }}
+        >
+          <span aria-hidden="true">×</span>
+        </Button>
       </Box>
 
       <FormControl>
@@ -212,8 +225,10 @@ export function RecordActualPanel({ entry, result, onSave, onCancel }: RecordAct
         <Button variant="contained" color="primary" disabled={choice === null} onClick={save}>
           Save
         </Button>
+        {/* After a save there is nothing to cancel: the record is in. The
+            button says so and closes the panel (observation #10). */}
         <Button variant="text" color="primary" onClick={onCancel}>
-          Cancel
+          {result ? 'Done' : 'Cancel'}
         </Button>
       </Box>
     </Box>
