@@ -719,6 +719,18 @@ export interface PlannerScorecard {
     /** The api's plain sentence about the fixed day/night crews. */
     crewNote?: string;
   };
+  /** Hours against target by FTE band (V6). */
+  fteBands?: {
+    bands: {
+      band: string;
+      officers: number;
+      targetHours: number;
+      plannedMin: number;
+      plannedAvg: number;
+      plannedMax: number;
+    }[];
+    note: string;
+  };
   /** The api's plain note about the 5-on/2-off changeover warnings. */
   warningNote?: string;
   pattern8h?: string;

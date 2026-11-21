@@ -26,6 +26,8 @@ export interface VersionInfo {
   asOf?: string;
   /** True only on the demo profile: the reset control may be offered. */
   demoMode?: boolean;
+  /** The datasets the reset may generate, when the api names more than one. */
+  datasets?: { id: string; name: string }[];
   /** The raw response body, kept so unexpected shapes can be shown as-is. */
   raw: unknown;
 }
@@ -54,8 +56,31 @@ export function normaliseVersion(raw: unknown): VersionInfo {
     profiles: asString(source.profiles),
     asOf: asString(source.asOf),
     demoMode: source.demoMode === true,
+    datasets: normaliseDatasets(source.datasets),
     raw,
   };
+}
+
+/**
+ * The datasets a reset may generate. The api may send plain ids or objects with
+ * an id and a name; the screen shows the names it is given and never invents
+ * one. Anything else is ignored, so an older api simply has no selector.
+ */
+function normaliseDatasets(value: unknown): { id: string; name: string }[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const rows = value
+    .map((entry) => {
+      if (typeof entry === 'string') return { id: entry, name: entry };
+      if (typeof entry === 'object' && entry !== null) {
+        const source = entry as Record<string, unknown>;
+        const id = asString(source.id);
+        if (!id) return null;
+        return { id, name: asString(source.name) ?? asString(source.label) ?? id };
+      }
+      return null;
+    })
+    .filter((entry): entry is { id: string; name: string } => entry !== null);
+  return rows.length > 0 ? rows : undefined;
 }
 
 /** True when the body carried none of the fields we know how to show. */

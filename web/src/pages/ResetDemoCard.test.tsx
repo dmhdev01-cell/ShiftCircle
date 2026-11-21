@@ -22,12 +22,12 @@ function renderAbout() {
 }
 
 /** The /version answer as the demo profile sends it, with demoMode. */
-function stubVersion(demoMode: boolean) {
+function stubVersion(demoMode: boolean, datasets?: unknown) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL) => {
       const body = String(input).includes('/api/v1/version')
-        ? { name: 'shiftcircle-api', version: '0.1.0', demoMode, asOf: '2026-11-19' }
+        ? { name: 'shiftcircle-api', version: '0.1.0', demoMode, asOf: '2026-11-19', datasets }
         : {};
       return { ok: true, status: 200, statusText: 'OK', json: async () => body } as unknown as Response;
     }),
@@ -74,6 +74,45 @@ describe('the demo reset', () => {
 
     expect(await screen.findByText(/The demo data was rebuilt in 20 s/)).toBeInTheDocument();
     expect(screen.getByText(/3390148255db7158/)).toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+
+  it('offers the datasets the api names, and sends the chosen one', async () => {
+    // The person chose '120' (100 full-time crews + ~20 casuals); the names come
+    // from /version, so the screen never invents a label.
+    stubVersion(true, [
+      { id: '100', name: '100: full-time crews only' },
+      { id: '120', name: '120: crews plus a casual pool' },
+    ]);
+    const user = userEvent.setup();
+    renderAbout();
+    await user.selectOptions(await screen.findByLabelText('Mock sign-in: choose a role'), 'PLANNER');
+
+    const reset = vi.spyOn(api, 'resetDemo').mockResolvedValue({
+      state: 'DONE',
+      step: 'done',
+      startedAt: null,
+      elapsedMs: 20000,
+      checksum: '3390148255',
+      dataset: '120',
+      error: null,
+    });
+    vi.spyOn(api, 'getDemoResetStatus').mockResolvedValue({
+      state: 'DONE',
+      step: 'done',
+      startedAt: null,
+      elapsedMs: 20000,
+      checksum: '3390148255',
+      dataset: '120',
+      error: null,
+    });
+
+    await user.selectOptions(screen.getByLabelText('Dataset'), '120');
+    await user.type(screen.getByLabelText('Type RESET to confirm'), 'RESET');
+    await user.click(screen.getByRole('button', { name: 'Reset demo data' }));
+
+    expect(reset).toHaveBeenCalledWith('RESET', '120');
+    expect(await screen.findByText(/rebuilt in 20 s/)).toBeInTheDocument();
     vi.restoreAllMocks();
   });
 
