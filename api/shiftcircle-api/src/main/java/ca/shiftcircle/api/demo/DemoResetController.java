@@ -1,6 +1,7 @@
 package ca.shiftcircle.api.demo;
 
 import ca.shiftcircle.api.security.ScopeGuard;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/demo")
 @Profile("demo")
+@ConditionalOnProperty(name = "sc.demo.generate", havingValue = "true", matchIfMissing = true)
 @PreAuthorize("hasRole('PLANNER')")
 public class DemoResetController {
 
