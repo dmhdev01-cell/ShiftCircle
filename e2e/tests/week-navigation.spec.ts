@@ -34,4 +34,20 @@ test.describe('the planning week', () => {
     await expect(week).toContainText('16 – 22 Nov 2026');
     await expect(page.getByRole('button', { name: 'Today' })).toBeDisabled();
   });
+
+  test('opens a week and unit from the address, and keeps them there', async ({ page }) => {
+    // The planner's commit links need ?unit=&week= (a Monday).
+    await signIn(page, 'M. Ellis');
+    await page.goto('/planning?week=2027-01-04');
+    const week = page.getByRole('group', { name: 'Week' });
+    await expect(week).toContainText('4 – 10 Jan 2027');
+    await expect(page).toHaveURL(/week=2027-01-04/);
+
+    await page.getByRole('button', { name: 'Next week' }).click();
+    await expect(week).toContainText('11 – 17 Jan 2027');
+    await expect(page).toHaveURL(/week=2027-01-11/);
+
+    await page.reload();
+    await expect(week).toContainText('11 – 17 Jan 2027');
+  });
 });

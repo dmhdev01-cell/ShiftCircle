@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -54,6 +55,16 @@ function weekOf(asOf: string | undefined, offsetWeeks = 0): { from?: string; to?
   return { from: iso(monday), to: iso(sunday) };
 }
 
+/** The Monday-to-Sunday week a date falls in, for a ?week= the person shares. */
+function weekOfDate(date: string): { from: string; to: string } {
+  const parsed = new Date(`${date}T00:00:00Z`);
+  const monday = new Date(parsed);
+  monday.setUTCDate(parsed.getUTCDate() - ((parsed.getUTCDay() + 6) % 7));
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  return { from: iso(monday), to: iso(sunday) };
+}
+
 /** "16 – 22 Nov 2026", the range a week picker shows. */
 function weekRange(from: string | undefined, to: string | undefined): string {
   if (!from || !to) return '';
@@ -92,13 +103,25 @@ export function PlanningPage() {
   const version = useVersion();
   const { role } = useRole();
   const units: Unit[] = unitsState.kind === 'ready' ? unitsState.units : [];
+  const [searchParams, setSearchParams] = useSearchParams();
   const [unitId, setUnitId] = useState<string | null>(null);
-  const activeUnitId = unitId ?? units[0]?.id;
-  const [weekOffset, setWeekOffset] = useState(0);
-  const week = weekOf(
-    version.state.status === 'ready' ? version.state.info.asOf : undefined,
-    weekOffset,
-  );
+  const activeUnitId = unitId ?? searchParams.get('unit') ?? units[0]?.id;
+  // The address is the source of truth: ?unit= and ?week= (a Monday) let the
+  // planner's links open the board on a chosen week, and a reload or Back keeps
+  // the week the person was looking at (observation #3 follow-up).
+  const weekParam = searchParams.get('week');
+  const demoWeek = weekOf(version.state.status === 'ready' ? version.state.info.asOf : undefined);
+  const week: { from?: string; to?: string } = weekParam
+    ? weekOfDate(weekParam)
+    : demoWeek;
+  const weekOffsetFromToday =
+    week.from !== undefined && demoWeek.from !== undefined
+      ? Math.round(
+          (new Date(`${week.from}T00:00:00Z`).getTime() -
+            new Date(`${demoWeek.from}T00:00:00Z`).getTime()) /
+            (7 * 24 * 3600 * 1000),
+        )
+      : 0;
   const { state, reload } = useSchedule(activeUnitId, week.from, week.to);
   const mutation = useRuleCheckedMutation();
   const [pending, setPending] = useState<Pending | null>(null);
@@ -234,14 +257,34 @@ export function PlanningPage() {
       )
       .map((result) => result.ruleCode) ?? [];
 
+  /** Write the week (a Monday) and unit into the address. */
+  const writeParams = (weekFrom: string | undefined, unit: string | undefined) => {
+    const next = new URLSearchParams(searchParams);
+    if (weekFrom) next.set('week', weekFrom);
+    else next.delete('week');
+    if (unit) next.set('unit', unit);
+    else next.delete('unit');
+    setSearchParams(next, { replace: true });
+  };
+
   /** Move the board by whole weeks, dropping anything that belonged to the old one. */
-  const changeWeek = (next: number) => {
-    setWeekOffset(next);
+  const changeWeek = (weeks: number) => {
+    const base = week.from;
+    const target =
+      weeks === 0 || base === undefined
+        ? demoWeek.from
+        : iso(new Date(new Date(`${base}T00:00:00Z`).getTime() + weeks * 7 * 24 * 3600 * 1000));
+    writeParams(target, activeUnitId);
     setPending(null);
     setProposal(null);
     setShiftActions(null);
     setHelpOpen(false);
     mutation.reset();
+  };
+
+  const changeUnit = (value: string) => {
+    setUnitId(value);
+    writeParams(week.from, value);
   };
 
   const startChoose = (officer: OfficerRow, date: string) => {
@@ -362,19 +405,19 @@ export function PlanningPage() {
             aria-label="Week"
             sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}
           >
-            <Button variant="outlined" color="primary" onClick={() => changeWeek(weekOffset - 1)}>
+            <Button variant="outlined" color="primary" onClick={() => changeWeek(weekOffsetFromToday - 1)}>
               Previous week
             </Button>
             <Box component="span" className="num" sx={{ fontSize: 13, fontWeight: 700, minWidth: 150, textAlign: 'center' }}>
               {weekRange(week.from, week.to)}
             </Box>
-            <Button variant="outlined" color="primary" onClick={() => changeWeek(weekOffset + 1)}>
+            <Button variant="outlined" color="primary" onClick={() => changeWeek(weekOffsetFromToday + 1)}>
               Next week
             </Button>
             <Button
               variant="outlined"
               color="primary"
-              disabled={weekOffset === 0}
+              disabled={weekOffsetFromToday === 0}
               onClick={() => changeWeek(0)}
             >
               Today
@@ -401,7 +444,7 @@ export function PlanningPage() {
               component="select"
               aria-label="Unit"
               value={payload.unit.id}
-              onChange={(event) => setUnitId(event.target.value)}
+              onChange={(event) => changeUnit(event.target.value)}
               sx={{
                 minHeight: 44,
                 px: 3,

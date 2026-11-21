@@ -4,20 +4,42 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
+import { useLocation } from 'react-router-dom';
+
 import { AppShellRoutes } from '../App';
 import { api, ApiError } from '../api/client';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
-function renderBoard() {
+function renderBoard(path = '/planning') {
   return render(
     <ThemeProvider theme={theme}>
       <RoleProvider>
-        <MemoryRouter initialEntries={['/planning']}>
+        <MemoryRouter initialEntries={[path]}>
           <AppShellRoutes />
+          <SearchProbe />
         </MemoryRouter>
       </RoleProvider>
     </ThemeProvider>,
+  );
+}
+
+/** Shows the address, so a test can check what the board writes there. */
+function SearchProbe() {
+  const location = useLocation();
+  return <div data-testid="search">{location.search}</div>;
+}
+
+/** The api's /version answer, with the demo day. */
+function stubVersion(asOf = '2026-11-19') {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL) => {
+      const body = String(input).includes('/api/v1/version')
+        ? { name: 'shiftcircle-api', asOf }
+        : {};
+      return { ok: true, status: 200, statusText: 'OK', json: async () => body } as unknown as Response;
+    }),
   );
 }
 
@@ -211,15 +233,7 @@ describe('the planning board', () => {
 
   it('walks between weeks and comes back to today', async () => {
     // Observation #3: the board was pinned to the week of the demo day.
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: RequestInfo | URL) => {
-        const body = String(input).includes('/api/v1/version')
-          ? { name: 'shiftcircle-api', asOf: '2026-11-19' }
-          : {};
-        return { ok: true, status: 200, statusText: 'OK', json: async () => body } as unknown as Response;
-      }),
-    );
+    stubVersion();
     const user = userEvent.setup();
     renderBoard();
 
@@ -237,6 +251,44 @@ describe('the planning board', () => {
     await user.click(screen.getByRole('button', { name: 'Today' }));
     expect(await screen.findByText('16 – 22 Nov 2026')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Today' })).toBeDisabled();
+  });
+
+  it('opens the week the address names, including a 2027 week', async () => {
+    stubVersion();
+    const schedule = vi.spyOn(api, 'getSchedule');
+
+    renderBoard('/planning?week=2027-01-04');
+
+    expect(await screen.findByText('4 – 10 Jan 2027')).toBeInTheDocument();
+    expect(
+      schedule.mock.calls.some(
+        ([query]) => query.from === '2027-01-04' && query.to === '2027-01-10',
+      ),
+    ).toBe(true);
+    vi.restoreAllMocks();
+  });
+
+  it('opens the unit the address names', async () => {
+    stubVersion();
+
+    renderBoard('/planning?unit=unit-b');
+
+    const unit = await screen.findByLabelText('Unit');
+    expect(unit).toHaveValue('unit-b');
+  });
+
+  it('keeps the unit and week in the address while walking', async () => {
+    stubVersion();
+    const user = userEvent.setup();
+
+    renderBoard('/planning?unit=unit-b');
+
+    await user.click(await screen.findByRole('button', { name: 'Next week' }));
+    await waitFor(() => expect(screen.getByTestId('search').textContent).toContain('week=2026-11-23'));
+    expect(screen.getByTestId('search').textContent).toContain('unit=unit-b');
+
+    await user.click(screen.getByRole('button', { name: 'Today' }));
+    await waitFor(() => expect(screen.getByTestId('search').textContent).toContain('week=2026-11-16'));
   });
 
   it('offers the supervisor the publish action for the roster week', async () => {    renderBoard();
