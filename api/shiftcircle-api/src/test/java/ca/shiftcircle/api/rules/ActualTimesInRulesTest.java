@@ -64,10 +64,9 @@ class ActualTimesInRulesTest {
             + " DATE '2026-11-29', 'OPEN') ON CONFLICT DO NOTHING",
         PERIOD);
     shift("66666666-6666-6666-6666-000000000901", 'P', DAY);
-    // The next shift is at noon the day after, not 07:00: with a P12 ending at
-    // 24:00 the 24-hour window is exactly 12 h of work, so the extension is the
-    // only thing that can push U-05 to its boundary or over it.
-    shift("66666666-6666-6666-6666-000000000902", 'D', DAY.plusDays(1), "12:00:00-06");
+    // The next shift is the *proposal* (noon the day after), not a second
+    // fixture shift: with a P12 ending at 24:00 the 24-hour window holds exactly
+    // 12 h of work, so only the extension can push U-05 to its boundary.
   }
 
   /** A rostered shift on a day, by template initial (P12, D8). */
@@ -191,6 +190,27 @@ class ActualTimesInRulesTest {
 
     assertThat(outcomeOf(results, "U-05")).as("exactly 16 h is the boundary").isEqualTo("NONE");
     assertThat(outcomeOf(results, "U-04")).isEqualTo("WARN");
+  }
+
+  @Test
+  void aShorterActualAlsoMovesTheRestWindow() throws Exception {
+    // The other direction matters too: an officer who left early has more rest
+    // than the roster says, and the next shift is judged on the actual end.
+    HttpResponse<String> response =
+        put(
+            "/api/v1/time-entries/66666666-6666-6666-6666-000000000901",
+            "{\"workedAsScheduled\":false,\"actualStart\":\""
+                + DAY
+                + "T12:00:00-06:00\",\"actualEnd\":\""
+                + DAY
+                + "T20:00:00-06:00\"}");
+    assertThat(response.statusCode()).isEqualTo(200);
+
+    List<Map<String, Object>> results = checkNextDay();
+
+    // 16 h of rest from 20:00 to 12:00 next day: no rest warning at 10 h.
+    assertThat(outcomeOf(results, "U-04")).withFailMessage(String.valueOf(results)).isEqualTo("NONE");
+    assertThat(outcomeOf(results, "U-01")).withFailMessage(String.valueOf(results)).isEqualTo("NONE");
   }
 
   @Test
