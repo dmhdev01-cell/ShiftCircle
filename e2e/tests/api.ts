@@ -20,6 +20,7 @@ export const USER_IDS: Record<string, string> = {
 export interface Api {
   get<T = unknown>(path: string): Promise<T>;
   post(path: string, data?: unknown): Promise<{ status: number; body: unknown }>;
+  put(path: string, data?: unknown): Promise<{ status: number; body: unknown }>;
   /** A POST carrying If-Match, for the endpoints that are optimistic. */
   postIfMatch(
     path: string,
@@ -44,6 +45,16 @@ export async function apiAs(request: APIRequestContext, userId: string): Promise
       const response = await request.get(`/api/v1${path}`, { headers });
       expect(response.status(), `GET ${path}`).toBe(200);
       return (await response.json()) as T;
+    },
+    async put(path: string, data?: unknown) {
+      const response = await request.put(`/api/v1${path}`, { headers, data });
+      let body: unknown = null;
+      try {
+        body = await response.json();
+      } catch {
+        body = null;
+      }
+      return { status: response.status(), body };
     },
     async post(path: string, data?: unknown) {
       const response = await request.post(`/api/v1${path}`, { headers, data });
