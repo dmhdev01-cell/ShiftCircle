@@ -326,6 +326,15 @@ public class PayrollService {
       return saveAbsence(assignment, period, input.absence(), principal);
     }
 
+    // Two answers in one request is a mistake, not a preference: the api used
+    // to take the times and silently ignore workedAsScheduled.
+    if (Boolean.TRUE.equals(input.workedAsScheduled())
+        && (input.actualStart() != null || input.actualEnd() != null)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "Send either workedAsScheduled or the actual times, not both");
+    }
+
     Instant start;
     Instant end;
     if (Boolean.TRUE.equals(input.workedAsScheduled())) {
