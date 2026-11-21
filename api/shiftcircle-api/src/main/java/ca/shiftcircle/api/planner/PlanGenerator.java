@@ -544,8 +544,9 @@ public final class PlanGenerator {
           "warningNote",
           "At the weekend-rotation changeover an officer has one ordinary rest-day warning"
               + " (fewer than 2 days off in 7) and one weekly-hours warning (over 48 h in 7 days),"
-              + " and the changeover pay period is 72 hours. Hours are balanced over the quarter, not"
-              + " per period.");
+              + " and the changeover pay period is 72 hours; where the pattern would otherwise create"
+              + " a seventh consecutive work day, a second 72-hour period keeps every shift free of a"
+              + " Block rule. Hours are balanced over the quarter, not per period.");
     }
     scorecard.put(
         "generatedMs", (System.nanoTime() - startedNanos) / 1_000_000);

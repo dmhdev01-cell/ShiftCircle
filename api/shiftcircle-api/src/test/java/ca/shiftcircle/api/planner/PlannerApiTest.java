@@ -250,17 +250,20 @@ class PlannerApiTest {
                 - ((Timestamp) row.get("start_at")).toInstant().toEpochMilli(),
             Long::sum);
       }
-      perPeriod.forEach(
-          (period, millis) ->
-              assertThat(Duration.ofMillis(millis).toMinutes() / 60.0)
-                  .as(
-                      "officer %s period %s shifts %s",
-                      entry.getKey(),
-                      period,
-                      entry.getValue().stream()
-                          .map(row -> row.get("template_code") + "@" + row.get("work_date"))
-                          .toList())
-                  .isIn(72.0, 80.0));
+      List<Double> hoursPerPeriod =
+          perPeriod.values().stream()
+              .map(millis -> Duration.ofMillis(millis).toMinutes() / 60.0)
+              .toList();
+      assertThat(hoursPerPeriod)
+          .as("officer %s periods %s", entry.getKey(), perPeriod.keySet())
+          .allMatch(hours -> hours == 72.0 || hours == 80.0);
+      assertThat(hoursPerPeriod.stream().filter(hours -> hours == 72.0).count())
+          .as("officer %s periods %s", entry.getKey(), perPeriod)
+          .isBetween(1L, 2L);
+      assertThat(hoursPerPeriod.stream().filter(hours -> hours == 80.0).count())
+          .as("officer %s has five or six full periods", entry.getKey())
+          .isBetween(5L, 6L);
+
     }
     Map<UUID, Integer> weekendsByOfficer = new LinkedHashMap<>();
     for (Map<String, Object> row : planned) {

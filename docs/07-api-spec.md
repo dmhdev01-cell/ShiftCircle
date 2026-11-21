@@ -397,8 +397,9 @@ each officer's history-only baseline is subtracted), preferences asked/met by ki
 night share by seniority band plus the newest-first check, officers and hours over 80, generation
 time, and weekends worked per officer (min/avg/max). The default 8 h pattern is `ROTATING_5_2` (chosen by the person on 2026-11-21): the days-off pair
 retreats one weekday per pay period and the wrap takes a 3-day break, so weekends rotate; the
-changeover period is 72 h, an officer has one U-12 and one U-14 warning there, and hours are
-balanced over the quarter (the scorecard says so and reports `quarterHours` min/avg/max as a
+changeover period is 72 h, an officer has one U-12 and one U-14 warning there (where a seventh
+consecutive day would otherwise block, a second 72 h period is used), and hours are balanced over
+the quarter (the scorecard says so and reports `quarterHours` min/avg/max as a
 report-only U-13 figure). `5_ON_2_OFF` (fixed pairs, 80 h, no warnings) and `7_ON_3_OFF` are
 selectable, and 12 h/16 h patterns keep their 4-on/4-off and 1-on/2-off cycles. A committed quarter creates its seven 14-day pay periods and each unit's
 schedule periods, so it can be locked and paid.
