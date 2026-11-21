@@ -129,17 +129,19 @@ public class DemoResetService {
 
       step("checksum");
       String checksum = DemoChecksum.of(jdbc);
+      // Release before publishing DONE: a caller that polls the status and immediately starts the
+      // next reset must not race the lock release. The same is true of FAILED below.
+      lock.release();
       status = new Status("DONE", "done", status.startedAt(),
           java.time.Duration.between(Instant.parse(status.startedAt()), Instant.now()).toMillis(),
           checksum, "100", null);
     } catch (RuntimeException failure) {
+      lock.release();
       status = new Status("FAILED", status.step(), status.startedAt(),
           java.time.Duration.between(Instant.parse(status.startedAt()), Instant.now()).toMillis(),
           null, "100", failure.getMessage());
       org.slf4j.LoggerFactory.getLogger(DemoResetService.class)
           .error("demo reset failed at step {}", status.step(), failure);
-    } finally {
-      lock.release();
     }
   }
 
