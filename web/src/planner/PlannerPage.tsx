@@ -37,9 +37,9 @@ const BLOCK_WORDS: Record<string, string> = {
 };
 
 const PATTERN_WORDS: Record<string, string> = {
-  ROTATING_5_2: '5 on, 2 off · 80 h a pay period',
-  '5_ON_2_OFF': '5 on, 2 off · 80 h a pay period',
-  '7_ON_3_OFF': '7 on, 3 off · shows week-hours warnings',
+  ROTATING_5_2: 'Rotating 5 on, 2 off (weekends rotate)',
+  '5_ON_2_OFF': 'Fixed 5 on, 2 off',
+  '7_ON_3_OFF': '7 on, 3 off',
 };
 
 const KIND_WORDS: Record<string, string> = {
@@ -579,7 +579,7 @@ export function PlannerPage() {
                 <KpiTile
                   label="Rule warnings"
                   value={scorecard.warnings.total}
-                  note="no blocked shifts"
+                  note={scorecard.warnings.note ?? 'no blocked shifts'}
                 />
                 <KpiTile
                   label="Preferences met"
@@ -602,6 +602,17 @@ export function PlannerPage() {
                   note={`seed ${draft.seed}`}
                 />
               </Box>
+
+              {scorecard.quarterHours || scorecard.weekends ? (
+                <Typography sx={{ fontSize: 13, color: colour.text.secondary }}>
+                  {scorecard.quarterHours
+                    ? `Quarter hours per officer: ${scorecard.quarterHours.min} min · ${scorecard.quarterHours.avg} avg · ${scorecard.quarterHours.max} max.`
+                    : ''}
+                  {scorecard.weekends
+                    ? ` Weekends worked: ${scorecard.weekends.min}–${scorecard.weekends.max} (average ${scorecard.weekends.avg}).`
+                    : ''}
+                </Typography>
+              ) : null}
 
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'flex-start' }}>
                 <Card sx={{ flex: '1 1 420px' }}>

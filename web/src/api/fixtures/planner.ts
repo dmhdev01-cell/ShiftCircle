@@ -39,6 +39,7 @@ function scorecard(seed: number) {
     coverage: { shortBlockDays: 37 + nudge, totalBlockDays: 1764 },
     warnings: {
       total: 112 + nudge * 2,
+      note: 'About one rest warning and one week-hours warning per officer, from the rotating pattern. Warnings never block a shift.',
       byRule: [
         { ruleName: 'Fewer than 12 hours between shifts', count: 74 + nudge },
         { ruleName: 'Week over 60 hours', count: 38 + nudge },
@@ -91,6 +92,7 @@ function scorecard(seed: number) {
     },
     overtime: { officersOver: 18, hoursOver: 640, thresholdHours: 80 },
     generatedMs: 2400,
+    quarterHours: { min: 480, avg: 512, max: 546 },
     weekends: { min: 4, avg: 7.2, max: 11 },
   };
 }
