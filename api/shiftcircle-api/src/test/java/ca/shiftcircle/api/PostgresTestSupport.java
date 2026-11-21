@@ -29,7 +29,12 @@ public final class PostgresTestSupport {
   public static synchronized PostgreSQLContainer postgres() {
     if (postgres == null) {
       postgres =
-          new PostgreSQLContainer("postgres:17-alpine").withDatabaseName("shiftcircle");
+          // One database per test class means one Spring context (and one
+          // connection pool) per class; the server's default of 100 clients is
+          // reached once the suite passes ~250 tests.
+          new PostgreSQLContainer("postgres:17-alpine")
+              .withDatabaseName("shiftcircle")
+              .withCommand("postgres", "-c", "max_connections=400");
       postgres.start();
     }
     return postgres;
