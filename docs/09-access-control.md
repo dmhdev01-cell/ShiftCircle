@@ -21,29 +21,32 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 
 ✓ = allowed · **own** = only their own records · **scope** = only units in `user_unit_scope` · — = denied
 
-| Capability | EMPLOYEE | SUPERVISOR | RULES_ADMIN | RULES_APPROVER | AUDITOR | DISPLAY |
-|---|---|---|---|---|---|---|
-| View own schedule, hours, offers | own | own | own | own | — | — |
-| View unit roster (names and shifts) | own unit, shifts only | scope | — | — | ✓ | — |
-| View others' hours, absences, overtime totals | — | scope | — | — | ✓ | — |
-| Absence **type** (sick/vacation) for others | — | scope | — | — | ✓ | — |
-| Assign, move or cancel shifts | — | scope (the target unit; the officer may come from any unit: cross-unit cover, ADR-024) | — | — | — | — |
-| Emergency override of a Block rule whose policy allows one (U-01, U-03, U-05; ADR-023) | — | scope (reason required) | — | — | — | — |
-| Publish a schedule period | — | scope | — | — | — | — |
-| Create open shifts, send offers, assign overtime | — | scope | — | — | — | — |
-| Accept or decline an overtime offer | own | own | own | own | — | — |
-| Submit shift proposals | own | own | — | — | — | — |
-| Decide on proposals | — | scope | — | — | — | — |
-| Record actuals | — | scope | — | — | — | — |
-| Lock a pay period | — | facility-wide (any supervisor with at least one unit in scope; audited), ADR-022 | — | — | — | — |
-| Unlock a pay period | — | facility-wide (reason required; audited), ADR-022 | — | — | — | — |
-| Payroll export | — | facility-wide (audited with file hash), ADR-022 | — | — | — | — |
-| Reports | own hours only | scope | — | — | ✓ | — |
-| View rule tables and versions | — | read | ✓ | ✓ | ✓ | — |
-| Edit draft rule tables, build, submit | — | — | ✓ | — | — | — |
-| Approve, reject, publish rule versions | — | — | — | ✓ (not own drafts) | — | — |
-| View audit log (`GET /audit-events`) | — | scope: events on shifts, open shifts, time entries, offers and pay periods in their units; **no rule-change (`rule_set_version`) events** | — (works from the rules screens; rule-change audit is the auditor's) | — (same) | ✓ facility-wide | — |
-| Wall display counts | — | ✓ | — | — | ✓ | ✓ |
+| Capability | EMPLOYEE | SUPERVISOR | RULES_ADMIN | RULES_APPROVER | AUDITOR | PLANNER | DISPLAY |
+|---|---|---|---|---|---|---|---|
+| View own schedule, hours, offers | own | own | own | own | — | own | — |
+| View unit roster (names and shifts) | own unit, shifts only | scope | — | — | ✓ | ✓ | — |
+| View others' hours, absences, overtime totals | — | scope | — | — | ✓ | ✓ | — |
+| Absence **type** (sick/vacation) for others | — | scope | — | — | ✓ | ✓ | — |
+| Assign, move or cancel shifts | — | scope (the target unit; the officer may come from any unit: cross-unit cover, ADR-024) | — | — | — | — | — |
+| Emergency override of a Block rule whose policy allows one (U-01, U-03, U-05; ADR-023) | — | scope (reason required) | — | — | — | — | — |
+| Publish a schedule period | — | scope | — | — | — | — | — |
+| Create open shifts, send offers, assign overtime | — | scope | — | — | — | — | — |
+| Accept or decline an overtime offer | own | own | own | own | — | own | — |
+| Submit shift proposals | own | own | — | — | — | — | — |
+| Decide on proposals | — | scope | — | — | — | — | — |
+| Record actuals | — | scope | — | — | — | — | — |
+| Lock a pay period | — | facility-wide (any supervisor with at least one unit in scope; audited), ADR-022 | — | — | — | — | — |
+| Unlock a pay period | — | facility-wide (reason required; audited), ADR-022 | — | — | — | — | — |
+| Payroll export | — | facility-wide (audited with file hash), ADR-022 | — | — | — | — | — |
+| Reports | own hours only | scope | — | — | ✓ | ✓ | — |
+| View rule tables and versions | — | read | ✓ | ✓ | ✓ | — | — |
+| Edit draft rule tables, build, submit | — | — | ✓ | — | — | — | — |
+| Approve, reject, publish rule versions | — | — | — | ✓ (not own drafts) | — | — | — |
+| View audit log (`GET /audit-events`) | — | scope: events on shifts, open shifts, time entries, offers and pay periods in their units; **no rule-change (`rule_set_version`) events** | — (works from the rules screens; rule-change audit is the auditor's) | — (same) | ✓ facility-wide | — | — |
+| Quarter planner: generate, read, discard and commit a draft | — | — | — | — | — | ✓ facility-wide, drafts only | — |
+| Read every officer's preferences | own | own | own | own | — | ✓ (read); own edit | — |
+| Reset the demo data (demo profile only) | — | — | — | — | — | ✓ | — |
+| Wall display counts | — | ✓ | — | — | ✓ | — | ✓ |
 
 ## 3. How it's enforced
 
@@ -54,7 +57,7 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 | API (scope) | A `ScopeGuard` checks the target unit against the caller's `user_unit_scope`. For an employee's own request it also checks the caller's linked officer. **Cross-unit cover (ADR-024):** a supervisor may assign an officer from **any** unit into a unit in their own scope. The rule preview then shows that officer's rest and hours conflicts, which the supervisor needs in order to decide. A supervisor can't assign **into** a unit outside their scope, and can't read an officer's data outside their scope except through that preview. Out-of-scope IDs return `404`, so they don't reveal what exists. "Own" checks compare against the caller's linked `employee_id`. |
 | Data queries | Repository methods for lists take the caller's scope as a parameter (no unfiltered list queries in controllers) |
 | Database | Triggers refuse `UPDATE`, `DELETE` and `TRUNCATE` on `audit_event` (role grants deferred to a pilot, ADR-018); `CHECK (approved_by <> created_by)` on rule versions; a trigger blocks changes to time entries in locked pay periods |
-| Tests | One automated authorization test per matrix cell that says "—" or "scope", against real HTTP endpoints |
+| Tests | Authorization tests for every denied or scoped cell, grouped by area method plus per-endpoint tests, against real HTTP endpoints |
 
 ## 4. Mock sign-in (prototype)
 
