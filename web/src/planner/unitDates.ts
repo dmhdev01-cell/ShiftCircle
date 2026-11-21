@@ -11,14 +11,6 @@ const DAY = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'UTC',
 });
 
-const WEEKDAY_DAY = new Intl.DateTimeFormat('en-GB', {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  timeZone: 'UTC',
-});
-
 export function dateWords(iso: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
   if (!match) return iso;
@@ -28,7 +20,13 @@ export function dateWords(iso: string): string {
 export function weekdayDateWords(iso: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
   if (!match) return iso;
-  return WEEKDAY_DAY.format(new Date(`${match[1]}-${match[2]}-${match[3]}T12:00:00Z`));
+  // The house order has no comma: "Mon 15 Feb 2027" (en-GB alone gives
+  // "Mon, 15 Feb 2027", which is not the spec's words).
+  const weekday = new Intl.DateTimeFormat('en-GB', {
+    weekday: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(`${match[1]}-${match[2]}-${match[3]}T12:00:00Z`));
+  return `${weekday} ${dateWords(iso)}`;
 }
 
 /** The date so many days later, as YYYY-MM-DD. */

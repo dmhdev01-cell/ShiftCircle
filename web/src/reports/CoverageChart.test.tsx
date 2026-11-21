@@ -133,4 +133,19 @@ describe('the coverage chart overtime share', () => {
     // The old per-week sentence is gone; the data is in the table once.
     expect(screen.queryByText(/of which overtime or extra/)).not.toBeInTheDocument();
   });
+
+  it('says which closed unit is not counted in the range', () => {
+    const value = report([week({ label: '2 – 8 Nov', extraPercent: 0 })]);
+    value.closureNotes = [
+      {
+        unitId: 'unit-c',
+        unitName: 'Unit C · Living unit',
+        closedFrom: '2027-02-15',
+        closedTo: null,
+        reason: 'Renovation (demo)',
+      },
+    ];
+    renderChart(value);
+    expect(screen.getByText(/Unit C is closed from 15 Feb 2027/)).toBeInTheDocument();
+  });
 });
