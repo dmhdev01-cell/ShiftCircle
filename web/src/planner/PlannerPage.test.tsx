@@ -164,6 +164,29 @@ describe('the quarter plan', () => {
     expect(await screen.findByText(/Supervisors can now change shifts/)).toBeInTheDocument();
   });
 
+  it('keeps the committed state after a reload, with the commit figures', async () => {
+    // The api keeps the committed summary in lastCommitted, not a draft, so a
+    // reload must not say 'No draft'. The scorecard/tabs need committedDraft
+    // (queued to the api); until then the figures and a plain sentence.
+    const user = userEvent.setup();
+    const first = renderPlanner();
+    await asPlanner(user);
+    await user.click(await screen.findByRole('button', { name: 'Generate draft' }));
+    await user.click(await screen.findByRole('button', { name: 'Commit plan…' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('checkbox'));
+    await user.click(within(dialog).getByRole('button', { name: 'Commit plan' }));
+    await screen.findByText(/Supervisors can now change shifts/);
+
+    first.unmount();
+    renderPlanner();
+    await user.selectOptions(await screen.findByLabelText('Mock sign-in: choose a role'), 'PLANNER');
+
+    expect(await screen.findByText('Committed')).toBeInTheDocument();
+    expect(screen.queryByText('No plan for this quarter yet.')).not.toBeInTheDocument();
+    expect(screen.getByText(/shifts were written by/)).toBeInTheDocument();
+  });
+
   it('discards a draft without touching the board', async () => {
     const user = userEvent.setup();
     renderPlanner();
