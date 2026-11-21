@@ -843,7 +843,10 @@ public class PlannerService {
           if (length != null
               && shifts.stream()
                   .anyMatch(shift -> nominalMinutes((String) shift.get("code")) != length * 60)) {
-            unmet.add("Shift length " + length + " h");
+            unmet.add(
+                length == 16
+                    ? "Shift length 16 h: the planner does not roster 16-hour shifts"
+                    : "Shift length " + length + " h");
           }
           if (time != null
               && !"NONE".equals(time)
@@ -1004,9 +1007,9 @@ public class PlannerService {
           int index = phases.merge(unitId, 1, Integer::sum) - 1;
           Integer preferred = rs.getObject("shift_length", Integer.class);
           int effective = 8;
-          if (preferred != null && preferred == 16 && unit.allows16h()) {
-            effective = 16;
-          } else if (preferred != null && preferred >= 12 && unit.allows12h()) {
+          // The planner does not roster 16-hour patterns: a 16 h preference is stored, shown
+          // unmet with that reason, and planned as 12 h (or 8 h) so no L16 is generated.
+          if (preferred != null && preferred >= 12 && unit.allows12h()) {
             effective = 12;
           }
           return new PlanGenerator.Employee(

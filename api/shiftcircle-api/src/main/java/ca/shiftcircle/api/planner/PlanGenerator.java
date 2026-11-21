@@ -526,6 +526,10 @@ public final class PlanGenerator {
     scorecard.put("warnings", warningsCard(warnings));
     scorecard.put("preferences", preferencesCard(employees, byEmployee));
     scorecard.put(
+        "preferencesNote",
+        "The planner rosters 8- and 12-hour shifts only; a 16 h preference is shown unmet. Part-time"
+            + " and casual officers are not guaranteed hours.");
+    scorecard.put(
         "nights",
         nightsCard(
             employees,

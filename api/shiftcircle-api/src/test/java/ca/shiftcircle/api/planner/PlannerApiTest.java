@@ -148,6 +148,7 @@ class PlannerApiTest {
                 + " WHERE a.draft_id = ? ORDER BY a.employee_id, a.start_at",
             draftId);
     assertThat(planned).isNotEmpty();
+    assertThat(planned).allMatch(row -> !"L16".equals(row.get("template_code")));
 
     Map<UUID, List<ShiftFact>> history = new LinkedHashMap<>();
     jdbc.query(
@@ -318,6 +319,17 @@ class PlannerApiTest {
         json(send("GET", "/api/v1/me/preferences", null, tokens.get("t.nakamura")));
     assertThat(mine.get("shiftLength")).isEqualTo(12);
     assertThat(mine.get("daysOff")).isEqualTo(List.of("SAT", "MON"));
+    assertThat(
+            send("PUT", "/api/v1/me/preferences",
+                    "{\"shiftLength\":16,\"timeOfDay\":\"NONE\",\"daysOff\":[]}",
+                    tokens.get("t.nakamura"))
+                .statusCode())
+        .isEqualTo(200);
+    List<Map<String, Object>> withSixteen =
+        mapper.readValue(
+            send("GET", "/api/v1/planner/preferences", null, tokens.get("p.planner")).body(),
+            List.class);
+    assertThat(withSixteen.toString()).contains("the planner does not roster 16-hour shifts");
     assertThat(
             send("PUT", "/api/v1/me/preferences",
                     "{\"daysOff\":[\"MON\",\"TUE\",\"WED\"]}", tokens.get("t.nakamura"))

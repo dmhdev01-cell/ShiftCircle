@@ -31,7 +31,7 @@ About 25 s of slack is left for transitions.
 
 | Do | Say (outline) | Status |
 |---|---|---|
-| Show `/login`: the "Mock sign-in · demo only" banner and the list of demo users | A 24/7 correctional centre runs 8, 12 and 16-hour shifts. Supervisors must respect rest and hours rules, offer overtime fairly and hand clean time to payroll. Everything here is fictional, synthetic data, and sign-in is simulated. | VERIFIED (every real-api spec signs in through this picker) |
+| Show `/login`: the "Mock sign-in · demo only" banner and the list of demo users | A 24/7 correctional centre runs 8, 12 and 16-hour shifts (the planner rosters 8 and 12; a "16 h shift" may be a double 8 h worked as overtime, confirmation pending). Supervisors must respect rest and hours rules, offer overtime fairly and hand clean time to payroll. Everything here is fictional, synthetic data, and sign-in is simulated. | VERIFIED (every real-api spec signs in through this picker) |
 
 ## 2. Planning board: blocked change (60 s) · T2, PC-01
 
