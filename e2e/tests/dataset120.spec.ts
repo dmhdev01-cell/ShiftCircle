@@ -10,10 +10,33 @@ import { navTo, selectUnit, signIn } from './support';
  * reports gaps in a loose bound, a supervisor fills one on the board, and an
  * illegal fifth consecutive 12 h shift is refused by the rules.
  *
- * Assumes the stack was reset to dataset 120 first (reset-datasets.spec.ts).
- * If the stack is on 100 the first assertion says so plainly instead of
- * silently passing.
+ * Resets the stack to dataset 120 itself (beforeEach, through the api), so it
+ * runs alone or in any order.
  */
+
+/**
+ * A reset to dataset 120 through the api, so this spec stands alone: Playwright
+ * gives no ordering across files and a verifier may run it by itself.
+ */
+async function resetTo120(request: APIRequestContext): Promise<void> {
+  const api = await apiAs(request, 'p.planner');
+  const started = await api.post('/demo/reset', { confirm: 'RESET', dataset: '120' });
+  expect([200, 202]).toContain(started.status);
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const status = await api.get<{ state: string; dataset: string; error: string | null }>(
+      '/demo/reset/status',
+    );
+    if (status.state === 'DONE') {
+      expect(status.dataset).toBe('120');
+      return;
+    }
+    if (status.state === 'FAILED') {
+      throw new Error(`reset to 120 failed: ${status.error ?? 'no reason'}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+  throw new Error('reset to 120 did not finish');
+}
 
 interface PlanState {
   state: string;
@@ -38,9 +61,10 @@ async function committedPlan(request: APIRequestContext): Promise<string> {
 }
 
 test.describe('dataset 120', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
     await page.goto('/login');
     test.skip(await isFixtures(page), 'the crews and casuals need the real api');
+    await resetTo120(request);
   });
 
   test('the scorecard shows gaps, a supervisor fills one, and a fifth 12 h day is refused', async ({
