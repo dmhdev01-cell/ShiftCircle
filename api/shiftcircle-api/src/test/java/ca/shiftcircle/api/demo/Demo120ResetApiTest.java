@@ -46,6 +46,10 @@ class Demo120ResetApiTest {
 
   private static final String CHECKSUM_100 =
       "3390148255db715844c4df90f553ae342530417621539b23499f638c5b126539";
+  private static final String PLAN_120_FINGERPRINT =
+      "e8b29ce687767e5ce4fefd5347333447ca9cc5b55f82c08195f36f8f4cfe9d31";
+  private static final String PLAN_100_FINGERPRINT =
+      "ec33701459f92998c1ea84ee5fae17fbadc3e8894c9d52df344ae24cf1409e1b";
 
   @Autowired private JdbcTemplate jdbc;
   @Autowired private RuleCheckService ruleCheck;
@@ -128,6 +132,12 @@ class Demo120ResetApiTest {
       assertThat(jdbc.queryForObject(
               "SELECT count(*) FROM employee WHERE fte < 1.0", Integer.class))
           .isEqualTo(20);
+      assertThat(jdbc.queryForObject(
+              "SELECT count(*) FROM employee WHERE shift_pattern IS NULL"
+                  + " OR shift_pattern NOT IN ('ROTATING_5_2','5_ON_2_OFF','7_ON_3_OFF')",
+              Integer.class))
+          .as("every seeded officer carries a valid pattern")
+          .isZero();
       assertThat(jdbc.queryForObject(
               "SELECT count(*) FROM employee e JOIN rotation_pattern r"
                   + " ON r.id = e.rotation_pattern_id WHERE r.code = 'N12_NIGHT_4ON4OFF'",
@@ -233,6 +243,12 @@ class Demo120ResetApiTest {
             Integer.class,
             draftId))
         .isPositive();
+    assertThat(draft.get("pattern8h"))
+        .as("a per-officer draft has no single facility pattern")
+        .isNull();
+    assertThat(planFingerprint(draftId))
+        .as("the 120 plan is shift-for-shift the c9ac073 plan")
+        .isEqualTo(PLAN_120_FINGERPRINT);
     assertNoBlocks(draftId);
     qualificationReport(draftId, "120");
 
@@ -340,6 +356,9 @@ class Demo120ResetApiTest {
     assertThat(generated100.statusCode()).as(generated100.body()).isEqualTo(201);
     UUID draft100 =
         UUID.fromString((String) mapper.readValue(generated100.body(), Map.class).get("id"));
+    assertThat(planFingerprint(draft100))
+        .as("the 100 plan is shift-for-shift the c9ac073 plan")
+        .isEqualTo(PLAN_100_FINGERPRINT);
     qualificationReport(draft100, "100");
     Map<String, Object> preview100 = preview(draft100);
     int warnings100 = ((Number) preview100.get("warningCount")).intValue();
@@ -511,8 +530,34 @@ class Demo120ResetApiTest {
             + failures);
   }
 
-  private Map<String, Object> preview(UUID draftId) throws Exception {
-    HttpResponse<String> response =
+  /**
+   * A shift-by-shift fingerprint of the draft: officer, unit, template, date, start/end in Regina
+   * and kind, sorted. Ids are left out so it compares the plan, not this run's UUIDs.
+   */
+  private String planFingerprint(UUID draftId) throws Exception {
+    List<String> rows =
+        jdbc.queryForList(
+            "SELECT e.employee_no || '|' || u.code || '|' || t.code || '|' || a.work_date"
+                + " || '|' ||"
+                + " to_char(a.start_at AT TIME ZONE 'America/Regina', 'YYYY-MM-DD\"T\"HH24:MI')"
+                + " || '|' ||"
+                + " to_char(a.end_at AT TIME ZONE 'America/Regina', 'YYYY-MM-DD\"T\"HH24:MI')"
+                + " || '|' || a.kind"
+                + " FROM plan_draft_assignment a JOIN employee e ON e.id = a.employee_id"
+                + " JOIN unit u ON u.id = a.unit_id"
+                + " JOIN shift_template t ON t.id = a.shift_template_id"
+                + " WHERE a.draft_id = ? ORDER BY 1",
+            String.class,
+            draftId);
+    java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+    for (String row : rows) {
+      digest.update(row.getBytes(StandardCharsets.UTF_8));
+      digest.update((byte) '\n');
+    }
+    return java.util.HexFormat.of().formatHex(digest.digest());
+  }
+
+  private Map<String, Object> preview(UUID draftId) throws Exception {    HttpResponse<String> response =
         send(
             "GET",
             "/api/v1/planner/drafts/" + draftId + "/commit-preview",

@@ -50,7 +50,8 @@ public final class PlanGenerator {
       Pref pref,
       int effectiveLength,
       int phase,
-      String crew) {
+      String crew,
+      String pattern) {
 
     /** Existing callers and the 100 seed: no crew row, so the planner uses the old patterns. */
     public Employee(
@@ -65,7 +66,24 @@ public final class PlanGenerator {
         int effectiveLength,
         int phase) {
       this(id, employeeNo, name, unitId, unitCode, seniority, fte, pref, effectiveLength, phase,
-          null);
+          null, null);
+    }
+
+    /** A crew officer with no explicit pattern; 8 h falls back to the rotating default. */
+    public Employee(
+        UUID id,
+        String employeeNo,
+        String name,
+        UUID unitId,
+        String unitCode,
+        LocalDate seniority,
+        double fte,
+        Pref pref,
+        int effectiveLength,
+        int phase,
+        String crew) {
+      this(id, employeeNo, name, unitId, unitCode, seniority, fte, pref, effectiveLength, phase,
+          crew, null);
     }
   }
 
@@ -163,8 +181,9 @@ public final class PlanGenerator {
     baseStaff.values().forEach(list -> list.sort(Comparator.comparing(Employee::seniority)));
     Map<UUID, String> blockOf = assignBlocks(units, baseStaff);
     // Allocation improvement: stagger phases inside each unit's block group, not across the whole
-    // unit, so a day group always works the same number of days on each weekday.
-    List<Employee> rephased = rephase(employees, blockOf);
+    // unit, so a day group always works the same number of days on each weekday. With option C the
+    // group is the pattern cohort, so a fixed and a rotating officer do not share a phase counter.
+    List<Employee> rephased = rephase(employees, blockOf, pattern8h);
     Map<UUID, List<Employee>> staff = new HashMap<>();
     rephased.forEach(employee -> staff.computeIfAbsent(employee.unitId(), k -> new ArrayList<>()).add(employee));
     staff.values().forEach(list -> list.sort(Comparator.comparing(Employee::seniority)));
@@ -455,12 +474,13 @@ public final class PlanGenerator {
     if (length == 12) {
       return Math.floorMod(day + phase, 8) < 4;
     }
-    if ("7_ON_3_OFF".equals(pattern8h)) {
+    String pattern = patternOf(employee, pattern8h);
+    if ("7_ON_3_OFF".equals(pattern)) {
       return Math.floorMod(day + phase, 10) < 7;
     }
     int period = (int) (day / 14);
     int dayInPeriod = (int) (day % 14);
-    if ("ROTATING_5_2".equals(pattern8h)) {
+    if ("ROTATING_5_2".equals(pattern)) {
       int pair = Math.floorMod(phase - period, 7);
       if (pair == 6) {
         // The wrap takes a 3-day break (Mon-Wed) plus Mon-Tue in the second week, so the
@@ -475,6 +495,34 @@ public final class PlanGenerator {
     int pairStart = Math.floorMod(phase, 7);
     int weekDay = date.getDayOfWeek().getValue() - 1;
     return weekDay != pairStart && weekDay != (pairStart + 1) % 7;
+  }
+
+  /** The 8 h pattern in force: a one-release override wins, then the officer's own setting. */
+  static String patternOf(Employee employee, String pattern8h) {
+    int length = effectiveLength(employee);
+    if (length == 12 || length == 16) {
+      return "4_ON_4_OFF";
+    }
+    if (pattern8h != null) {
+      return pattern8h;
+    }
+    String pattern = employee.pattern();
+    return pattern == null
+            || !("ROTATING_5_2".equals(pattern)
+                || "5_ON_2_OFF".equals(pattern)
+                || "7_ON_3_OFF".equals(pattern))
+        ? "ROTATING_5_2"
+        : pattern;
+  }
+
+  /** Every officer's pattern in the words the planner screens use (never a raw code). */
+  static String patternWords(String pattern) {
+    return switch (pattern) {
+      case "5_ON_2_OFF" -> "Fixed 5 on, 2 off";
+      case "7_ON_3_OFF" -> "7 on, 3 off";
+      case "4_ON_4_OFF" -> "4 on, 4 off";
+      default -> "Rotating 5 on, 2 off (weekends rotate)";
+    };
   }
 
   private static int effectiveLength(Employee employee) {
@@ -755,7 +803,7 @@ public final class PlanGenerator {
   }
 
   private static List<Employee> rephase(
-      List<Employee> employees, Map<UUID, String> blockOf) {
+      List<Employee> employees, Map<UUID, String> blockOf, String pattern8h) {
     Map<String, Integer> counters = new HashMap<>();
     List<Employee> result = new ArrayList<>();
     for (Employee employee : employees) {
@@ -770,7 +818,11 @@ public final class PlanGenerator {
       String key =
           length == 12
               ? employee.unitId() + "|" + (crew == null ? "12" : crew)
-              : employee.unitId() + "|" + blockOf.getOrDefault(employee.id(), "DAY");
+              : employee.unitId()
+                  + "|"
+                  + blockOf.getOrDefault(employee.id(), "DAY")
+                  + "|"
+                  + patternOf(employee, pattern8h);
       int index = counters.merge(key, 1, Integer::sum) - 1;
       // 12 h crews are paired: two officers per post take phases j and j+4 of the 8-day cycle,
       // so exactly the post count is on duty every day. Sequential phases would put a 2-officer
@@ -788,7 +840,8 @@ public final class PlanGenerator {
               employee.pref(),
               employee.effectiveLength(),
               phase,
-              employee.crew()));
+              employee.crew(),
+              employee.pattern()));
     }
     return result;
   }
@@ -882,7 +935,33 @@ public final class PlanGenerator {
     scorecard.put("weekends", weekendsCard(employees, byEmployee));
     scorecard.put("fteBands", fteBandsCard(employees, byEmployee));
     scorecard.put("quarterHours", quarterHoursCard(employees, byEmployee));
-    if ("ROTATING_5_2".equals(pattern8h)) {
+    scorecard.put(
+        "patterns",
+        Map.of(
+            "officers",
+            employees.stream()
+                .map(
+                    employee -> {
+                      String pattern = patternOf(employee, pattern8h);
+                      Map<String, Object> row = new LinkedHashMap<>();
+                      row.put("employeeNo", employee.employeeNo());
+                      row.put("name", employee.name());
+                      row.put("unitCode", employee.unitCode());
+                      row.put("pattern", pattern);
+                      row.put("words", patternWords(pattern));
+                      return row;
+                    })
+                .toList(),
+            "note",
+            "Every officer has a pattern. The planner changes an 8-hour officer's pattern on"
+                + " Preferences; a 12-hour officer keeps the crew's 4 on, 4 off cycle."));
+    boolean anyRotating =
+        employees.stream()
+            .anyMatch(
+                employee ->
+                    effectiveLength(employee) == 8
+                        && "ROTATING_5_2".equals(patternOf(employee, pattern8h)));
+    if (anyRotating) {
       scorecard.put(
           "warningNote",
           "At the weekend-rotation changeover an officer has one ordinary rest-day warning"

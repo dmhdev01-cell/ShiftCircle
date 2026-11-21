@@ -389,7 +389,8 @@ public class DemoDataGenerator implements ApplicationRunner {
     UUID id = id("employee:" + employeeNo);
     jdbc.update(
         "INSERT INTO employee (id, employee_no, first_name, last_name, home_unit_id,"
-            + " seniority_date, is_synthetic) VALUES (?, ?, ?, ?, ?, ?, true)",
+            + " shift_pattern, seniority_date, is_synthetic)"
+            + " VALUES (?, ?, ?, ?, ?, 'ROTATING_5_2', ?, true)",
         id,
         employeeNo,
         firstName,

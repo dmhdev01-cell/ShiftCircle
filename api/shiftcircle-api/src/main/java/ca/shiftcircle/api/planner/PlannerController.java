@@ -16,6 +16,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -166,6 +167,15 @@ public class PlannerController {
       @RequestParam(required = false) String unitId) {
     return planner.preferences(unitId);
   }
+
+  /** The per-officer pattern: an 8 h officer only; a 12 h crew pattern is read-only. */
+  @PutMapping("/preferences/{employeeId}/pattern")
+  public PlannerViews.PreferenceView setPattern(
+      @PathVariable UUID employeeId, @RequestBody PatternInput input) {
+    return planner.setOfficerPattern(employeeId, input.pattern(), scopeGuard.principal());
+  }
+
+  public record PatternInput(String pattern) {}
 
   private static Integer version(String ifMatch) {
     if (ifMatch == null || ifMatch.isBlank()) {

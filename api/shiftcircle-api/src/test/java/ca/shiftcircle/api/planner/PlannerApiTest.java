@@ -99,12 +99,14 @@ class PlannerApiTest {
     Map<String, Object> body = json(response);
     draftId = UUID.fromString((String) body.get("id"));
 
-    assertThat(body.get("pattern8h")).isEqualTo("ROTATING_5_2");
+    assertThat(body.get("pattern8h"))
+        .as("no request pattern means every officer's own pattern")
+        .isNull();
     @SuppressWarnings("unchecked")
     Map<String, Object> scorecard = (Map<String, Object>) body.get("scorecard");
     assertThat(scorecard).containsKeys(
         "coverage", "warnings", "preferences", "nights", "overtime", "weekends", "quarterHours",
-        "warningNote", "generatedMs");
+        "patterns", "warningNote", "generatedMs");
     assertThat(assignmentCount()).isGreaterThan(3000);
     assertThat(((Map<?, ?>) scorecard.get("coverage")).get("shortBlockDays")).isNotNull();
     assertThat(scorecard.get("warnings").toString())

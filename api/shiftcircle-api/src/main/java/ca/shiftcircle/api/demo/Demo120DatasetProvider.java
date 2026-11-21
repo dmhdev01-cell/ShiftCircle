@@ -260,8 +260,9 @@ public class Demo120DatasetProvider implements DemoDatasetProvider {
     }
     jdbc.update(
         "INSERT INTO employee (id, employee_no, first_name, last_name, classification,"
-            + " home_unit_id, rotation_pattern_id, fte, seniority_date, active, is_synthetic)"
-            + " VALUES (?, ?, ?, ?, 'CO', ?, ?, ?, ?, true, true)",
+            + " home_unit_id, rotation_pattern_id, fte, seniority_date, active, is_synthetic,"
+            + " shift_pattern)"
+            + " VALUES (?, ?, ?, ?, 'CO', ?, ?, ?, ?, true, true, 'ROTATING_5_2')",
         id,
         no,
         firstName,

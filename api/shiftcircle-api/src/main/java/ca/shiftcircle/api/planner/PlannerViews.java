@@ -81,6 +81,9 @@ public final class PlannerViews {
       List<String> timesOfDay,
       List<String> daysOff,
       int maxDaysOff,
+      String pattern,
+      String patternWords,
+      boolean patternEditable,
       String inDraft,
       List<String> unmet,
       String updatedAt) {}

@@ -100,8 +100,10 @@ public class PlannerService {
   public PlannerViews.DraftSummary generate(
       PlannerViews.DraftCreation creation, AuthPrincipal principal) {
     long seed = creation.seed() == 0 ? DEFAULT_SEED : creation.seed();
-    String pattern = creation.pattern8h() == null ? "ROTATING_5_2" : creation.pattern8h();
-    if (!PATTERNS.contains(pattern)) {
+    // No parameter means every 8 h officer uses their own pattern. The old facility-wide
+    // pattern is still accepted for one release and overrides all 8 h officers when sent.
+    String pattern = creation.pattern8h();
+    if (pattern != null && !PATTERNS.contains(pattern)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "pattern8h must be ROTATING_5_2, 5_ON_2_OFF or 7_ON_3_OFF");
     }
@@ -234,7 +236,7 @@ public class PlannerService {
             + " reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         gapRows);
 
-    audit(principal, "generate_plan", "plan_draft", id, Map.of("assignments", result.assignments().size(), "gaps", result.gaps().size(), "warnings", result.warnings().size(), "seed", seed, "pattern8h", pattern, "generatedMs", generatedMs));
+    audit(principal, "generate_plan", "plan_draft", id, Map.of("assignments", result.assignments().size(), "gaps", result.gaps().size(), "warnings", result.warnings().size(), "seed", seed, "pattern8h", pattern == null ? "PER_OFFICER" : pattern, "generatedMs", generatedMs));
 
     Map<String, Object> row =
         jdbc.queryForMap(
@@ -457,7 +459,7 @@ public class PlannerService {
       UUID draftId, UUID unitId, LocalDate from, LocalDate to) {
     return jdbc.queryForList(
         "SELECT a.id, a.employee_id, a.work_date, a.start_at, a.end_at,"
-            + " e.first_name || ' ' || e.last_name AS employee_name,"
+            + " e.first_name || ' ' || e.last_name AS employee_name, e.shift_pattern,"
             + " t.code AS template_code, t.duration_minutes"
             + " FROM plan_draft_assignment a JOIN employee e ON e.id = a.employee_id"
             + " JOIN shift_template t ON t.id = a.shift_template_id"
@@ -548,7 +550,9 @@ public class PlannerService {
     if (minutes == 720) {
       return "4 on, 4 off";
     }
-    return switch (pattern8h) {
+    String pattern =
+        row.get("shift_pattern") == null ? pattern8h : (String) row.get("shift_pattern");
+    return switch (pattern == null ? "ROTATING_5_2" : pattern) {
       case "ROTATING_5_2" -> "5 on, 2 off (weekends rotate)";
       case "7_ON_3_OFF" -> "7 on, 3 off";
       default -> "5 on, 2 off";
@@ -1118,10 +1122,12 @@ public class PlannerService {
     }
     String sql =
         "SELECT e.id, e.employee_no, e.first_name || ' ' || e.last_name AS name,"
-            + " u.name AS unit_name, e.seniority_date, p.shift_length, p.times_of_day, p.days_off,"
-            + " p.max_days_off, p.updated_at"
+            + " u.name AS unit_name, u.allows_12h, e.seniority_date, e.shift_pattern,"
+            + " p.shift_length, p.times_of_day, p.days_off,"
+            + " p.max_days_off, p.updated_at, rp.code AS crew"
             + " FROM employee e JOIN unit u ON u.id = e.home_unit_id"
             + " LEFT JOIN officer_preference p ON p.employee_id = e.id"
+            + " LEFT JOIN rotation_pattern rp ON rp.id = e.rotation_pattern_id"
             + (unitCode == null ? "" : " WHERE u.code = ?")
             + " ORDER BY u.code, e.employee_no";
     Object[] args = unitCode == null ? new Object[] {} : new Object[] {unitCode};
@@ -1132,6 +1138,14 @@ public class PlannerService {
           List<String> days = daysOff(rs.getArray("days_off"));
           Integer length = rs.getObject("shift_length", Integer.class);
           List<String> times = timesOfDay(rs.getArray("times_of_day"));
+          int effective =
+              effectiveLength(rs.getString("crew"), length, rs.getBoolean("allows_12h"));
+          String pattern =
+              effective == 12
+                  ? "4_ON_4_OFF"
+                  : rs.getString("shift_pattern") == null
+                      ? "ROTATING_5_2"
+                      : rs.getString("shift_pattern");
           List<Map<String, Object>> shifts = inDraft.getOrDefault(employeeId, List.of());
           List<String> unmet = new ArrayList<>();
           if (length != null
@@ -1190,11 +1204,70 @@ public class PlannerService {
               times,
               days,
               rs.getInt("max_days_off"),
+              pattern,
+              PlanGenerator.patternWords(pattern),
+              effective == 8,
               status,
               unmet,
               updated == null ? null : updated.toInstant().toString());
         },
         args);
+  }
+
+  /**
+   * The planner sets an 8 h officer's pattern. A 12 h officer's pattern is the crew cycle and is
+   * read-only; the next generate uses the new value, exactly as a preference change does.
+   */
+  @Transactional
+  public PlannerViews.PreferenceView setOfficerPattern(
+      UUID employeeId, String pattern, AuthPrincipal principal) {
+    Map<String, Object> row =
+        jdbc.queryForList(
+                "SELECT e.id, e.shift_pattern, e.fte, p.shift_length, u.allows_12h, rp.code AS crew"
+                    + " FROM employee e JOIN unit u ON u.id = e.home_unit_id"
+                    + " LEFT JOIN officer_preference p ON p.employee_id = e.id"
+                    + " LEFT JOIN rotation_pattern rp ON rp.id = e.rotation_pattern_id"
+                    + " WHERE e.id = ?",
+                employeeId)
+            .stream()
+            .findFirst()
+            .orElse(null);
+    if (row == null) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unknown officer");
+    }
+    int effective =
+        effectiveLength(
+            (String) row.get("crew"),
+            row.get("shift_length") == null ? null : ((Number) row.get("shift_length")).intValue(),
+            Boolean.TRUE.equals(row.get("allows_12h")));
+    if (effective != 8) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "A 12-hour officer keeps the crew's 4 on, 4 off pattern");
+    }
+    if ("4_ON_4_OFF".equals(pattern)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "A 12-hour pattern cannot be given to an 8-hour officer");
+    }
+    if (pattern == null || !PATTERNS.contains(pattern)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "pattern must be ROTATING_5_2, 5_ON_2_OFF or 7_ON_3_OFF");
+    }
+    String from = row.get("shift_pattern") == null ? "ROTATING_5_2" : (String) row.get("shift_pattern");
+    jdbc.update(
+        "UPDATE employee SET shift_pattern = ?, version = version + 1 WHERE id = ?",
+        pattern,
+        employeeId);
+    audit(
+        principal,
+        "set_officer_pattern",
+        "employee",
+        employeeId,
+        Map.of("from", from, "to", pattern));
+    return preferences(null).stream()
+        .filter(view -> view.employeeId().equals(employeeId))
+        .findFirst()
+        .orElseThrow();
   }
 
   public PlannerViews.MyPreferences myPreferences(AuthPrincipal principal) {
@@ -1303,13 +1376,36 @@ public class PlannerService {
                 requirements.getOrDefault(rs.getObject("id", UUID.class), Map.of())));
   }
 
-  private List<PlanGenerator.Employee> loadEmployees(List<PlanGenerator.Unit> units) {
-    Map<UUID, PlanGenerator.Unit> byId = new HashMap<>();
+  /**
+   * The shift length the planner rosters: a 12 h crew is 12 h whatever the wish says; otherwise a
+   * 12/16 h wish becomes 12 h only in a unit that allows 12 h, and 16 h is never rostered.
+   */
+  private static int effectiveLength(String crew, Integer preferred, boolean allows12h) {
+    if (crew != null
+        && (crew.startsWith("N12")
+            || crew.startsWith("D12")
+            || crew.startsWith("CASUAL_12"))) {
+      return 12;
+    }
+    if (crew != null
+        && (crew.startsWith("D8")
+            || crew.startsWith("E8")
+            || crew.startsWith("CASUAL_8"))) {
+      return 8;
+    }
+    if (preferred != null && preferred >= 12 && allows12h) {
+      return 12;
+    }
+    return 8;
+  }
+
+  private List<PlanGenerator.Employee> loadEmployees(List<PlanGenerator.Unit> units) {    Map<UUID, PlanGenerator.Unit> byId = new HashMap<>();
     units.forEach(unit -> byId.put(unit.id(), unit));
     Map<UUID, Integer> phases = new HashMap<>();
     return jdbc.query(
         "SELECT e.id, e.employee_no, e.first_name || ' ' || e.last_name AS name,"
-            + " e.home_unit_id, e.seniority_date, e.fte, p.shift_length, p.times_of_day, p.days_off,"
+            + " e.home_unit_id, e.seniority_date, e.fte, e.shift_pattern,"
+            + " p.shift_length, p.times_of_day, p.days_off,"
             + " rp.code AS crew"
             + " FROM employee e LEFT JOIN officer_preference p ON p.employee_id = e.id"
             + " LEFT JOIN rotation_pattern rp ON rp.id = e.rotation_pattern_id"
@@ -1320,22 +1416,7 @@ public class PlannerService {
           int index = phases.merge(unitId, 1, Integer::sum) - 1;
           Integer preferred = rs.getObject("shift_length", Integer.class);
           String crew = rs.getString("crew");
-          int effective = 8;
-          // The planner does not roster 16-hour patterns: a 16 h preference is stored, shown
-          // unmet with that reason, and planned as 12 h (or 8 h) so no L16 is generated.
-          if (crew != null
-              && (crew.startsWith("N12")
-                  || crew.startsWith("D12")
-                  || crew.startsWith("CASUAL_12"))) {
-            effective = 12;
-          } else if (crew != null
-              && (crew.startsWith("D8")
-                  || crew.startsWith("E8")
-                  || crew.startsWith("CASUAL_8"))) {
-            effective = 8;
-          } else if (preferred != null && preferred >= 12 && unit.allows12h()) {
-            effective = 12;
-          }
+          int effective = effectiveLength(crew, preferred, unit.allows12h());
           return new PlanGenerator.Employee(
               rs.getObject("id", UUID.class),
               rs.getString("employee_no"),
@@ -1347,7 +1428,8 @@ public class PlannerService {
               new PlanGenerator.Pref(preferred, timesOfDay(rs.getArray("times_of_day")), daysOff(rs.getArray("days_off"))),
               effective,
               index % 7,
-              crew);
+              crew,
+              rs.getString("shift_pattern"));
         });
   }
 
