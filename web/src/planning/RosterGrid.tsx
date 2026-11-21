@@ -350,6 +350,12 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGr
           <ShiftChip template="L16" /> <span>16 h 20:00 – 12:00</span>
         </LegendItem>
         <LegendItem>
+          <ShiftChip template="D12" /> <span>Day 12 h 07:00 – 19:00</span>
+        </LegendItem>
+        <LegendItem>
+          <ShiftChip template="N12" /> <span>Night 12 h 19:00 – 07:00</span>
+        </LegendItem>
+        <LegendItem>
           <ShiftChip template="E8" extra /> <span>extra shift beyond the roster</span>
         </LegendItem>
         <LegendItem>

@@ -160,7 +160,7 @@ describe('the quarter plan', () => {
     expect(commit).toBeEnabled();
     await user.click(commit);
 
-    expect(await screen.findByText('Plan committed')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Plan committed' })).toBeInTheDocument();
     expect(await screen.findByText(/Supervisors can now change shifts/)).toBeInTheDocument();
   });
 
@@ -184,7 +184,9 @@ describe('the quarter plan', () => {
 
     expect(await screen.findByText('Committed')).toBeInTheDocument();
     expect(screen.queryByText('No plan for this quarter yet.')).not.toBeInTheDocument();
-    expect(screen.getByText(/shifts were written by/)).toBeInTheDocument();
+    // The committed plan's own summary answers the read-only tabs.
+    expect(screen.getByRole('tab', { name: 'Scorecard' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Night shifts by seniority' })).toBeInTheDocument();
   });
 
   it('discards a draft without touching the board', async () => {

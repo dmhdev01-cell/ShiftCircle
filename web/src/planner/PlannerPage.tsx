@@ -164,11 +164,12 @@ export function PlannerPage() {
       setSeed(String(next.defaultSeed));
       setPattern(next.patterns8h?.[0] ?? 'ROTATING_5_2');
       setState('ready');
-      if (next.draft) {
+      const readable = next.draft ?? next.committedDraft ?? null;
+      if (readable) {
         const [gapRows, warningRows, comparison] = await Promise.all([
-          api.getPlannerGaps(next.draft.id),
-          api.getPlannerWarnings(next.draft.id),
-          api.getPlannerCompare(next.draft.id),
+          api.getPlannerGaps(readable.id),
+          api.getPlannerWarnings(readable.id),
+          api.getPlannerCompare(readable.id),
         ]);
         setGaps(gapRows);
         setWarnings(warningRows);
@@ -204,7 +205,10 @@ export function PlannerPage() {
   }, []);
 
   const draft: PlannerDraft | null = plan?.draft ?? null;
-  const scorecard: PlannerScorecard | null = draft?.scorecard ?? null;
+  // A committed plan has no open draft; its summary carries the same scorecard
+  // and its id answers the read-only tabs (dev-build's committed-plan API).
+  const planDraft: PlannerDraft | null = draft ?? plan?.committedDraft ?? null;
+  const scorecard: PlannerScorecard | null = planDraft?.scorecard ?? null;
   const planCommitted = plan?.state === 'COMMITTED';
 
   if (role.id !== 'PLANNER') {
@@ -577,7 +581,7 @@ export function PlannerPage() {
           (DraftSummary | null) and gaps/warnings/compare answer for a committed
           draft id, this card becomes the read-only tabs of the committed plan.
           Until then the banner and the commit figures are all the api offers. */}
-      {!draft && !committed && planCommitted && plan?.lastCommitted ? (
+      {!planDraft && !committed && planCommitted && plan?.lastCommitted ? (
         <Card sx={{ borderLeft: `4px solid ${colour.status.pass.text}` }}>
           <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Typography component="h2" sx={{ m: 0, fontSize: 17, fontWeight: 700 }}>
@@ -605,13 +609,13 @@ export function PlannerPage() {
         </Card>
       ) : null}
 
-      {draft ? (
+      {planDraft ? (
         <>
           <Box role="tablist" aria-label="Quarter plan" sx={{ display: 'flex', gap: 1, borderBottom: `1px solid ${colour.border.default}` }}>
             {(
               [
                 ['scorecard', 'Scorecard'],
-                ['gaps', `Gaps (${draft.scorecard.coverage.shortBlockDays})`],
+                ['gaps', `Gaps (${planDraft.scorecard.coverage.shortBlockDays})`],
                 ['roster', 'Roster'],
                 ['compare', 'Compare'],
               ] as const
@@ -675,7 +679,7 @@ export function PlannerPage() {
                   {
                     label: 'Generated in',
                     value: seconds(scorecard.generatedMs),
-                    note: `seed ${draft.seed}`,
+                    note: `seed ${planDraft.seed}`,
                   },
                 ].map((tile) => (
                   <Box key={tile.label} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -962,6 +966,11 @@ export function PlannerPage() {
             <Box role="tabpanel" id="planner-panel-compare" aria-labelledby="planner-tab-compare">
               <Card>
                 <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {compare?.basis ? (
+                    <Typography sx={{ fontSize: 13, color: colour.text.secondary }}>
+                      {compare.basis}
+                    </Typography>
+                  ) : null}
                   <Typography sx={{ fontSize: 14 }}>
                     {compare && compare.committedShifts === 0
                       ? `Nothing is on the planning board for ${windowWords(plan.window.from, plan.window.to)} yet. Committing writes the whole draft.`
@@ -1036,7 +1045,7 @@ export function PlannerPage() {
           {tab === 'roster' ? (
             <Box role="tabpanel" id="planner-panel-roster" aria-labelledby="planner-tab-roster">
               <PlannerRosterTab
-                draftId={draft.id}
+                draftId={planDraft.id}
                 window={plan.window}
                 gaps={gaps}
                 units={units}

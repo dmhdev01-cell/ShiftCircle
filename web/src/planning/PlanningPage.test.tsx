@@ -97,8 +97,10 @@ describe('the planning board', () => {
 
     expect((await screen.findAllByText('A12')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('P12').length).toBeGreaterThan(0);
-    expect(screen.queryByText('D12')).not.toBeInTheDocument();
-    expect(screen.queryByText('N12')).not.toBeInTheDocument();
+    // D12 and N12 are real crew templates since V6 (P3 amendments 18): they
+    // belong in the key, unlike the mockup's old D12/N12 meaning.
+    expect(screen.getAllByText('D12').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('N12').length).toBeGreaterThan(0);
     expect(screen.getAllByText('E · extra').length).toBeGreaterThan(0);
     expect(screen.queryByText('OT')).not.toBeInTheDocument();
   });

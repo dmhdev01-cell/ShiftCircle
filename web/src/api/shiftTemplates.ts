@@ -27,6 +27,10 @@ export const shiftTemplates: Record<string, ShiftTemplate> = {
   A12: { code: 'A12', chipText: 'A12', label: '12 h 00–12', start: '00:00', end: '12:00', endsNextDay: false, regular: true },
   P12: { code: 'P12', chipText: 'P12', label: '12 h 12–24', start: '12:00', end: '24:00', endsNextDay: false, regular: true },
   L16: { code: 'L16', chipText: 'L16', label: '16 h shift', start: '20:00', end: '12:00', endsNextDay: true, regular: true },
+  // The 12 h crews the person actually runs (P3 amendments item 18): day and
+  // night, 07-19 and 19-07. V6 seeds them; the web shows the same words.
+  D12: { code: 'D12', chipText: 'D12', label: 'Day 12 h', start: '07:00', end: '19:00', endsNextDay: false, regular: true },
+  N12: { code: 'N12', chipText: 'N12', label: 'Night 12 h', start: '19:00', end: '07:00', endsNextDay: true, regular: true },
 };
 
 /** The chip text for a template code, or the code itself when it is unknown. */
