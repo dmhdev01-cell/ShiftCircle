@@ -77,3 +77,36 @@ test.describe('recording an actual', () => {
     expect(await page.evaluate(() => window.scrollY)).toBe(before);
   });
 });
+
+test.describe('the record-actual drawer', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/login');
+    test.skip(await isFixtures(page), 'the time entries come from the real api');
+  });
+
+  test('closes with its X and with Escape, and says Done after a save', async ({ page, request }) => {
+    const entry = await aWorkedEntry(request);
+    await signIn(page, 'M. Ellis');
+    await navTo(page, 'Time & attendance');
+    const cell = page.locator(`[data-assignment-id="${entry.assignmentId}"]`).first();
+
+    // X closes without recording.
+    await cell.getByRole('button').first().click();
+    await expect(page.getByRole('button', { name: 'Close the record actual panel' })).toBeVisible();
+    await page.getByRole('button', { name: 'Close the record actual panel' }).click();
+    await expect(page.getByRole('button', { name: 'Close the record actual panel' })).toHaveCount(0);
+
+    // Escape closes it too.
+    await cell.getByRole('button').first().click();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('button', { name: 'Close the record actual panel' })).toHaveCount(0);
+
+    // After a save the secondary button says Done, not Cancel.
+    await cell.getByRole('button').first().click();
+    await page.getByRole('radio', { name: 'Worked as scheduled' }).check();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByRole('button', { name: 'Done' })).toBeVisible();
+    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(page.getByRole('button', { name: 'Done' })).toHaveCount(0);
+  });
+});

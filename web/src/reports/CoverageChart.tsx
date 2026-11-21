@@ -156,6 +156,21 @@ export function CoverageChart({ report }: CoverageChartProps) {
         ))}
       </Box>
 
+      {/* 'Of which overtime or extra': the api separates the scheduled hours
+          that came from EXTRA shifts, so a covered block that leans on overtime
+          is visible rather than hidden inside a percentage. */}
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', fontSize: 12, color: colour.text.secondary }}>
+        {weeks.map((week) => (
+          <span key={week.label} className="num">
+            {week.label}: of which overtime or extra{' '}
+            {week.extraHours !== undefined ? `${week.extraHours.toFixed(1)} h` : '—'}
+            {week.extraHoursByBlock
+              ? ` (Days ${(week.extraHoursByBlock.DAY ?? 0).toFixed(1)} · Evenings ${(week.extraHoursByBlock.EVENING ?? 0).toFixed(1)} · Nights ${(week.extraHoursByBlock.NIGHT ?? 0).toFixed(1)})`
+              : ''}
+          </span>
+        ))}
+      </Box>
+
       <Typography component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
         The axis starts at {axisFrom}% so small gaps are visible. The{' '}
         {weeks.find((week) => week.planned)?.label ?? 'last'} week is planned only.

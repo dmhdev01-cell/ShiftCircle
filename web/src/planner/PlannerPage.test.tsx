@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
+import { api } from '../api/client';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
@@ -121,6 +122,21 @@ describe('the quarter plan', () => {
     const table = await screen.findByRole('table');
     expect(within(table).getAllByText(/Unit A · Living unit/).length).toBeGreaterThan(0);
     expect(within(table).getAllByRole('button', { name: /Show week of/ }).length).toBeGreaterThan(0);
+  });
+
+  it('sends the chosen 8-hour pattern with the draft', async () => {
+    const user = userEvent.setup();
+    const create = vi.spyOn(api, 'createPlannerDraft');
+    renderPlanner();
+    await asPlanner(user);
+
+    const pattern = await screen.findByLabelText('8-hour pattern');
+    await user.selectOptions(pattern, '7_ON_3_OFF');
+    await user.click(screen.getByRole('button', { name: 'Generate draft' }));
+
+    await screen.findByText('Coverage gaps');
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ pattern8h: '7_ON_3_OFF' }));
+    vi.restoreAllMocks();
   });
 
   it("compares the draft with what is on the board, in the api's direction", async () => {

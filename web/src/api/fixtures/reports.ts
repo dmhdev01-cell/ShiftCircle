@@ -17,8 +17,22 @@ import { demoSchedule } from './schedule';
 
 export const demoCoverageReport: CoverageReport = {
   weeks: [
-    { label: '9 – 15 Nov', scheduledPercent: 98.6, actualPercent: 97.4, planned: false },
-    { label: '16 – 22 Nov', scheduledPercent: 101.2, actualPercent: 99.2, planned: false },
+    {
+      label: '9 – 15 Nov',
+      scheduledPercent: 98.6,
+      actualPercent: 97.4,
+      planned: false,
+      extraHours: 24.5,
+      extraHoursByBlock: { DAY: 8, EVENING: 8, NIGHT: 8.5 },
+    },
+    {
+      label: '16 – 22 Nov',
+      scheduledPercent: 101.2,
+      actualPercent: 99.2,
+      planned: false,
+      extraHours: 18,
+      extraHoursByBlock: { DAY: 6, EVENING: 6, NIGHT: 6 },
+    },
     { label: '23 – 29 Nov', scheduledPercent: 100.4, planned: true },
   ],
   axisFrom: 94,

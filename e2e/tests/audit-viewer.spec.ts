@@ -70,3 +70,36 @@ test.describe('audit viewer', () => {
     await expect(table.getByRole('row').filter({ hasText: /Rule set|Rule version/i })).toHaveCount(0);
   });
 });
+
+test.describe('the audit filters', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/login');
+    test.skip(await isFixtures(page), 'the audit log comes from the real api');
+  });
+
+  test('picks an action by its plain label and shows the Done by heading', async ({ page }) => {
+    await signIn(page, 'A. Reviewer');
+    await navTo(page, 'Audit log');
+    await expect(page.getByRole('heading', { name: 'Audit log', level: 1 })).toBeVisible();
+
+    // The column heading is the person's word, and the filter carries the same.
+    const table = await screen_table(page);
+    await expect(table.getByRole('columnheader', { name: 'Done by' })).toBeVisible();
+    await expect(page.getByLabel('Done by')).toBeVisible();
+
+    // Action is a picker of plain labels, not a typed code.
+    const action = page.getByLabel('Action');
+    const option = await action.getByRole('option').nth(1).textContent();
+    expect(option ?? '').not.toMatch(/_/);
+    await action.selectOption({ label: option ?? '' });
+    await page.getByRole('button', { name: 'Apply' }).click();
+    await expect(page.getByRole('heading', { name: 'Audit log', level: 1 })).toBeVisible();
+  });
+});
+
+/** The events table, once the first answer has landed. */
+async function screen_table(page: import('@playwright/test').Page) {
+  const table = page.getByRole('table', { name: 'Audit events, scrolls sideways' });
+  await expect(table).toBeVisible();
+  return table;
+}
