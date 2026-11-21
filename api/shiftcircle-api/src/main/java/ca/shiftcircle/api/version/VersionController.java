@@ -6,6 +6,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -44,6 +45,7 @@ public class VersionController {
         // The published row is the record; a publish swaps the rule base and this number together.
         "v" + ruleChecks.publishedVersion(),
         activeProfiles.length == 0 ? "default" : String.join(",", Arrays.asList(activeProfiles)),
-        asOf);
+        asOf,
+        environment.acceptsProfiles(Profiles.of("demo")));
   }
 }

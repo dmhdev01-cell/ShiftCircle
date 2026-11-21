@@ -404,6 +404,20 @@ report-only U-13 figure). `5_ON_2_OFF` (fixed pairs, 80 h, no warnings) and `7_O
 selectable, and 12 h/16 h patterns keep their 4-on/4-off and 1-on/2-off cycles. A committed quarter creates its seven 14-day pay periods and each unit's
 schedule periods, so it can be locked and paid.
 
+### 4.10 Demo reset (demo profile only)
+
+| Method | Path | Purpose | Roles |
+|---|---|---|---|
+| POST | `/demo/reset` | `{ "confirm": "RESET", "dataset": "100" }` → start emptying and reloading the seeded demo dataset; 400 on a bad confirmation or dataset, 409 while a reset or a planner generate/commit is in flight | PLANNER |
+| GET | `/demo/reset/status` | `{ state: IDLE\|RUNNING\|DONE\|FAILED, step, startedAt, elapsedMs, checksum, dataset, error }` | PLANNER |
+
+The endpoints exist only on the **demo** profile (`/version` carries `demoMode` so the web shows the
+About-screen control there). The reset is asynchronous: it clean-migrates the schema, re-runs the
+same deterministic `DemoDataGenerator`, reloads the live rule base, and returns the dataset checksum.
+While it runs, every other API call answers `409` (status and version stay reachable), and the first
+audit event afterwards is `demo_reset`, so it is visible that the previous history was erased. User
+ids are stable, so a signed-in planner stays signed in.
+
 ## 5. Screen-to-endpoint map
 
 | Screen (UI canvas) | Main calls |
