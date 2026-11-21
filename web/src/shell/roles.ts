@@ -14,7 +14,8 @@ export type Role =
   | 'RULES_ADMIN'
   | 'RULES_APPROVER'
   | 'AUDITOR'
-  | 'DISPLAY';
+  | 'DISPLAY'
+  | 'PLANNER';
 
 export interface NavItem {
   label: string;
@@ -39,6 +40,7 @@ export const ROLE_WORDS: Record<string, string> = {
   RULES_APPROVER: 'Rules approver',
   AUDITOR: 'Auditor',
   DISPLAY: 'Display',
+  PLANNER: 'Planner',
 };
 
 /** The demo user the fixtures role switch acts as, by role. */
@@ -49,6 +51,7 @@ export const DEMO_USER_FOR_ROLE: Record<Role, string> = {
   RULES_APPROVER: 'P. Singh',
   AUDITOR: 'A. Reviewer',
   DISPLAY: 'Unit office TV',
+  PLANNER: 'R. Planner',
 };
 
 export const roles: RoleDescriptor[] = [
@@ -109,6 +112,19 @@ export const roles: RoleDescriptor[] = [
     user: 'Unit office TV',
     nav: [{ label: 'Wall display', to: '/display' }],
   },
+  {
+    // The facility planner plans the whole quarter for every unit; the board
+    // is read-only for them (docs/ui/planner.md §1, §11 Q1).
+    id: 'PLANNER',
+    label: 'Planner',
+    user: 'R. Planner',
+    nav: [
+      { label: 'Quarter plan', to: '/planner' },
+      { label: 'Preferences', to: '/planner/preferences' },
+      { label: 'Planning board', to: '/planning' },
+      { label: 'Reports', to: '/reports/coverage' },
+    ],
+  },
 ];
 
 /** Reachable from every role; hosts the build/version display. */
@@ -120,6 +136,7 @@ export const aboutNavItem: NavItem = { label: 'About & version', to: '/about' };
  * a supervisor who is also an employee starts on the supervisor screens.
  */
 const ROLE_PRECEDENCE: Role[] = [
+  'PLANNER',
   'SUPERVISOR',
   'RULES_ADMIN',
   'RULES_APPROVER',

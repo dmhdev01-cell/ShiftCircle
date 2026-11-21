@@ -677,6 +677,115 @@ export interface SaveOutcome {
  * HTTP implementation both satisfy it, so the screens do not know which one
  * they are talking to.
  */
+// ---------------------------------------------------------------------------------------------
+// Quarter planner (docs/07 §4.9, docs/ui/planner.md §10)
+// ---------------------------------------------------------------------------------------------
+
+export interface PlannerWindow {
+  from: string;
+  to: string;
+  periods: number;
+}
+
+export interface PlannerScorecard {
+  coverage: { shortBlockDays: number; totalBlockDays: number };
+  warnings: { total: number; byRule: { ruleName: string; count: number }[] };
+  preferences: {
+    asked: number;
+    met: number;
+    byKind: { kind: 'SHIFT_LENGTH' | 'TIME_OF_DAY' | 'DAYS_OFF'; asked: number; met: number }[];
+  };
+  nights: {
+    bands: {
+      label: string;
+      hiredFrom: string;
+      hiredTo: string;
+      officers: number;
+      nightShare: number;
+      avoidNightsAsked: number;
+      avoidNightsGivenNights: number;
+      nightShiftsAgainstWish: number;
+    }[];
+    newestFirstHeld: boolean;
+    check: string;
+  };
+  overtime: { officersOver: number; hoursOver: number; thresholdHours: number };
+  generatedMs: number;
+  weekends?: { min: number; avg: number; max: number };
+}
+
+export interface PlannerDraft {
+  id: string;
+  version: number;
+  seed: number;
+  pattern8h: string | null;
+  status: string;
+  createdAt: string;
+  createdBy: string;
+  generatedMs: number;
+  scorecard: PlannerScorecard;
+}
+
+export interface PlannerPlan {
+  window: PlannerWindow;
+  defaultSeed: number;
+  patterns8h: string[] | null;
+  state: 'NONE' | 'DRAFT' | 'COMMITTED';
+  draft: PlannerDraft | null;
+  lastCommitted: { draftId: string; at: string; by: string; shiftsWritten: number } | null;
+}
+
+export interface PlannerGap {
+  unitId: string;
+  unitCode: string;
+  unitName: string;
+  date: string;
+  block: Block;
+  required: number;
+  placed: number;
+  reason: string | null;
+}
+
+export interface PlannerWarningItem {
+  unitCode: string;
+  date: string;
+  employeeName: string;
+  shift: string;
+  message: string;
+}
+
+export interface PlannerWarningGroup {
+  ruleName: string;
+  count: number;
+  items: PlannerWarningItem[];
+}
+
+export interface PlannerCommitPreview {
+  version: number;
+  shiftsToWrite: number;
+  officers: number;
+  shortBlockDays: number;
+  warningCount: number;
+  from: string;
+  to: string;
+}
+
+export interface PlannerCommitResult {
+  shiftsWritten: number;
+  committedAt: string;
+  auditEventId: number;
+  units: string[];
+  firstWeek: string;
+}
+
+export interface PlannerCommitFailure {
+  unitCode: string;
+  date: string;
+  employeeName: string;
+  shift: string;
+  ruleResults: RuleResult[];
+}
+
 export interface ShiftCircleApi {
   getSchedule(query: ScheduleQuery): Promise<SchedulePayload>;
   previewRuleCheck(request: RuleCheckRequest): Promise<RuleCheckOutcome>;
@@ -687,6 +796,20 @@ export interface ShiftCircleApi {
    * roster week. One way: a second publish answers 409.
    */
   publishSchedulePeriod(periodId: string): Promise<PublishedPeriod>;
+
+  /** Quarter planner (PLANNER role): plan, drafts, gaps, warnings, commit. */
+  getPlannerPlan(): Promise<PlannerPlan>;
+  createPlannerDraft(body: { seed: number; pattern8h?: string }): Promise<PlannerDraft>;
+  getPlannerDraft(draftId: string): Promise<PlannerDraft>;
+  getPlannerGaps(draftId: string): Promise<PlannerGap[]>;
+  getPlannerWarnings(draftId: string): Promise<PlannerWarningGroup[]>;
+  getPlannerCommitPreview(draftId: string): Promise<PlannerCommitPreview>;
+  commitPlannerDraft(
+    draftId: string,
+    version: number,
+    acceptedWarningCount: number,
+  ): Promise<PlannerCommitResult>;
+  discardPlannerDraft(draftId: string): Promise<void>;
 
   /** PATCH /assignments/{id}; the version goes in If-Match. */
   moveAssignment(

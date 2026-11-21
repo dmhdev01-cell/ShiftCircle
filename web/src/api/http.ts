@@ -8,6 +8,12 @@ import type {
   OvertimeReport,
   OverrideRow,
   PayPeriod,
+  PlannerCommitPreview,
+  PlannerCommitResult,
+  PlannerDraft,
+  PlannerGap,
+  PlannerPlan,
+  PlannerWarningGroup,
   RecordActualInput,
   RecordActualResult,
   TimeEntry,
@@ -200,6 +206,44 @@ export function createHttpApi(): ShiftCircleApi {
       return request<PublishedPeriod>(`/schedule-periods/${periodId}/publish`, {
         method: 'POST',
       });
+    },
+
+    // Quarter planner (docs/07 §4.9). The commit is optimistic: If-Match holds
+    // the draft version the planner saw.
+    getPlannerPlan(): Promise<PlannerPlan> {
+      return request<PlannerPlan>('/planner/plan');
+    },
+    createPlannerDraft(body: { seed: number; pattern8h?: string }): Promise<PlannerDraft> {
+      return request<PlannerDraft>('/planner/drafts', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+    },
+    getPlannerDraft(draftId: string): Promise<PlannerDraft> {
+      return request<PlannerDraft>(`/planner/drafts/${draftId}`);
+    },
+    getPlannerGaps(draftId: string): Promise<PlannerGap[]> {
+      return request<PlannerGap[]>(`/planner/drafts/${draftId}/gaps`);
+    },
+    getPlannerWarnings(draftId: string): Promise<PlannerWarningGroup[]> {
+      return request<PlannerWarningGroup[]>(`/planner/drafts/${draftId}/warnings`);
+    },
+    getPlannerCommitPreview(draftId: string): Promise<PlannerCommitPreview> {
+      return request<PlannerCommitPreview>(`/planner/drafts/${draftId}/commit-preview`);
+    },
+    commitPlannerDraft(
+      draftId: string,
+      version: number,
+      acceptedWarningCount: number,
+    ): Promise<PlannerCommitResult> {
+      return request<PlannerCommitResult>(`/planner/drafts/${draftId}/commit`, {
+        method: 'POST',
+        headers: { 'If-Match': `"${version}"` },
+        body: JSON.stringify({ acceptedWarningCount }),
+      });
+    },
+    discardPlannerDraft(draftId: string): Promise<void> {
+      return request<void>(`/planner/drafts/${draftId}/discard`, { method: 'POST' });
     },
 
     moveAssignment(

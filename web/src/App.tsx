@@ -45,6 +45,10 @@ const AuditPage = lazy(() =>
   import('./audit/AuditPage').then((module) => ({ default: module.AuditPage })),
 );
 
+const LazyPlannerPage = lazy(() =>
+  import('./planner/PlannerPage').then((module) => ({ default: module.PlannerPage })),
+);
+
 const WallDisplayPage = lazy(() =>
   import('./display/WallDisplayPage').then((module) => ({ default: module.WallDisplayPage })),
 );
@@ -67,6 +71,14 @@ export function AppRoutes() {
       <Routes>
         <Route path="/" element={<Navigate to="/planning" replace />} />
         <Route path="/planning" element={<PlanningPage />} />
+        <Route
+          path="/planner"
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <LazyPlannerPage />
+            </Suspense>
+          }
+        />
         <Route path="/overtime" element={<OvertimePage />} />
         <Route path="/reports/:tab" element={<ReportsPage />} />
         <Route path="/rules" element={<RulesPage />} />

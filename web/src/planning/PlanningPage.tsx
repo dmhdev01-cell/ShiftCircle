@@ -135,6 +135,9 @@ export function PlanningPage() {
 
   // Only a supervisor publishes a roster; the api refuses everyone else.
   const canPublish = role.id === 'SUPERVISOR';
+  // The facility planner reads the board (the commit links land here); every
+  // write stays with the supervisors who own the units (docs/ui/planner.md §11 Q1).
+  const readOnly = role.id === 'PLANNER';
 
   /** Put focus back on the cell or chip that opened the dock. */
   const restoreFocus = () => {
@@ -517,6 +520,12 @@ export function PlanningPage() {
         </Card>
       ) : null}
 
+      {readOnly ? (
+        <Typography role="note" sx={{ fontSize: 13, color: colour.text.secondary }}>
+          Read-only: the facility planner sees every unit's roster. Supervisors change their own.
+        </Typography>
+      ) : null}
+
       <Box
         component="section"
         id="roster"
@@ -527,8 +536,7 @@ export function PlanningPage() {
         <RosterGrid
           payload={payload}
           today={today}
-          onEmptyCell={startChoose}
-          onPickChip={pickChip}
+          {...(readOnly ? {} : { onEmptyCell: startChoose, onPickChip: pickChip })}
         />
       </Box>
 

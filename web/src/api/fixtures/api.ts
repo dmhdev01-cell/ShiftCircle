@@ -79,6 +79,17 @@ import {
   scheduleForRange,
   shift,
 } from './schedule';
+import {
+  commitPlannerDraft,
+  discardPlannerDraft,
+  generatePlannerDraft,
+  plannerCommitPreview,
+  plannerDraft,
+  plannerGaps,
+  plannerPlan,
+  plannerWarnings,
+  resetPlannerFixtures,
+} from './planner';
 import { demoPayPeriods, demoTimeEntries, unitCodeFor } from './timeAttendance';
 
 /**
@@ -278,6 +289,7 @@ export function resetFixtures(): void {
   assignmentCounter = 0;
   resetOfferHistory();
   resetMyOffers();
+  resetPlannerFixtures();
   demoRuleSets.forEach((entry) => {
     entry.status =
       entry.version === 7 ? 'LIVE' : entry.version === 8 ? 'DRAFT' : ('PUBLISHED' as const);
@@ -427,6 +439,46 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
       );
       countUnpublishedChange(assignmentId);
       return { id: assignmentId, status: 'CANCELLED', version: version + 1 };
+    },
+
+    async getPlannerPlan() {
+      await pause();
+      return plannerPlan();
+    },
+
+    async createPlannerDraft(body: { seed: number; pattern8h?: string }) {
+      await pause();
+      return generatePlannerDraft(body.seed, body.pattern8h);
+    },
+
+    async getPlannerDraft() {
+      await pause();
+      return plannerDraft();
+    },
+
+    async getPlannerGaps() {
+      await pause();
+      return plannerGaps();
+    },
+
+    async getPlannerWarnings() {
+      await pause();
+      return plannerWarnings();
+    },
+
+    async getPlannerCommitPreview() {
+      await pause();
+      return plannerCommitPreview();
+    },
+
+    async commitPlannerDraft() {
+      await pause();
+      return commitPlannerDraft();
+    },
+
+    async discardPlannerDraft() {
+      await pause();
+      discardPlannerDraft();
     },
 
     async publishSchedulePeriod(periodId: string): Promise<PublishedPeriod> {

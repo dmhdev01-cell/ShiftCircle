@@ -5,6 +5,7 @@ import type { DemoUser } from '../api/types';
  * (docs/ui/build-notes.md §2.1).
  */
 export function destinationFor(user: DemoUser): string {
+  if (user.roles.includes('PLANNER')) return '/planner';
   if (user.roles.includes('SUPERVISOR')) return '/planning';
   if (user.roles.includes('RULES_ADMIN')) return '/rules/draft/rest-between-shifts';
   if (user.roles.includes('RULES_APPROVER')) return '/rules';
