@@ -395,7 +395,9 @@ event in one transaction. Each written row carries `plan_draft_id`; overrides ar
 The scorecard carries coverage gaps, warnings by plain rule name (only warnings the plan adds:
 each officer's history-only baseline is subtracted), preferences asked/met by kind,
 night share by seniority band plus the newest-first check, officers and hours over 80, generation
-time, and weekends worked per officer (min/avg/max). The default 8 h pattern is `ROTATING_5_2` (chosen by the person on 2026-11-21): the days-off pair
+time, weekends worked per officer (min/avg/max), and `fteBands` (full-time / 0.7-0.9 / under
+0.7: officers, target hours, planned min/avg/max) with the plain note that part-time and casual
+officers are not guaranteed hours. The default 8 h pattern is `ROTATING_5_2` (chosen by the person on 2026-11-21): the days-off pair
 retreats one weekday per pay period and the wrap takes a 3-day break, so weekends rotate; the
 changeover period is 72 h, an officer has one U-12 and one U-14 warning there (where a seventh
 consecutive day would otherwise block, a second 72 h period is used), and hours are balanced over

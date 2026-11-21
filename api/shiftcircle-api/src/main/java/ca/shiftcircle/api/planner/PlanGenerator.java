@@ -45,6 +45,7 @@ public final class PlanGenerator {
       UUID unitId,
       String unitCode,
       LocalDate seniority,
+      double fte,
       Pref pref,
       int effectiveLength,
       int phase) {}
@@ -206,7 +207,9 @@ public final class PlanGenerator {
         // covered: the default 5/2 officer then works exactly 80 h per period instead of losing
         // shifts to a surplus. A Block rule still skips the day (and the scorecard shows it).
         for (Employee employee : staff.getOrDefault(unit.id(), List.of())) {
-          if (assignedToday.contains(employee.id()) || !works(employee, date, pattern8h)) {
+          if (employee.fte() < 1.0
+              || assignedToday.contains(employee.id())
+              || !works(employee, date, pattern8h)) {
             continue;
           }
           String preferredBlock =
@@ -273,6 +276,9 @@ public final class PlanGenerator {
       }
     }
 
+    casualPool(units, staff, blockOf, assignments, byEmployee, facts, warnings, templates,
+        verifier, employees);
+    gaps = recomputeGaps(units, assignments);
     Map<String, Object> scorecard =
         scorecard(
             employees, units, assignments, byEmployee, gaps, warnings, pattern8h, started, facts,
@@ -351,7 +357,9 @@ public final class PlanGenerator {
       Map<UUID, String> blockOf) {
     List<Employee> candidates = new ArrayList<>();
     for (Employee employee : employees) {
-      if (assignedToday.contains(employee.id()) || !works(employee, date, pattern8h)) {
+      if (employee.fte() < 1.0
+          || assignedToday.contains(employee.id())
+          || !works(employee, date, pattern8h)) {
         continue;
       }
       if (effectiveLength(employee) == 8
@@ -487,6 +495,157 @@ public final class PlanGenerator {
         : pref.timeOfDay();
   }
 
+  /**
+   * Casual/part-time pool: after full-timers are placed, officers with FTE < 1 fill the leftover
+   * coverage, nights first, newest-first, each proposal verified by the engine, never above
+   * FTE x 80 hours in a pay period, fixed iteration count. Unfilled gaps stay gaps.
+   */
+  private static void casualPool(
+      List<Unit> units,
+      Map<UUID, List<Employee>> staff,
+      Map<UUID, String> blockOf,
+      List<Assignment> assignments,
+      Map<UUID, List<Assignment>> byEmployee,
+      Map<UUID, List<ShiftFact>> facts,
+      List<Warning> warnings,
+      Map<String, Template> templates,
+      Verifier verifier,
+      List<Employee> employees) {
+    Set<String> warningKeys = new LinkedHashSet<>();
+    Map<UUID, Double> target = new HashMap<>();
+    employees.stream().filter(e -> e.fte() < 1.0).forEach(e -> target.put(e.id(), e.fte() * 80.0));
+    Map<UUID, Double[]> hours = new HashMap<>();
+    employees.stream().filter(e -> e.fte() < 1.0)
+        .forEach(e -> hours.put(e.id(), new Double[7]));
+    for (Assignment assignment : assignments) {
+      Double[] perPeriod = hours.get(assignment.employeeId());
+      if (perPeriod == null) {
+        continue;
+      }
+      int period = (int) (ChronoUnit.DAYS.between(FROM, assignment.date()) / 14);
+      if (period >= 0 && period < 7) {
+        perPeriod[period] =
+            (perPeriod[period] == null ? 0 : perPeriod[period])
+                + Duration.between(assignment.start(), assignment.end()).toMinutes() / 60.0;
+      }
+    }
+    Map<UUID, List<Employee>> casuals = new HashMap<>();
+    employees.stream()
+        .filter(e -> e.fte() < 1.0)
+        .forEach(e -> casuals.computeIfAbsent(e.unitId(), k -> new ArrayList<>()).add(e));
+    casuals.values().forEach(list -> list.sort(Comparator.comparing(Employee::seniority).reversed()));
+    Map<String, int[]> coverage = new HashMap<>();
+    Map<String, Set<UUID>> assigned = new HashMap<>();
+    for (Assignment assignment : assignments) {
+      String key = assignment.unitId() + "|" + assignment.date();
+      addHours(coverage.computeIfAbsent(key, k -> new int[24]),
+          assignment.start().atZone(REGINA).getHour(),
+          (int) Duration.between(assignment.start(), assignment.end()).toMinutes());
+      assigned.computeIfAbsent(key, k -> new LinkedHashSet<>()).add(assignment.employeeId());
+    }
+    int iterations = 0;
+    for (Unit unit : units) {
+      for (LocalDate date = FROM; !date.isAfter(TO); date = date.plusDays(1)) {
+        String key = unit.id() + "|" + date;
+        int[] hoursInDay = coverage.computeIfAbsent(key, k -> new int[24]);
+        Set<UUID> already = assigned.computeIfAbsent(key, k -> new LinkedHashSet<>());
+        for (String block : BLOCKS) {
+          int required = unit.required().getOrDefault(block, 0);
+          while (minimumCoverage(hoursInDay, block) < required && iterations++ < 5000) {
+            Employee chosen = null;
+            Template chosenTemplate = null;
+            Check chosenCheck = null;
+            for (Employee candidate : casuals.getOrDefault(unit.id(), List.of())) {
+              if (already.contains(candidate.id())) {
+                continue;
+              }
+              Template template = templateFor(candidate, unit, block, templates);
+              if (template == null || !covers(template, block)) {
+                continue;
+              }
+              int period = (int) (ChronoUnit.DAYS.between(FROM, date) / 14);
+              double planned = hours.get(candidate.id())[period] == null
+                  ? 0 : hours.get(candidate.id())[period];
+              double shiftHours = template.minutes() / 60.0;
+              if (planned + shiftHours > target.get(candidate.id()) + 0.001) {
+                continue;
+              }
+              Instant start = date.atTime(template.start()).atZone(REGINA).toInstant();
+              Check check = verifier.check(candidate, unit, template, start,
+                  facts.getOrDefault(candidate.id(), List.of()));
+              if (!check.blocked()) {
+                chosen = candidate;
+                chosenTemplate = template;
+                chosenCheck = check;
+                break;
+              }
+            }
+            if (chosen == null) {
+              break;
+            }
+            Instant start = date.atTime(chosenTemplate.start()).atZone(REGINA).toInstant();
+            Instant end = start.plus(Duration.ofMinutes(chosenTemplate.minutes()));
+            int period = (int) (ChronoUnit.DAYS.between(FROM, date) / 14);
+            hours.get(chosen.id())[period] =
+                (hours.get(chosen.id())[period] == null ? 0 : hours.get(chosen.id())[period])
+                    + chosenTemplate.minutes() / 60.0;
+            addHours(hoursInDay, chosenTemplate.start().getHour(), chosenTemplate.minutes());
+            already.add(chosen.id());
+            Assignment assignment = new Assignment(chosen.id(), chosen.name(), unit.id(),
+                unit.code(), chosenTemplate.id(), chosenTemplate.code(), date, start, end,
+                chosenCheck == null ? List.of() : chosenCheck.warnings());
+            assignments.add(assignment);
+            byEmployee.computeIfAbsent(chosen.id(), k -> new ArrayList<>()).add(assignment);
+            facts.computeIfAbsent(chosen.id(), k -> new ArrayList<>()).add(
+                new ShiftFact("plan:" + date + ":" + chosenTemplate.code(), chosen.employeeNo(),
+                    unit.code(), chosenTemplate.code(), start, end, ShiftKind.ROSTERED, 0, true,
+                    true));
+            for (RuleWarning warning : assignment.warnings()) {
+              addWarning(warnings, warningKeys, chosen.id().toString(), warning,
+                  unit.code(), chosen.name(), date, chosenTemplate.code());
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private static Map<String, Object> fteBandsCard(
+      List<Employee> employees, Map<UUID, List<Assignment>> byEmployee) {
+    List<Map<String, Object>> bands = new ArrayList<>();
+    for (String band : List.of("FULL_TIME", "0.7_TO_0.9", "UNDER_0.7")) {
+      List<Employee> members = employees.stream().filter(e -> bandOf(e.fte()).equals(band)).toList();
+      if (members.isEmpty()) {
+        continue;
+      }
+      List<Double> planned = new ArrayList<>();
+      List<Double> targets = new ArrayList<>();
+      for (Employee employee : members) {
+        planned.add(byEmployee.getOrDefault(employee.id(), List.of()).stream()
+            .mapToDouble(s -> Duration.between(s.start(), s.end()).toMinutes() / 60.0).sum());
+        targets.add(employee.fte() * 80.0 * 7);
+      }
+      Map<String, Object> row = new LinkedHashMap<>();
+      row.put("band", band);
+      row.put("officers", members.size());
+      row.put("targetHours", round1(targets.stream().mapToDouble(Double::doubleValue).average().orElse(0)));
+      row.put("plannedMin", round1(planned.stream().mapToDouble(Double::doubleValue).min().orElse(0)));
+      row.put("plannedAvg", round1(planned.stream().mapToDouble(Double::doubleValue).average().orElse(0)));
+      row.put("plannedMax", round1(planned.stream().mapToDouble(Double::doubleValue).max().orElse(0)));
+      bands.add(row);
+    }
+    return Map.of(
+        "bands", bands,
+        "note", "Part-time and casual officers are not guaranteed hours; they fill what is left.");
+  }
+
+  private static String bandOf(double fte) {
+    if (fte >= 1.0) {
+      return "FULL_TIME";
+    }
+    return fte >= 0.7 ? "0.7_TO_0.9" : "UNDER_0.7";
+  }
+
   /** One item per officer per rule: the changeover warning is one event, not one per later shift. */
   private static void addWarning(
       List<Warning> warnings,
@@ -526,11 +685,38 @@ public final class PlanGenerator {
               employee.unitId(),
               employee.unitCode(),
               employee.seniority(),
+              employee.fte(),
               employee.pref(),
               employee.effectiveLength(),
               index % cycle));
     }
     return result;
+  }
+
+  private static List<Gap> recomputeGaps(
+      List<Unit> units, List<Assignment> assignments) {
+    Map<String, int[]> coverage = new HashMap<>();
+    for (Assignment assignment : assignments) {
+      String key = assignment.unitId() + "|" + assignment.date();
+      addHours(coverage.computeIfAbsent(key, k -> new int[24]),
+          assignment.start().atZone(REGINA).getHour(),
+          (int) Duration.between(assignment.start(), assignment.end()).toMinutes());
+    }
+    List<Gap> gaps = new ArrayList<>();
+    for (Unit unit : units) {
+      for (LocalDate date = FROM; !date.isAfter(TO); date = date.plusDays(1)) {
+        int[] hours = coverage.getOrDefault(unit.id() + "|" + date, new int[24]);
+        for (String block : BLOCKS) {
+          int required = unit.required().getOrDefault(block, 0);
+          int placed = minimumCoverage(hours, block);
+          if (placed < required) {
+            gaps.add(new Gap(unit.id(), unit.code(), date, block, required, placed,
+                "No eligible officer left without a Block rule; a supervisor fills this"));
+          }
+        }
+      }
+    }
+    return gaps;
   }
 
   private static Map<String, Object> scorecard(
@@ -573,6 +759,7 @@ public final class PlanGenerator {
             blockOf));
     scorecard.put("overtime", overtimeCard(employees, byEmployee));
     scorecard.put("weekends", weekendsCard(employees, byEmployee));
+    scorecard.put("fteBands", fteBandsCard(employees, byEmployee));
     scorecard.put("quarterHours", quarterHoursCard(employees, byEmployee));
     if ("ROTATING_5_2".equals(pattern8h)) {
       scorecard.put(

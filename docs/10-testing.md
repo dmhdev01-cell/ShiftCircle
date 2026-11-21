@@ -223,3 +223,5 @@ Things the design describes that the prototype does **not** have. They are liste
 - **Cycle-average hours in payroll:** payroll overtime stays per 14-day period (P-01, unchanged). The planner scorecard reports `quarterHours` per officer (min/avg/max) as a U-13 report-only figure; the default rotating pattern's 72 h changeover period is not rebalanced by payroll, and real cycle averaging would need a rule change.
 
 - **16-hour shifts in the planner:** the planner rosters 8- and 12-hour shifts only; a 16 h preference is stored and shown unmet ("the planner does not roster 16-hour shifts"). In practice a "16 h shift" is probably a double 8 h shift worked as overtime; the person is confirming. The seeded L16 officers, template and U-03/U-05/U-11 are unchanged.
+
+- **Part-time/casual hours:** the planner targets FTE × 80 h per pay period for FTE < 1.0 officers, who fill leftover gaps and nights newest-first and are never guaranteed hours; the scorecard reports planned vs target by FTE band. Payroll overtime stays per period and does not average over a cycle.

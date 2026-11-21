@@ -998,7 +998,7 @@ public class PlannerService {
     Map<UUID, Integer> phases = new HashMap<>();
     return jdbc.query(
         "SELECT e.id, e.employee_no, e.first_name || ' ' || e.last_name AS name,"
-            + " e.home_unit_id, e.seniority_date, p.shift_length, p.time_of_day, p.days_off"
+            + " e.home_unit_id, e.seniority_date, e.fte, p.shift_length, p.time_of_day, p.days_off"
             + " FROM employee e LEFT JOIN officer_preference p ON p.employee_id = e.id"
             + " ORDER BY e.home_unit_id, e.employee_no",
         (rs, row) -> {
@@ -1019,6 +1019,7 @@ public class PlannerService {
               unitId,
               unit.code(),
               rs.getDate("seniority_date").toLocalDate(),
+              rs.getDouble("fte"),
               new PlanGenerator.Pref(preferred, rs.getString("time_of_day"), daysOff(rs.getArray("days_off"))),
               effective,
               index % 7);
