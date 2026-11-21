@@ -10,18 +10,17 @@ import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /** The quarter planner (docs/07 §4.9). Facility-wide; only PLANNER may call it. */
@@ -55,10 +54,12 @@ public class PlannerController {
 
   /** A planner marks a future absence; the next generate skips that officer on that date. */
   @PostMapping("/absences")
-  @ResponseStatus(org.springframework.http.HttpStatus.CREATED)
-  public Map<String, Object> planAbsence(@RequestBody PlannedAbsence input) {
-    return planner.planAbsence(
-        input.employeeId(), input.date(), input.type(), scopeGuard.principal());
+  public ResponseEntity<Map<String, Object>> planAbsence(@RequestBody PlannedAbsence input) {
+    PlannerViews.PlannedAbsenceResult result =
+        planner.planAbsence(
+            input.employeeId(), input.date(), input.type(), scopeGuard.principal());
+    return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
+        .body(result.body());
   }
 
   public record PlannedAbsence(UUID employeeId, java.time.LocalDate date, String type) {}

@@ -1359,9 +1359,13 @@ public class PlannerService {
     return leave;
   }
 
-  /** A planner adds a future absence; it is read by the next generate, never approved or managed. */
+  /**
+   * A planner adds a future absence; it is read by the next generate, never approved or managed.
+   * Repeating the same officer/date/type is idempotent (200 with the existing row); a different
+   * type on the same date is a 409, not two contradictory absences.
+   */
   @Transactional
-  public Map<String, Object> planAbsence(
+  public PlannerViews.PlannedAbsenceResult planAbsence(
       UUID employeeId, LocalDate date, String type, AuthPrincipal principal) {
     if (employeeId == null || date == null || type == null) {
       throw new ResponseStatusException(
@@ -1381,9 +1385,28 @@ public class PlannerService {
     if (active == null || active == 0) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found");
     }
-    UUID id = UUID.randomUUID();
     Instant start = date.atStartOfDay(REGINA).toInstant();
     Instant end = date.plusDays(1).atStartOfDay(REGINA).toInstant();
+    List<Map<String, Object>> existing =
+        jdbc.queryForList(
+            "SELECT id, type FROM absence WHERE employee_id = ? AND start_at = ? AND end_at = ?"
+                + " AND shift_assignment_id IS NULL",
+            employeeId,
+            Timestamp.from(start),
+            Timestamp.from(end));
+    if (!existing.isEmpty()) {
+      Map<String, Object> row = existing.get(0);
+      if (type.equals(row.get("type"))) {
+        return new PlannerViews.PlannedAbsenceResult(
+            absenceBody((UUID) row.get("id"), employeeId, date, type), false);
+      }
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "An absence of type "
+              + row.get("type")
+              + " is already recorded for that date; reset or correct it first");
+    }
+    UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO absence (id, employee_id, type, start_at, end_at, recorded_by)"
             + " VALUES (?, ?, ?, ?, ?, (SELECT id FROM app_user WHERE username = ?))",
@@ -1399,6 +1422,12 @@ public class PlannerService {
         "absence",
         id,
         Map.of("employeeId", employeeId.toString(), "date", date.toString(), "type", type));
+    return new PlannerViews.PlannedAbsenceResult(
+        absenceBody(id, employeeId, date, type), true);
+  }
+
+  private static Map<String, Object> absenceBody(
+      UUID id, UUID employeeId, LocalDate date, String type) {
     return Map.of(
         "id", id.toString(),
         "employeeId", employeeId.toString(),

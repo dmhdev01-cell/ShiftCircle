@@ -95,6 +95,9 @@ public final class PlannerViews {
 
   public record PreferenceInput(Integer shiftLength, String timeOfDay, List<String> daysOff) {}
 
+  /** A planned absence and whether this call created it (false = the same absence already existed). */
+  public record PlannedAbsenceResult(Map<String, Object> body, boolean created) {}
+
   public record DraftCreation(long seed, String pattern8h) {}
 
   public record CommitInput(Integer acceptedWarningCount) {}
