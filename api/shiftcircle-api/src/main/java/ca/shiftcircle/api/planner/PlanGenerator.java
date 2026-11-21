@@ -122,10 +122,16 @@ public final class PlanGenerator {
     Set<String> warningKeys = new LinkedHashSet<>();
     List<Gap> gaps = new ArrayList<>();
 
+    Map<UUID, List<Employee>> baseStaff = new HashMap<>();
+    employees.forEach(employee -> baseStaff.computeIfAbsent(employee.unitId(), k -> new ArrayList<>()).add(employee));
+    baseStaff.values().forEach(list -> list.sort(Comparator.comparing(Employee::seniority)));
+    Map<UUID, String> blockOf = assignBlocks(units, baseStaff);
+    // Allocation improvement: stagger phases inside each unit's block group, not across the whole
+    // unit, so a day group always works the same number of days on each weekday.
+    List<Employee> rephased = rephase(employees, blockOf);
     Map<UUID, List<Employee>> staff = new HashMap<>();
-    employees.forEach(employee -> staff.computeIfAbsent(employee.unitId(), k -> new ArrayList<>()).add(employee));
+    rephased.forEach(employee -> staff.computeIfAbsent(employee.unitId(), k -> new ArrayList<>()).add(employee));
     staff.values().forEach(list -> list.sort(Comparator.comparing(Employee::seniority)));
-    Map<UUID, String> blockOf = assignBlocks(units, staff);
 
     for (LocalDate date = FROM; !date.isAfter(TO); date = date.plusDays(1)) {
       for (Unit unit : units) {
@@ -270,7 +276,7 @@ public final class PlanGenerator {
     Map<String, Object> scorecard =
         scorecard(
             employees, units, assignments, byEmployee, gaps, warnings, pattern8h, started, facts,
-            templates, verifier);
+            templates, verifier, blockOf);
     return new Result(assignments, gaps, warnings, scorecard);
   }
 
@@ -504,6 +510,29 @@ public final class PlanGenerator {
     }
   }
 
+  private static List<Employee> rephase(
+      List<Employee> employees, Map<UUID, String> blockOf) {
+    Map<String, Integer> counters = new HashMap<>();
+    List<Employee> result = new ArrayList<>();
+    for (Employee employee : employees) {
+      int cycle = employee.effectiveLength() == 12 ? 8 : 7;
+      String key = employee.unitId() + "|" + blockOf.getOrDefault(employee.id(), "DAY");
+      int index = counters.merge(key, 1, Integer::sum) - 1;
+      result.add(
+          new Employee(
+              employee.id(),
+              employee.employeeNo(),
+              employee.name(),
+              employee.unitId(),
+              employee.unitCode(),
+              employee.seniority(),
+              employee.pref(),
+              employee.effectiveLength(),
+              index % cycle));
+    }
+    return result;
+  }
+
   private static Map<String, Object> scorecard(
       List<Employee> employees,
       List<Unit> units,
@@ -515,7 +544,8 @@ public final class PlanGenerator {
       long startedNanos,
       Map<UUID, List<ShiftFact>> facts,
       Map<String, Template> templates,
-      Verifier verifier) {
+      Verifier verifier,
+      Map<UUID, String> blockOf) {
     Map<String, Object> scorecard = new LinkedHashMap<>();
     long totalBlockDays = (long) units.size() * ChronoUnit.DAYS.between(FROM, TO.plusDays(1)) * 3;
     scorecard.put(
@@ -539,7 +569,8 @@ public final class PlanGenerator {
             facts,
             templates,
             verifier,
-            pattern8h));
+            pattern8h,
+            blockOf));
     scorecard.put("overtime", overtimeCard(employees, byEmployee));
     scorecard.put("weekends", weekendsCard(employees, byEmployee));
     scorecard.put("quarterHours", quarterHoursCard(employees, byEmployee));
@@ -630,7 +661,8 @@ public final class PlanGenerator {
       Map<UUID, List<ShiftFact>> facts,
       Map<String, Template> templates,
       Verifier verifier,
-      String pattern8h) {
+      String pattern8h,
+      Map<UUID, String> blockOf) {
     List<Employee> sorted = new ArrayList<>(employees);
     sorted.sort(Comparator.comparing(Employee::seniority));
     int third = Math.max(1, sorted.size() / 3);
@@ -702,7 +734,12 @@ public final class PlanGenerator {
                   .filter(other -> other.seniority().isAfter(officer.seniority()))
                   .filter(other -> !working.contains(other.id()))
                   .filter(other -> works(other, checkDate, pattern8h))
+                  .filter(other -> "NIGHT".equals(blockOf.getOrDefault(other.id(), "DAY")))
                   .filter(other -> !"NIGHT".equals(other.pref().timeOfDay()))
+                  // The generator chooses a night GROUP newest-first, not a person per day; a
+                  // newer officer who also works nights is not being passed over.
+                  .filter(other -> byEmployee.getOrDefault(other.id(), List.of()).stream()
+                      .noneMatch(shift -> isNight(shift.templateCode())))
                   .filter(other -> effectiveLength(other) == 8)
                   .filter(
                       other ->

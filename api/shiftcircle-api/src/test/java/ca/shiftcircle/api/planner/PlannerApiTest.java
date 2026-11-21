@@ -106,6 +106,7 @@ class PlannerApiTest {
     assertThat(assignmentCount()).isGreaterThan(3000);
     assertThat(((Map<?, ?>) scorecard.get("coverage")).get("shortBlockDays")).isNotNull();
     System.out.println("scorecard warnings: " + scorecard.get("warnings"));
+    System.out.println("scorecard coverage: " + scorecard.get("coverage") + " quarterHours: " + scorecard.get("quarterHours"));
     List<Map<String, Object>> groups =
         mapper.readValue(
             send("GET", "/api/v1/planner/drafts/" + draftId + "/warnings", null,
