@@ -209,8 +209,37 @@ describe('the planning board', () => {
     spy.mockRestore();
   });
 
-  it('offers the supervisor the publish action for the roster week', async () => {
+  it('walks between weeks and comes back to today', async () => {
+    // Observation #3: the board was pinned to the week of the demo day.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const body = String(input).includes('/api/v1/version')
+          ? { name: 'shiftcircle-api', asOf: '2026-11-19' }
+          : {};
+        return { ok: true, status: 200, statusText: 'OK', json: async () => body } as unknown as Response;
+      }),
+    );
+    const user = userEvent.setup();
     renderBoard();
+
+    // The demo day 2026-11-19 is in the week of Mon 16 to Sun 22 Nov.
+    expect(await screen.findByText('16 – 22 Nov 2026')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Today' })).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: 'Previous week' }));
+    expect(await screen.findByText('9 – 15 Nov 2026')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Next week' }));
+    await user.click(screen.getByRole('button', { name: 'Next week' }));
+    expect(await screen.findByText('23 – 29 Nov 2026')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Today' }));
+    expect(await screen.findByText('16 – 22 Nov 2026')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Today' })).toBeDisabled();
+  });
+
+  it('offers the supervisor the publish action for the roster week', async () => {    renderBoard();
 
     expect(await screen.findByText('Not published')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Publish period' })).toBeEnabled();

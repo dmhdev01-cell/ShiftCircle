@@ -39,15 +39,33 @@ function iso(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-/** The Monday-to-Sunday week the demo "today" falls in. */
-function weekOf(asOf: string | undefined): { from?: string; to?: string } {
+/**
+ * The Monday-to-Sunday week the demo "today" falls in, moved by whole weeks.
+ * The board opens on that week and the arrows walk from it, so "Today" is a
+ * known place rather than whatever week happens to be on screen (obs. #3).
+ */
+function weekOf(asOf: string | undefined, offsetWeeks = 0): { from?: string; to?: string } {
   if (!asOf) return {};
   const date = new Date(`${asOf}T00:00:00Z`);
   const monday = new Date(date);
-  monday.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+  monday.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7) + offsetWeeks * 7);
   const sunday = new Date(monday);
   sunday.setUTCDate(monday.getUTCDate() + 6);
   return { from: iso(monday), to: iso(sunday) };
+}
+
+/** "16 – 22 Nov 2026", the range a week picker shows. */
+function weekRange(from: string | undefined, to: string | undefined): string {
+  if (!from || !to) return '';
+  const start = new Date(`${from}T00:00:00Z`);
+  const end = new Date(`${to}T00:00:00Z`);
+  const startDay = new Intl.DateTimeFormat('en-CA', { day: 'numeric', timeZone: 'UTC' }).format(start);
+  const endDay = new Intl.DateTimeFormat('en-CA', { day: 'numeric', timeZone: 'UTC' }).format(end);
+  const endMonth = new Intl.DateTimeFormat('en-CA', { month: 'short', timeZone: 'UTC' }).format(end);
+  const endYear = new Intl.DateTimeFormat('en-CA', { year: 'numeric', timeZone: 'UTC' }).format(end);
+  return start.getUTCMonth() === end.getUTCMonth()
+    ? `${startDay} – ${endDay} ${endMonth} ${endYear}`
+    : `${startDay} ${new Intl.DateTimeFormat('en-CA', { month: 'short', timeZone: 'UTC' }).format(start)} – ${endDay} ${endMonth} ${endYear}`;
 }
 
 function longDay(date: string): string {
@@ -76,7 +94,11 @@ export function PlanningPage() {
   const units: Unit[] = unitsState.kind === 'ready' ? unitsState.units : [];
   const [unitId, setUnitId] = useState<string | null>(null);
   const activeUnitId = unitId ?? units[0]?.id;
-  const week = weekOf(version.state.status === 'ready' ? version.state.info.asOf : undefined);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const week = weekOf(
+    version.state.status === 'ready' ? version.state.info.asOf : undefined,
+    weekOffset,
+  );
   const { state, reload } = useSchedule(activeUnitId, week.from, week.to);
   const mutation = useRuleCheckedMutation();
   const [pending, setPending] = useState<Pending | null>(null);
@@ -212,6 +234,16 @@ export function PlanningPage() {
       )
       .map((result) => result.ruleCode) ?? [];
 
+  /** Move the board by whole weeks, dropping anything that belonged to the old one. */
+  const changeWeek = (next: number) => {
+    setWeekOffset(next);
+    setPending(null);
+    setProposal(null);
+    setShiftActions(null);
+    setHelpOpen(false);
+    mutation.reset();
+  };
+
   const startChoose = (officer: OfficerRow, date: string) => {
     lastFocus.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -314,7 +346,7 @@ export function PlanningPage() {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           <Typography variant="h1">Planning board</Typography>
           <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
-            {payload.unit.name} · Week of {longDay(payload.from)} – {longDay(payload.to)} ·{' '}
+            {payload.unit.name} ·{' '}
             <strong style={{ color: colour.text.primary }}>
               {payload.publishedState.published ? 'Published' : 'Not published'}
             </strong>
@@ -323,6 +355,31 @@ export function PlanningPage() {
         </Box>
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 2.5 }}>
+          {/* Observation #3: the board was pinned to the week of the demo day.
+              The api takes any range, so the arrows walk whole weeks from it. */}
+          <Box
+            role="group"
+            aria-label="Week"
+            sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}
+          >
+            <Button variant="outlined" color="primary" onClick={() => changeWeek(weekOffset - 1)}>
+              Previous week
+            </Button>
+            <Box component="span" className="num" sx={{ fontSize: 13, fontWeight: 700, minWidth: 150, textAlign: 'center' }}>
+              {weekRange(week.from, week.to)}
+            </Box>
+            <Button variant="outlined" color="primary" onClick={() => changeWeek(weekOffset + 1)}>
+              Next week
+            </Button>
+            <Button
+              variant="outlined"
+              color="primary"
+              disabled={weekOffset === 0}
+              onClick={() => changeWeek(0)}
+            >
+              Today
+            </Button>
+          </Box>
           <Button variant="outlined" color="primary" onClick={() => setHelpOpen(true)}>
             Rules help
           </Button>
