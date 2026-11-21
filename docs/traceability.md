@@ -14,10 +14,10 @@ dataset checksum is `3390148255...6539` with the payroll golden unchanged; the 1
 **425 = 123 + 27 + 275** in both orders, with dev-qa verification pending. A proof below names the
 test class and method that makes the claim, not the document that hopes it exists.
 
-**Phase 3 preference/pattern (`p3-pref`, merged tip `de256ba`; dev-qa gate pending).** The branch
+**Phase 3 preference/pattern (`p3-pref`; final tip at handover; dev-qa gate pending).** The branch
 adds **19 api tests**: preference multi-select and the V9 backfill, coverage `extraPercent`, the
 Block sentence, V10 and the per-officer pattern. Author run from a clean worktree at the code tip
-`761f763` (Java identical to `de256ba`): **444 = 123 rules + 27 infrastructure + 294 api** in the
+`761f763` (Java identical to the handover tip): **444 = 123 rules + 27 infrastructure + 294 api** in the
 default order, 0 failures/errors/skipped (dev-qa's gate runs both orders); web **290**. The 120 and
 100 drafts are sha256-identical to `c9ac073`; the checksums and payroll golden are unchanged.
 

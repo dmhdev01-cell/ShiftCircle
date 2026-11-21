@@ -99,7 +99,7 @@ Every independent check on the build, newest last. Each entry gives who checked,
 - **422 = 123 + 27 + 272 at the final tip `5d0f810` (R61), default order and random seed 20261121.**
 - 425 = 123 + 27 + 275 at `p3-sec 74a58c0` (R62, author run; dev-qa verification pending).
 - 437 = 123 + 27 + 287 at `p3-pref-api 05c6398` (R63, author run; dev-qa verification pending).
-- **444 = 123 + 27 + 294 at the phase 3 preference/pattern tip `de256ba` (R64, author run, default order; dev-qa gate runs both orders and is pending).**
+- **444 = 123 + 27 + 294 at the final `p3-pref` handover tip (R64, author run, default order; dev-qa gate runs both orders and is pending).**
 
 Author runs:
 - 301 = 91 + 27 + 183 at the merge `5e7765f`;
