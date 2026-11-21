@@ -34,6 +34,10 @@ describe('Reports', () => {
       expect.stringContaining('Actual ranges from 97.4% to 99.2%'),
     );
 
+    // Of which overtime or extra, per week and per block.
+    expect(screen.getByText(/9 – 15 Nov: of which overtime or extra 24.5 h/)).toBeInTheDocument();
+    expect(screen.getByText(/Days 8.0 · Evenings 8.0 · Nights 8.5/)).toBeInTheDocument();
+
     // The axis starts at 94% and says so.
     expect(screen.getByText(/The axis starts at 94%/)).toBeInTheDocument();
 

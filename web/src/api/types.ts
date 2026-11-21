@@ -440,6 +440,10 @@ export interface CoverageWeek {
   actualPercent?: number | null;
   /** True for a week that has not happened yet. */
   planned: boolean;
+  /** Hours of the scheduled hours that came from overtime/extra shifts. */
+  extraHours?: number;
+  /** The same, per block (DAY, EVENING, NIGHT). */
+  extraHoursByBlock?: Record<string, number>;
 }
 
 export interface CoverageReport {
