@@ -27,6 +27,13 @@ function clock(instant: string): string {
   return instant.slice(11, 16);
 }
 
+/** The day after an ISO date: a night shift's end belongs to it. */
+function nextDay(date: string): string {
+  const parsed = new Date(`${date}T00:00:00Z`);
+  parsed.setUTCDate(parsed.getUTCDate() + 1);
+  return parsed.toISOString().slice(0, 10);
+}
+
 /**
  * The record-actual panel (docs/ui/build-notes.md §2.2): worked as scheduled,
  * adjusted times, or absent.
@@ -50,10 +57,13 @@ export function RecordActualPanel({ entry, result, onSave, onCancel }: RecordAct
       onSave({ workedAsScheduled: false, absence });
       return;
     }
+    // A night shift ends on the next day (23:00-07:00, 20:00-12:00): writing
+    // both clocks on the entry's own date sent an end before its start.
+    const endDate = end <= start ? nextDay(entry.date) : entry.date;
     onSave({
       workedAsScheduled: false,
       actualStart: `${entry.date}T${start}:00-06:00`,
-      actualEnd: `${entry.date}T${end}:00-06:00`,
+      actualEnd: `${endDate}T${end}:00-06:00`,
     });
   };
 
