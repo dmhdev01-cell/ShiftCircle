@@ -93,7 +93,11 @@ describe('the mock sign-in', () => {
 
     await user.click(await screen.findByRole('button', { name: /T\. Nakamura/ }));
 
-    // The role's own landing page, not the hostile value.
-    expect(await screen.findByRole('heading', { name: 'My schedule', level: 1 })).toBeInTheDocument();
+    // The role's own landing page, not the hostile value. Wait for its content,
+    // not for the heading: every screen draws the same h1 while it loads and
+    // again when the answers land, and the node found first is replaced - the
+    // intermittent failure this test had.
+    expect(await screen.findByText(/Sam Abara|Tara Nakamura/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'My schedule', level: 1 })).toBeInTheDocument();
   });
 });
