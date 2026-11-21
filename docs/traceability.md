@@ -8,9 +8,11 @@ on their own line (no parameterised tests). dev-qa's independent run at `5d0f810
 **277**, 0 failed; Playwright against the real api, a fresh stack per viewport, is desktop **101
 passed / 0 failed** and tablet **100 passed + 1 skipped / 0 failed**; fixtures **22 + 21**. The 100
 dataset checksum is `3390148255...6539` with the payroll golden unchanged; the 120 checksum is
-`82b19cf8...32ca`. The round history and each earlier count are in `docs/review-rounds.md` R1–R61.
-A proof below names the test class and method that makes the claim, not the document that hopes it
-exists.
+`82b19cf8...32ca`. The round history and each earlier count are in `docs/review-rounds.md` R1–R62.
+**The security-fix branch `p3-sec` at `74a58c0` adds three api tests** (`PlannerDiscardRaceApiTest`,
+`DemoResetFailureTest`, and the concurrency method in `PlannerAbsenceApiTest`); the author run is
+**425 = 123 + 27 + 275** in both orders, with dev-qa verification pending. A proof below names the
+test class and method that makes the claim, not the document that hopes it exists.
 
 **Path shorthand.** `RulesTest` = a class in `api/shiftcircle-rules/src/test/java/ca/shiftcircle/rules/`;
 `ApiTest` = a class in `api/shiftcircle-api/src/test/java/ca/shiftcircle/api/`;
@@ -276,3 +278,7 @@ no assertion was weakened.
 | The planner's 21-29 Dec look-back history uses the same actual resolver | `PlannerHistoryActualApiTest#anExtensionOnTheLookBackHistoryIsReadByTheGenerator` (an extension on a seeded history shift changes the generated plan) | PASS |
 | Shift-less officers are not counted as MET (candidate 4) | Not built: no `NOT_ROSTERED` status; the 120 plan's 13 shift-less casuals still read their asked criteria as MET (26 criteria of 195). The fix is queued, not delivered | NOT COVERED (known limit) |
 | The two extra selectable patterns are not added | Probe only at `p3-api-pat 3f94937` (not merged): 8 h 7/3+7/4 warns U-12 and U-14 in all 21 phases and is 56-88 h per period; 12 h 4/2+4/3 warns U-14 at exactly 60.00 h in a 168 h window, 96-108 h per period. Both Block-free; not added (decision 15) | NOT COVERED (measured known limit) |
+| A discard racing a commit cannot answer DISCARDED while the quarter commits | `PlannerDiscardRaceApiTest#aDiscardRacingACommitCannotSayDiscarded` (commit in one thread, discard 300 ms later; commit 200, discard 409, status COMMITTED, no discard audit row; the plain discard 200 and the committed discard 409 are in the same test) | PASS on p3-sec, author run; dev-qa pending |
+| A short or moved actual cannot shorten a shift and relax U-01 or U-05 | `ActualTimesInRulesTest#aShortActualCannotRelaxTheRestOrHoursBlock` (a 1-minute actual leaves U-01 and U-05 BLOCK and the assignment 422), plus the four extension cases (U-04 WARN, U-05 block/pass) | PASS on p3-sec, author run; dev-qa pending |
+| One planned absence per officer-day under concurrency | `PlannerAbsenceApiTest#concurrentAbsencesForOneOfficerDayLeaveOneRow` (six simultaneous posts, one row, one type, 200/201/409), backed by V8's partial unique index and the ON CONFLICT insert | PASS on p3-sec, author run; dev-qa pending |
+| A reset Error releases the lock, sets FAILED and hides the raw detail | `DemoResetFailureTest#anErrorDuringTheResetReleasesTheLockAndHidesTheDetail` (a test provider throws AssertionError; status FAILED with a generic message, lock not busy, a following 100 reset reaches DONE) | PASS on p3-sec, author run; dev-qa pending |

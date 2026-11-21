@@ -200,10 +200,7 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
   engine-verified and never above FTE × 80 hours in a pay period. The scorecard reports hours
   against target by FTE band and says plainly that part-time/casual officers fill what is left;
   unfilled gaps stay gaps.
-- **Actual times in rule checks (person, 2026-11-21 02:35Z, amendments item 17).** Where a time
-  entry exists, the fact builders use the **actual end** instead of the rostered end, so U-04,
-  U-05 and the next shift's U-01/U-02 rest see a recorded extension; the next day's proposal is
-  checked against the actual, not the roster. The `PUT /time-entries` body that carried both
+- **Actual times in rule checks (person, 2026-11-21 02:35Z, amendments item 17; envelope after review-r3 P3-2).** Where a time entry exists, the fact builders use the **envelope of the roster and the actual** — the earliest start and the latest end. A recorded extension therefore reaches U-04, U-05 and the next shift's U-01/U-02 rest, while a short or moved actual can never shorten the shift and relax a Block. The board and the planner share one resolver (`RuleCheckService.history`). The `PUT /time-entries` body that carried both
   `workedAsScheduled` and actual times is now `400` and writes nothing. The 100 checksum and the
   payroll golden are unchanged; 132 seeded entries legitimately differ from the roster, so some
   seeded checks now cite actual times (e.g. Unit A N8 13 Nov: U-01/U-05/U-14 BLOCK with a

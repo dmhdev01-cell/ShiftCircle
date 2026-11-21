@@ -44,7 +44,7 @@ the NFR limits, so a regression fails the build rather than being noticed in the
 
 **Definition of done for any feature:** its rule and use-case tests pass, its endpoints have authorization tests, and the demo flow touching it passes in Playwright.
 
-**Final verified state (`5d0f810`, 2026-11-21).** dev-qa's independent pipeline on the candidate: API
+**Final verified state (`5d0f810`, 2026-11-21; the security fixes below are newer).** dev-qa's independent pipeline on the candidate: API
 **422 = 123 rules + 27 infrastructure + 272 api** tests, green in the default order and with random
 seed 20261121; web **277** vitest; Playwright against the real api, fresh stack per viewport:
 desktop **101 passed / 0 failed**, tablet **100 passed + 1 skipped / 0 failed** (the TV-size check is
@@ -53,6 +53,12 @@ parameterised tests. The 100 dataset checksum is
 `3390148255db715844c4df90f553ae342530417621539b23499f638c5b126539` and the payroll golden
 `d502848dad316ae00d7f7f90ccd01be8f82aa9332391f13cfb41b1b2d5e9d06a`; the 120 dataset checksum is
 `82b19cf814acde5c5740f9a9aa1162e61d4b7f5598848f99861d2f4ea66732ca`.
+
+**Security fixes (`p3-sec`, code `74a58c0`).** review-r3's P3-1..P3-5 add three api tests
+(`PlannerDiscardRaceApiTest`, `DemoResetFailureTest`, and the concurrency method in
+`PlannerAbsenceApiTest`). An author run at that tip is **425 = 123 rules + 27 infrastructure + 275
+api** in both orders; dev-qa verification is pending. The last independently verified tip is still
+`5d0f810` at 422.
 
 ## 3. Rule boundary matrix
 
@@ -247,4 +253,4 @@ Things the design describes that the prototype does **not** have. They are liste
 
 ## Phase 3 test classes (for the acceptance table)
 
-New or materially extended in phase 3: `PlannerApiTest` (draft/commit/scorecard/preferences/compare/committed read), `PlanGeneratorFteTest` (FTE bands and casual target), `PlanGeneratorCrewTest` (D12/N12/D8/E8 separation, 4/4 coverage), `WeekendRotationProbeTest`, `RotatingBreakProbeTest` (variant A-F evidence for ADR-026), `DemoResetApiTest` (100 reset twice, checksum, audit, guards), `DemoResetProfileTest` (not in prod-like), `DemoResetGatingTest` (`sc.demo.generate=false`), `DemoOperationLockTest` (cross-thread release), `Demo120ResetApiTest` (120 composition, deterministic checksum, reset back to 100, 120 plan gaps/warnings/no Block, qualification report), `PlannerAbsenceApiTest` (read-only skip, idempotency, authz), `PlannerHistoryActualApiTest` (an extension on the 21-29 Dec look-back history reaches the generator), `ActualTimesInRulesTest` (U-04/U-05 and rest see the recorded actual end), `PlannerPreferenceKindsTest` (F10: D12/N12 score by their template row; scorecard == compare; N12 12/NIGHT MET, D12 8h NOT_MET), `HoursAndRunsRulesTest` (D12/N12 boundary cases), `ReferenceDataMatchesRuleRowsTest` (published v2 == code rows), `SchemaConstraintsTest` (V6 baseline), `ReferenceApiTest` (eight templates), `PayrollApiTest` (contradictory time-entry body), `JwtServiceTest` (tamper test flake fix). The final counts are in §2.
+New or materially extended in phase 3: `PlannerApiTest` (draft/commit/scorecard/preferences/compare/committed read), `PlanGeneratorFteTest` (FTE bands and casual target), `PlanGeneratorCrewTest` (D12/N12/D8/E8 separation, 4/4 coverage), `WeekendRotationProbeTest`, `RotatingBreakProbeTest` (variant A-F evidence for ADR-026), `DemoResetApiTest` (100 reset twice, checksum, audit, guards), `DemoResetProfileTest` (not in prod-like), `DemoResetGatingTest` (`sc.demo.generate=false`), `DemoOperationLockTest` (cross-thread release), `Demo120ResetApiTest` (120 composition, deterministic checksum, reset back to 100, 120 plan gaps/warnings/no Block, qualification report), `PlannerAbsenceApiTest` (read-only skip, idempotency, authz, concurrent one-row guarantee), `PlannerHistoryActualApiTest` (an extension on the 21-29 Dec look-back history reaches the generator), `ActualTimesInRulesTest` (the roster/actual envelope: U-04/U-05 and rest see an extension, a short actual cannot relax a Block), `PlannerDiscardRaceApiTest` (a discard racing a commit is 409, never a false DISCARDED), `DemoResetFailureTest` (an Error releases the lock, sets FAILED and hides the raw text), `PlannerPreferenceKindsTest` (F10: D12/N12 score by their template row; scorecard == compare; N12 12/NIGHT MET, D12 8h NOT_MET), `HoursAndRunsRulesTest` (D12/N12 boundary cases), `ReferenceDataMatchesRuleRowsTest` (published v2 == code rows), `SchemaConstraintsTest` (V6 baseline), `ReferenceApiTest` (eight templates), `PayrollApiTest` (contradictory time-entry body), `JwtServiceTest` (tamper test flake fix). The final counts are in §2.

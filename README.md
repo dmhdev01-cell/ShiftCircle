@@ -186,7 +186,9 @@ suite, a fresh stack per viewport: desktop **101 passed / 0 failed**, tablet **1
 skipped** (the TV-size check is desktop-only) **/ 0 failed**; fixtures: **22 passed and 21**. The
 static counts in this tree agree (123 + 27 + 272 `@Test` methods, one per line, no parameterised
 tests). The dataset checksums, the earlier runs and each round are in `docs/review-rounds.md`
-(R61 is the final one) and `BUILD_RECORD.md`.
+(R61 is the final independent one) and `BUILD_RECORD.md`. review-r3's security fixes on `p3-sec`
+add three api tests: an author run at `74a58c0` is **425 = 123 + 27 + 275** in both orders; dev-qa
+verification is pending.
 
 **One viewport per fresh stack.** The real-api specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop`, then `docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait`, then `--project tablet`.
 
