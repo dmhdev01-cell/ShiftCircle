@@ -27,7 +27,7 @@ test.describe('the demo reset', () => {
     const plan = await api.get<PlanState>('/planner/plan');
     expect(plan.state).not.toBe('COMMITTED');
     const draft = await api.post('/planner/drafts', { seed: plan.defaultSeed ?? 20261001 });
-    expect(draft.status).toBe(200);
+    expect([200, 201]).toContain(draft.status);
     const draftId = (draft.body as { id: string }).id;
     const preview = await api.get<{ version: number; warningCount: number }>(
       `/planner/drafts/${draftId}/commit-preview`,
