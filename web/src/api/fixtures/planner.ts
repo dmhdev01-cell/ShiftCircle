@@ -207,7 +207,7 @@ export function plannerWarnings(): PlannerWarningGroup[] {
 
 let myPreferences: MyPreferences = {
   shiftLength: null,
-  timeOfDay: null,
+  timesOfDay: [],
   daysOff: [],
   maxDaysOff: 2,
   allowedLengths: [8, 12, 16],
@@ -229,7 +229,7 @@ export function saveMyPreferences(input: MyPreferencesInput): MyPreferences {
 }
 
 export function clearMyPreferences(): void {
-  myPreferences = { ...myPreferences, shiftLength: null, timeOfDay: null, daysOff: [], updatedAt: null };
+  myPreferences = { ...myPreferences, shiftLength: null, timesOfDay: [], daysOff: [], updatedAt: null };
 }
 
 /** Everyone's preferences as the planner reads them; Tara has given some. */
@@ -242,7 +242,7 @@ export function fixturePlannerPreferences(): PlannerPreferenceRow[] {
       unitName: 'Unit B · Living unit',
       seniorityDate: '2019-04-01',
       shiftLength: 8,
-      timeOfDay: 'DAY',
+      timesOfDay: ['DAY'],
       daysOff: ['SAT', 'SUN'],
       maxDaysOff: 2,
       inDraft: draft ? 'MET' : 'NO_DRAFT',
@@ -256,7 +256,7 @@ export function fixturePlannerPreferences(): PlannerPreferenceRow[] {
       unitName: 'Control',
       seniorityDate: '2016-01-11',
       shiftLength: null,
-      timeOfDay: 'NIGHT',
+      timesOfDay: ['EVENING', 'NIGHT'],
       daysOff: ['WED'],
       maxDaysOff: 2,
       inDraft: draft ? 'PARTLY' : 'NO_DRAFT',
@@ -270,7 +270,7 @@ export function fixturePlannerPreferences(): PlannerPreferenceRow[] {
       unitName: 'Unit B · Living unit',
       seniorityDate: '2009-06-01',
       shiftLength: 12,
-      timeOfDay: 'DAY',
+      timesOfDay: ['DAY'],
       daysOff: ['SAT', 'SUN'],
       maxDaysOff: 2,
       inDraft: draft ? 'MET' : 'NO_DRAFT',
@@ -365,7 +365,7 @@ export function resetPlannerFixtures(): void {
   committedDraft = null;
   myPreferences = {
     shiftLength: null,
-    timeOfDay: null,
+    timesOfDay: [],
     daysOff: [],
     maxDaysOff: 2,
     allowedLengths: [8, 12, 16],

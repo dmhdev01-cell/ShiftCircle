@@ -440,6 +440,10 @@ export interface CoverageWeek {
   actualPercent?: number | null;
   /** True for a week that has not happened yet. */
   planned: boolean;
+  /** The hours the week needed, the basis of every percentage. */
+  requiredHours?: number;
+  /** Scheduled-percent points that came only from extra shifts (2 dp). */
+  extraPercent?: number;
   /** Hours of the scheduled hours that came from overtime/extra shifts. */
   extraHours?: number;
   /** The same, per block (DAY, EVENING, NIGHT). */
@@ -796,9 +800,16 @@ export interface PlannerWarningGroup {
 export type PreferenceShiftLength = 8 | 12 | 16;
 export type PreferenceTimeOfDay = 'DAY' | 'EVENING' | 'NIGHT';
 
+/**
+ * The parts of the day an officer asked for (P3 preference multi-select): any
+ * mix, no duplicates, empty = no preference. Responses carry this field; the
+ * single `timeOfDay` is legacy input the api still accepts for one release.
+ */
+export type PreferenceTimesOfDay = PreferenceTimeOfDay[];
+
 export interface MyPreferences {
   shiftLength: PreferenceShiftLength | null;
-  timeOfDay: PreferenceTimeOfDay | null;
+  timesOfDay: PreferenceTimesOfDay;
   daysOff: string[];
   maxDaysOff: number;
   allowedLengths: PreferenceShiftLength[];
@@ -807,7 +818,7 @@ export interface MyPreferences {
 
 export interface MyPreferencesInput {
   shiftLength: PreferenceShiftLength | null;
-  timeOfDay: PreferenceTimeOfDay | null;
+  timesOfDay: PreferenceTimesOfDay;
   daysOff: string[];
 }
 
@@ -818,7 +829,7 @@ export interface PlannerPreferenceRow {
   unitName: string;
   seniorityDate: string;
   shiftLength: PreferenceShiftLength | null;
-  timeOfDay: PreferenceTimeOfDay | null;
+  timesOfDay: PreferenceTimesOfDay;
   daysOff: string[];
   maxDaysOff: number;
   inDraft: 'MET' | 'PARTLY' | 'NOT_MET' | 'NO_DRAFT' | 'NONE';

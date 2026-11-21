@@ -76,6 +76,14 @@ export function PlannerRosterTab({
     units.find((entry) => gaps.some((gap) => gap.unitId === entry.id && gap.date >= week && gap.date < addDays(week, 7))) ??
     units[0];
 
+  /** The visible week's gaps per unit, for the picker's own labels. */
+  const gapWords = (unitId: string): string => {
+    const count = gaps.filter(
+      (gap) => gap.unitId === unitId && gap.date >= week && gap.date < addDays(week, 7),
+    ).length;
+    return count === 0 ? 'no gaps' : `${count} gap${count === 1 ? '' : 's'}`;
+  };
+
   const [payload, setPayload] = useState<SchedulePayload | null>(null);
   const [strip, setStrip] = useState<PlannerUnitCoverage[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -129,7 +137,7 @@ export function PlannerRosterTab({
             >
               {units.map((entry) => (
                 <option key={entry.id} value={entry.id}>
-                  {entry.name}
+                  {entry.name} · {gapWords(entry.id)}
                 </option>
               ))}
             </Box>
@@ -237,7 +245,13 @@ export function PlannerRosterTab({
           </Typography>
         ) : null}
         {state === 'ready' && payload ? (
-          <RosterGrid payload={payload} today={payload.asOf} />
+          <>
+            {/* Observation 32: the selected unit's name is the grid's heading. */}
+            <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
+              {payload.unit.name}
+            </Typography>
+            <RosterGrid payload={payload} today={payload.asOf} />
+          </>
         ) : null}
 
         <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>

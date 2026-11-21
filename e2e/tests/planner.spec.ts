@@ -99,6 +99,16 @@ test.describe('the quarter plan', () => {
     await signOut(page, 'P. Planner');
     await signIn(page, 'M. Ellis');
     await navTo(page, 'Planning board');
+
+    // Observation 29: the help legend reads the published rule tables.
+    await page.getByRole('button', { name: 'Rules help' }).click();
+    const help = page.getByRole('dialog', { name: 'Rules help' });
+    await expect(help).toBeVisible();
+    await expect(help.getByText(/U-14 · /)).toBeVisible();
+    await expect(help.getByText(/Warns above 48 h in 7 days; blocks above 60 h\./)).toBeVisible();
+    await expect(help.getByText('No override: choose someone else').first()).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(help).toBeHidden();
     for (let week = 0; week < 7; week += 1) {
       await page.getByRole('button', { name: 'Next week' }).click();
     }

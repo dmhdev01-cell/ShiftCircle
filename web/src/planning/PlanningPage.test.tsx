@@ -8,6 +8,7 @@ import { useLocation } from 'react-router-dom';
 
 import { AppShellRoutes } from '../App';
 import { api, ApiError } from '../api/client';
+import { demoRuleTables } from '../api/fixtures/rules';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
@@ -66,7 +67,82 @@ describe('the planning board', () => {
     expect(screen.queryByText(/Pick an empty cell to propose a shift/)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Rules help' }));
-    expect(screen.getByText(/Pick an empty cell to propose a shift/)).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog', { name: /^Rules help$/ });
+    expect(dialog).toHaveAccessibleName('Rules help');
+    expect(within(dialog).getByText(/Pick an empty cell to propose a shift/)).toBeInTheDocument();
+  });
+
+  it('explains the outcomes and the main rules from the live rule tables', async () => {
+    const user = userEvent.setup();
+    renderBoard();
+    await screen.findByText('Coverage gaps');
+    await user.click(screen.getByRole('button', { name: 'Rules help' }));
+    const dialog = await screen.findByRole('dialog', { name: /^Rules help$/ });
+    expect(dialog).toHaveAccessibleName('Rules help');
+
+    for (const pill of ['Block', 'Warn', 'Info', 'Pass']) {
+      expect(within(dialog).getAllByText(pill).length).toBeGreaterThan(0);
+    }
+    expect(within(dialog).getByText(/can never be overridden/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/at least 10 characters/)).toBeInTheDocument();
+
+    // The tables load asynchronously; wait for the live version line, then
+    // every listed code, read from the published tables.
+    await within(dialog).findByText(/Rule tables v7/);
+    for (const code of ['U-01', 'U-02', 'U-03', 'U-04', 'U-05', 'U-08', 'U-09', 'U-10', 'U-11', 'U-12', 'U-14', 'P-01']) {
+      expect(within(dialog).getByText(new RegExp(`^${code} · `))).toBeInTheDocument();
+    }
+    // U-14's two lines, and a Block+ACKNOWLEDGE row that never says "acknowledge it before".
+    expect(within(dialog).getByText(/Warns above 48 h in 7 days; blocks above 60 h\./)).toBeInTheDocument();
+    expect(within(dialog).getAllByText('No override: choose someone else').length).toBeGreaterThan(0);
+    expect(within(dialog).queryByText(/acknowledge it before the change is saved/i)).not.toBeInTheDocument();
+    expect(within(dialog).getByText(/Rule tables v7/)).toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: 'Full rules are on the Rules screen' })).toBeInTheDocument();
+
+    // Esc closes and focus returns to the trigger.
+    await user.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /^Rules help$/ })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole('button', { name: 'Rules help' })).toHaveFocus();
+  });
+
+  it('follows the published params: a changed limit reads in the legend', async () => {
+    const rest = demoRuleTables.find((table) => table.code === 'rest-between-shifts')!;
+    const u01 = rest.rows.find((row) => row.ruleCode === 'U-01')!;
+    const original = u01.params!.minRestHours;
+    u01.params = { ...u01.params, minRestHours: 10 };
+    try {
+      const user = userEvent.setup();
+      renderBoard();
+      await screen.findByText('Coverage gaps');
+      await user.click(screen.getByRole('button', { name: 'Rules help' }));
+      const dialog = await screen.findByRole('dialog', { name: /^Rules help$/ });
+    expect(dialog).toHaveAccessibleName('Rules help');
+      expect(await within(dialog).findByText('At least 10 h off in any 24 h.')).toBeInTheDocument();
+    } finally {
+      u01.params = { ...u01.params, minRestHours: original };
+    }
+  });
+
+  it('gives the planner the outcomes and usage, without the rule tables or the link', async () => {
+    const user = userEvent.setup();
+    renderBoard();
+    await user.selectOptions(
+      await screen.findByLabelText('Mock sign-in: choose a role'),
+      'PLANNER',
+    );
+    await expect(screen.findByRole('button', { name: 'Rules help' })).resolves.toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Rules help' }));
+    const dialog = await screen.findByRole('dialog', { name: /^Rules help$/ });
+    expect(dialog).toHaveAccessibleName('Rules help');
+    expect(
+      within(dialog).getByText(/The facility planner reads the board only\./),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByText('The main rules')).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('link', { name: 'Full rules are on the Rules screen' }),
+    ).not.toBeInTheDocument();
   });
 
   it('counts the coverage gaps from the hourly coverage (ADR-017)', async () => {

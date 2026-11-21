@@ -34,9 +34,10 @@ describe('Reports', () => {
       expect.stringContaining('Actual ranges from 97.4% to 99.2%'),
     );
 
-    // Of which overtime or extra, per week and per block.
-    expect(screen.getByText(/9 – 15 Nov: of which overtime or extra 24.5 h/)).toBeInTheDocument();
-    expect(screen.getByText(/Days 8.0 · Evenings 8.0 · Nights 8.5/)).toBeInTheDocument();
+    // Of which extra shifts: the column, with the per-block detail on its title.
+    const extraCell = screen.getByText('0.6% · 24.5 h');
+    expect(extraCell).toBeInTheDocument();
+    expect(extraCell.getAttribute('title')).toBe('Days 8.0 h · Evenings 8.0 h · Nights 8.5 h');
 
     // The axis starts at 94% and says so.
     expect(screen.getByText(/The axis starts at 94%/)).toBeInTheDocument();
@@ -50,8 +51,14 @@ describe('Reports', () => {
   });
 
   it('shows the overtime by officer with the facility average', async () => {
+    const user = userEvent.setup();
     renderReports();
 
+    // The coverage tab no longer carries the overtime bars (observation 31);
+    // the Overtime tab still does.
+    await screen.findByRole('heading', { name: 'Reports' });
+    expect(screen.queryByRole('heading', { name: /Overtime this quarter/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Overtime' }));
     expect(await screen.findByRole('heading', { name: /Overtime this quarter/ })).toBeInTheDocument();
     expect(screen.getByText(/Facility average: 12.4 h per officer/)).toBeInTheDocument();
     expect(screen.getByText('34.5 h')).toBeInTheDocument();
