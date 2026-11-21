@@ -138,6 +138,16 @@ class Demo120ResetApiTest {
               Integer.class))
           .as("every seeded officer carries a valid pattern")
           .isZero();
+      assertThat(jdbc.queryForObject("SELECT count(*) FROM unit_availability", Integer.class))
+          .as("no closure rows in the seed, so the identity proof holds")
+          .isZero();
+      assertThat(jdbc.queryForObject("SELECT count(*) FROM unit_staffing", Integer.class))
+          .as("no staffing override in the seed")
+          .isZero();
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT leave_allowance FROM staffing_setting WHERE id = 1", Double.class))
+          .isEqualTo(0.2);
       assertThat(jdbc.queryForObject(
               "SELECT count(*) FROM employee e JOIN rotation_pattern r"
                   + " ON r.id = e.rotation_pattern_id WHERE r.code = 'N12_NIGHT_4ON4OFF'",
@@ -208,6 +218,11 @@ class Demo120ResetApiTest {
     Map<String, Object> scorecard = (Map<String, Object>) draft.get("scorecard");
     @SuppressWarnings("unchecked")
     Map<String, Object> coverage = (Map<String, Object>) scorecard.get("coverage");
+    @SuppressWarnings("unchecked")
+    Map<String, Object> staffing = (Map<String, Object>) scorecard.get("staffing");
+    assertThat(staffing).as("the scorecard carries the staffing tile").isNotNull();
+    assertThat((List<?>) staffing.get("periods")).hasSize(1);
+    assertThat(((Number) staffing.get("leaveAllowance")).doubleValue()).isEqualTo(0.2);
     int gaps = ((Number) coverage.get("shortBlockDays")).intValue();
     System.out.println(
         "PLANNER120 gaps="

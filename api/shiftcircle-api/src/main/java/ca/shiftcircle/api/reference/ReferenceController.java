@@ -36,7 +36,7 @@ public class ReferenceController {
     AuthPrincipal principal = scopeGuard.principal();
     List<Map<String, Object>> units =
         jdbc.queryForList(
-            "SELECT id, code, name, kind, allows_12h, allows_16h FROM unit"
+            "SELECT id, code, name, kind, allows_12h, allows_16h, active FROM unit"
                 + " WHERE active ORDER BY code");
     if (principal.hasRole("AUDITOR") || principal.hasRole("DISPLAY")
         || !principal.hasRole("SUPERVISOR")) {

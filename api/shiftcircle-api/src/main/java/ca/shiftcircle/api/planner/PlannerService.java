@@ -52,13 +52,21 @@ public class PlannerService {
   private final JdbcTemplate jdbc;
   private final RuleCheckService ruleCheck;
   private final ScheduleQuery scheduleQuery;
+  private final ca.shiftcircle.api.units.ActiveUnits activeUnits;
+  private final ca.shiftcircle.api.units.UnitsService unitsService;
   private final ObjectMapper mapper = new ObjectMapper();
 
   public PlannerService(
-      JdbcTemplate jdbc, RuleCheckService ruleCheck, ScheduleQuery scheduleQuery) {
+      JdbcTemplate jdbc,
+      RuleCheckService ruleCheck,
+      ScheduleQuery scheduleQuery,
+      ca.shiftcircle.api.units.ActiveUnits activeUnits,
+      ca.shiftcircle.api.units.UnitsService unitsService) {
     this.jdbc = jdbc;
     this.ruleCheck = ruleCheck;
     this.scheduleQuery = scheduleQuery;
+    this.activeUnits = activeUnits;
+    this.unitsService = unitsService;
   }
 
   public record CommitAttempt(int status, Object body) {}
@@ -180,7 +188,17 @@ public class PlannerService {
     Map<UUID, java.util.Set<LocalDate>> leave = loadLeave();
     PlanGenerator.Result result =
         new PlanGenerator()
-            .generate(employees, units, templates, history, pattern, seed, verifier, leave);
+            .generate(
+                employees,
+                units,
+                templates,
+                history,
+                pattern,
+                seed,
+                verifier,
+                leave,
+                activeUnits::active);
+    result.scorecard().put("staffing", unitsService.staffing());
     int generatedMs = (int) ((System.nanoTime() - before) / 1_000_000);
 
     UUID id = UUID.randomUUID();
@@ -343,12 +361,29 @@ public class PlannerService {
     Map<String, Object> draft = requireDraft(id);
     validateRange(from, to);
     Map<String, Object> unit =
-        jdbc.queryForMap("SELECT id, name FROM unit WHERE id = ?", unitId);
+        jdbc.queryForMap("SELECT id, name, active FROM unit WHERE id = ?", unitId);
     Map<String, Integer> required = required(unitId);
     List<Map<String, Object>> planned = plannedForUnit(id, unitId, from, to);
     List<LocalDate> days = days(from, to);
+    List<LocalDate> activeDays = days.stream().filter(day -> activeUnits.active(unitId, day)).toList();
     List<ca.shiftcircle.api.schedule.ScheduleQuery.BlockCoverage> coverage =
-        coverageFor(required, planned, days, true);
+        coverageFor(required, planned, activeDays, true);
+    List<LocalDate> closedDates =
+        Boolean.TRUE.equals(unit.get("active"))
+            ? activeUnits.closedDates(unitId, from, to)
+            : days;
+    List<ca.shiftcircle.api.units.ActiveUnits.Closure> closures =
+        activeUnits.closuresIn(unitId, from, to);
+    LocalDate closedFrom = closures.isEmpty() ? null : closures.get(0).closedFrom();
+    LocalDate closedTo =
+        closures.isEmpty() || closures.get(0).reopensOn() == null
+            ? null
+            : closures.get(0).reopensOn().minusDays(1);
+    String closedLabel =
+        Boolean.TRUE.equals(unit.get("active"))
+            ? activeUnits.closedLabel(unitId, from, to)
+            : "Switched off";
+    String closedReason = closures.isEmpty() ? null : closures.get(0).reason();
 
     Map<UUID, List<Map<String, Object>>> byOfficer = new LinkedHashMap<>();
     Map<UUID, Map<String, Object>> officerRows = new LinkedHashMap<>();
@@ -409,7 +444,14 @@ public class PlannerService {
                   dayCells));
         });
     return new ca.shiftcircle.api.schedule.ScheduleQuery.SchedulePayload(
-        new ca.shiftcircle.api.schedule.ScheduleQuery.UnitView(unitId, (String) unit.get("name")),
+        new ca.shiftcircle.api.schedule.ScheduleQuery.UnitView(
+            unitId,
+            (String) unit.get("name"),
+            closedFrom,
+            closedTo,
+            closedLabel,
+            closedReason,
+            closedDates),
         from,
         to,
         days,
@@ -427,14 +469,37 @@ public class PlannerService {
     validateRange(from, to);
     List<LocalDate> days = days(from, to);
     List<PlannerViews.UnitCoverage> result = new ArrayList<>();
-    for (Map<String, Object> unit : jdbc.queryForList("SELECT id, name FROM unit ORDER BY code")) {
+    for (Map<String, Object> unit : jdbc.queryForList("SELECT id, name, active FROM unit ORDER BY code")) {
       UUID unitId = (UUID) unit.get("id");
       List<Map<String, Object>> planned = plannedForUnit(id, unitId, from, to);
+      List<LocalDate> activeDays =
+          days.stream().filter(day -> activeUnits.active(unitId, day)).toList();
+      List<LocalDate> closedDates =
+          Boolean.TRUE.equals(unit.get("active"))
+              ? activeUnits.closedDates(unitId, from, to)
+              : days;
+      List<ca.shiftcircle.api.units.ActiveUnits.Closure> closures =
+          activeUnits.closuresIn(unitId, from, to);
+      LocalDate closedFrom = closures.isEmpty() ? null : closures.get(0).closedFrom();
+      LocalDate closedTo =
+          closures.isEmpty() || closures.get(0).reopensOn() == null
+              ? null
+              : closures.get(0).reopensOn().minusDays(1);
+      String closedLabel =
+          Boolean.TRUE.equals(unit.get("active"))
+              ? activeUnits.closedLabel(unitId, from, to)
+              : "Switched off";
+      String closedReason = closures.isEmpty() ? null : closures.get(0).reason();
       result.add(
           new PlannerViews.UnitCoverage(
               unitId,
               (String) unit.get("name"),
-              coverageFor(required(unitId), planned, days, false)));
+              closedFrom,
+              closedTo,
+              closedLabel,
+              closedReason,
+              closedDates,
+              coverageFor(required(unitId), planned, activeDays, false)));
     }
     return result;
   }

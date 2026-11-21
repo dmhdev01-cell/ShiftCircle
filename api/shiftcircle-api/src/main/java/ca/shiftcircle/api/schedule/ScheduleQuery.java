@@ -27,13 +27,25 @@ public class ScheduleQuery {
 
   private final JdbcTemplate jdbc;
   private final String asOf;
+  private final ca.shiftcircle.api.units.ActiveUnits activeUnits;
 
-  public ScheduleQuery(JdbcTemplate jdbc, @Value("${sc.demo.today:2026-11-19}") String asOf) {
+  public ScheduleQuery(
+      JdbcTemplate jdbc,
+      @Value("${sc.demo.today:2026-11-19}") String asOf,
+      ca.shiftcircle.api.units.ActiveUnits activeUnits) {
     this.jdbc = jdbc;
     this.asOf = asOf;
+    this.activeUnits = activeUnits;
   }
 
-  public record UnitView(UUID id, String name) {}
+  public record UnitView(
+      UUID id,
+      String name,
+      LocalDate closedFrom,
+      LocalDate closedTo,
+      String closedLabel,
+      String closedReason,
+      List<LocalDate> closedDates) {}
 
   public record ShortHour(String from, String to, int count) {}
 
@@ -77,8 +89,33 @@ public class ScheduleQuery {
 
   public SchedulePayload forUnit(UUID unitId, LocalDate from, LocalDate to) {
     Map<String, Object> unitRow =
-        jdbc.queryForMap("SELECT id, code, name FROM unit WHERE id = ?", unitId);
-    UnitView unit = new UnitView((UUID) unitRow.get("id"), (String) unitRow.get("name"));
+        jdbc.queryForMap("SELECT id, code, name, active FROM unit WHERE id = ?", unitId);
+    List<LocalDate> closedDates = activeUnits.closedDates(unitId, from, to);
+    List<ca.shiftcircle.api.units.ActiveUnits.Closure> closures =
+        activeUnits.closuresIn(unitId, from, to);
+    LocalDate closedFrom =
+        closures.isEmpty() ? null : closures.get(0).closedFrom();
+    LocalDate closedTo =
+        closures.isEmpty() || closures.get(0).reopensOn() == null
+            ? null
+            : closures.get(0).reopensOn().minusDays(1);
+    String closedLabel =
+        Boolean.TRUE.equals(unitRow.get("active"))
+            ? activeUnits.closedLabel(unitId, from, to)
+            : "Switched off";
+    String closedReason = closures.isEmpty() ? null : closures.get(0).reason();
+    if (!Boolean.TRUE.equals(unitRow.get("active"))) {
+      closedDates = activeUnits.days(from, to);
+    }
+    UnitView unit =
+        new UnitView(
+            (UUID) unitRow.get("id"),
+            (String) unitRow.get("name"),
+            closedFrom,
+            closedTo,
+            closedLabel,
+            closedReason,
+            closedDates);
 
     Map<String, Integer> required = new LinkedHashMap<>();
     jdbc.query(
@@ -138,6 +175,9 @@ public class ScheduleQuery {
     CoverageCalculator calculator = new CoverageCalculator();
     List<BlockCoverage> coverage = new ArrayList<>();
     for (LocalDate date : days) {
+      if (!activeUnits.active(unitId, date)) {
+        continue;
+      }
       Map<String, CoverageCalculator.BlockCoverage> actualByBlock = new java.util.HashMap<>();
       if (date.isBefore(LocalDate.now(REGINA))) {
         for (CoverageCalculator.BlockCoverage block :

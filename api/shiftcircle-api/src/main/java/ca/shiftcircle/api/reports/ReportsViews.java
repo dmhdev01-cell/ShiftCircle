@@ -1,5 +1,6 @@
 package ca.shiftcircle.api.reports;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -26,6 +27,9 @@ public final class ReportsViews {
       double extraHours,
       Map<String, Double> extraHoursByBlock) {}
 
+  public record ClosureNote(
+      UUID unitId, String unitName, LocalDate closedFrom, LocalDate closedTo, String reason) {}
+
   public record CoverageReport(
       List<CoverageWeek> weeks,
       int axisFrom,
@@ -33,7 +37,8 @@ public final class ReportsViews {
       double requiredHours,
       double scheduledHours,
       Double actualHours,
-      double extraHours) {}
+      double extraHours,
+      List<ClosureNote> closureNotes) {}
 
   public record HoursByOfficer(
       UUID employeeId,

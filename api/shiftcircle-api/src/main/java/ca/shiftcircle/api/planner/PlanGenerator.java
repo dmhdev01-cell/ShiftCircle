@@ -143,6 +143,14 @@ public final class PlanGenerator {
         List<ShiftFact> currentFacts);
   }
 
+  /** The one active-units answer the generator uses; the default keeps every unit open. */
+  @FunctionalInterface
+  public interface Availability {
+    boolean active(UUID unitId, LocalDate date);
+  }
+
+  public static final Availability ALWAYS = (unitId, date) -> true;
+
   public Result generate(
       List<Employee> employees,
       List<Unit> units,
@@ -167,6 +175,25 @@ public final class PlanGenerator {
       long seed,
       Verifier verifier,
       Map<UUID, Set<LocalDate>> leave) {
+    return generate(
+        employees, units, templates, history, pattern8h, seed, verifier, leave, ALWAYS);
+  }
+
+  /**
+   * The date-aware overload: a unit closed on a day is skipped for that day (no requirement, no
+   * roster, no gaps). With no closures the answer is always true, so the 100/120 plans are
+   * unchanged.
+   */
+  public Result generate(
+      List<Employee> employees,
+      List<Unit> units,
+      Map<String, Template> templates,
+      Map<UUID, List<ShiftFact>> history,
+      String pattern8h,
+      long seed,
+      Verifier verifier,
+      Map<UUID, Set<LocalDate>> leave,
+      Availability availability) {
     long started = System.nanoTime();
     Map<UUID, List<ShiftFact>> facts = new HashMap<>();
     history.forEach((employee, shifts) -> facts.put(employee, new ArrayList<>(shifts)));
@@ -190,6 +217,9 @@ public final class PlanGenerator {
 
     for (LocalDate date = FROM; !date.isAfter(TO); date = date.plusDays(1)) {
       for (Unit unit : units) {
+        if (!availability.active(unit.id(), date)) {
+          continue;
+        }
         int[] hours = new int[24];
         Set<UUID> assignedToday = new LinkedHashSet<>();
         for (String block : BLOCKS) {
@@ -343,12 +373,14 @@ public final class PlanGenerator {
     }
 
     casualPool(units, staff, blockOf, assignments, byEmployee, facts, warnings, templates,
-        verifier, employees, leave);
-    gaps = recomputeGaps(units, assignments);
+        verifier, employees, leave, availability);
+    reliefPool(units, staff, assignments, byEmployee, facts, warnings, templates, verifier,
+        employees, leave, availability, pattern8h);
+    gaps = recomputeGaps(units, assignments, availability);
     Map<String, Object> scorecard =
         scorecard(
             employees, units, assignments, byEmployee, gaps, warnings, pattern8h, started, facts,
-            templates, verifier, blockOf, leave);
+            templates, verifier, blockOf, leave, availability);
     return new Result(assignments, gaps, warnings, scorecard);
   }
 
@@ -642,7 +674,8 @@ public final class PlanGenerator {
       Map<String, Template> templates,
       Verifier verifier,
       List<Employee> employees,
-      Map<UUID, Set<LocalDate>> leave) {
+      Map<UUID, Set<LocalDate>> leave,
+      Availability availability) {
     Set<String> warningKeys = new LinkedHashSet<>();
     Map<UUID, Double> target = new HashMap<>();
     employees.stream().filter(e -> e.fte() < 1.0).forEach(e -> target.put(e.id(), e.fte() * 80.0));
@@ -678,6 +711,9 @@ public final class PlanGenerator {
     int iterations = 0;
     for (Unit unit : units) {
       for (LocalDate date = FROM; !date.isAfter(TO); date = date.plusDays(1)) {
+        if (!availability.active(unit.id(), date)) {
+          continue;
+        }
         String key = unit.id() + "|" + date;
         int[] hoursInDay = coverage.computeIfAbsent(key, k -> new int[24]);
         Set<UUID> already = assigned.computeIfAbsent(key, k -> new LinkedHashSet<>());
@@ -736,6 +772,145 @@ public final class PlanGenerator {
             for (RuleWarning warning : assignment.warnings()) {
               addWarning(warnings, warningKeys, chosen.id().toString(), warning,
                   unit.code(), chosen.name(), date, chosenTemplate.code());
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Closed-unit relief (P4-RELIEF-NOTE, ADR-027): after each unit's own staff and its own casual
+   * pool, an officer whose home unit is closed that day may fill another unit's remaining gap.
+   * Only full-time officers are offered (casuals are a fill pool with no guaranteed hours); the
+   * order is home unit code, then seniority, then employee number. A 12 h officer only enters a
+   * unit that allows 12 h; an 8 h officer may fill any 8 h shift. Every proposal still goes through
+   * the same verifier. With no closures the pool is empty, so the 100/120 plans are unchanged.
+   */
+  private static void reliefPool(
+      List<Unit> units,
+      Map<UUID, List<Employee>> staff,
+      List<Assignment> assignments,
+      Map<UUID, List<Assignment>> byEmployee,
+      Map<UUID, List<ShiftFact>> facts,
+      List<Warning> warnings,
+      Map<String, Template> templates,
+      Verifier verifier,
+      List<Employee> employees,
+      Map<UUID, Set<LocalDate>> leave,
+      Availability availability,
+      String pattern8h) {
+    Set<String> warningKeys = new LinkedHashSet<>();
+    Map<String, int[]> coverage = new HashMap<>();
+    Map<LocalDate, Set<UUID>> assignedByDate = new HashMap<>();
+    for (Assignment assignment : assignments) {
+      String key = assignment.unitId() + "|" + assignment.date();
+      addHours(
+          coverage.computeIfAbsent(key, ignored -> new int[24]),
+          assignment.start().atZone(REGINA).getHour(),
+          (int) Duration.between(assignment.start(), assignment.end()).toMinutes());
+      assignedByDate
+          .computeIfAbsent(assignment.date(), ignored -> new LinkedHashSet<>())
+          .add(assignment.employeeId());
+    }
+    List<Employee> pool =
+        employees.stream()
+            .filter(employee -> employee.fte() >= 1.0)
+            .sorted(
+                Comparator.comparing(Employee::unitCode)
+                    .thenComparing(Employee::seniority)
+                    .thenComparing(Employee::employeeNo))
+            .toList();
+    int iterations = 0;
+    for (Unit unit : units) {
+      for (LocalDate date = FROM; !date.isAfter(TO); date = date.plusDays(1)) {
+        if (!availability.active(unit.id(), date)) {
+          continue;
+        }
+        String key = unit.id() + "|" + date;
+        int[] hoursInDay = coverage.computeIfAbsent(key, ignored -> new int[24]);
+        Set<UUID> assignedToday =
+            assignedByDate.computeIfAbsent(date, ignored -> new LinkedHashSet<>());
+        for (String block : BLOCKS) {
+          int required = unit.required().getOrDefault(block, 0);
+          while (minimumCoverage(hoursInDay, block) < required && iterations++ < 5000) {
+            Employee chosen = null;
+            Template chosenTemplate = null;
+            Check chosenCheck = null;
+            for (Employee candidate : pool) {
+              if (candidate.unitId().equals(unit.id())
+                  || availability.active(candidate.unitId(), date)
+                  || assignedToday.contains(candidate.id())
+                  || onLeave(candidate.id(), date, leave)) {
+                continue;
+              }
+              if (effectiveLength(candidate) == 12 && !unit.allows12h()) {
+                continue;
+              }
+              Template template = templateFor(candidate, unit, block, templates);
+              if (template == null || !covers(template, block)) {
+                continue;
+              }
+              Instant start = date.atTime(template.start()).atZone(REGINA).toInstant();
+              Check check =
+                  verifier.check(
+                      candidate,
+                      unit,
+                      template,
+                      start,
+                      facts.getOrDefault(candidate.id(), List.of()));
+              if (!check.blocked()) {
+                chosen = candidate;
+                chosenTemplate = template;
+                chosenCheck = check;
+                break;
+              }
+            }
+            if (chosen == null) {
+              break;
+            }
+            Instant start = date.atTime(chosenTemplate.start()).atZone(REGINA).toInstant();
+            Instant end = start.plus(Duration.ofMinutes(chosenTemplate.minutes()));
+            addHours(hoursInDay, chosenTemplate.start().getHour(), chosenTemplate.minutes());
+            assignedToday.add(chosen.id());
+            Assignment assignment =
+                new Assignment(
+                    chosen.id(),
+                    chosen.name(),
+                    unit.id(),
+                    unit.code(),
+                    chosenTemplate.id(),
+                    chosenTemplate.code(),
+                    date,
+                    start,
+                    end,
+                    chosenCheck == null ? List.of() : chosenCheck.warnings());
+            assignments.add(assignment);
+            byEmployee.computeIfAbsent(chosen.id(), ignored -> new ArrayList<>()).add(assignment);
+            facts
+                .computeIfAbsent(chosen.id(), ignored -> new ArrayList<>())
+                .add(
+                    new ShiftFact(
+                        "plan:" + date + ":" + chosenTemplate.code(),
+                        chosen.employeeNo(),
+                        unit.code(),
+                        chosenTemplate.code(),
+                        start,
+                        end,
+                        ShiftKind.ROSTERED,
+                        0,
+                        true,
+                        true));
+            for (RuleWarning warning : assignment.warnings()) {
+              addWarning(
+                  warnings,
+                  warningKeys,
+                  chosen.id().toString(),
+                  warning,
+                  unit.code(),
+                  chosen.name(),
+                  date,
+                  chosenTemplate.code());
             }
           }
         }
@@ -852,7 +1027,7 @@ public final class PlanGenerator {
    * midnight. Using the board's calculator keeps the plan's gap count and the board's identical.
    */
   private static List<Gap> recomputeGaps(
-      List<Unit> units, List<Assignment> assignments) {
+      List<Unit> units, List<Assignment> assignments, Availability availability) {
     Map<UUID, List<CoverageCalculator.Interval>> intervalsByUnit = new HashMap<>();
     for (Assignment assignment : assignments) {
       intervalsByUnit
@@ -865,6 +1040,9 @@ public final class PlanGenerator {
       List<CoverageCalculator.Interval> intervals =
           intervalsByUnit.getOrDefault(unit.id(), List.of());
       for (LocalDate date = FROM; !date.isAfter(TO); date = date.plusDays(1)) {
+        if (!availability.active(unit.id(), date)) {
+          continue;
+        }
         for (CoverageCalculator.BlockCoverage block :
             calculator.forDay(date, unit.required(), intervals)) {
           if (!block.covered()) {
@@ -897,9 +1075,18 @@ public final class PlanGenerator {
       Map<String, Template> templates,
       Verifier verifier,
       Map<UUID, String> blockOf,
-      Map<UUID, Set<LocalDate>> leave) {
+      Map<UUID, Set<LocalDate>> leave,
+      Availability availability) {
     Map<String, Object> scorecard = new LinkedHashMap<>();
-    long totalBlockDays = (long) units.size() * ChronoUnit.DAYS.between(FROM, TO.plusDays(1)) * 3;
+    long activeUnitDays = 0;
+    for (LocalDate date = FROM; !date.isAfter(TO); date = date.plusDays(1)) {
+      for (Unit unit : units) {
+        if (availability.active(unit.id(), date)) {
+          activeUnitDays++;
+        }
+      }
+    }
+    long totalBlockDays = activeUnitDays * 3;
     scorecard.put(
         "coverage",
         Map.of(
