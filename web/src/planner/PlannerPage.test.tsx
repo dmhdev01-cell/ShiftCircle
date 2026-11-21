@@ -195,9 +195,8 @@ describe('the quarter plan', () => {
   });
 
   it('keeps the committed state after a reload, with the commit figures', async () => {
-    // The api keeps the committed summary in lastCommitted, not a draft, so a
-    // reload must not say 'No draft'. The scorecard/tabs need committedDraft
-    // (queued to the api); until then the figures and a plain sentence.
+    // The api keeps the committed summary in committedDraft, not a draft, so a
+    // reload must not say 'No draft' and its tabs must answer.
     const user = userEvent.setup();
     const first = renderPlanner();
     await asPlanner(user);
@@ -217,6 +216,16 @@ describe('the quarter plan', () => {
     // The committed plan's own summary answers the read-only tabs.
     expect(screen.getByRole('tab', { name: 'Scorecard' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Night shifts by seniority' })).toBeInTheDocument();
+
+    // A committed quarter cannot generate another draft (the api answers
+    // ALREADY_COMMITTED_WINDOW), so the landing says how to start over instead
+    // of offering a button the api refuses.
+    expect(
+      screen.getByText(/This quarter is committed. To plan it again/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Generate draft|Generate a new draft/ }),
+    ).not.toBeInTheDocument();
   });
 
   it('discards a draft without touching the board', async () => {

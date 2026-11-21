@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { isFixtures } from './api';
-import { expectAccessible, signIn } from './support';
+import { ensurePlannableQuarter, expectAccessible, signIn } from './support';
 
 /**
  * The planner screens in the axe sweep, and the commit dialog by keyboard
@@ -18,16 +18,15 @@ test.describe('the planner, accessible and by keyboard', () => {
 
   test('the landing, scorecard and gaps pass axe; the commit dialog works by keyboard', async ({
     page,
+    request,
   }, testInfo) => {
     test.setTimeout(240000);
     await signIn(page, 'P. Planner');
     await expect(page.getByRole('heading', { name: 'Quarter plan', level: 1 })).toBeVisible();
+    await ensurePlannableQuarter(request);
     await expectAccessible(page, testInfo, 'planner-landing');
 
-    // A stack that already holds a committed plan offers 'Generate a new
-    // draft' (the button's label), so accept both: this spec must run alone or
-    // after another spec committed.
-    await page.getByRole('button', { name: /^(Generate draft|Generate a new draft)$/ }).click();
+    await page.getByRole('button', { name: 'Generate draft' }).click();
     await expect(page.getByText('Coverage gaps')).toBeVisible({ timeout: 60_000 });
     await expectAccessible(page, testInfo, 'planner-scorecard');
 
@@ -41,7 +40,7 @@ test.describe('the planner, accessible and by keyboard', () => {
     await page.keyboard.press('Enter');
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await expectAccessible(page, testInfo, 'planner-commit-dialog');
+    await expectAccessible(page, testInfo, 'planner-commit-dialog', '[role="dialog"]');
 
     const commit = dialog.getByRole('button', { name: 'Commit plan' });
     await expect(commit).toBeDisabled();
