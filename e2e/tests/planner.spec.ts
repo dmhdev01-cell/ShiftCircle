@@ -64,7 +64,9 @@ test.describe('the quarter plan', () => {
     const nav = page.getByRole('navigation', { name: 'Main' }).getByRole('link');
     await expect(nav).toHaveText(['Quarter plan', 'Preferences', 'Planning board', 'Reports', 'About & version']);
 
-    await page.getByRole('button', { name: 'Generate draft' }).click();
+    // A stack that already holds a committed plan (another spec committed one)
+    // offers 'Generate a new draft'; both labels generate.
+    await page.getByRole('button', { name: /^(Generate draft|Generate a new draft)$/ }).click();
     // The scorecard appears: the six tiles and the two panels.
     await expect(page.getByText('Coverage gaps')).toBeVisible({ timeout: 60_000 });
     for (const tile of ['Rule warnings', 'Preferences met', 'Night fairness', 'Overtime built in', 'Generated in']) {

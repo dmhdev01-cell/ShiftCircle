@@ -62,9 +62,14 @@ test.describe('planned absences', () => {
       await api.post(`/planner/drafts/${plan.draft.id}/discard`);
     }
 
-    // A plan generated before any leave: find an officer who works midweek.
-    const first = await api.post('/planner/drafts', { seed: plan.defaultSeed });
-    expect([200, 201]).toContain(first.status);
+    // A plan generated before any leave: find an officer who works midweek. A
+    // 409 means a generation or commit is still finishing; retry once.
+    let first = await api.post('/planner/drafts', { seed: plan.defaultSeed });
+    if (first.status === 409) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      first = await api.post('/planner/drafts', { seed: plan.defaultSeed });
+    }
+    expect([200, 201], JSON.stringify(first.body)).toContain(first.status);
     const firstId = (first.body as Draft).id;
 
     const units = await api.get<Unit[]>('/units');
@@ -96,8 +101,12 @@ test.describe('planned absences', () => {
 
     // Same seed, now with leave: the officer is skipped and the scorecard says
     // how the day was covered.
-    const second = await api.post('/planner/drafts', { seed: plan.defaultSeed });
-    expect([200, 201]).toContain(second.status);
+    let second = await api.post('/planner/drafts', { seed: plan.defaultSeed });
+    if (second.status === 409) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      second = await api.post('/planner/drafts', { seed: plan.defaultSeed });
+    }
+    expect([200, 201], JSON.stringify(second.body)).toContain(second.status);
     const draft = second.body as Draft;
     const absences = draft.scorecard?.absences;
     expect(absences, 'the scorecard carries the absences line').toBeTruthy();
