@@ -95,6 +95,25 @@ test.describe('E5 wall display', () => {
     await expect(page.getByRole('region', { name: 'Unit B · Living unit' })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Unit C · Living unit' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Leave the wall display' })).toBeVisible();
+
+    // Acceptance row 7d: the Exit control must not overlap the clock or the
+    // footer at either viewport (a fixed corner button covered the clock).
+    const exit = page.getByRole('button', { name: 'Exit wall display' });
+    await expect(exit).toBeVisible();
+    for (const [what, other] of [
+      ['clock', page.getByRole('timer')],
+      ['footer', page.getByText(/refreshes every/).first()],
+    ] as const) {
+      const box = await exit.boundingBox();
+      const otherBox = await other.boundingBox();
+      expect(box && otherBox, `${what} has a box`).toBeTruthy();
+      const overlaps =
+        box!.x < otherBox!.x + otherBox!.width &&
+        otherBox!.x < box!.x + box!.width &&
+        box!.y < otherBox!.y + otherBox!.height &&
+        otherBox!.y < box!.y + box!.height;
+      expect(overlaps, `the Exit button does not cover the ${what}`).toBe(false);
+    }
   });
 
   test('fits a 1920×1080 TV and a 1366×768 screen without scrolling', async ({ page }, testInfo) => {

@@ -22,7 +22,7 @@ interface PlanState {
 test.describe('the committed quarter plan', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/login');
-    test.skip(await isFixtures(page), 'the planner needs the real api');
+    test.skip(process.env.E2E_MODE === 'fixtures' || (await isFixtures(page)), 'the planner needs the real api');
   });
 
   test('keeps its tabs after a reload, with the FTE bands', async ({ page, request }) => {

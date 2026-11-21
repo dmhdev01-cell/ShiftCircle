@@ -5,6 +5,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
+import { whenWords } from './plannerTime';
 import { api } from '../api/client';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
@@ -77,9 +78,16 @@ describe('the quarter plan', () => {
     expect(
       screen.getByRole('heading', { name: 'Hours against target by FTE band' }),
     ).toBeInTheDocument();
-    expect(screen.getByText('Full-time')).toBeInTheDocument();
-    expect(screen.getByText('Part-time (0.7–0.9)')).toBeInTheDocument();
+    expect(screen.getByText('Full time')).toBeInTheDocument();
+    expect(screen.getByText('0.7 to 0.9 FTE')).toBeInTheDocument();
     expect(screen.getByText(/not guaranteed hours/)).toBeInTheDocument();
+    // The api's band keys in plain words, never raw.
+    expect(screen.getByText('0.7 to 0.9 FTE')).toBeInTheDocument();
+    expect(screen.queryByText('0.7_TO_0.9')).not.toBeInTheDocument();
+    expect(screen.queryByText('UNDER_0.7')).not.toBeInTheDocument();
+    // A kind nobody asked for says so, and a missing hire year is not a dash.
+    expect(screen.getByText('none asked')).toBeInTheDocument();
+    expect(screen.queryByText(/hired –/)).not.toBeInTheDocument();
 
     // The N12 crew figures and the api's crew sentence, and the 5/2 changeover
     // note, are the api's words, shown as sent.
@@ -192,6 +200,32 @@ describe('the quarter plan', () => {
 
     expect(await screen.findByRole('heading', { name: 'Plan committed' })).toBeInTheDocument();
     expect(await screen.findByText(/Supervisors can now change shifts/)).toBeInTheDocument();
+
+    // The commit line is Regina time, one format (the api's commit result
+    // sends only a Regina date; the plan state carries the instant).
+    expect(screen.getByText(/Committed 21 Nov, 09:40/)).toBeInTheDocument();
+    // The first week reads as a date, and the unit links follow the board's
+    // order (by unit code), not the api's set order.
+    expect(screen.getByText(/shifts from 4 Jan 2027/)).toBeInTheDocument();
+    const links = screen
+      .getAllByRole('button', { name: /^Open .* on the planning board$/ })
+      .map((button) => button.textContent);
+    expect(links).toEqual([
+      'Open Unit A on the planning board',
+      'Open Admissions on the planning board',
+      'Open Unit B on the planning board',
+      'Open Unit C on the planning board',
+      'Open Control on the planning board',
+      'Open Escort & transport on the planning board',
+    ]);
+  });
+
+  it('reads a date-only committed value as a date, not as UTC midnight', () => {
+    // The api's commit result sent LocalDate.now(Regina): parsed as an instant
+    // it showed the previous evening ("20 Nov 18:00") in the planner banner.
+    expect(whenWords('2026-11-21')).toBe('21 Nov 2026');
+    // An instant is Regina time, the same format everywhere.
+    expect(whenWords('2026-11-21T07:02:00Z')).toBe('21 Nov, 01:02');
   });
 
   it('keeps the committed state after a reload, with the commit figures', async () => {

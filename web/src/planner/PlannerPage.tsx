@@ -29,6 +29,7 @@ import { PlannerRosterTab } from './PlannerRosterTab';
 import { useRole } from '../shell/nav';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
+import { plainDate, whenWords } from './plannerTime';
 
 const BLOCK_WORDS: Record<string, string> = {
   DAY: 'Day 07–15',
@@ -58,9 +59,12 @@ const TILE_HELP: Record<string, string> = {
 };
 
 const FTE_WORDS: Record<string, string> = {
-  FULL_TIME: 'Full-time',
-  PART_TIME: 'Part-time (0.7–0.9)',
-  CASUAL: 'Casual (under 0.7)',
+  FULL_TIME: 'Full time',
+  '0.7_TO_0.9': '0.7 to 0.9 FTE',
+  'UNDER_0.7': 'Under 0.7 FTE',
+  // Older labels kept so a stored scorecard still reads in words.
+  PART_TIME: '0.7 to 0.9 FTE',
+  CASUAL: 'Under 0.7 FTE',
 };
 
 const KIND_WORDS: Record<string, string> = {
@@ -91,20 +95,8 @@ function windowWords(from: string, to: string): string {
 }
 
 /** "1.4 s" for a millisecond figure. */
-/** "21 Nov, 09:14": one format for generated/committed lines (Regina time). */
-function whenWords(instant: string): string {
-  const parsed = new Date(instant);
-  if (Number.isNaN(parsed.getTime())) return instant;
-  const zone = 'America/Regina';
-  const day = new Intl.DateTimeFormat('en-CA', { day: 'numeric', timeZone: zone }).format(parsed);
-  const month = new Intl.DateTimeFormat('en-CA', { month: 'short', timeZone: zone }).format(parsed);
-  const time = new Intl.DateTimeFormat('en-CA', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: zone,
-  }).format(parsed);
-  return `${day} ${month}, ${time}`;
+function seconds(ms: number): string {
+  return `${(ms / 1000).toFixed(1)} s`;
 }
 
 /** The six demo units by api code, for links and warnings that carry a code. */
@@ -121,8 +113,12 @@ function unitWords(code: string): string {
   return UNIT_NAMES[code] ?? code;
 }
 
-function seconds(ms: number): string {
-  return `${(ms / 1000).toFixed(1)} s`;
+/** A sentence from the api with unit codes ("ADM coverage gaps") in names. */
+function unitWordsIn(label: string): string {
+  return Object.keys(UNIT_NAMES).reduce(
+    (text, code) => text.replace(new RegExp(`\\b${code}\\b`, 'g'), unitWords(code)),
+    label,
+  );
 }
 
 type Tab = 'scorecard' | 'gaps' | 'roster' | 'compare';
@@ -380,17 +376,19 @@ export function PlannerPage() {
     }
   };
 
-  const status = committed
+  const status = planCommitted && plan?.lastCommitted
     ? {
+        // The plan state carries the exact instant; the commit response only a
+        // Regina date. One format, Regina time, whichever loaded first.
         pill: 'pass' as const,
         text: 'Committed',
-        line: `Committed ${whenWords(committed.committedAt)} by P. Planner · ${committed.shiftsWritten.toLocaleString('en-CA')} shifts written`,
+        line: `Committed ${whenWords(plan.lastCommitted.at)} by ${plan.lastCommitted.by} · ${plan.lastCommitted.shiftsWritten.toLocaleString('en-CA')} shifts written`,
       }
-    : planCommitted && plan?.lastCommitted
+    : committed
       ? {
           pill: 'pass' as const,
           text: 'Committed',
-          line: `Committed ${whenWords(plan.lastCommitted.at)} by ${plan.lastCommitted.by} · ${plan.lastCommitted.shiftsWritten.toLocaleString('en-CA')} shifts written`,
+          line: `Committed ${whenWords(committed.committedAt)} by P. Planner · ${committed.shiftsWritten.toLocaleString('en-CA')} shifts written`,
         }
       : draft
       ? {
@@ -402,7 +400,7 @@ export function PlannerPage() {
           pill: 'info' as const,
           text: 'No draft',
           line: plan.lastCommitted
-            ? `Nothing generated for this quarter yet. Last committed ${plan.lastCommitted.at} by ${plan.lastCommitted.by}.`
+            ? `Nothing generated for this quarter yet. Last committed ${whenWords(plan.lastCommitted.at)} by ${plan.lastCommitted.by}.`
             : 'Nothing generated for this quarter yet.',
         };
 
@@ -571,10 +569,11 @@ export function PlannerPage() {
             </Typography>
             <Typography sx={{ fontSize: 14 }}>
               Supervisors can now change shifts on the planning board. Committed{' '}
-              {committed.shiftsWritten.toLocaleString('en-CA')} shifts from {committed.firstWeek}.
+              {committed.shiftsWritten.toLocaleString('en-CA')} shifts from{' '}
+              {plainDate(committed.firstWeek)}.
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-              {committed.units.map((unit) => (
+              {[...committed.units].sort().map((unit) => (
                 <Button
                   key={unit}
                   variant="outlined"
@@ -806,7 +805,11 @@ export function PlannerPage() {
                       <Box key={band.label} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, fontSize: 13 }}>
                           <span>
-                            {band.label} · hired {band.hiredFrom}–{band.hiredTo} · {band.officers} officers
+                            {band.label}
+                            {band.hiredFrom && band.hiredTo
+                              ? ` · hired ${band.hiredFrom}–${band.hiredTo}`
+                              : ' · hire years not shown'}{' '}
+                            · {band.officers} officers
                           </span>
                           <strong>{band.nightShare}% of night shifts</strong>
                         </Box>
@@ -884,7 +887,9 @@ export function PlannerPage() {
                               <td className="num" style={{ padding: '6px 8px' }}>{entry.asked}</td>
                               <td className="num" style={{ padding: '6px 8px' }}>{entry.met}</td>
                               <td className="num" style={{ padding: '6px 8px' }}>{entry.asked - entry.met}</td>
-                              <td className="num" style={{ padding: '6px 8px' }}>{percent}%</td>
+                              <td className="num" style={{ padding: '6px 8px' }}>
+                                {entry.asked === 0 ? 'none asked' : `${percent}%`}
+                              </td>
                             </tr>
                           );
                         })}
@@ -1055,12 +1060,14 @@ export function PlannerPage() {
                   <Typography sx={{ fontSize: 14 }}>
                     {compare && compare.committedShifts === 0
                       ? `Nothing is on the planning board for ${windowWords(plan.window.from, plan.window.to)} yet. Committing writes the whole draft.`
-                      : `The draft against the plan already on the board for ${windowWords(plan.window.from, plan.window.to)}.`}
+                      : planCommitted
+                        ? `The committed plan, measured against the board as it was for ${windowWords(plan.window.from, plan.window.to)}.`
+                        : `The draft against the plan already on the board for ${windowWords(plan.window.from, plan.window.to)}.`}
                   </Typography>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr>
-                        {['Measure', 'On the board now', 'Draft', 'Change'].map((heading) => (
+                        {['Measure', 'On the board now', planCommitted ? 'Committed plan' : 'Draft', 'Change'].map((heading) => (
                           <th
                             key={heading}
                             style={{
@@ -1089,7 +1096,9 @@ export function PlannerPage() {
                         const unitWord = row.unit === 'hours' ? ' h' : row.unit === 'percent' ? ' pts' : '';
                         return (
                           <tr key={row.key}>
-                            <td style={{ padding: '6px 8px', fontWeight: 600 }}>{row.label}</td>
+                            <td style={{ padding: '6px 8px', fontWeight: 600 }}>
+                              {unitWordsIn(row.label)}
+                            </td>
                             <td className="num" style={{ padding: '6px 8px' }}>
                               {row.board.toLocaleString('en-CA')}
                               {unitWord}

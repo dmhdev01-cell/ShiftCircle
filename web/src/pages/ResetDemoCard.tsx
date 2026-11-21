@@ -24,7 +24,8 @@ const DATASET_WORDS: Record<string, string> = {
 const STEP_WORDS: Record<string, string> = {
   clean: 'Clearing the demo data',
   audit: 'Erasing the audit history',
-  generating: 'Generating 100 officers and 90 days',
+  // The dataset line says which dataset, below; this step is generic.
+  generating: 'Generating the roster',
   rules: 'Checking every shift against the rules',
   checksum: 'Checking the dataset checksum',
   done: 'Done',
@@ -108,7 +109,7 @@ export function ResetDemoCard({
         </Typography>
         <Typography sx={{ fontSize: 14 }}>
           Erases the synthetic roster, time entries and audit history, then generates the demo
-          dataset again. It takes about 20 seconds. The audit history before the reset is erased and
+          dataset again. It takes a few seconds. The audit history before the reset is erased and
           one <strong>demo_reset</strong> line is recorded in the new one. The planning board, the
           quarter plan and the reports all start from the new data.
         </Typography>
@@ -169,7 +170,10 @@ export function ResetDemoCard({
 
         {running && status?.state === 'RUNNING' ? (
           <Typography role="status" sx={{ fontSize: 14, color: colour.text.secondary }}>
-            {STEP_WORDS[status.step ?? 'clean'] ?? status.step}… {elapsed} s elapsed.
+            {status.step === 'generating'
+              ? `Generating ${(DATASET_WORDS[dataset] ?? `dataset ${dataset}`).replace(/^\d+: /, '')}`
+              : (STEP_WORDS[status.step ?? 'clean'] ?? status.step)}
+            … {elapsed} s elapsed.
           </Typography>
         ) : null}
         {running && !status ? (

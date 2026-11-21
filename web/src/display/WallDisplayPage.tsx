@@ -368,36 +368,6 @@ export function WallDisplayPage() {
         fontFamily: "'Source Sans 3', system-ui, sans-serif",
       }}
     >
-      {canLeave ? (
-        <Box
-          component="button"
-          type="button"
-          onClick={leave}
-          aria-label="Exit wall display"
-          sx={{
-            position: 'fixed',
-            top: s(16, 12),
-            right: s(16, 12),
-            zIndex: 10,
-            minHeight: 44,
-            minWidth: 44,
-            px: s(20, 14),
-            py: s(10, 8),
-            border: `2px solid ${C.canola}`,
-            borderRadius: '6px',
-            backgroundColor: C.canola,
-            color: C.dark,
-            fontFamily: 'inherit',
-            fontSize: s(20, 14),
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.35)',
-          }}
-        >
-          Exit wall display
-        </Box>
-      ) : null}
-
       <Box component="header" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: s(32), flexWrap: 'wrap' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: s(20) }}>
           <svg width="56" height="56" viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -419,7 +389,39 @@ export function WallDisplayPage() {
           ) : null}
         </Box>
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: s(4) }}>
-          <Box component="span" sx={{ fontSize: s(88, 28), fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+          {/* In the header's own column, not fixed: the earlier fixed corner
+              button covered the clock (acceptance row 7d). */}
+          {canLeave ? (
+            <Box
+              component="button"
+              type="button"
+              onClick={leave}
+              aria-label="Exit wall display"
+              sx={{
+                mb: s(10, 6),
+                minHeight: 44,
+                minWidth: 44,
+                px: s(20, 14),
+                py: s(10, 8),
+                border: `2px solid ${C.canola}`,
+                borderRadius: '6px',
+                backgroundColor: C.canola,
+                color: C.dark,
+                fontFamily: 'inherit',
+                fontSize: s(20, 14),
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 2px 10px rgba(0, 0, 0, 0.35)',
+              }}
+            >
+              Exit wall display
+            </Box>
+          ) : null}
+          <Box
+            component="span"
+            role="timer"
+            sx={{ fontSize: s(88, 28), fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}
+          >
             {clockTime(now)}
           </Box>
           <Box component="span" sx={{ fontSize: s(24), color: C.muted }}>

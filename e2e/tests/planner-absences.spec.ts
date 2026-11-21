@@ -51,7 +51,7 @@ interface Draft {
 test.describe('planned absences', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/login');
-    test.skip(await isFixtures(page), 'planned absences are a real-api input');
+    test.skip(process.env.E2E_MODE === 'fixtures' || (await isFixtures(page)), 'planned absences are a real-api input');
   });
 
   test('skip the officer and are counted on the scorecard', async ({ request }) => {
