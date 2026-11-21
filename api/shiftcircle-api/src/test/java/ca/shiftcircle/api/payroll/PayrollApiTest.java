@@ -442,6 +442,29 @@ class PayrollApiTest {
   }
 
   @Test
+  void aContradictoryWorkedAsScheduledAndTimesBodyIsRejected() throws Exception {
+    HttpResponse<String> both =
+        send(
+            "PUT",
+            "/api/v1/time-entries/" + MISSING_ASSIGNMENTS[1],
+            "{\"workedAsScheduled\":true,"
+                + "\"actualStart\":\"2026-02-03T07:00:00-06:00\","
+                + "\"actualEnd\":\"2026-02-03T19:00:00-06:00\"}",
+            tokens.get("m.ellis"));
+    assertThat(both.statusCode()).as(both.body()).isEqualTo(400);
+    assertThat(both.headers().firstValue("Content-Type").orElse(""))
+        .contains("application/problem+json");
+    assertThat(both.body()).contains("Send either workedAsScheduled or the actual times, not both");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM time_entry WHERE shift_assignment_id = ?",
+                Integer.class,
+                MISSING_ASSIGNMENTS[1]))
+        .as("the rejected body must not record anything")
+        .isZero();
+  }
+
+  @Test
   void lowConcurrentLocksWriteExactlyOneAuditRow() throws Exception {
     java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(2);
     java.util.concurrent.CyclicBarrier barrier = new java.util.concurrent.CyclicBarrier(2);

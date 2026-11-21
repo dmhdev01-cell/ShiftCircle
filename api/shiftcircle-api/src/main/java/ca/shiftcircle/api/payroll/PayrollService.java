@@ -317,6 +317,12 @@ public class PayrollService {
   @Transactional
   public PayrollViews.RecordActualResult recordActual(
       UUID assignmentId, PayrollInputs.RecordActual input, AuthPrincipal principal) {
+    if (Boolean.TRUE.equals(input.workedAsScheduled())
+        && (input.actualStart() != null || input.actualEnd() != null)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "Send either workedAsScheduled or the actual times, not both");
+    }
     Assignment assignment = assignment(assignmentId);
     scopeGuard.requireUnit(principal, assignment.unitCode());
     PayPeriodRecord period = periodFor(assignment.workDate());
