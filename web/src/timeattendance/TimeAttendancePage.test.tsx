@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
@@ -234,6 +234,92 @@ describe('Time and attendance', () => {
 
     const select = await screen.findByLabelText('Pay period');
     expect(select).toHaveValue('period-2026-11-09');
+    vi.restoreAllMocks();
+  });
+
+  it('reopens a sickness record and changes it to worked', async () => {
+    // Observation #11: an absence cell was a plain span, so a Sick or Vac
+    // record could never be reopened or corrected.
+    const sick: TimeEntry = {
+      assignmentId: 'assignment-sick',
+      employeeId: 'emp-tara',
+      employeeName: 'Tara Nakamura',
+      unitId: 'unit-b',
+      unitName: 'Unit B · Living unit',
+      date: '2026-11-20',
+      startAt: '2026-11-20T07:00:00-06:00',
+      endAt: '2026-11-20T15:00:00-06:00',
+      shiftTemplate: 'D8',
+      worked: false,
+      needsActual: false,
+      absence: 'SICK',
+    };
+    vi.spyOn(api, 'getTimeEntries').mockResolvedValue([sick]);
+    const record = vi.spyOn(api, 'recordActual').mockResolvedValue({
+      entry: { ...sick, absence: undefined, worked: true, actualStart: sick.startAt, actualEnd: sick.endAt },
+      payCodes: [],
+      periodHours: 8,
+    });
+    const user = userEvent.setup();
+
+    renderScreen();
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Sick · Tara Nakamura on 2026-11-20 · change',
+      }),
+    );
+    // The drawer opens on what is recorded, not on an empty question.
+    expect(await screen.findByRole('radio', { name: 'Absent' })).toBeChecked();
+    expect(await screen.findByLabelText('Absence type')).toHaveValue('SICK');
+
+    await user.click(screen.getByRole('radio', { name: 'Worked as scheduled' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(record).toHaveBeenCalledWith('assignment-sick', { workedAsScheduled: true }),
+    );
+    vi.restoreAllMocks();
+  });
+
+  it('changes a vacation record to sick', async () => {
+    const vacation: TimeEntry = {
+      assignmentId: 'assignment-vac',
+      employeeId: 'emp-tara',
+      employeeName: 'Tara Nakamura',
+      unitId: 'unit-b',
+      unitName: 'Unit B · Living unit',
+      date: '2026-11-20',
+      startAt: '2026-11-20T07:00:00-06:00',
+      endAt: '2026-11-20T15:00:00-06:00',
+      shiftTemplate: 'D8',
+      worked: false,
+      needsActual: false,
+      absence: 'VACATION',
+    };
+    vi.spyOn(api, 'getTimeEntries').mockResolvedValue([vacation]);
+    const record = vi.spyOn(api, 'recordActual').mockResolvedValue({
+      entry: vacation,
+      payCodes: [],
+      periodHours: 0,
+    });
+    const user = userEvent.setup();
+
+    renderScreen();
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Vac · Tara Nakamura on 2026-11-20 · change' }),
+    );
+    expect(await screen.findByLabelText('Absence type')).toHaveValue('VACATION');
+    await user.selectOptions(screen.getByLabelText('Absence type'), 'SICK');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(record).toHaveBeenCalledWith('assignment-vac', {
+        workedAsScheduled: false,
+        absence: 'SICK',
+      }),
+    );
     vi.restoreAllMocks();
   });
 

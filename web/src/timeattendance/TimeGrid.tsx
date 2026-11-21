@@ -96,21 +96,32 @@ export function TimeCell({ entry, locked, onPick }: TimeCellProps) {
 
   if (entry.absence) {
     const label = entry.absence === 'VACATION' ? 'Vac' : 'Sick';
+    // An absence used to be a plain span, so a Sick or Vac record could not be
+    // reopened or corrected (observation #11). It is a button like the others;
+    // the drawer opens on the current choice.
     return (
       <Box
-        component="span"
+        component="button"
+        type="button"
+        disabled={locked}
+        aria-label={`${label} · ${entry.employeeName} on ${entry.date} · change`}
+        title={`${label} · ${chip} ${clock(entry.startAt)}–${clock(entry.endAt)} · click to change`}
+        onClick={() => onPick?.(entry)}
         sx={{
           display: 'inline-flex',
           alignItems: 'center',
           height: 24,
           px: 1,
+          padding: '0 8px',
           borderRadius: '6px',
           backgroundColor: entry.absence === 'VACATION' ? '#E3F0E8' : '#FFFFFF',
           color: entry.absence === 'VACATION' ? colour.brand.primary : '#9A3412',
           border: entry.absence === 'VACATION' ? 'none' : '1px dashed #C2410C',
+          fontFamily: 'inherit',
           fontSize: 12,
           fontWeight: 600,
           whiteSpace: 'nowrap',
+          cursor: locked ? 'default' : 'pointer',
         }}
       >
         {label}

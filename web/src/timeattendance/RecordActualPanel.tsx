@@ -33,10 +33,12 @@ function clock(instant: string): string {
  */
 export function RecordActualPanel({ entry, result, onSave, onCancel }: RecordActualPanelProps) {
   // No default: one hasty click must not record a full day of payroll hours.
-  const [choice, setChoice] = useState<Choice | null>(null);
+  // A cell that already holds an absence opens on it, so the supervisor sees
+  // what is recorded and can correct it (observation #11).
+  const [choice, setChoice] = useState<Choice | null>(entry.absence ? 'ABSENT' : null);
   const [start, setStart] = useState(clock(entry.startAt));
   const [end, setEnd] = useState(clock(entry.endAt));
-  const [absence, setAbsence] = useState<AbsenceType>('SICK');
+  const [absence, setAbsence] = useState<AbsenceType>(entry.absence ?? 'SICK');
 
   const save = () => {
     if (choice === null) return;
@@ -126,16 +128,44 @@ export function RecordActualPanel({ entry, result, onSave, onCancel }: RecordAct
       ) : null}
 
       {choice === 'ABSENT' ? (
-        <TextField
-          select
-          label="Absence type"
-          value={absence}
-          onChange={(event) => setAbsence(event.target.value as AbsenceType)}
-          sx={{ width: 220 }}
+        // A native select, like the unit and pay-period pickers: the value is a
+        // plain string and a keyboard or screen reader can change it.
+        <Box
+          component="label"
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+            width: 220,
+            fontSize: 12,
+            fontWeight: 600,
+            color: colour.text.secondary,
+          }}
         >
-          <option value="SICK">Sick</option>
-          <option value="VACATION">Vacation</option>
-        </TextField>
+          Absence type
+          <Box
+            component="select"
+            aria-label="Absence type"
+            value={absence}
+            onChange={(event: { target: { value: string } }) =>
+              setAbsence(event.target.value as AbsenceType)
+            }
+            sx={{
+              minHeight: 44,
+              px: 3,
+              border: `1px solid ${colour.border.input}`,
+              borderRadius: '2px',
+              fontFamily: 'inherit',
+              fontSize: 14,
+              fontWeight: 500,
+              color: colour.text.primary,
+              backgroundColor: colour.bg.surface,
+            }}
+          >
+            <option value="SICK">Sick</option>
+            <option value="VACATION">Vacation</option>
+          </Box>
+        </Box>
       ) : null}
 
       <Box
