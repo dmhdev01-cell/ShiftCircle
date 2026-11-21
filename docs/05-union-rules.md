@@ -47,7 +47,7 @@ Severity: **Block** = can't be saved. An emergency override exists only where ma
 | ID | Rule | Default | Severity | Based on |
 |---|---|---|---|---|
 | U-13 | Regular hours **average** 8 h × working days over the rotation cycle | per pattern | Info | **PSGE** (modified patterns) |
-| U-14 | **Weekly ceiling**, including overtime: warn at 48 h, block at 60 h. The planner's warning group is named by the warning level, **"Week over 48 hours"**; the Block stays at 60 h | 48 / 60 | Warn at 48 h; Block at 60 h, no emergency override in v1 (override policy ACKNOWLEDGE; editable per rule through the rules admin approval flow) | **MOCK** |
+| U-14 | **Weekly ceiling**, including overtime: warn above 48 h, block above 60 h (the limit itself passes, like every other limit; exactly 60 h is a warning). The planner's warning group is named by the warning level, **"Week over 48 hours"** | 48 / 60 | Warn above 48 h; Block above 60 h, no emergency override in v1 (override policy ACKNOWLEDGE; editable per rule through the rules admin approval flow) | **MOCK** |
 | U-15 | **Overtime status** shown on the planning board: under / approaching (within 8 h of the threshold) / in overtime | per period | Info | **MOCK** (feature) |
 
 ### D. Pay classification (what feeds payroll)

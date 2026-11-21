@@ -16,7 +16,7 @@
 | **Rule boundary tests** | JUnit 5 + AssertJ, in `shiftcircle-rules` (no Spring, no DB) | Each fact builder and each rule table row at under / exactly / over its limit (§3) | Every build, < 10 s |
 | **Scenario library** | Same module; scenarios in `RuleScenarioRunner` (Java) | Named end-to-end rule scenarios with expected outcomes (§4). **The rules publish pipeline runs T1–T6** (T1–T5 plus the O-02 ranking check); T7–T14 are API/database tests. | Every build + every rule publish |
 | **Use-case / repository tests** | Spring Boot Test + Testcontainers PostgreSQL | Services with a real database: overlap constraint, locked-period trigger, audit append-only, maker/checker check, ranking, payroll classification | Every build |
-| **API and authorization tests** | Spring MockMvc or RestAssured against the running app (Testcontainers) | Every endpoint's happy path, the 422 rule contract, 412 stale ETag, and **one test per denied/scoped cell** of the permission matrix (`09-access-control.md`) | Every build |
+| **API and authorization tests** | Spring MockMvc or RestAssured against the running app (Testcontainers) | Every endpoint's happy path, the 422 rule contract, 412 stale ETag, and the permission matrix (`09-access-control.md`, grouped by area method plus per-endpoint authorization tests) | Every build |
 | **Payroll golden file** | Use-case test | Export for planted pay period PP-2026-11 must equal `golden/payroll-2026-10-26.csv` byte for byte | Every build |
 | **Generator self-check** | Runs at the end of `DemoDataGenerator` and as a test | Dataset invariants (§6.6); build fails if any break | Every build + on demo start |
 | **Frontend unit tests** | Vitest + React Testing Library | Components: `ShiftChip`, `RuleResultList`, decision-table editor validation, the preview → 422 → override hook | Every build |
@@ -44,6 +44,16 @@ the NFR limits, so a regression fails the build rather than being noticed in the
 
 **Definition of done for any feature:** its rule and use-case tests pass, its endpoints have authorization tests, and the demo flow touching it passes in Playwright.
 
+**Final verified state (`5d0f810`, 2026-11-21).** dev-qa's independent pipeline on the candidate: API
+**422 = 123 rules + 27 infrastructure + 272 api** tests, green in the default order and with random
+seed 20261121; web **277** vitest; Playwright against the real api, fresh stack per viewport:
+desktop **101 passed / 0 failed**, tablet **100 passed + 1 skipped / 0 failed** (the TV-size check is
+desktop-only); fixtures **22 / 21** passed. Counts are `@Test` methods on their own line; no
+parameterised tests. The 100 dataset checksum is
+`3390148255db715844c4df90f553ae342530417621539b23499f638c5b126539` and the payroll golden
+`d502848dad316ae00d7f7f90ccd01be8f82aa9332391f13cfb41b1b2d5e9d06a`; the 120 dataset checksum is
+`82b19cf814acde5c5740f9a9aa1162e61d4b7f5598848f99861d2f4ea66732ca`.
+
 ## 3. Rule boundary matrix
 
 Each line is at least three tests: just under, exactly at, just over. Times are local (America/Regina).
@@ -60,7 +70,7 @@ Each line is at least three tests: just under, exactly at, just over. Times are 
 | U-10 max 4 consecutive 12 h overnight (19–07; A12 00–12 and N12 19–07) shifts | 4 → PASS | 5th → **WARN** | — |
 | U-11 16 h shifts: 3 per 7 d, 10 per 28 d | 3 in 7 d → PASS | 4th within 7 d → **WARN**; 11th within 28 d → **WARN** | 4th exactly 7 d after the 1st → PASS (window boundary) |
 | U-12 2 consecutive days off per 7 | 48 h off → PASS | 47 h 59 m off → **WARN** (a break of 24 h or less isn't a day of rest) | — |
-| U-14 weekly ceiling 48 warn / 60 block | 48 h → PASS | 48.25 h → **WARN**; 60.25 h → **BLOCK** (no override, ADR-023) | — |
+| U-14 weekly ceiling: warn above 48 h, block above 60 h | 48 h → PASS | 48.25 h → **WARN**; 60.00 h → **WARN** (the limit itself passes; the Block is above it); 60.25 h → **BLOCK** (no override, ADR-023) | — |
 | P-01 overtime by pay period (threshold 80 h) | 80 h worked → 80 REG | 80.5 h → 80 REG + 0.5 OT15 | 96 h incl. a picked-up 16 h shift → 80 REG + 16 OT15; rostered 16 h shifts within 80 h → all REG |
 | P-02 day of rest: 2×, min 2 h (off by default; test when switched on) | 1 h worked → paid 2 h OT20 | 2 h → 2 h OT20 | 8 h → 8 h OT20 |
 | P-04 OT under 30 min unpaid | 29 m → 0 | 30 m → 0.5 h | — |
@@ -237,4 +247,4 @@ Things the design describes that the prototype does **not** have. They are liste
 
 ## Phase 3 test classes (for the acceptance table)
 
-New or materially extended in phase 3: `PlannerApiTest` (draft/commit/scorecard/preferences/compare/committed read), `PlanGeneratorFteTest` (FTE bands and casual target), `PlanGeneratorCrewTest` (D12/N12/D8/E8 separation, 4/4 coverage), `WeekendRotationProbeTest`, `RotatingBreakProbeTest` (variant A-F evidence for ADR-026), `DemoResetApiTest` (100 reset twice, checksum, audit, guards), `DemoResetProfileTest` (not in prod-like), `DemoResetGatingTest` (`sc.demo.generate=false`), `DemoOperationLockTest` (cross-thread release), `Demo120ResetApiTest` (120 composition, deterministic checksum, reset back to 100, 120 plan gaps/warnings/no Block, qualification report), `PlannerPreferenceKindsTest` (F10: D12/N12 score by their template row; scorecard == compare; N12 12/NIGHT MET, D12 8h NOT_MET), `HoursAndRunsRulesTest` (D12/N12 boundary cases), `ReferenceDataMatchesRuleRowsTest` (published v2 == code rows), `SchemaConstraintsTest` (V6 baseline), `ReferenceApiTest` (eight templates), `PayrollApiTest` (contradictory time-entry body), `JwtServiceTest` (tamper test flake fix).
+New or materially extended in phase 3: `PlannerApiTest` (draft/commit/scorecard/preferences/compare/committed read), `PlanGeneratorFteTest` (FTE bands and casual target), `PlanGeneratorCrewTest` (D12/N12/D8/E8 separation, 4/4 coverage), `WeekendRotationProbeTest`, `RotatingBreakProbeTest` (variant A-F evidence for ADR-026), `DemoResetApiTest` (100 reset twice, checksum, audit, guards), `DemoResetProfileTest` (not in prod-like), `DemoResetGatingTest` (`sc.demo.generate=false`), `DemoOperationLockTest` (cross-thread release), `Demo120ResetApiTest` (120 composition, deterministic checksum, reset back to 100, 120 plan gaps/warnings/no Block, qualification report), `PlannerAbsenceApiTest` (read-only skip, idempotency, authz), `PlannerHistoryActualApiTest` (an extension on the 21-29 Dec look-back history reaches the generator), `ActualTimesInRulesTest` (U-04/U-05 and rest see the recorded actual end), `PlannerPreferenceKindsTest` (F10: D12/N12 score by their template row; scorecard == compare; N12 12/NIGHT MET, D12 8h NOT_MET), `HoursAndRunsRulesTest` (D12/N12 boundary cases), `ReferenceDataMatchesRuleRowsTest` (published v2 == code rows), `SchemaConstraintsTest` (V6 baseline), `ReferenceApiTest` (eight templates), `PayrollApiTest` (contradictory time-entry body), `JwtServiceTest` (tamper test flake fix). The final counts are in §2.
