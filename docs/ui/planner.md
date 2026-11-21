@@ -130,7 +130,7 @@ A discarded draft shows as No draft; the discard is in the audit log, not here.
 | Committed | none (nothing waiting) | Generate a new draft |
 
 - **Seed** number input left of Generate, labelled "Seed", prefilled with the api's `defaultSeed` (20261001), helper **"Same seed, same plan."** Whole numbers only; otherwise Generate is disabled with the helper "Enter a whole number".
-- **8-hour pattern** select next to it, shown **only if** the api offers patterns (`patterns8h`): **"5 on, 2 off · 80 h a pay period"** (default) · **"7 on, 3 off · shows week-hours warnings"**. Helper: "Applies to officers on 8-hour shifts." (Amendment 1: 7/3 stays selectable and its warnings show honestly.)
+- **No facility pattern picker.** Every officer has their own shift pattern (option C): an 8-hour officer's pattern is set by the planner on the Preferences page (rotating 5/2 default, fixed 5/2, or 7/3); 12-hour officers keep the crew's 4 on, 4 off. **Generate draft** uses each officer's own pattern and sends only the seed.
 - **While generating:** the button shows a spinner and "Generating…", disabled; `role="status"`: **"Building a plan for 100 officers and checking every shift against the rules. This usually takes a few seconds."** When done, focus moves to the status line and the Scorecard tab opens.
 - **Generate again / Generate a new draft** when a draft exists: dialog **"Replace this draft?"** · "The current draft and its scorecard are replaced. Nothing on the planning board changes." · Cancel (white) · **Replace draft** (yellow inside the dialog).
 - **Discard draft…**: dialog **"Discard this draft?"** · "The draft is removed. Nothing on the planning board changes. The discard is recorded in the audit log." · Cancel · **Discard draft** (white; the danger outline is reserved for emergency override, README §3.4).
@@ -323,8 +323,8 @@ Names are a proposal; `dev.build` owns the contract (docs/07). The UI needs thes
 ### 10.1 `GET /planner/plan`
 `{ window: {from, to, periods}, defaultSeed, patterns8h: ["5_ON_2_OFF","7_ON_3_OFF"]|null, state: "NONE"|"DRAFT"|"COMMITTED", draft: DraftSummary|null, lastCommitted: {draftId, at, by, shiftsWritten}|null }`
 
-### 10.2 `POST /planner/drafts {seed, pattern8h?}` → `DraftSummary`
-`DraftSummary = { id, version, seed, pattern8h, status, createdAt, createdBy, generatedMs, scorecard }`. Replaces an open draft (the UI has asked). 409 while another is generating.
+### 10.2 `POST /planner/drafts {seed}` → `DraftSummary`
+`DraftSummary = { id, version, seed, pattern8h (null in per-officer mode), status, createdAt, createdBy, generatedMs, scorecard }`. Each officer uses their own pattern (option C); the legacy `pattern8h` is still accepted for one release and overrides every 8-hour officer. Replaces an open draft (the UI has asked). 409 while another is generating.
 
 ### 10.3 Scorecard
 ```
@@ -366,7 +366,7 @@ The board must open on `?unit=<id>&week=<Monday>` (README §5.1 already names th
 2. **Who sees others' preferences?** **Recommend:** PLANNER only for the prototype; supervisors for their units is a pilot privacy question (docs/09 §6).
 3. **Board URL parameters** (§10.8): a small web change for dev-build2, needed for the commit links.
 4. **Days-off limit:** 2 is my proposal; the UI takes `maxDaysOff` from the api.
-5. **8-hour pattern select** (§3.2): show it only if the api exposes the choice; if not, the roster's pattern words still say "5 on, 2 off".
+5. **Shift pattern** (§3.2): decided - option C, a per-officer setting (planner sets it on Preferences); the facility select is gone and every screen shows the officer's pattern in words.
 
 ---
 
@@ -394,3 +394,6 @@ Figures are examples; use the measured ones from the verified tip.
 Scorecard tiles, explanations and panels as §2 · one yellow per screen in every state · status in words, not colour · tabs in the URL · "Show week" lands on the right unit and week with focus · Roster read-only with the "not on the planning board yet" note and pattern words · Compare uses the api's direction · commit dialog lists every warning and needs the one checkbox · stale (412), blocked (422) and locked (409) refusals say "Nothing was written" and keep the draft · success links open the board on the right unit and week · preferences save and clear with confirmation, disabled lengths explained · no rule codes anywhere · states as §9.1 · keyboard path §9.2 end to end · axe clean at 1440 and 768 px · footer line, no logo.
 
 - The Roster tab's unit picker shows each unit's gap count for the visible week (`no gaps`, `1 gap`, `2 gaps`) and the selected unit's name heads its grid; the All-units strip stays clickable.
+
+- Preferences (planner): the **Pattern** column is a picker for 8-hour officers (Rotating 5 on 2 off / Fixed 5 on 2 off / 7 on 3 off) and read-only words for 12-hour officers ('4 on, 4 off'). A change applies to the next generate.
+- Scorecard **Shift patterns**: the note plus a scrollable table of every officer's pattern in words (officer, unit, pattern).

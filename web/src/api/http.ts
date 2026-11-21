@@ -277,6 +277,12 @@ export function createHttpApi(): ShiftCircleApi {
     deleteMyPreferences(): Promise<void> {
       return request<void>('/me/preferences', { method: 'DELETE' });
     },
+    setPlannerOfficerPattern(employeeId: string, pattern: string): Promise<PlannerPreferenceRow> {
+      return request<PlannerPreferenceRow>(`/planner/preferences/${employeeId}/pattern`, {
+        method: 'PUT',
+        body: JSON.stringify({ pattern }),
+      });
+    },
     getPlannerPreferences(unitId?: string): Promise<PlannerPreferenceRow[]> {
       const query = unitId ? `?unitId=${encodeURIComponent(unitId)}` : '';
       return request<PlannerPreferenceRow[]>(`/planner/preferences${query}`);

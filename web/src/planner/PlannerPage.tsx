@@ -37,12 +37,6 @@ const BLOCK_WORDS: Record<string, string> = {
   NIGHT: 'Night 23–07',
 };
 
-const PATTERN_WORDS: Record<string, string> = {
-  ROTATING_5_2: 'Rotating 5 on, 2 off (weekends rotate)',
-  '5_ON_2_OFF': 'Fixed 5 on, 2 off',
-  '7_ON_3_OFF': '7 on, 3 off',
-};
-
 const TILE_HELP: Record<string, string> = {
   'Coverage gaps':
     'A block (Day 07–15, Evening 15–23, Night 23–07) is short when any hour in it has fewer officers than the unit needs. The planner never breaks a blocking rule to fill a gap, so the gap stays visible for overtime or a supervisor to fill. See the Gaps tab.',
@@ -141,7 +135,6 @@ export function PlannerPage() {
     setSearchParams(params, { replace: true });
   };
   const [seed, setSeed] = useState('');
-  const [pattern, setPattern] = useState('ROTATING_5_2');
   const [busy, setBusy] = useState<null | 'generate' | 'commit' | 'discard'>(null);
   const [explain, setExplain] = useState<string | null>(null);
   const [explainGroup, setExplainGroup] = useState<string | null>(null);
@@ -164,7 +157,6 @@ export function PlannerPage() {
       const next = await api.getPlannerPlan();
       setPlan(next);
       setSeed(String(next.defaultSeed));
-      setPattern(next.patterns8h?.[0] ?? 'ROTATING_5_2');
       setState('ready');
       const readable = next.draft ?? next.committedDraft ?? null;
       if (readable) {
@@ -274,7 +266,6 @@ export function PlannerPage() {
     try {
       const created = await api.createPlannerDraft({
         seed: seedValue,
-        ...(plan.patterns8h ? { pattern8h: pattern } : {}),
       });
       setPlan({ ...plan, draft: created, state: 'DRAFT' });
       setTab('scorecard');
@@ -439,38 +430,6 @@ export function PlannerPage() {
               helperText={seedOk ? 'Same seed, same plan.' : 'Enter a whole number'}
             />
           </Box>
-          {plan.patterns8h ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Box component="label" sx={{ fontSize: 12, fontWeight: 600, color: colour.text.secondary }}>
-                8-hour pattern
-                <Box
-                  component="select"
-                  aria-label="8-hour pattern"
-                  value={pattern}
-                  onChange={(event: { target: { value: string } }) => setPattern(event.target.value)}
-                  sx={{
-                    display: 'block',
-                    minHeight: 44,
-                    px: 3,
-                    border: `1px solid ${colour.border.input}`,
-                    borderRadius: '2px',
-                    fontFamily: 'inherit',
-                    fontSize: 14,
-                    fontWeight: 500,
-                    color: colour.text.primary,
-                    backgroundColor: colour.bg.surface,
-                  }}
-                >
-                  {plan.patterns8h.map((option) => (
-                    <option key={option} value={option}>
-                      {PATTERN_WORDS[option] ?? option}
-                    </option>
-                  ))}
-                </Box>
-              </Box>
-            </Box>
-          ) : null}
-
           {draft ? (
             <>
               <Button
@@ -897,6 +856,61 @@ export function PlannerPage() {
                     </table>
                   </CardContent>
                 </Card>
+
+                {scorecard.patterns && scorecard.patterns.officers.length > 0 ? (
+                  <Card sx={{ flex: '1 1 420px' }}>
+                    <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
+                        Shift patterns
+                      </Typography>
+                      <Box
+                        sx={{
+                          maxHeight: 240,
+                          overflowY: 'auto',
+                          border: `1px solid ${colour.border.default}`,
+                          borderRadius: '8px',
+                        }}
+                      >
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                          <thead>
+                            <tr>
+                              {['Officer', 'Unit', 'Pattern'].map((heading) => (
+                                <th
+                                  key={heading}
+                                  scope="col"
+                                  style={{
+                                    textAlign: 'left',
+                                    padding: '6px 8px',
+                                    fontSize: 12,
+                                    fontWeight: 600,
+                                    color: colour.text.secondary,
+                                    backgroundColor: colour.bg.subtle,
+                                    position: 'sticky',
+                                    top: 0,
+                                  }}
+                                >
+                                  {heading}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {scorecard.patterns.officers.map((officer) => (
+                              <tr key={officer.employeeNo}>
+                                <td style={{ padding: '6px 8px', fontWeight: 600 }}>{officer.name}</td>
+                                <td style={{ padding: '6px 8px' }}>{unitWords(officer.unitCode)}</td>
+                                <td style={{ padding: '6px 8px' }}>{officer.words}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </Box>
+                      <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
+                        {scorecard.patterns.note}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                ) : null}
               </Box>
 
               <Card>

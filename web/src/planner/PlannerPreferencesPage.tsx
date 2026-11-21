@@ -10,6 +10,7 @@ import { api } from '../api/client';
 import type { PlannerPreferenceRow } from '../api/types';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
+import { EIGHT_HOUR_PATTERNS, PATTERN_WORDS } from './patternWords';
 import { daysOffWords, sinceYear } from './preferenceWords';
 
 const LENGTH_WORDS: Record<number, string> = { 8: '8 h', 12: '12 h', 16: '16 h' };
@@ -34,6 +35,7 @@ const IN_DRAFT = {
  */
 export function PlannerPreferencesPage() {
   const [rows, setRows] = useState<PlannerPreferenceRow[] | null>(null);
+  const [patternError, setPatternError] = useState<string | null>(null);
   const [unitName, setUnitName] = useState('');
   const [find, setFind] = useState('');
   const [notMetOnly, setNotMetOnly] = useState(false);
@@ -65,6 +67,20 @@ export function PlannerPreferencesPage() {
     if (notMetOnly && !(row.inDraft === 'PARTLY' || row.inDraft === 'NOT_MET')) return false;
     return true;
   });
+
+  const changePattern = async (row: PlannerPreferenceRow, pattern: string): Promise<void> => {
+    setPatternError(null);
+    try {
+      const updated = await api.setPlannerOfficerPattern(row.employeeId, pattern);
+      setRows((current) =>
+        current ? current.map((entry) => (entry.employeeId === updated.employeeId ? updated : entry)) : current,
+      );
+    } catch (error) {
+      setPatternError(
+        error instanceof Error ? error.message : "That officer's pattern could not be changed.",
+      );
+    }
+  };
 
   const gave = (rows ?? []).filter(
     (row) => row.shiftLength !== null || row.timesOfDay.length > 0 || row.daysOff.length > 0,
@@ -147,11 +163,16 @@ export function PlannerPreferencesPage() {
               {error}
             </Typography>
           ) : null}
+          {patternError ? (
+            <Typography role="alert" sx={{ fontSize: 14, color: colour.status.block.text }}>
+              {patternError}
+            </Typography>
+          ) : null}
 
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr>
-                {['Officer', 'Unit', 'Seniority', 'Shift length', 'Time of day', 'Days off', 'In the draft'].map(
+                {['Officer', 'Unit', 'Seniority', 'Shift length', 'Pattern', 'Time of day', 'Days off', 'In the draft'].map(
                   (heading) => (
                     <th
                       key={heading}
@@ -180,6 +201,36 @@ export function PlannerPreferencesPage() {
                     <td style={{ padding: '6px 8px' }}>{sinceYear(row.seniorityDate)}</td>
                     <td style={{ padding: '6px 8px' }}>
                       {row.shiftLength ? LENGTH_WORDS[row.shiftLength] ?? `${row.shiftLength} h` : 'No preference'}
+                    </td>
+                    <td style={{ padding: '6px 8px' }}>
+                      {row.patternEditable ? (
+                        <Box
+                          component="select"
+                          aria-label={`Pattern for ${row.name}`}
+                          value={row.pattern}
+                          onChange={(event: { target: { value: string } }) =>
+                            void changePattern(row, event.target.value)
+                          }
+                          sx={{
+                            minHeight: 36,
+                            px: 1.5,
+                            border: `1px solid ${colour.border.input}`,
+                            borderRadius: '2px',
+                            fontFamily: 'inherit',
+                            fontSize: 13,
+                            color: colour.text.primary,
+                            backgroundColor: colour.bg.surface,
+                          }}
+                        >
+                          {EIGHT_HOUR_PATTERNS.map((pattern) => (
+                            <option key={pattern} value={pattern}>
+                              {PATTERN_WORDS[pattern]}
+                            </option>
+                          ))}
+                        </Box>
+                      ) : (
+                        <span>{row.patternWords}</span>
+                      )}
                     </td>
                     <td style={{ padding: '6px 8px' }}>
                       {timeSetWords(row.timesOfDay)}

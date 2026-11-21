@@ -110,4 +110,22 @@ describe('preferences', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Not met only' }));
     expect(within(table).queryByText('Tara Nakamura')).not.toBeInTheDocument();
   });
+
+  it("lets the planner set an 8 h pattern, and shows a 12 h officer's crew pattern read-only", async () => {
+    const user = userEvent.setup();
+    const put = vi.spyOn(api, 'setPlannerOfficerPattern');
+    renderAt('/planner/preferences');
+    await user.selectOptions(await screen.findByLabelText('Mock sign-in: choose a role'), 'PLANNER');
+
+    const select = await screen.findByLabelText('Pattern for Tara Nakamura');
+    expect(select).toHaveValue('ROTATING_5_2');
+    await user.selectOptions(select, '7_ON_3_OFF');
+    expect(put).toHaveBeenCalledWith('emp-tara', '7_ON_3_OFF');
+    expect(await screen.findByLabelText('Pattern for Tara Nakamura')).toHaveValue('7_ON_3_OFF');
+
+    // A 12 h officer keeps the crew pattern: words, no picker.
+    expect(screen.queryByLabelText('Pattern for Ruth Okafor')).not.toBeInTheDocument();
+    expect(screen.getByText('4 on, 4 off')).toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
 });

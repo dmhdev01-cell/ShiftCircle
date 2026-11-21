@@ -98,6 +98,7 @@ import {
   plannerPlan,
   plannerWarnings,
   resetPlannerFixtures,
+  savePlannerPattern,
 } from './planner';
 import { demoPayPeriods, demoTimeEntries, unitCodeFor } from './timeAttendance';
 
@@ -542,6 +543,15 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
     async getPlannerPreferences() {
       await pause();
       return fixturePlannerPreferences();
+    },
+
+    async setPlannerOfficerPattern(employeeId: string, pattern: string) {
+      await pause();
+      try {
+        return savePlannerPattern(employeeId, pattern);
+      } catch (error) {
+        throw new ApiError(error instanceof Error ? error.message : 'The pattern could not be set.', 400);
+      }
     },
 
     async getPlannerCompare() {

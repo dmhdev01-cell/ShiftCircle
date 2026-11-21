@@ -9,6 +9,7 @@
 
 import type {
   Block,
+  OfficerPattern,
   PlannerCommitPreview,
   PlannerCompare,
   PlannerCommitResult,
@@ -22,6 +23,7 @@ import type {
   PlannerUnitCoverage,
   SchedulePayload,
 } from '../types';
+import { PATTERN_WORDS } from '../../planner/patternWords';
 import { scheduleForRange } from './schedule';
 
 export const PLANNER_WINDOW = { from: '2027-01-04', to: '2027-04-11', periods: 7 };
@@ -107,6 +109,14 @@ function scorecard(seed: number) {
     },
     warningNote:
       'At the weekend-rotation changeover an officer has one rest-day warning and one weekly-hours warning, and the changeover pay period is 72 hours.',
+    patterns: {
+      officers: [
+        { employeeNo: 'E-0004', name: 'Tara Nakamura', unitCode: 'B', pattern: 'ROTATING_5_2', words: 'Rotating 5 on, 2 off (weekends rotate)' },
+        { employeeNo: 'E-0007', name: 'Sam Abara', unitCode: 'CTL', pattern: '5_ON_2_OFF', words: 'Fixed 5 on, 2 off' },
+        { employeeNo: 'E-0012', name: 'Ruth Okafor', unitCode: 'B', pattern: '4_ON_4_OFF', words: '4 on, 4 off' },
+      ],
+      note: 'Each officer keeps their own pattern: 8-hour officers use the planner’s choice, 12-hour officers the crew’s 4 on, 4 off.',
+    },
     pattern8h: 'ROTATING_5_2',
     overtime: { officersOver: 18, hoursOver: 640, thresholdHours: 80 },
     generatedMs: 2400,
@@ -232,9 +242,25 @@ export function clearMyPreferences(): void {
   myPreferences = { ...myPreferences, shiftLength: null, timesOfDay: [], daysOff: [], updatedAt: null };
 }
 
+let patternOverrides: Record<string, { pattern: OfficerPattern; words: string }> = {};
+
+/**
+ * The planner changes an 8 h officer's pattern (option C). The fixtures apply
+ * the same rule the api does: a 12 h officer keeps the crew pattern.
+ */
+export function savePlannerPattern(employeeId: string, pattern: string): PlannerPreferenceRow {
+  const row = fixturePlannerPreferences().find((entry) => entry.employeeId === employeeId);
+  if (!row) throw new Error('That officer is not on the list.');
+  if (!row.patternEditable) throw new Error("A 12-hour officer keeps the crew's 4 on, 4 off pattern");
+  const words = PATTERN_WORDS[pattern as OfficerPattern];
+  if (!words) throw new Error('That is not a pattern this planner can set.');
+  patternOverrides = { ...patternOverrides, [employeeId]: { pattern: pattern as OfficerPattern, words } };
+  return fixturePlannerPreferences().find((entry) => entry.employeeId === employeeId)!;
+}
+
 /** Everyone's preferences as the planner reads them; Tara has given some. */
 export function fixturePlannerPreferences(): PlannerPreferenceRow[] {
-  return [
+  const rows: PlannerPreferenceRow[] = [
     {
       employeeId: 'emp-tara',
       name: 'Tara Nakamura',
@@ -245,6 +271,9 @@ export function fixturePlannerPreferences(): PlannerPreferenceRow[] {
       timesOfDay: ['DAY'],
       daysOff: ['SAT', 'SUN'],
       maxDaysOff: 2,
+      pattern: 'ROTATING_5_2',
+      patternWords: 'Rotating 5 on, 2 off (weekends rotate)',
+      patternEditable: true,
       inDraft: draft ? 'MET' : 'NO_DRAFT',
       unmet: [],
       updatedAt: '2026-11-21T08:55:00-06:00',
@@ -259,6 +288,9 @@ export function fixturePlannerPreferences(): PlannerPreferenceRow[] {
       timesOfDay: ['EVENING', 'NIGHT'],
       daysOff: ['WED'],
       maxDaysOff: 2,
+      pattern: '5_ON_2_OFF',
+      patternWords: 'Fixed 5 on, 2 off',
+      patternEditable: true,
       inDraft: draft ? 'PARTLY' : 'NO_DRAFT',
       unmet: draft ? ['time of day: 9 night shifts'] : [],
       updatedAt: '2026-11-20T14:00:00-06:00',
@@ -273,11 +305,18 @@ export function fixturePlannerPreferences(): PlannerPreferenceRow[] {
       timesOfDay: ['DAY'],
       daysOff: ['SAT', 'SUN'],
       maxDaysOff: 2,
+      pattern: '4_ON_4_OFF',
+      patternWords: '4 on, 4 off',
+      patternEditable: false,
       inDraft: draft ? 'MET' : 'NO_DRAFT',
       unmet: [],
       updatedAt: null,
     },
   ];
+  return rows.map((row) => {
+    const override = patternOverrides[row.employeeId];
+    return override ? { ...row, pattern: override.pattern, patternWords: override.words } : row;
+  });
 }
 
 /** The draft's own roster, in the board's shape (no EXTRA, no offers). */
@@ -360,6 +399,7 @@ export function discardPlannerDraft(): void {
 
 /** Put the planner fixtures back, so one test cannot change what the next sees. */
 export function resetPlannerFixtures(): void {
+  patternOverrides = {};
   draft = null;
   committed = null;
   committedDraft = null;
