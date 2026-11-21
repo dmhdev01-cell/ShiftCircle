@@ -287,6 +287,19 @@ describe('Time and attendance', () => {
     vi.restoreAllMocks();
   });
 
+  it('explains its chips, tiles and pills in a key', async () => {
+    // Observation #8: the cells and pill codes (P-01, P-04) were unexplained.
+    renderScreen();
+
+    const key = await screen.findByRole('region', { name: 'Key' });
+    expect(within(key).getByText(/click to record what happened/)).toBeInTheDocument();
+    expect(within(key).getByText(/Short extension = under 30 min, unpaid/)).toBeInTheDocument();
+    expect(within(key).getByText(/Overtime = hours over 80 h in a pay period/)).toBeInTheDocument();
+    // No bare rule codes in the tiles.
+    expect(screen.queryByText('P-01')).not.toBeInTheDocument();
+    expect(screen.queryByText(/P-04/)).not.toBeInTheDocument();
+  });
+
   it('reopens a sickness record and changes it to worked', async () => {
     // Observation #11: an absence cell was a plain span, so a Sick or Vac
     // record could never be reopened or corrected.

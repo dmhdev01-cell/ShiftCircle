@@ -149,6 +149,17 @@ describe('the employee My schedule', () => {
     expect(screen.getAllByText(/count toward your pay-period hours/).length).toBeGreaterThan(0);
   });
 
+  it('explains its chips and offer states in a key', async () => {
+    // Observation #1: the calendar's chips had no key.
+    renderMySchedule();
+
+    const key = await screen.findByRole('region', { name: 'Key' });
+    expect(within(key).getByText(/rostered shift, with its times/)).toBeInTheDocument();
+    expect(within(key).getAllByText('Sick').length).toBeGreaterThan(0);
+    expect(within(key).getAllByText('Vacation').length).toBeGreaterThan(0);
+    expect(within(key).getByText(/Offers: waiting for reply/)).toBeInTheDocument();
+  });
+
   it('shows no colleague hours or absences', async () => {
     renderMySchedule();
 
