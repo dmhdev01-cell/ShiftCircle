@@ -33,7 +33,7 @@ one transaction (ADR-026).
 
 ## 4. Test cases and verified status
 
-**Final state (`5d0f810`, independently verified).** API **422 = 123 rules + 27 infrastructure + 272 api**, 0 failures/errors/skipped in the default order and random seed 20261121; web **277**; Playwright real api, a fresh stack per viewport, desktop **101/0**, tablet **100 + 1 skipped/0**; fixtures **22/21**. Checksums: 100 roster and 84 periods `3390148255…6539`, payroll golden `d502848d…d06a`, 120 `82b19cf8…32ca`. dev-qa ran the final pipeline; review-r2 reviewed the planner and rule-set v2; review-r3 ran security; dev-design ran a scripted planner walk (demo script §7: candidates 1 and 2 in full, steps 3 and 6 on 5d0f810); dev-qa walked sections 1–6 at the API level; no human has walked the demo. The security fixes on `p3-sec 74a58c0` add three api tests: an author run is 425 = 123 + 27 + 275 in both orders (dev-qa pending). The phase 3 preference/pattern branch (`p3-pref`, tip `de256ba`; gate pending) adds 19 api tests: author **444 = 123 + 27 + 294** in the default order (dev-qa runs both), web **290**; the 120 and 100 drafts are sha256-identical to `c9ac073`, and checksums and the payroll golden are unchanged.
+**Final state (`5d0f810`, independently verified).** API **422 = 123 rules + 27 infrastructure + 272 api**, 0 failures/errors/skipped in the default order and random seed 20261121; web **277**; Playwright real api, a fresh stack per viewport, desktop **101/0**, tablet **100 + 1 skipped/0**; fixtures **22/21**. Checksums: 100 roster and 84 periods `3390148255…6539`, payroll golden `d502848d…d06a`, 120 `82b19cf8…32ca`. dev-qa ran the final pipeline; review-r2 reviewed the planner and rule-set v2; review-r3 ran security; dev-design ran a scripted walk of the planner segment (§7); dev-qa walked sections 1–6 at the API level; no human has walked the demo. Since then, the security fixes (`p3-sec 74a58c0`, 3 tests) and the preference/pattern branch (`p3-pref`, 19 tests; gate pending) make an author run of **444 = 123 + 27 + 294** (default order; dev-qa runs both), web **290**; the 120 and 100 drafts are sha256-identical to `c9ac073`, and checksums and the payroll golden are unchanged.
 
 | ID | Case | Expected | Result |
 |---|---|---|---|
@@ -55,4 +55,4 @@ one transaction (ADR-026).
 ## 6. Next steps (pilot)
 
 1. A practitioner reviews the rule boundary tests and validates the MOCK values.
-2. Government SSO with short-lived tokens; a payroll-clerk role; separate database roles with insert-only audit and a locked-period shift guard (ADR-018); non-root containers, TLS, a secrets manager and CI scanning (`docs/08-deployment.md` §9).
+2. Government SSO with short-lived tokens; a payroll-clerk role; separate database roles with insert-only audit and a locked-period shift guard (ADR-018); non-root containers, TLS, a secrets manager and CI scanning (`docs/08` §9).
