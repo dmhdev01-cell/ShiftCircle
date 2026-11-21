@@ -110,7 +110,7 @@ Phase 3 known limits: the planner does not enforce qualifications (0 failing blo
 
 Latest independent run (dev-qa, the final tip `5d0f810`): API **422 = 123 rules + 27 infrastructure + 272 api**, 0 failures/errors/skipped, default order and random seed 20261121; web **277** vitest; Playwright against the real api, a fresh stack per viewport, desktop **101 passed / 0 failed** and tablet **100 passed + 1 skipped / 0 failed**; fixtures **22 / 21**. Dataset checksums: 100 roster and the 84 periods `3390148255db715844c4df90f553ae342530417621539b23499f638c5b126539`, payroll golden `d502848dad316ae00d7f7f90ccd01be8f82aa9332391f13cfb41b1b2d5e9d06a`, 120 `82b19cf814acde5c5740f9a9aa1162e61d4b7f5598848f99861d2f4ea66732ca`. The full command is in README §4; counts count only from a clean worktree. Security-fix branch `p3-sec` at `74a58c0` (author run, dev-qa pending): **425 = 123 + 27 + 275** in default order and random seed 20261121; web 277. The last independently verified tip is `5d0f810` at 422.
 
-Phase 3 preference/pattern branch `p3-pref` at `78fb935` (author run, dev-qa gate pending): **444 = 123 + 27 + 294** in both orders, web **290**; the 120 plan stays 38 gaps / 7 warnings / 5,103 shifts / 107 officers and the 100 plan is unchanged, with both drafts sha256-identical to `c9ac073` and every checksum and the payroll golden unchanged.
+Phase 3 preference/pattern branch `p3-pref` at `de256ba` (author run, dev-qa gate pending): **444 = 123 + 27 + 294** in the default order (dev-qa runs both), web **290**; the 120 plan stays 38 gaps / 7 warnings / 5,103 shifts / 107 officers and the 100 plan is unchanged, with both drafts sha256-identical to `c9ac073` and every checksum and the payroll golden unchanged.
 
 ## Phase 3 complete
 

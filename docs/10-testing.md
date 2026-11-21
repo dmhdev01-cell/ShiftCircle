@@ -65,10 +65,10 @@ adds **19 api tests** over `p3-sec`'s 425: preference multi-select (V9, legacy v
 the V9 backfill, coverage `extraPercent` and the axis floor, the ACKNOWLEDGE-Block sentence, the V10
 default/backfill, the pattern API and validation, mixed-cohort generation, and the two plan
 fingerprints. Author run from a clean worktree at the code tip `761f763` (Java identical to
-`78fb935`): **444 = 123 rules + 27 infrastructure + 294 api**, 0 failures/errors/skipped, default
-order and random seed 20261121; web **290** at the merged tip. The 120 draft is 5,103 assignment rows
-and the 100 draft 6,586, each sha256-identical to `c9ac073`; the 100/120 checksums and the payroll
-golden are unchanged. dev-qa's full gate is pending.
+`de256ba`): **444 = 123 rules + 27 infrastructure + 294 api**, 0 failures/errors/skipped in the
+default order (dev-qa's gate runs both orders); web **290** at the merged tip. The 120 draft is
+5,103 assignment rows and the 100 draft 6,586, each sha256-identical to `c9ac073`; the 100/120
+checksums and the payroll golden are unchanged. dev-qa's full gate is pending.
 
 ## 3. Rule boundary matrix
 
