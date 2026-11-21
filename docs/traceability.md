@@ -1,19 +1,16 @@
 # ShiftCircle — requirement-to-proof traceability
 
-**Derived from the test sources, not from the prose.** Checked on 2026-11-20 against `main` at
-`72ebd24` by grepping `@Test`, Playwright `test(...)` titles and the Flyway migrations. The
-sources hold **106 rules + 27 infrastructure + 248 api = 381 tests**, counted as `@Test` methods
-on their own line (no parameterised tests). The latest independent runs are dev-qa's: API at
-`f4496c6` is **356, 0 failures/errors/skipped**, in the default order (the random-seed run at that
-tip is this author's); web unit tests at `72ebd24` are **239 in 29 files**, 0 failed; Playwright
-against the real api, whole suite, gives desktop 86 and tablet 85 + 1 skipped, and the fixtures run
-22 (+56 skipped by design) and 21 (+57). Earlier, as history: this author's full API runs were 356
-at `8a2257a` (default and seed 20261121), 352 at `c8c05cd`, 351 at `dc6890e`; dev-qa's independent
-run at `c0dcaf3` was 348. Phase 3 at `d25414f` adds 1 rules test (the all-phase weekend probe), 2
-planner tests and 2 slice-1 tests; this author's full clean-worktree runs there are **381, 0
-failures/errors/skipped**, default order and random seed 20261121 (one Testcontainers SSL flake on
-the first random attempt, green on rerun); dev-qa's independent run at that tip is pending. A proof
-below names the test class and method that makes the claim, not the document that hopes it exists.
+**Derived from the test sources, not from the prose.** Checked on 2026-11-21 against `main` at
+`5d0f810` by grepping `@Test`, Playwright `test(...)` titles and the Flyway migrations. The
+sources hold **123 rules + 27 infrastructure + 272 api = 422 tests**, counted as `@Test` methods
+on their own line (no parameterised tests). dev-qa's independent run at `5d0f810` is **422 green,
+0 failures/errors/skipped**, in the default order and with random seed 20261121; web unit tests are
+**277**, 0 failed; Playwright against the real api, a fresh stack per viewport, is desktop **101
+passed / 0 failed** and tablet **100 passed + 1 skipped / 0 failed**; fixtures **22 + 21**. The 100
+dataset checksum is `3390148255...6539` with the payroll golden unchanged; the 120 checksum is
+`82b19cf8...32ca`. The round history and each earlier count are in `docs/review-rounds.md` R1–R61.
+A proof below names the test class and method that makes the claim, not the document that hopes it
+exists.
 
 **Path shorthand.** `RulesTest` = a class in `api/shiftcircle-rules/src/test/java/ca/shiftcircle/rules/`;
 `ApiTest` = a class in `api/shiftcircle-api/src/test/java/ca/shiftcircle/api/`;
@@ -38,7 +35,7 @@ by review or convention, with no code assertion.
 | U-10 | 4 overnight 12 h shifts PASS, 5th WARN | `HoursAndRunsRulesTest#u10PassesAtFourOvernightShiftsAndWarnsAtFive`; `RuleScenarioRunnerTest` (T5) | PASS |
 | U-11 | 3 per 7 d and 10 per 28 d; 4th in 7 d WARN, 11th in 28 d WARN, 7-day boundary PASS | `HoursAndRunsRulesTest#u11PassesAtThreeSixteenHourShiftsInSevenDays`, `#u11WarnsAtAFourthSixteenHourShiftWithinSevenDays`, `#u11CountsAnExtendedSixteenHourShift`, `#u11PassesWhenTheFourthShiftIsExactlySevenDaysAfterTheFirst`, `#u11WarnsAtAnEleventhSixteenHourShiftWithinTwentyEightDays` | PASS |
 | U-12 | 2 consecutive days off in 7; 48 h PASS, 47 h 59 m WARN, break boundary and leading/trailing breaks counted | `HoursAndRunsRulesTest#u12PassesWithFortyEightHoursOff`, `#u12CountsABreakOfTwentyFourHoursAsNoDayOff`, `#u12CountsABreakOfTwentyFourHoursOneMinuteAsOneDay`, `#u12IgnoresALongBreakFromAnEarlierWeek`, `#u12CountsLeadingAndTrailingBreaksInTheWindow`, `#u12WarnsWithFortySevenHoursFiftyNineMinutesOff`, `#u12CountsDaysOffAtTheBreakBoundary` | PASS |
-| U-14 | 48 h PASS, 48.25 h WARN, 60.25 h BLOCK; no override | `HoursAndRunsRulesTest#u14PassesAtExactlyFortyEightHours`, `#u14WarnsAtFortyEightHoursFifteenMinutes`, `#u14BlocksAtSixtyHoursFifteenMinutes`; override refusal in `AssignmentApiTest#aBlockRuleWithoutAnEmergencyOverrideCannotBeOverridden` | PASS |
+| U-14 | 48 h PASS, 48.25 h WARN, exactly 60.00 h WARN, 60.25 h BLOCK; no override | `HoursAndRunsRulesTest#u14PassesAtExactlyFortyEightHours`, `#u14WarnsAtFortyEightHoursFifteenMinutes`, `#u14BlocksAtSixtyHoursFifteenMinutes`, `#u14CountsN12AcrossMidnightAndBlocksAboveSixtyHours` (four N12 = 48 h pass; five = exactly 60 h WARN; plus a D8 = 68 h BLOCK); override refusal in `AssignmentApiTest#aBlockRuleWithoutAnEmergencyOverrideCannotBeOverridden` | PASS |
 | U-15 | Board shows under / approaching / in overtime for the current period; 71.99 h UNDER, exactly 72 h APPROACHING, 79.99 h APPROACHING, exactly 80 h IN_OVERTIME; last day and midnight-crossing entry stay in their own period | `ScheduleApiTest#overtimeStatusChangesAtThePayPeriodThresholdBoundaries`, `#overtimeStatusUsesThePeriodThatContainsTheBoardDateAndCountsAMidnightCrossing`, `#listsTheOfficerRowsWithAssignmentsAndOvertimeStatus`; `PlanningPage.test.tsx#shows the officer pay-period hours with the overtime status pill` | PASS |
 | P-01 | 80 h REG, 80.5 h → 0.5 OT15, 96 h → 80 REG + 16 OT15, rostered 16 h inside 80 h all REG | `PayAndShiftLengthRulesTest#p01TreatsEightyHoursAsRegular`, `#p01ClassifiesHalfAnHourBeyondTheThreshold`, `#p01TreatsRosteredHoursAndAPickedUpSixteenHourShiftAsDesigned`; `PayrollApiTest#adjustedTimesSplitPeriodOvertimeThroughThePayClassifier` | PASS |
 | P-01b | OT paid at 1.5× | `PayAndShiftLengthRulesTest#p01ClassifiesHalfAnHourBeyondTheThreshold` (rate 1.5); `PayrollExportGoldenTest#theLockedPeriodsExportMatchesTheGoldenFileAndTheActualHours` (OT15 rows) | PASS |
@@ -97,8 +94,8 @@ reaches; E1 also calls `expectDisclaimer`. E2–E5 rely on the web shell test fo
 | 2 | No secrets in the repo | `.env.example` only; compose requires the variables; the API refuses to start | `StartupSecretsTest#startsWhenBothSecretsAreSet`, `#refusesToStartWithoutTheDatabasePassword`, `#refusesToStartWithoutTheJwtSecret`, `#refusesAShortJwtSecret`; `README.md` §4 | PASS |
 | 3 | Never weaken a safeguard | 422/ack/override contract; maker/checker; locked-period trigger; append-only audit; no auto-approval; a database conflict answers a problem document, not a 500 | `AssignmentApiTest#aBlockRuleWithoutAnEmergencyOverrideCannotBeOverridden`, `#anEmergencyOverrideMustAlsoAcknowledgeTheWarnings`, `#aShortOverrideReasonIsRefused`; `AssignmentMoveCancelApiTest#cancelNeedsAReasonAndTheCurrentVersion`; `RuleSetApiTest#t10TheAuthorCannotApproveTheirOwnDraft`; `PayrollApiTest#aLockedPeriodIsReadOnlyInTheApiAndInTheDatabase`; `AuditApiTest#theTrailCannotBeChangedThroughTheApiOrTheDatabase`; `SchemaConstraintsTest#auditEventsCannotBeUpdatedOrDeleted`; `ConstraintProblemApiTest#anOverlappingEmergencyOverrideAnswersAConflictAndSavesNothing`, `#movingAShiftOntoAnotherOneAnswersAConflict` | PASS |
 | 4 | Every rule needs boundary tests, reviewed by a human | Rule boundary classes + scenario runner; **human review waived** by the lead, AI verifiers instead | `RestRulesTest`, `HoursAndRunsRulesTest`, `PayAndShiftLengthRulesTest`, `RuleRowValidatorTest`, `RuleScenarioRunnerTest`; exception recorded in `HANDOFF.md` §5 and `ai-dev-log` 24 | PARTIAL — automated boundary tests exist; no human review has taken place (waived, not hidden) |
-| 5 | Log AI use, corrections and rejections | `docs/ai-dev-log.md` (63 entries) and `docs/review-rounds.md` | Process only; the log is part of the submission | PROCESS |
-| 6 | Keep docs in sync; record new decisions as ADRs | `docs/decisions.md` ADR-001…ADR-023; this traceability file | Process only; this document is itself the sync check | PROCESS |
+| 5 | Log AI use, corrections and rejections | `docs/ai-dev-log.md` (phase 1–3 entries) and `docs/review-rounds.md` | Process only; the log is part of the submission | PROCESS |
+| 6 | Keep docs in sync; record new decisions as ADRs | `docs/decisions.md` ADR-001…ADR-027; this traceability file | Process only; this document is itself the sync check | PROCESS |
 | 7 | Small descriptive commits; the lead pushes | Local commits on `main`; no agent push | `git log` (small commits per slice); README/CLAUDE instruction | PROCESS |
 | 8 | Footer line on every screen | Shared app shell + wall-display footer | `AppShell.test.tsx#shows the required footer disclaimer on every screen`; `PlanningPage.test.tsx#keeps the footer disclaimer`; `WallDisplayPage.test.tsx` (disclaimer assertion); `e2e/tests/support.ts#expectDisclaimer` used by E1 | PASS |
 
@@ -129,6 +126,8 @@ reaches; E1 also calls `expectDisclaimer`. E2–E5 rely on the web shell test fo
 | 021 | Save-time safeguards: one scope guard, one officer lock, overrides never swallow warnings | `AssignmentApiTest#concurrentSavesCannotBothBypassBlockRules`, `#anEmergencyOverrideMustAlsoAcknowledgeTheWarnings`; `AssignmentMoveCancelApiTest#twoConcurrentMovesWithOneVersionCannotBothWin` | PASS |
 | 022 | Lock/unlock/export facility-wide; double lock idempotent | `PayrollApiTest#lowConcurrentLocksWriteExactlyOneAuditRow`, `#authorizationAndScopeCells`; `SchedulePublishApiTest` for publish scope | PASS |
 | 023 | Only EMERGENCY-policy Blocks can be overridden; U-08/U-09/U-14 cannot | `RuleRowValidatorTest#aMustRulesDocumentedOverridePolicyCannotBeChanged`; `AssignmentApiTest#aBlockRuleWithoutAnEmergencyOverrideCannotBeOverridden` | PASS |
+| 026 | Quarter planner: deterministic heuristic, engine-verified draft, patterns, commit and absences | `PlannerApiTest#theSameSeedAndDataProduceTheSamePlan`, `#noDraftAssignmentViolatesABlockRuleAndDefaultPatternsStayAtEightyHours`, `#previewAndCommitWriteEveryShiftAtomicallyAndAuditOnce`, `#aSecondDraftOverACommittedQuarterIsRefusedWithAReason`, `#theCommittedPlanStaysReadableAndComparesWithTheCurrentBoard`; `PlannerPreferenceKindsTest#twelveHourCrewsScoreAsTheirTemplateSays`; `PlannerAbsenceApiTest`; `PlanGeneratorFteTest#casualsFillGapsWithoutExceedingTheirTarget`; `PlanGeneratorCrewTest#dayAndNightCrewsStaySeparateAndCoverEveryDay`; `WeekendRotationProbeTest`; `RotatingBreakProbeTest` | PASS |
+| 027 | D12/N12 templates and additive rule-set v2; 100 seed isolated | `HoursAndRunsRulesTest#d12AndN12AreTwelveHourKindsWithNominalSevenTwenty`, `#u02WarnsAfterAnN12ThatEndsWhenTheD8Starts`, `#u09FourD12PassAndFiveBlock`, `#u10FourN12PassAndFiveWarn`, `#u14CountsN12AcrossMidnightAndBlocksAboveSixtyHours`, `#u05PassesAtSixteenHoursForAD12ExtensionAndBlocksFifteenMinutesOver`; `PlanGeneratorCrewTest#dayAndNightCrewsStaySeparateAndCoverEveryDay`; `ReferenceDataMatchesRuleRowsTest#v1SeedRowsMatchTheCodeRuleSet`; `DemoResetApiTest#resetsTwiceToTheSameSeededStateAndAuditsIt` | PASS for the rules and isolation; the V6 baseline is seeded PUBLISHED by migration without maker/checker (PROCESS, recorded in ADR-027) |
 
 ## 6. Other Must requirements and NFRs (spot-check)
 
@@ -196,8 +195,16 @@ The suite in `e2e/tests` covers every screen by role and state at desktop 1440×
 768×1024, runs axe WCAG 2.1 AA on every screen reached (a serious or critical finding fails), and
 runs E1 and E3 by keyboard only. The whole matrix, the captures and the defects found are in
 [`e2e/COVERAGE.md`](../e2e/COVERAGE.md). Results below are dev-qa's independent real-api run at
-`72ebd24`: desktop 86 passed, tablet 85 + 1 skipped (the TV-size check is desktop-only); fixtures
-22 passed (+56 skipped by design) and 21 (+57).
+`5d0f810`: desktop 101 passed / 0 failed, tablet 100 + 1 skipped / 0 failed (the TV-size check is
+desktop-only); fixtures 22 passed and 21.
+
+**Phase 3 specs added to the same matrix:** `planner`, `planner-absences`, `planner-committed`,
+`planner-preferences-committed`, `planner-a11y`, `dataset120`, `reset-datasets`, `reset`,
+`absence-correction`, `clear-actual`, `publish-period`, `move-cancel`, `week-navigation`,
+`time-grid-refresh` and `layout`. They cover the planner draft/gaps/compare/commit and its axe and
+keyboard path, the preferences-after-commit case (N12 12 h NIGHT reads Met), dataset 120, the reset
+card, absence correction and clear-actual, the publish action, move/cancel, week navigation and the
+time-grid refresh.
 
 | Spec (`e2e/tests/`) | What it proves | Status |
 |---|---|---|
@@ -265,3 +272,7 @@ no assertion was weakened.
 | Preferences after a commit evaluate the committed plan | `PlannerApiTest#theCommittedPlanStaysReadableAndComparesWithTheCurrentBoard` (100 rows, none `NO_DRAFT`, at least one MET/PARTLY/NOT_MET) | PASS |
 | All 120 gaps are the known ESC evening trade-off | `Demo120ResetApiTest#resetsToTheCrewDatasetTwiceThenBackTo100` (GAPS120 is exactly `{ESC, EVENING, 38}`; docs/ADR/spec state it) | PASS |
 | D12/N12 preferences use the template row, not a code list | `PlannerPreferenceKindsTest#twelveHourCrewsScoreAsTheirTemplateSays` (120: scorecard preferences.met == compare preferencesMet; N12 12/NIGHT MET; D12 asked 8h evenings NOT_MET with plain reasons; nights bands/n12 count still valid) | PASS |
+| A recorded extension moves the rule check to the actual end | `ActualTimesInRulesTest#aFourHourExtensionWarnsUnderU04AndKeepsTheNextShiftRestChecked` (U-04 WARN and the next shift's rest), `#aSixHourExtensionBlocksUnderU05` (18 h in 24 h BLOCK), `#anExtensionOfExactlySixteenHoursInTwentyFourDoesNotBlockUnderU05` (the limit passes), `#aShorterActualAlsoMovesTheRestWindow`, `#anAbsenceEntryKeepsTheRosterTimes`, `#bothAnswersInOnePutAreRefused` | PASS |
+| The planner's 21-29 Dec look-back history uses the same actual resolver | `PlannerHistoryActualApiTest#anExtensionOnTheLookBackHistoryIsReadByTheGenerator` (an extension on a seeded history shift changes the generated plan) | PASS |
+| Shift-less officers are not counted as MET (candidate 4) | Not built: no `NOT_ROSTERED` status; the 120 plan's 13 shift-less casuals still read their asked criteria as MET (26 criteria of 195). The fix is queued, not delivered | NOT COVERED (known limit) |
+| The two extra selectable patterns are not added | Probe only at `p3-api-pat 3f94937` (not merged): 8 h 7/3+7/4 warns U-12 and U-14 in all 21 phases and is 56-88 h per period; 12 h 4/2+4/3 warns U-14 at exactly 60.00 h in a 168 h window, 96-108 h per period. Both Block-free; not added (decision 15) | NOT COVERED (measured known limit) |
