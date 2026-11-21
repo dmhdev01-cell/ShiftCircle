@@ -21,6 +21,8 @@ Block sentence, V10 and the per-officer pattern. Author run from a clean worktre
 default order, 0 failures/errors/skipped (dev-qa's gate runs both orders); web **290**. The 120 and
 100 drafts are sha256-identical to `c9ac073`; the checksums and payroll golden are unchanged.
 
+**Release 3 (`p4-unit`, code tip `ee4020c`; gate pending).** The dated unit closures, relief and staffing branch adds **6 api tests** (`UnitAvailabilityMigrationTest`, `UnitApiTest`, `UnitPlanningApiTest`, plus the identity assertions in `Demo120ResetApiTest`). Author run: **450 = 123 + 27 + 300** in the default order; web **304**; dev-qa gate pending. With no closure rows the 120/100 fingerprints and all checksums are unchanged.
+
 **Path shorthand.** `RulesTest` = a class in `api/shiftcircle-rules/src/test/java/ca/shiftcircle/rules/`;
 `ApiTest` = a class in `api/shiftcircle-api/src/test/java/ca/shiftcircle/api/`;
 `InfraTest` = a class in `api/shiftcircle-infrastructure/src/test/java/ca/shiftcircle/infrastructure/`;

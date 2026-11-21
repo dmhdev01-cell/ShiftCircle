@@ -70,6 +70,8 @@ default order (dev-qa's gate runs both orders); web **290** at the merged tip. T
 5,103 assignment rows and the 100 draft 6,586, each sha256-identical to `c9ac073`; the 100/120
 checksums and the payroll golden are unchanged. dev-qa's full gate is pending.
 
+**Release 3 unit closures and staffing (`p4-unit`, code tip `ee4020c`; dev-qa gate pending).** The branch adds **6 api tests**: V11 and the shared `unit_active_on` function, the Units/closures API with its plain validation, the flagged future shifts, the staffing split/formula/allocations, the mid-quarter Unit C close with relief and determinism, and the no-closure identity assertions in `Demo120ResetApiTest`. Author run: **450 = 123 rules + 27 infrastructure + 300 api** in the default order after the docs freeze, 0 failures/errors/skipped; web **304** at dev-build2's tip; Playwright counts follow the merged-stack run. The 100/120 checksums, payroll golden and both plan fingerprints are unchanged while no unit is closed.
+
 ## 3. Rule boundary matrix
 
 Each line is at least three tests: just under, exactly at, just over. Times are local (America/Regina).

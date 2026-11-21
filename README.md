@@ -193,6 +193,11 @@ adds 19 api tests: an author run is **444 = 123 + 27 + 294** in the default orde
 orders), web **290**; dev-qa's gate is pending. The 120 and 100 drafts are shift-for-shift
 sha256-identical to `c9ac073`, and the checksums and payroll golden are unchanged.
 
+Release 3 (`p4-unit`, final tip at handover; dev-qa gate pending) adds dated unit closures,
+closed-unit relief and the staffing estimate. Its 6 api tests make an author run **450 = 123 + 27
++ 300** in the default order, web **304**; with no closure rows the 120/100 fingerprints and all
+checksums stay identical.
+
 **One viewport per fresh stack.** The real-api specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop`, then `docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait`, then `--project tablet`.
 
 **Earlier fresh-clone check (history at `f1d696d`):** both viewports on one stack gave 21 passed, 1 skipped and 4 failed, all 4 on tablet after desktop had changed the data; tablet alone on a fresh stack gave 12 passed, 1 skipped (the TV-size check runs on desktop only). The `--add-host` line was run on macOS; on Linux it is **UNVERIFIED** here (`--network host` with `BASE_URL=http://localhost:8080` is the alternative). Not run by this author: the `api-test` service (the builders and QA run the same Maven build; counts per round are in `docs/review-rounds.md`) and the web unit-test line in this clone (the same command passes in the branch worktrees). The web unit tests write `web/node_modules` with Linux binaries.

@@ -112,6 +112,8 @@ Latest independent run (dev-qa, the final tip `5d0f810`): API **422 = 123 rules 
 
 Phase 3 preference/pattern branch `p3-pref` (author run, dev-qa gate pending): **444 = 123 + 27 + 294** in the default order (dev-qa runs both), web **290**; the 120 plan stays 38 gaps / 7 warnings / 5,103 shifts / 107 officers and the 100 plan is unchanged, with both drafts sha256-identical to `c9ac073` and every checksum and the payroll golden unchanged.
 
+Release 3 unit closures/staffing branch `p4-unit` (author run, dev-qa gate pending): **450 = 123 + 27 + 300** in the default order, web **304**; V11 adds dated closures and the shared `unit_active_on`, closed-unit officers work relief, the Staffing tile uses the 12 h/8 h formula and 20% leave, and with no closure rows the 120/100 fingerprints and all checksums are unchanged.
+
 ## Phase 3 complete
 
 The quarter planner (ADR-026), the D12/N12 crews and rule set v2 (ADR-027), the 120 dataset and the
