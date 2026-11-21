@@ -689,7 +689,12 @@ export interface PlannerWindow {
 
 export interface PlannerScorecard {
   coverage: { shortBlockDays: number; totalBlockDays: number };
-  warnings: { total: number; byRule: { ruleName: string; count: number }[] };
+  warnings: {
+    total: number;
+    byRule: { ruleName: string; count: number }[];
+    /** The api's plain sentence about the warnings this plan carries. */
+    note?: string;
+  };
   preferences: {
     asked: number;
     met: number;
@@ -711,6 +716,8 @@ export interface PlannerScorecard {
   };
   overtime: { officersOver: number; hoursOver: number; thresholdHours: number };
   generatedMs: number;
+  /** Hours per officer across the quarter, min/avg/max. */
+  quarterHours?: { min: number; avg: number; max: number };
   weekends?: { min: number; avg: number; max: number };
 }
 

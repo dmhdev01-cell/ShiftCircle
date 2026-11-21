@@ -58,6 +58,15 @@ describe('the quarter plan', () => {
     expect(screen.getByText('Overtime built in')).toBeInTheDocument();
     expect(screen.getByText('Generated in')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Night shifts by seniority' })).toBeInTheDocument();
+    // The api's plain sentence about the warnings, and the quarter in numbers.
+    expect(screen.getByText(/rotating pattern/)).toBeInTheDocument();
+    expect(screen.getByText(/Quarter hours per officer: 480 min · 512 avg · 546 max/)).toBeInTheDocument();
+    expect(screen.getByText(/Weekends worked: 4–11/)).toBeInTheDocument();
+    // The pattern picker speaks plainly, with the rotating default first.
+    const pattern = screen.getByLabelText('8-hour pattern');
+    expect(within(pattern).getAllByRole('option')[0]).toHaveTextContent(
+      'Rotating 5 on, 2 off (weekends rotate)',
+    );
     expect(screen.getByRole('heading', { name: 'Preferences by kind' })).toBeInTheDocument();
     // A draft is not a roster: the tab says so rather than showing an empty grid.
     expect(screen.getByRole('tab', { name: /Gaps/ })).toBeInTheDocument();
