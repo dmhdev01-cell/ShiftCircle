@@ -31,15 +31,9 @@ real-api vs fixtures split. A stale scratch worktree from an earlier seat may ex
 
 ## Known gaps and half-made decisions (do not re-litigate silently)
 
-`docs/traceability.md` §"What is not claimed" is the authoritative list. Still open at this tip:
-FR-07 notice check and per-officer "changed since published" flag (only the count exists);
-NFR-09 generated OpenAPI/Swagger (no springdoc); ADR-015 shift-time editing is seed-level, not an
-admin screen; the performance layer is the JUnit `PerformanceSmokeTest` only (no Playwright timing
-assertion); the authorization matrix is grouped into area methods rather than one method per cell;
-and the rule tables have no Excel round-trip (`docs/10` §8). The scenario library lives in
-`RuleScenarioRunner` (Java), not the `scenarios/*.json` files the test-strategy header once claimed.
-Submission work that is the person's, not an agent's: the ≤ 5-minute demo recording (script is
-`docs/demo-script.md`, build record is `BUILD_RECORD.md`).
+`docs/traceability.md` §"What is not claimed" and `docs/10-testing.md` §8 are the authoritative lists. Still open at the final tip `5d0f810`: FR-07 notice check and per-officer "changed since published" flag (only the count exists); NFR-09 generated OpenAPI/Swagger (no springdoc); ADR-015 shift-time editing is seed-level, not an admin screen; the rule tables have no Excel round-trip; the performance layer is the JUnit `PerformanceSmokeTest` only; the authorization matrix is grouped by area method plus per-endpoint tests, not one method per cell; the scenario library lives in `RuleScenarioRunner` (Java), not JSON files.
+
+Phase 3 known limits: the planner does not enforce qualifications (0 failing block-days on 120 by construction, 346 on the 100 seed); no leave is seeded (the absence input is a read-only skip); payroll overtime stays per period (P-01), not cycle-averaged; a late-recorded actual is not re-checked against later shifts; rule set v2 is seeded PUBLISHED by V6 (baseline exception, no maker/checker); 13 shift-less casuals still read their wishes as MET on the 120 plan (candidate 4, not built); the two extra patterns were measured and not added (decision 15). Submission work that is the person's, not an agent's: the ≤ 5-minute demo recording (script is `docs/demo-script.md`, build record is `BUILD_RECORD.md`), the push, and reading `DECISIONS-FOR-THE-PERSON.md`.
 
 ## Done, committed on `main`
 
@@ -110,59 +104,31 @@ Submission work that is the person's, not an agent's: the ≤ 5-minute demo reco
 | 13x Candidate-2 names, F5/F6/F9 | `6a6a667` | 120 uses DemoNames (unique, deterministic, no FirstN/LastN); checksum includes identities, `82b19cf814acde5c5740f9a9aa1162e61d4b7f5598848f99861d2f4ea66732ca`; 100 checksum unchanged. U-14 warning group "Week over 48 hours"; Compare preferencesMet == scorecard.preferences.met; /planner/preferences after commit evaluates the committed plan (no NO_DRAFT). GAPS120 exactly {ESC, EVENING, 38} (ESC has D12/N12 only, no E8; known/deliberate). Planner 13/13, 120 2/2, absence 3/3. Count 411 = 123+27+261. |
 | 13y F10 preference kinds | `3124c2e` | `ShiftKinds` derives 8/12/16 and DAY/EVENING/NIGHT from the template row; generator scorecard, compare and `/planner/preferences` use it (no copies). D12=12h DAY, N12=12h NIGHT. Red-first test `PlannerPreferenceKindsTest`: scorecard.met == compare.preferencesMet, N12 12/NIGHT MET, D12 asked 8h NOT_MET; nights bands/n12 count valid. Plan unchanged: 120 38 ESC/EVENING gaps, 7 warnings, zero Block, commit 5,103; 100 unchanged. **412 = 123 + 27 + 262**. |
 | merge web-stable | `5e7765f` | ux-audit + publish-action + period-shape + web-stable merged `--no-ff`; planning board move/cancel and publish-period actions, audit viewer screen, error boundaries, real-api contract samples, web test waits; ai-dev-log numbering settled at 68/69/70; 301 tests at the merge tip |
+| 13z candidate 1 + demo walk | `99703a9` | p3-int frozen after review-r2 (419 = 123+27+269) and dev-design's walk: 38 gaps / 7 warnings, reset 120, generate, commit 5,103, supervisor fill, U-09 refusal, audit. Candidate-2 defects: D-1 names First92 Last92, D-2 commit time in UTC, D-3 raw FTE keys, D-4 note said 150, D-5 audit warning list |
+| 14a candidate 2 | `c2c8dba` | p3-int + web + ds2 + the seam test; author 421, web 277, Playwright desktop 100/0 and tablet 99+1/0. dev-design's re-walk found F6/F10: D12/N12 preferences read as 8 h DAY (scorecard 68 vs Compare 195); review-r2 confirmed F10; fix on ds3 |
+| 14b candidate 3 / final | `5d0f810` | ds3 + web; F10 fixed by `ShiftKinds`; independent 422 = 123+27+272 both orders, web 277, Playwright desktop 101/0 and tablet 100+1/0, fixtures 22/21; reset 100/120 checksums reproduced; local main fast-forwarded and tagged `sc-verified-5d0f810` |
 
-Latest independent runs (dev-qa): API at `f4496c6` is **356 = 101 rules + 27 infrastructure + 228 api tests** in the default order, 0 failures/errors/skipped (the random-seed run at that tip is this author's); web at `72ebd24` is **239 vitest tests in 29 files**, 0 failed; Playwright against the real api, whole suite, desktop **86** / tablet **85 + 1 skipped**, fixtures desktop 22 (+56 skipped by design as `@api`) / tablet 21 (+57). The UI-test defects D1–D11 are pinned by the eleven new specs and fixed ([`e2e/COVERAGE.md`](e2e/COVERAGE.md)). Earlier, as history: this author's full API runs were 356 at `8a2257a` (default and seed 20261121), 352 at `c8c05cd`, 351 at `dc6890e`; dev-qa's 348 at `c0dcaf3`; 301 at `5e7765f`; and dev-qa's 4 red at `211e8f9` were fixed at `d2d120e`. The infrastructure count moved from 22 to 27 with the web chain (`DemoDataReadinessTest`, `ReferenceDataHealthIndicatorTest`). Dataset checksum `3390148255db715844c4df90f553ae342530417621539b23499f638c5b126539` (roster and the 84 roster weeks); the T8 golden file is byte-identical.
+Latest independent run (dev-qa, the final tip `5d0f810`): API **422 = 123 rules + 27 infrastructure + 272 api**, 0 failures/errors/skipped, default order and random seed 20261121; web **277** vitest; Playwright against the real api, a fresh stack per viewport, desktop **101 passed / 0 failed** and tablet **100 passed + 1 skipped / 0 failed**; fixtures **22 / 21**. Dataset checksums: 100 roster and the 84 periods `3390148255db715844c4df90f553ae342530417621539b23499f638c5b126539`, payroll golden `d502848dad316ae00d7f7f90ccd01be8f82aa9332391f13cfb41b1b2d5e9d06a`, 120 `82b19cf814acde5c5740f9a9aa1162e61d4b7f5598848f99861d2f4ea66732ca`. The full command is in README §4; counts count only from a clean worktree.
 
-## Next, in the lead's priority order
+## Phase 3 complete
 
-### a) Step 8 backend: overtime (E1/E2, T6)
+The quarter planner (ADR-026), the D12/N12 crews and rule set v2 (ADR-027), the 120 dataset and the
+reset selector, the read-only planned-absence input, actual times in the rule checks and the trial
+fixes are all on `5d0f810`. The phase 3 review/QA record is R48–R61 in `docs/review-rounds.md`; the
+acceptance table is in the mission folder.
 
-**Done** (commits `ba8f95f`, `6e68a8d`). `OvertimeRanker` + `RankingPolicy` in
-`shiftcircle-rules`; `OvertimeController`/`OvertimeService`; `/me/schedule` in
-`MyScheduleQuery`; V4 adds `CONFIRMED` to `overtime_offer`. Candidates are limited to the
-caller's unit scope (overtime totals are scope-only data); confirm accepts the offer-time
-warnings but refuses a *new* one. Tests: `OvertimeRankerTest` (10), `OvertimeApiTest` (9),
-matrix cells.
+## Before submission
 
-### b) Step 11 backend: rules publish pipeline (T7/E3, T10, T13)
-
-**Done** (commits `2dc1b1b`, `3cc55e6`). `RuleRowValidator` (T13), `RuleScenarioRunner`
-(T1-T5 + O-02 ranking), `RuleSetService`/`RuleSetController` (drafts, row edits, build with
-validate→compile→scenarios→dry run, submit, maker/checker approve/reject, publish with hot swap,
-row fingerprint), `RuleRowsRepository` + `PublishedRuleSet` boot from PostgreSQL, `/version`
-reports the live version. Tests: `RuleSetApiTest` 4 (T13, T10, T7 dry run + post-publish WARN,
-E3), validator 13, scenarios 3.
-
-### c) Step 12 should-items — all done
-
-1. **Wall display** `GET /display/today` (`6649eb1`); screen merged at `17308b7`.
-2. **Audit viewer** `GET /audit-events` (`21af15c`).
-3. **Absences** already on main from step 9 (`POST /absences`, assignment + type, tested in
-   `PayrollApiTest`); **schedule publish** `POST /schedule-periods/{id}/publish` (`f300cd0`), and
-   the periods it publishes now exist (`4a24ca9`): the generator seeds one roster week per unit
-   and week, so a fresh stack has a draft week to publish, and the board hands over the id
-   (`530ab82`). The web's Publish action is dev-build2's (branch `publish-action`).
-4. **NFR-05 performance smoke** (`51a4cc5`, docs/10).
-5. **Boot validation** (`062da95`, `62dd4fc`): the published rows run the same validator as the
-   publish path, and unreadable rows stop the boot instead of falling back to v1.
-
-### d) Submission work (HANDOFF step 13)
-
-- Playwright E1-E5 against the real api on main (`e2e/`, dev-build2's specs merged at `17308b7`).
-- README setup pass, `BUILD_RECORD.md`, demo script/recording.
-- `PATCH`/`DELETE /assignments` are built (`c1dd6ad`); the exact shapes went to dev-build2 so the
-  web can bring move/cancel back. Excel round-trip for rule tables remains **not built**, and
-  docs/10 §8 says so plainly.
-- The demo script has no roster-publish beat yet: it can be written once the web's Publish action
-  lands (dev-build2). The api side is ready and proven on a fresh dataset.
-
-**Before submission:** Playwright E2E E1–E5 against the real api, README setup, BUILD_RECORD,
-demo script/recording.
+- dev-design measures the 2-page Chromium render of `BUILD_RECORD.md`.
+- dev-qa audits the final counts and the acceptance table.
+- The person records the ≤ 5-minute demo from `docs/demo-script.md` and pushes; no agent pushes.
+- The remaining known limits are listed in `docs/traceability.md` and `docs/10-testing.md` §8; do
+  not present them as built.
 
 ## Gotchas for the next seat
 
-- A rules-admin PUT now refuses rather than drops: unknown keys (unless already on the stored row), wrong types, missing non-nullable values, lists over 16 values, minRestHours outside 8–24 and a bad afterShiftKind are 400 naming the column. There is no V5 migration; the one undeclared column the v1 rows carry (`minExtensionMinutes`) is accepted because it is on the stored row. `RuleRowEditApiTest` is the HTTP proof; the validator is total, so a stored bad value is a validation error, not a 500.
-- Host owns 8080/5432/5433: use `SC_WEB_PORT=18080 SC_API_PORT=28081 SC_DB_PORT=25432`.
+- A rules-admin PUT now refuses rather than drops: unknown keys (unless already on the stored row), wrong types, missing non-nullable values, lists over 16 values, minRestHours outside 8–24 and a bad afterShiftKind are 400 naming the column. The row-edit contract needed no migration; the one undeclared column the v1 rows carry (`minExtensionMinutes`) is accepted because it is on the stored row. `RuleRowEditApiTest` is the HTTP proof; the validator is total, so a stored bad value is a validation error, not a 500.
+- Host owns 8080/5432/5433: use `SC_WEB_PORT=18080 SC_API_PORT=28081 SC_DB_PORT=25432`, and pass `-p <name>` for any test stack: `docker-compose.yml` pins `name: shiftcircle`, the person's trial project.
 - Tests only in Docker; Testcontainers needs the socket and `TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal`.
 - `sc.demo.generate=false` enables the demo profile in tests without generating 100 officers.
 - Tests share one PostgreSQL container but each API class gets its own database
@@ -174,6 +140,10 @@ demo script/recording.
   unanchored forms each swallowed a Java package (`rules/build/`, `api/coverage/`). Run
   `./scripts/check-ignored-sources.sh` before committing and again in the clean worktree.
 - Testcontainers 2.0 artifact names: `testcontainers-postgresql`, `testcontainers-junit-jupiter`.
+- A demo reset is asynchronous and one at a time; a second reset or a planner generate/commit while one runs is 409. Poll `/api/v1/demo/reset/status`; the checksum names the dataset (100 `3390...6539`, 120 `82b19...32ca`).
+- The planner window is fixed at 4 Jan – 11 Apr 2027, seven periods. The 8 h default is `ROTATING_5_2`; 12 h crews come from `rotation_pattern.code`. Do not change either without ADR-026/027.
+- U-14 passes at exactly 48 h and at exactly 60 h (60 is a WARN); it blocks only above 60. docs/05 and docs/10 say so, and `HoursAndRunsRulesTest#u14CountsN12AcrossMidnightAndBlocksAboveSixtyHours` pins the 60.00 case.
+- Where a time entry exists, the rule facts use the actual end (U-01/U-02/U-04/U-05). A late-recorded actual is not re-checked against later shifts (known limit). `ShiftKinds` is the only template-to-preference classification; do not re-add D12/N12 cases.
 - Boot 4 needs `spring-boot-flyway` explicitly or the app reports readiness with no schema.
 - JdbcTemplate `query(String, RowCallbackHandler, Object...)` needs the rows handler cast and every
   placeholder bound; `queryForList` returns `java.sql.Date` for dates.
