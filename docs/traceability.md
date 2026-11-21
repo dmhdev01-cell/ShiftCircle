@@ -2,15 +2,18 @@
 
 **Derived from the test sources, not from the prose.** Checked on 2026-11-20 against `main` at
 `72ebd24` by grepping `@Test`, Playwright `test(...)` titles and the Flyway migrations. The
-sources hold **101 rules + 27 infrastructure + 228 api = 356 tests**, counted as `@Test` methods
+sources hold **106 rules + 27 infrastructure + 244 api = 377 tests**, counted as `@Test` methods
 on their own line (no parameterised tests). The latest independent runs are dev-qa's: API at
 `f4496c6` is **356, 0 failures/errors/skipped**, in the default order (the random-seed run at that
 tip is this author's); web unit tests at `72ebd24` are **239 in 29 files**, 0 failed; Playwright
 against the real api, whole suite, gives desktop 86 and tablet 85 + 1 skipped, and the fixtures run
 22 (+56 skipped by design) and 21 (+57). Earlier, as history: this author's full API runs were 356
 at `8a2257a` (default and seed 20261121), 352 at `c8c05cd`, 351 at `dc6890e`; dev-qa's independent
-run at `c0dcaf3` was 348. A proof below names the test class and method that makes the claim, not
-the document that hopes it exists.
+run at `c0dcaf3` was 348. Phase 3 at `d25414f` adds 1 rules test (the all-phase weekend probe), 2
+planner tests and 2 slice-1 tests; this author's full clean-worktree runs there are **377, 0
+failures/errors/skipped**, default order and random seed 20261121 (one Testcontainers SSL flake on
+the first random attempt, green on rerun); dev-qa's independent run at that tip is pending. A proof
+below names the test class and method that makes the claim, not the document that hopes it exists.
 
 **Path shorthand.** `RulesTest` = a class in `api/shiftcircle-rules/src/test/java/ca/shiftcircle/rules/`;
 `ApiTest` = a class in `api/shiftcircle-api/src/test/java/ca/shiftcircle/api/`;
