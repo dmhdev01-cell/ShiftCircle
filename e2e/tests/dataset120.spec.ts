@@ -222,8 +222,8 @@ test.describe('dataset 120', () => {
     // The rules refuse a fifth consecutive 12 h day: four committed D12 days,
     // then a preview of the day after (U-09, Block).
     const run = await fifthDayOfFour(request);
-    const supervisor = await apiAs(request, 'm.ellis');
-    const fifth = await supervisor.post('/rule-checks', {
+    const checkApi = await apiAs(request, 'm.ellis');
+    const fifth = await checkApi.post('/rule-checks', {
       change: {
         type: 'ASSIGN',
         employeeId: run.employeeId,
