@@ -34,7 +34,7 @@ CREATE TABLE unit_staffing (
 CREATE TABLE staffing_setting (
     id               integer PRIMARY KEY CHECK (id = 1),
     leave_allowance  numeric(4, 3) NOT NULL DEFAULT 0.200
-        CHECK (leave_allowance >= 0 AND leave_allowance < 1),
+        CHECK (leave_allowance >= 0 AND leave_allowance <= 0.50),
     updated_at       timestamptz NOT NULL DEFAULT now(),
     updated_by       uuid REFERENCES app_user (id)
 );
