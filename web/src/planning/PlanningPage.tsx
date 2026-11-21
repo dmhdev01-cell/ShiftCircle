@@ -21,6 +21,7 @@ import { OverrideDialog } from './OverrideDialog';
 import { PublishPeriodButton } from './PublishPeriodButton';
 import { RosterGrid } from './RosterGrid';
 import { RuleCheckPanel } from './RuleCheckPanel';
+import { RulesHelpDialog } from './RulesHelpDialog';
 import { ShiftActionsDialog } from './ShiftActionsDialog';
 import { useRuleCheckedMutation } from './useRuleCheckedMutation';
 import { useSchedule } from './useSchedule';
@@ -503,22 +504,13 @@ export function PlanningPage() {
         />
       </Box>
 
-      {helpOpen && !ruleCheckOpen ? (
-        <Card>
-          <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Typography sx={{ fontWeight: 600, fontSize: 15 }}>Rule check</Typography>
-            <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
-              Pick an empty cell to propose a shift. The rules are checked before anything is
-              saved, and a rule that blocks the change has to be overridden with a written reason.
-            </Typography>
-            <Box>
-              <Button variant="outlined" color="primary" onClick={() => setHelpOpen(false)}>
-                Close
-              </Button>
-            </Box>
-          </CardContent>
-        </Card>
-      ) : null}
+      {/* Observation 29: the help is a real legend, read from the live rule
+          tables, and never opens on top of the rule-check panel. */}
+      <RulesHelpDialog
+        open={helpOpen && !ruleCheckOpen}
+        onClose={() => setHelpOpen(false)}
+        roleId={role.id}
+      />
 
       {readOnly ? (
         <Typography role="note" sx={{ fontSize: 13, color: colour.text.secondary }}>

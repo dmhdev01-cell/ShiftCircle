@@ -97,13 +97,18 @@ export function MyPreferencesCard() {
       daysOff.join(',') !== prefs.daysOff.join(','));
   const singleLength = prefs !== null && prefs.allowedLengths.length === 1;
 
+  /** Any edit makes an earlier "Saved" message stale: clear it. */
+  const touch = () => setStatus(null);
+
   const toggleTime = (part: PreferenceTimeOfDay) => {
+    touch();
     setTimesOfDay((current) =>
       current.includes(part) ? current.filter((entry) => entry !== part) : [...current, part],
     );
   };
 
   const toggleDay = (day: string) => {
+    touch();
     setDaysOff((current) => {
       if (current.includes(day)) return current.filter((entry) => entry !== day);
       if (prefs && current.length >= prefs.maxDaysOff) return current;
@@ -169,7 +174,10 @@ export function MyPreferencesCard() {
                     control={
                       <Radio
                         checked={shiftLength === length}
-                        onChange={() => setShiftLength(length)}
+                        onChange={() => {
+                          touch();
+                          setShiftLength(length);
+                        }}
                         slotProps={{ input: { 'aria-label': `${length} h` } }}
                       />
                     }
@@ -179,7 +187,13 @@ export function MyPreferencesCard() {
               })}
               <FormControlLabel
                 control={
-                  <Radio checked={shiftLength === null} onChange={() => setShiftLength(null)} />
+                  <Radio
+                    checked={shiftLength === null}
+                    onChange={() => {
+                      touch();
+                      setShiftLength(null);
+                    }}
+                  />
                 }
                 label={<span style={{ fontSize: 14 }}>No preference</span>}
               />
@@ -220,7 +234,10 @@ export function MyPreferencesCard() {
                 control={
                   <Checkbox
                     checked={timesOfDay.length === 0}
-                    onChange={() => setTimesOfDay([])}
+                    onChange={() => {
+                      touch();
+                      setTimesOfDay([]);
+                    }}
                     slotProps={{ input: { 'aria-label': 'No preference' } }}
                   />
                 }
@@ -229,8 +246,8 @@ export function MyPreferencesCard() {
             </Box>
             {timesOfDay.includes('NIGHT') ? (
               <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
-                Only 12-hour night crews work nights (19:00–07:00). An 8-hour officer who asks for
-                nights keeps the unmet reason.
+                Only 12-hour night crews work nights (19:00–07:00). If you work 8-hour shifts, a
+                nights wish can&apos;t be met.
               </Typography>
             ) : null}
           </Box>
@@ -244,12 +261,10 @@ export function MyPreferencesCard() {
                 <FormControlLabel
                   key={day.id}
                   control={
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={daysOff.includes(day.id)}
                       onChange={() => toggleDay(day.id)}
-                      aria-label={day.label}
-                      style={{ width: 20, height: 20 }}
+                      slotProps={{ input: { 'aria-label': day.label } }}
                     />
                   }
                   label={<span style={{ fontSize: 14 }}>{day.label}</span>}

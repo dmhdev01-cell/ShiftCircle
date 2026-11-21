@@ -39,6 +39,10 @@ describe('preferences', () => {
     expect(await screen.findByText('Saved. The next plan will use these.')).toBeInTheDocument();
     expect(screen.getByText('Saved 21 Nov, 08:55')).toBeInTheDocument();
 
+    // An edit after the save makes the green message stale.
+    await user.click(screen.getByRole('checkbox', { name: 'Sat' }));
+    expect(screen.queryByText('Saved. The next plan will use these.')).not.toBeInTheDocument();
+
     await user.click(screen.getByRole('button', { name: 'Clear preferences' }));
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: 'Clear' }));
