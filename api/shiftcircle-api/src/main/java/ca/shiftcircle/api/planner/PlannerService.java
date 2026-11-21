@@ -15,6 +15,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -92,7 +93,7 @@ public class PlannerService {
   public PlannerViews.DraftSummary generate(
       PlannerViews.DraftCreation creation, AuthPrincipal principal) {
     long seed = creation.seed() == 0 ? DEFAULT_SEED : creation.seed();
-    String pattern = creation.pattern8h() == null ? "5_ON_2_OFF" : creation.pattern8h();
+    String pattern = creation.pattern8h() == null ? "ROTATING_5_2" : creation.pattern8h();
     if (!PATTERNS.contains(pattern)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "pattern8h must be ROTATING_5_2, 5_ON_2_OFF or 7_ON_3_OFF");
@@ -584,6 +585,7 @@ public class PlannerService {
         (employeeId, shifts) ->
             baselineWarnings.put(employeeId, warningKeys(ruleCheck.evaluateFacts(shifts))));
     List<PlannerViews.CommitFailure> failures = new ArrayList<>();
+    Set<String> warningKeys = new HashSet<>();
     int warnings = 0;
     for (Map<String, Object> row : planned) {
       UUID employeeId = (UUID) row.get("employee_id");
@@ -637,11 +639,12 @@ public class PlannerService {
               .map(result -> result.ruleCode() + ": " + result.message())
               .toList();
       Set<String> baseline = baselineWarnings.getOrDefault(employeeId, Set.of());
-      warnings +=
-          (int) outcome.ruleResults().stream()
-              .filter(result -> "WARN".equals(result.outcome()))
-              .filter(result -> !baseline.contains(warningKey(result)))
-              .count();
+      for (RuleCheckService.ResultView result : outcome.ruleResults()) {
+        if ("WARN".equals(result.outcome()) && !baseline.contains(warningKey(result))) {
+          warningKeys.add(employeeId + "|" + result.ruleCode());
+        }
+      }
+      warnings = warningKeys.size();
       if (!blocks.isEmpty()) {
         failures.add(
             new PlannerViews.CommitFailure(

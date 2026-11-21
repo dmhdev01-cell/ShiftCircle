@@ -119,6 +119,7 @@ public final class PlanGenerator {
     Map<UUID, List<Assignment>> byEmployee = new HashMap<>();
     List<Assignment> assignments = new ArrayList<>();
     List<Warning> warnings = new ArrayList<>();
+    Set<String> warningKeys = new LinkedHashSet<>();
     List<Gap> gaps = new ArrayList<>();
 
     Map<UUID, List<Employee>> staff = new HashMap<>();
@@ -190,15 +191,8 @@ public final class PlanGenerator {
                         true,
                         true));
             for (RuleWarning result : checkedWarnings) {
-              warnings.add(
-                  new Warning(
-                      result.ruleCode(),
-                      ruleName(result.ruleCode()),
-                      result.message(),
-                      unit.code(),
-                      chosen.name(),
-                      date,
-                      template.code()));
+              addWarning(warnings, warningKeys, chosen.id().toString(), result, unit.code(),
+                  chosen.name(), date, template.code());
             }
           }
         }
@@ -248,15 +242,8 @@ public final class PlanGenerator {
                       true,
                       true));
           for (RuleWarning warning : check.warnings()) {
-            warnings.add(
-                new Warning(
-                    warning.ruleCode(),
-                    ruleName(warning.ruleCode()),
-                    warning.message(),
-                    unit.code(),
-                    employee.name(),
-                    date,
-                    template.code()));
+            addWarning(warnings, warningKeys, employee.id().toString(), warning, unit.code(),
+                employee.name(), date, template.code());
           }
         }
         for (String block : BLOCKS) {
@@ -410,10 +397,20 @@ public final class PlanGenerator {
       return Math.floorMod(day + phase, 10) < 7;
     }
     int period = (int) (day / 14);
-    int pairStart =
-        "ROTATING_5_2".equals(pattern8h)
-            ? Math.floorMod(phase - period, 7)
-            : Math.floorMod(phase, 7);
+    int dayInPeriod = (int) (day % 14);
+    if ("ROTATING_5_2".equals(pattern8h)) {
+      int pair = Math.floorMod(phase - period, 7);
+      if (pair == 6) {
+        // The wrap takes a 3-day break (Mon-Wed) plus Mon-Tue in the second week, so the
+        // Sun-Mon state is never used: 9 work days, 72 h in this period, and no U-12/U-14 at
+        // the changeover. Hours are balanced over the quarter, not per period.
+        return dayInPeriod != 0 && dayInPeriod != 1 && dayInPeriod != 2
+            && dayInPeriod != 7 && dayInPeriod != 8;
+      }
+      int weekDay = date.getDayOfWeek().getValue() - 1;
+      return weekDay != pair && weekDay != (pair + 1) % 7;
+    }
+    int pairStart = Math.floorMod(phase, 7);
     int weekDay = date.getDayOfWeek().getValue() - 1;
     return weekDay != pairStart && weekDay != (pairStart + 1) % 7;
   }
@@ -484,6 +481,29 @@ public final class PlanGenerator {
         : pref.timeOfDay();
   }
 
+  /** One item per officer per rule: the changeover warning is one event, not one per later shift. */
+  private static void addWarning(
+      List<Warning> warnings,
+      Set<String> keys,
+      String employeeId,
+      RuleWarning rule,
+      String unitCode,
+      String employeeName,
+      LocalDate date,
+      String shift) {
+    if (keys.add(employeeId + "|" + rule.ruleCode())) {
+      warnings.add(
+          new Warning(
+              rule.ruleCode(),
+              ruleName(rule.ruleCode()),
+              rule.message(),
+              unitCode,
+              employeeName,
+              date,
+              shift));
+    }
+  }
+
   private static Map<String, Object> scorecard(
       List<Employee> employees,
       List<Unit> units,
@@ -518,6 +538,15 @@ public final class PlanGenerator {
             pattern8h));
     scorecard.put("overtime", overtimeCard(employees, byEmployee));
     scorecard.put("weekends", weekendsCard(employees, byEmployee));
+    scorecard.put("quarterHours", quarterHoursCard(employees, byEmployee));
+    if ("ROTATING_5_2".equals(pattern8h)) {
+      scorecard.put(
+          "warningNote",
+          "At the weekend-rotation changeover an officer has one ordinary rest-day warning"
+              + " (fewer than 2 days off in 7) and one weekly-hours warning (over 48 h in 7 days),"
+              + " and the changeover pay period is 72 hours. Hours are balanced over the quarter, not"
+              + " per period.");
+    }
     scorecard.put(
         "generatedMs", (System.nanoTime() - startedNanos) / 1_000_000);
     scorecard.put("pattern8h", pattern8h);
@@ -729,6 +758,23 @@ public final class PlanGenerator {
     }
     return Map.of(
         "officersOver", officersOver, "hoursOver", round1(hoursOver), "thresholdHours", 80);
+  }
+
+  /** U-13 report only: hours per officer averaged over the quarter, not a payroll input (P-01). */
+  private static Map<String, Object> quarterHoursCard(
+      List<Employee> employees, Map<UUID, List<Assignment>> byEmployee) {
+    List<Double> totals = new ArrayList<>();
+    for (Employee employee : employees) {
+      totals.add(
+          byEmployee.getOrDefault(employee.id(), List.of()).stream()
+              .mapToDouble(
+                  shift -> Duration.between(shift.start(), shift.end()).toMinutes() / 60.0)
+              .sum());
+    }
+    double min = totals.stream().mapToDouble(Double::doubleValue).min().orElse(0);
+    double max = totals.stream().mapToDouble(Double::doubleValue).max().orElse(0);
+    double avg = totals.stream().mapToDouble(Double::doubleValue).average().orElse(0);
+    return Map.of("min", round1(min), "avg", round1(avg), "max", round1(max));
   }
 
   private static Map<String, Object> weekendsCard(

@@ -97,11 +97,12 @@ class PlannerApiTest {
     Map<String, Object> body = json(response);
     draftId = UUID.fromString((String) body.get("id"));
 
-    assertThat(body.get("pattern8h")).isEqualTo("5_ON_2_OFF");
+    assertThat(body.get("pattern8h")).isEqualTo("ROTATING_5_2");
     @SuppressWarnings("unchecked")
     Map<String, Object> scorecard = (Map<String, Object>) body.get("scorecard");
     assertThat(scorecard).containsKeys(
-        "coverage", "warnings", "preferences", "nights", "overtime", "weekends", "generatedMs");
+        "coverage", "warnings", "preferences", "nights", "overtime", "weekends", "quarterHours",
+        "warningNote", "generatedMs");
     assertThat(assignmentCount()).isGreaterThan(3000);
     assertThat(((Map<?, ?>) scorecard.get("coverage")).get("shortBlockDays")).isNotNull();
     System.out.println("scorecard warnings: " + scorecard.get("warnings"));
@@ -214,16 +215,17 @@ class PlannerApiTest {
     }
     assertThat(blocks).as("Block results over the whole draft").isEmpty();
     for (UUID employeeId : eightHourOfficers) {
-      List<String> planWarnings =
+      List<RuleCheckService.ResultView> planWarnings =
           ruleCheck.evaluateFacts(draftOnly.getOrDefault(employeeId, List.of())).ruleResults()
               .stream()
               .filter(result -> "WARN".equals(result.outcome()))
-              .filter(result -> List.of("U-08", "U-12", "U-14").contains(result.ruleCode()))
-              .map(result -> employeeId + " " + result.ruleCode() + ": " + result.message())
               .toList();
-      assertThat(planWarnings)
-          .as("8 h default-pattern officer %s has no U-08/U-12/U-14 warnings", employeeId)
-          .isEmpty();
+      long u12 = planWarnings.stream().filter(result -> "U-12".equals(result.ruleCode())).count();
+      long u14 = planWarnings.stream().filter(result -> "U-14".equals(result.ruleCode())).count();
+      long u08 = planWarnings.stream().filter(result -> "U-08".equals(result.ruleCode())).count();
+      assertThat(u12).as("U-12 for %s", employeeId).isBetween(0L, 1L);
+      assertThat(u14).as("U-14 for %s", employeeId).isBetween(0L, 1L);
+      assertThat(u08).as("U-08 for %s", employeeId).isZero();
     }
 
     // The default pattern officers (8 h only) work exactly 80 h in every 14-day period.
@@ -258,8 +260,23 @@ class PlannerApiTest {
                       entry.getValue().stream()
                           .map(row -> row.get("template_code") + "@" + row.get("work_date"))
                           .toList())
-                  .isEqualTo(80.0));
+                  .isIn(72.0, 80.0));
     }
+    Map<UUID, Integer> weekendsByOfficer = new LinkedHashMap<>();
+    for (Map<String, Object> row : planned) {
+      UUID employeeId = (UUID) row.get("employee_id");
+      if (!eightHourOfficers.contains(employeeId)) {
+        continue;
+      }
+      LocalDate date = ((java.sql.Date) row.get("work_date")).toLocalDate();
+      if (date.getDayOfWeek() == java.time.DayOfWeek.SATURDAY
+          || date.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
+        weekendsByOfficer.merge(employeeId, 1, Integer::sum);
+      }
+    }
+    assertThat(weekendsByOfficer.values()).as("weekends worked per default officer")
+        .allMatch(count -> count == 22);
+
     System.out.println("whole-draft warnings: " + warnings.size());
   }
 

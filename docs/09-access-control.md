@@ -72,6 +72,7 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 | L. Fraser | RULES_ADMIN | — |
 | P. Singh | RULES_APPROVER | — |
 | A. Reviewer | AUDITOR | all |
+| P. Planner | PLANNER | all (read-only; preferences planning) |
 | Unit office TV | DISPLAY | all (counts only) |
 
 ## 5. Pilot: real identity

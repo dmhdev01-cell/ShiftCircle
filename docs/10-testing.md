@@ -219,3 +219,5 @@ Things the design describes that the prototype does **not** have. They are liste
 | **Wall display "open shifts in the next 48 h" list** | Counts of open shifts today per unit and in total (the api returns counts only) | WallDisplay.dc.html |
 | **Notifications, shift trades** | Offers are in-app only | ADR-010 |
 | **A session that survives a refresh** (token persistence) | The token is memory-only by decision: a refresh, new tab or deep link shows "Please sign in to continue." and returns to the screen after sign-in | ADR-025 |
+
+- **Cycle-average hours in payroll:** payroll overtime stays per 14-day period (P-01, unchanged). The planner scorecard reports `quarterHours` per officer (min/avg/max) as a U-13 report-only figure; the default rotating pattern's 72 h changeover period is not rebalanced by payroll, and real cycle averaging would need a rule change.
