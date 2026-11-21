@@ -686,6 +686,79 @@ class PlannerApiTest {
     assertThat(unitDraftGaps).isEqualTo(draftGaps);
   }
 
+  @Test
+  @Order(14)
+  @SuppressWarnings("unchecked")
+  void theCommittedPlanStaysReadableAndComparesWithTheCurrentBoard() throws Exception {
+    Map<String, Object> plan =
+        json(send("GET", "/api/v1/planner/plan", null, tokens.get("p.planner")));
+    assertThat(plan.get("state")).isEqualTo("COMMITTED");
+    assertThat(plan.get("draft")).isNull();
+    assertThat(plan.get("lastCommitted")).isNotNull();
+    Map<String, Object> committedDraft = (Map<String, Object>) plan.get("committedDraft");
+    assertThat(committedDraft).isNotNull();
+    assertThat(committedDraft.get("id")).isEqualTo(draftId.toString());
+    assertThat(committedDraft.get("status")).isEqualTo("COMMITTED");
+    assertThat((Map<String, Object>) committedDraft.get("scorecard")).isNotEmpty();
+
+    // The read-only tabs work for a committed id, not only an open draft.
+    assertThat(send("GET", "/api/v1/planner/drafts/" + draftId + "/gaps", null,
+            tokens.get("p.planner")).statusCode())
+        .isEqualTo(200);
+    assertThat(send("GET", "/api/v1/planner/drafts/" + draftId + "/warnings", null,
+            tokens.get("p.planner")).statusCode())
+        .isEqualTo(200);
+    UUID unitA = jdbc.queryForObject("SELECT id FROM unit WHERE code = 'A'", UUID.class);
+    assertThat(
+            send("GET",
+                    "/api/v1/planner/drafts/" + draftId + "/schedule?unitId=" + unitA
+                        + "&from=2027-01-04&to=2027-01-10",
+                    null,
+                    tokens.get("p.planner"))
+                .statusCode())
+        .isEqualTo(200);
+    assertThat(
+            send("GET", "/api/v1/planner/drafts/" + draftId + "/coverage?from=2027-01-04&to=2027-01-10",
+                    null, tokens.get("p.planner"))
+                .statusCode())
+        .isEqualTo(200);
+
+    Map<String, Object> before =
+        json(send("GET", "/api/v1/planner/drafts/" + draftId + "/compare", null,
+            tokens.get("p.planner")));
+    assertThat(before.get("draftStatus")).isEqualTo("COMMITTED");
+    assertThat(before.get("basis").toString()).contains("supervisor edits since the commit");
+    int boardShifts = ((Number) before.get("committedShifts")).intValue();
+    int draftShifts = ((Number) before.get("draftShifts")).intValue();
+    assertThat(boardShifts).isEqualTo(draftShifts);
+
+    // A supervisor edit after the commit: the board side must move, the committed plan must not.
+    UUID cancelled =
+        jdbc.queryForObject(
+            "SELECT id FROM shift_assignment WHERE plan_draft_id = ? ORDER BY work_date, start_at"
+                + " LIMIT 1",
+            UUID.class,
+            draftId);
+    jdbc.update("UPDATE shift_assignment SET status = 'CANCELLED' WHERE id = ?", cancelled);
+    try {
+      Map<String, Object> after =
+          json(send("GET", "/api/v1/planner/drafts/" + draftId + "/compare", null,
+              tokens.get("p.planner")));
+      assertThat(((Number) after.get("committedShifts")).intValue()).isEqualTo(boardShifts - 1);
+      assertThat(((Number) after.get("draftShifts")).intValue()).isEqualTo(draftShifts);
+      assertThat(after.get("basis").toString()).contains("current board");
+    } finally {
+      jdbc.update("UPDATE shift_assignment SET status = 'PLANNED' WHERE id = ?", cancelled);
+    }
+
+    assertThat(send("GET", "/api/v1/planner/drafts/" + draftId + "/gaps", null, null)
+            .statusCode())
+        .isEqualTo(401);
+    assertThat(send("GET", "/api/v1/planner/drafts/" + draftId + "/compare", null,
+            tokens.get("m.ellis")).statusCode())
+        .isEqualTo(403);
+  }
+
   // ---------------------------------------------------------------------------------------------
 
   private int assignmentCount() {

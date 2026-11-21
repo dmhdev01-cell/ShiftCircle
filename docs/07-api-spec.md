@@ -385,6 +385,15 @@ same validation as the grid (R24/R28: rule values are code input).
 | GET | `/planner/preferences?unitId=` | Every officer's preferences with how the open draft met them | PLANNER |
 | GET · PUT · DELETE | `/me/preferences` | The signed-in officer's own preferences (`shiftLength`, `timeOfDay`, up to 2 `daysOff`) | any account linked to an officer |
 
+**After a commit the plan is still readable.** `GET /planner/plan` answers `state: COMMITTED`, `draft: null`,
+`lastCommitted` as before, and a `committedDraft` with the same `DraftSummary` shape (`id`, `version`,
+`seed`, `pattern8h`, `status: COMMITTED`, `createdAt`, `createdBy`, `generatedMs`, `scorecard`). The
+read-only endpoints `GET /planner/drafts/{id}/gaps`, `/warnings`, `/schedule`, `/coverage` and
+`/compare` answer for a committed id, so the tabs survive the commit. Compare adds `draftStatus`
+and `basis`: a committed plan is compared with the **current board, including supervisor edits since
+the commit**; an open draft is compared with the last committed plan (or the seeded roster before a
+commit). A committed id is never writable: commit/discard still refuse it.
+
 **A draft is not a roster.** `plan_draft_assignment` is separate from `shift_assignment`; the
 planning board never reads it. Every generated assignment is verified by `RuleCheckService` against
 the draft's own assignments plus the committed history before the window, and a Block rule leaves a

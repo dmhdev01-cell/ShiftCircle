@@ -78,7 +78,9 @@ public class PlannerService {
             .orElse(null);
     Map<String, Object> committed =
         jdbc.queryForList(
-                "SELECT d.*, u.display_name AS committed_by_name FROM plan_draft d"
+                "SELECT d.*, cu.display_name AS created_by_name,"
+                    + " u.display_name AS committed_by_name FROM plan_draft d"
+                    + " LEFT JOIN app_user cu ON cu.id = d.created_by"
                     + " LEFT JOIN app_user u ON u.id = d.committed_by"
                     + " WHERE d.status = 'COMMITTED' ORDER BY d.committed_at DESC LIMIT 1")
             .stream()
@@ -88,9 +90,10 @@ public class PlannerService {
         new PlannerViews.Window(FROM, TO, PlanGenerator.PERIODS),
         DEFAULT_SEED,
         PATTERNS,
-        open == null ? "NONE" : "DRAFT",
+        open != null ? "DRAFT" : committed != null ? "COMMITTED" : "NONE",
         open == null ? null : draftSummary(open),
-        committed == null ? null : lastCommitted(committed));
+        committed == null ? null : lastCommitted(committed),
+        committed == null ? null : draftSummary(committed));
   }
 
   @Transactional
@@ -873,7 +876,15 @@ public class PlannerService {
               "count",
               "LOWER_IS_BETTER"));
     }
-    return new PlannerViews.CompareView(draft.shifts(), draftGaps, board.shifts(), rows);
+    String draftStatus = (String) draftRow.get("status");
+    String basis =
+        "COMMITTED".equals(draftStatus)
+            ? "The committed plan is compared with the current board, including supervisor edits"
+                + " since the commit."
+            : "The draft is compared with the current board (the last committed plan, or the"
+                + " seeded roster before a commit).";
+    return new PlannerViews.CompareView(
+        draft.shifts(), draftGaps, board.shifts(), draftStatus, basis, rows);
   }
 
   private static PlannerViews.CompareRow row(
