@@ -164,6 +164,45 @@ class PlannerAbsenceApiTest {
   }
 
   @Test
+  void duplicateAbsenceIsIdempotentAndAConflictingTypeIsRefused() throws Exception {
+    UUID employee =
+        jdbc.queryForObject("SELECT id FROM employee ORDER BY employee_no LIMIT 1", UUID.class);
+    String body =
+        "{\"employeeId\":\""
+            + employee
+            + "\",\"date\":\"2027-02-01\",\"type\":\"SICK\"}";
+    HttpResponse<String> first =
+        send("POST", "/api/v1/planner/absences", body, tokens.get("p.planner"));
+    assertThat(first.statusCode()).as(first.body()).isEqualTo(201);
+    String id = (String) mapper.readValue(first.body(), Map.class).get("id");
+    HttpResponse<String> second =
+        send("POST", "/api/v1/planner/absences", body, tokens.get("p.planner"));
+    assertThat(second.statusCode()).as("the same officer/date/type is idempotent").isEqualTo(200);
+    assertThat(mapper.readValue(second.body(), Map.class).get("id")).isEqualTo(id);
+    assertThat(jdbc.queryForObject(
+            "SELECT count(*) FROM absence WHERE employee_id = ? AND shift_assignment_id IS NULL",
+            Integer.class,
+            employee))
+        .isEqualTo(1);
+    HttpResponse<String> conflict =
+        send(
+            "POST",
+            "/api/v1/planner/absences",
+            "{\"employeeId\":\""
+                + employee
+                + "\",\"date\":\"2027-02-01\",\"type\":\"VACATION\"}",
+            tokens.get("p.planner"));
+    assertThat(conflict.statusCode()).isEqualTo(409);
+    assertThat(conflict.body()).contains("already recorded");
+    assertThat(jdbc.queryForObject(
+            "SELECT count(*) FROM absence WHERE employee_id = ? AND shift_assignment_id IS NULL",
+            Integer.class,
+            employee))
+        .isEqualTo(1);
+    jdbc.update("DELETE FROM absence WHERE employee_id = ?", employee);
+  }
+
+  @Test
   void absenceEntryIsPlannerOnlyAndValidated() throws Exception {
     assertThat(
             send(

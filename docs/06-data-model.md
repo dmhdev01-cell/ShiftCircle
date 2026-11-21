@@ -142,4 +142,5 @@ Tiny for PostgreSQL. The performance targets (NFR-05) come down to sensible inde
 | `V4__overtime_offer_confirmed.sql` | The supervisor's confirmation state on an overtime offer |
 | `V5__planner.sql` | Planner draft/assignment/gap tables, the PLANNER role, preferences, `plan_draft_id` |
 | `V6__day_night_12h.sql` | D12/N12 templates and published rule-set v2 (U-02 additive kind list, U-10 19-07); no unit flags, so the 100 seed stays A12/P12/L16 |
+| `V7__pay_period_dates_unique.sql` | Explicit unique index on pay_period(start_date,end_date); the exclusion constraint already refuses overlaps |
 | Java `DemoDataGenerator` (`demo` profile) | 100 officers, rotations, 90 days of assignments, absences (~4%: 2% sick, 2% vacation, ADR-020), overtime fills, actuals for days before "today", and the planted test cases. Fixed seed, so it's reproducible. Runs only if the database is empty. The 120 dataset (100 FT crews + 20 casuals; see DATASET120-SPEC) is a separate provider, selected by `dataset: "120"`. |

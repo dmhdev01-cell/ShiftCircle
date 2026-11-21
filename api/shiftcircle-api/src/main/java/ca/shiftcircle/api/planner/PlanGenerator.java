@@ -1157,7 +1157,7 @@ public final class PlanGenerator {
     if (n12Shifts > 0) {
       result.put(
           "crewNote",
-          "D12 and N12 are fixed separate crews; the 150 dataset seeds the newest officers into the"
+          "D12 and N12 are fixed separate crews; the 120 dataset seeds the newest officers into the"
               + " night crew, so nights are not re-picked day by day.");
     }
     return result;
@@ -1268,7 +1268,7 @@ public final class PlanGenerator {
       case "U-10" -> "More than 4 overnight shifts";
       case "U-11" -> "Too many 16-hour shifts";
       case "U-12" -> "Fewer than 2 days off in 7";
-      case "U-14" -> "Week over 60 hours";
+      case "U-14" -> "Week over 48 hours";
       case "U-15" -> "Pay-period overtime";
       default -> code;
     };

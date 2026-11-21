@@ -931,35 +931,37 @@ public class PlannerService {
       }
       weekends.add(weekendDays.size());
       PlanGenerator.Pref pref = prefs.get(employeeId);
-      if (pref != null && !shifts.isEmpty()) {
-        boolean lengthMet =
-            pref.shiftLength() == null
-                || shifts.stream()
-                    .allMatch(
-                        shift ->
-                            ((Number) shift.get("duration_minutes")).intValue()
-                                == pref.shiftLength() * 60);
-        boolean timeMet =
-            pref.timeOfDay() == null
-                || "NONE".equals(pref.timeOfDay())
-                || shifts.stream()
-                    .allMatch(
-                        shift ->
-                            pref.timeOfDay().equals(timeOfDay(shift)));
-        boolean daysMet =
-            pref.daysOff() == null
-                || pref.daysOff().isEmpty()
-                || shifts.stream()
-                    .noneMatch(
-                        shift ->
-                            pref.daysOff()
-                                .contains(
-                                    ((java.sql.Date) shift.get("work_date"))
-                                        .toLocalDate()
-                                        .getDayOfWeek()
-                                        .name()
-                                        .substring(0, 3)));
-        if (lengthMet && timeMet && daysMet) {
+      if (pref != null) {
+        // Same definition as the scorecard's preferencesCard: each asked criterion counts once,
+        // not "all of this officer's wishes in one bucket". This is what keeps scorecard.met and
+        // the compare row equal.
+        if (pref.shiftLength() != null
+            && !shifts.isEmpty()
+            && shifts.stream()
+                .allMatch(
+                    shift ->
+                        ((Number) shift.get("duration_minutes")).intValue()
+                            == pref.shiftLength() * 60)) {
+          preferencesMet++;
+        }
+        if (pref.timeOfDay() != null
+            && !"NONE".equals(pref.timeOfDay())
+            && !shifts.isEmpty()
+            && shifts.stream().allMatch(shift -> pref.timeOfDay().equals(timeOfDay(shift)))) {
+          preferencesMet++;
+        }
+        if (pref.daysOff() != null
+            && !pref.daysOff().isEmpty()
+            && shifts.stream()
+                .noneMatch(
+                    shift ->
+                        pref.daysOff()
+                            .contains(
+                                ((java.sql.Date) shift.get("work_date"))
+                                    .toLocalDate()
+                                    .getDayOfWeek()
+                                    .name()
+                                    .substring(0, 3)))) {
           preferencesMet++;
         }
       }
@@ -1082,12 +1084,25 @@ public class PlannerService {
             .stream()
             .findFirst()
             .orElse(null);
+    if (draftId == null) {
+      // After a commit there is no open draft; the preference list still evaluates the committed
+      // plan (it is the current plan), instead of saying NO_DRAFT for every officer.
+      draftId =
+          jdbc.queryForList(
+                  "SELECT id FROM plan_draft WHERE status = 'COMMITTED'"
+                      + " ORDER BY committed_at DESC LIMIT 1",
+                  UUID.class)
+              .stream()
+              .findFirst()
+              .orElse(null);
+    }
+    UUID planId = draftId;
     Map<UUID, List<Map<String, Object>>> inDraft = new HashMap<>();
-    if (draftId != null) {
+    if (planId != null) {
       jdbc.queryForList(
               "SELECT a.employee_id, t.code, a.work_date FROM plan_draft_assignment a"
                   + " JOIN shift_template t ON t.id = a.shift_template_id WHERE a.draft_id = ?",
-              draftId)
+              planId)
           .forEach(row ->
               inDraft
                   .computeIfAbsent((UUID) row.get("employee_id"), key -> new ArrayList<>())
@@ -1141,7 +1156,7 @@ public class PlannerService {
             unmet.add("Preferred days off");
           }
           String status =
-              draftId == null
+              planId == null
                   ? "NO_DRAFT"
                   : length == null && time == null && days.isEmpty()
                       ? "NONE"
@@ -1359,9 +1374,13 @@ public class PlannerService {
     return leave;
   }
 
-  /** A planner adds a future absence; it is read by the next generate, never approved or managed. */
+  /**
+   * A planner adds a future absence; it is read by the next generate, never approved or managed.
+   * Repeating the same officer/date/type is idempotent (200 with the existing row); a different
+   * type on the same date is a 409, not two contradictory absences.
+   */
   @Transactional
-  public Map<String, Object> planAbsence(
+  public PlannerViews.PlannedAbsenceResult planAbsence(
       UUID employeeId, LocalDate date, String type, AuthPrincipal principal) {
     if (employeeId == null || date == null || type == null) {
       throw new ResponseStatusException(
@@ -1381,9 +1400,28 @@ public class PlannerService {
     if (active == null || active == 0) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found");
     }
-    UUID id = UUID.randomUUID();
     Instant start = date.atStartOfDay(REGINA).toInstant();
     Instant end = date.plusDays(1).atStartOfDay(REGINA).toInstant();
+    List<Map<String, Object>> existing =
+        jdbc.queryForList(
+            "SELECT id, type FROM absence WHERE employee_id = ? AND start_at = ? AND end_at = ?"
+                + " AND shift_assignment_id IS NULL",
+            employeeId,
+            Timestamp.from(start),
+            Timestamp.from(end));
+    if (!existing.isEmpty()) {
+      Map<String, Object> row = existing.get(0);
+      if (type.equals(row.get("type"))) {
+        return new PlannerViews.PlannedAbsenceResult(
+            absenceBody((UUID) row.get("id"), employeeId, date, type), false);
+      }
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "An absence of type "
+              + row.get("type")
+              + " is already recorded for that date; reset or correct it first");
+    }
+    UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO absence (id, employee_id, type, start_at, end_at, recorded_by)"
             + " VALUES (?, ?, ?, ?, ?, (SELECT id FROM app_user WHERE username = ?))",
@@ -1399,6 +1437,12 @@ public class PlannerService {
         "absence",
         id,
         Map.of("employeeId", employeeId.toString(), "date", date.toString(), "type", type));
+    return new PlannerViews.PlannedAbsenceResult(
+        absenceBody(id, employeeId, date, type), true);
+  }
+
+  private static Map<String, Object> absenceBody(
+      UUID id, UUID employeeId, LocalDate date, String type) {
     return Map.of(
         "id", id.toString(),
         "employeeId", employeeId.toString(),
