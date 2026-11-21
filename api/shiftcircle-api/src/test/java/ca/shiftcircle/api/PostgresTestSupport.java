@@ -35,7 +35,10 @@ public final class PostgresTestSupport {
       postgres =
           new PostgreSQLContainer("postgres:17-alpine")
               .withDatabaseName("shiftcircle")
-              .withCommand("postgres", "-c", "max_connections=400");
+              .withCommand("postgres", "-c", "max_connections=400")
+              // A loaded Docker Desktop can take more than the JDBC default 10 s to open the
+              // published port after Testcontainers reports the container started.
+              .withUrlParam("connectTimeout", "30");
       postgres.start();
     }
     return postgres;
