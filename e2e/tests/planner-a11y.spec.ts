@@ -40,6 +40,16 @@ test.describe('the planner, accessible and by keyboard', () => {
     await page.keyboard.press('Enter');
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
+    // MUI fades the dialog in; axe reads the blended colors mid-fade as 34
+    // contrast failures (#d1d1d1 on #e5e5e5, 1.21:1). Let the dialog settle,
+    // then measure it.
+    await dialog.evaluate(async (element) => {
+      await Promise.all(
+        element
+          .getAnimations({ subtree: true })
+          .map((animation) => animation.finished.catch(() => undefined)),
+      );
+    });
     await expectAccessible(page, testInfo, 'planner-commit-dialog', '[role="dialog"]');
 
     const commit = dialog.getByRole('button', { name: 'Commit plan' });
