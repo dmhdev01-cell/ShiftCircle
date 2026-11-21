@@ -71,7 +71,7 @@ test.describe('keyboard only, real api', () => {
     await page.keyboard.press('Enter');
     await expect(page.getByRole('heading', { name: 'Audit log', level: 1 })).toBeVisible();
 
-    const actor = page.getByLabel('Actor');
+    const actor = page.getByLabel('Done by');
     await tabTo(page, actor, 40);
     // The filter fields come in reading order, one Tab each.
     for (const next of [
@@ -87,11 +87,13 @@ test.describe('keyboard only, real api', () => {
     await tabTo(page, page.getByLabel('To', { exact: true }), 10);
     await tabTo(page, page.getByRole('button', { name: 'Apply', exact: true }), 10);
 
-    // Type a filter and apply it with Enter from the field.
+    // Choose an actor with the keyboard (the picker's first real name), then
+    // apply the form with Enter from the field.
     await tabTo(page, actor, 20);
-    await page.keyboard.type('nobody.at.all');
+    await page.keyboard.press('ArrowDown');
+    expect(await actor.inputValue()).not.toBe('');
     await page.keyboard.press('Enter');
-    await expect(page.getByText('No audit events match these filters.')).toBeVisible();
+    await expect(page.getByRole('table', { name: 'Audit events' }).getByRole('row').nth(1)).toBeVisible();
 
     await tabTo(page, page.getByRole('button', { name: 'Clear' }), 20);
     await page.keyboard.press('Enter');

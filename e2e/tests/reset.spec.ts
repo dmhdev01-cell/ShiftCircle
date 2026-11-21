@@ -10,8 +10,10 @@ import { navTo, signIn } from './support';
  */
 
 interface PlanState {
-  state: string;
+  state: 'NONE' | 'DRAFT' | 'COMMITTED';
+  defaultSeed: number;
   window: { from: string };
+  draft?: { id: string } | null;
 }
 
 test.describe('the demo reset', () => {
@@ -21,21 +23,29 @@ test.describe('the demo reset', () => {
   });
 
   test('commits a plan, resets the data, and the 2027 board is empty again', async ({ page, request }) => {
-    // A committed plan to erase: generate and commit through the api (the
-    // screens have their own spec), then reset through the About card.
+    test.setTimeout(240_000);
+    // A committed plan to erase. Self-contained: the stack may already hold a
+    // committed plan (another spec committed one), and that is exactly what the
+    // reset must erase; otherwise commit the open draft or generate one.
     const api = await apiAs(request, 'p.planner');
     const plan = await api.get<PlanState>('/planner/plan');
-    expect(plan.state).not.toBe('COMMITTED');
-    const draft = await api.post('/planner/drafts', { seed: plan.defaultSeed ?? 20261001 });
-    expect([200, 201]).toContain(draft.status);
-    const draftId = (draft.body as { id: string }).id;
-    const preview = await api.get<{ version: number; warningCount: number }>(
-      `/planner/drafts/${draftId}/commit-preview`,
-    );
-    const committed = await api.postIfMatch(`/planner/drafts/${draftId}/commit`, preview.version, {
-      acceptedWarningCount: preview.warningCount,
-    });
-    expect(committed.status).toBe(200);
+    let draftId = plan.draft?.id;
+    if (plan.state !== 'COMMITTED') {
+      if (!draftId) {
+        const draft = await api.post('/planner/drafts', { seed: plan.defaultSeed ?? 20261001 });
+        expect([200, 201]).toContain(draft.status);
+        draftId = (draft.body as { id: string }).id;
+      }
+      const preview = await api.get<{ version: number; warningCount: number }>(
+        `/planner/drafts/${draftId}/commit-preview`,
+      );
+      const committed = await api.postIfMatch(
+        `/planner/drafts/${draftId}/commit`,
+        preview.version,
+        { acceptedWarningCount: preview.warningCount },
+      );
+      expect(committed.status).toBe(200);
+    }
 
     await signIn(page, 'P. Planner');
     await navTo(page, 'About & version');

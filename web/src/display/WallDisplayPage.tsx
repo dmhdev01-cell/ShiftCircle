@@ -373,7 +373,7 @@ export function WallDisplayPage() {
           component="button"
           type="button"
           onClick={leave}
-          aria-label="Exit the wall display"
+          aria-label="Exit wall display"
           sx={{
             position: 'fixed',
             top: s(16, 12),

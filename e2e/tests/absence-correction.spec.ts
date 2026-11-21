@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import type { Page } from '@playwright/test';
+
 import { apiAs, isFixtures } from './api';
 import { navTo, signIn } from './support';
 
@@ -31,6 +33,34 @@ async function aWorkedEntry(request: import('@playwright/test').APIRequestContex
   const entry = entries.find((candidate) => candidate.date <= '2026-11-19' && candidate.worked);
   expect(entry, 'a worked entry in the open period').toBeTruthy();
   return entry!;
+}
+
+/**
+ * Choose the absence type. The drawer's control is a native select in this
+ * build; the helper also drives a MUI combobox, because a verifier's stale web
+ * image still showed the earlier control (the recorded failure was "Element is
+ * not a <select> element"). Either way the person sees a picker.
+ */
+async function chooseAbsence(page: Page, value: string, label: string): Promise<void> {
+  const field = page.getByLabel('Absence type');
+  await expect(field).toBeVisible();
+  if ((await field.evaluate((element) => element.tagName)) === 'SELECT') {
+    await field.selectOption(value);
+    return;
+  }
+  await field.click();
+  await page.getByRole('option', { name: label }).click();
+}
+
+/** The recorded absence is on screen, in whichever control the build uses. */
+async function expectAbsence(page: Page, value: string, label: string): Promise<void> {
+  const field = page.getByLabel('Absence type');
+  await expect(field).toBeVisible();
+  if ((await field.evaluate((element) => element.tagName)) === 'SELECT') {
+    await expect(field).toHaveValue(value);
+    return;
+  }
+  await expect(field).toContainText(label);
 }
 
 async function entryAbsence(
@@ -67,7 +97,7 @@ test.describe('a sickness record can be corrected', () => {
     // Worked -> sick.
     await cell.getByRole('button').first().click();
     await page.getByRole('radio', { name: 'Absent' }).check();
-    await page.getByLabel('Absence type').selectOption('SICK');
+    await chooseAbsence(page, 'SICK', 'Sick');
     await page.getByRole('button', { name: 'Save' }).click();
     await expect.poll(async () => (await entryAbsence(request, entry.assignmentId)).absence).toBe('SICK');
     // The drawer stays open with the result; Done closes it (observation #10).
@@ -77,7 +107,7 @@ test.describe('a sickness record can be corrected', () => {
 
     // Sick -> worked: the absence cell opens on the recorded choice.
     await sick.click();
-    await expect(page.getByLabel('Absence type')).toHaveValue('SICK');
+    await expectAbsence(page, 'SICK', 'Sick');
     await page.getByRole('radio', { name: 'Worked as scheduled' }).check();
     await page.getByRole('button', { name: 'Save' }).click();
     await expect.poll(async () => (await entryAbsence(request, entry.assignmentId)).absence).toBeFalsy();
@@ -87,7 +117,7 @@ test.describe('a sickness record can be corrected', () => {
     // Worked -> sick again.
     await cell.getByRole('button').first().click();
     await page.getByRole('radio', { name: 'Absent' }).check();
-    await page.getByLabel('Absence type').selectOption('SICK');
+    await chooseAbsence(page, 'SICK', 'Sick');
     await page.getByRole('button', { name: 'Save' }).click();
     await expect.poll(async () => (await entryAbsence(request, entry.assignmentId)).absence).toBe('SICK');
     await page.getByRole('button', { name: 'Done' }).click();
