@@ -101,7 +101,7 @@ The last cell has a bar (Flax track, Football Green fill) **and** the percentage
 
 Collapsed: a white button **"Show 112 warnings"** (`aria-expanded`). Expanded: one group per plain rule name with its count ("Fewer than 12 hours between shifts · 74"; "Week over 60 hours · 38"). A group expands to up to 20 lines, "Unit B · Sat 9 Jan · K. Lindqvist · 9 h between shifts" with **Show week** (§4.1 behaviour), then "and 54 more". This is the same list the commit dialog asks the planner to accept (§6.2), so it's worth reading here first.
 
-With the default 8 h pattern there should be no week-hours warnings for 8-hour officers (amendment 1). If 7 on, 3 off is chosen (§3.2), its warnings show here honestly.
+With per-officer patterns and every 8 h officer on the default rotating pattern there should be no week-hours warnings for 8-hour officers (amendment 1). If an officer is set to 7 on, 3 off on Preferences, its warnings show here honestly.
 
 ---
 
@@ -130,7 +130,7 @@ A discarded draft shows as No draft; the discard is in the audit log, not here.
 | Committed | none (nothing waiting) | Generate a new draft |
 
 - **Seed** number input left of Generate, labelled "Seed", prefilled with the api's `defaultSeed` (20261001), helper **"Same seed, same plan."** Whole numbers only; otherwise Generate is disabled with the helper "Enter a whole number".
-- **8-hour pattern** select next to it, shown **only if** the api offers patterns (`patterns8h`): **"5 on, 2 off · 80 h a pay period"** (default) · **"7 on, 3 off · shows week-hours warnings"**. Helper: "Applies to officers on 8-hour shifts." (Amendment 1: 7/3 stays selectable and its warnings show honestly.)
+- **No facility pattern select.** Each 8-hour officer's pattern is set on **Preferences** (§7); the Generate box says in one line: "Each 8-hour officer uses their own pattern. Change it on Preferences." The api still accepts `pattern8h` for one release, but the screen never sends it.
 - **While generating:** the button shows a spinner and "Generating…", disabled; `role="status"`: **"Building a plan for 100 officers and checking every shift against the rules. This usually takes a few seconds."** When done, focus moves to the status line and the Scorecard tab opens.
 - **Generate again / Generate a new draft** when a draft exists: dialog **"Replace this draft?"** · "The current draft and its scorecard are replaced. Nothing on the planning board changes." · Cancel (white) · **Replace draft** (yellow inside the dialog).
 - **Discard draft…**: dialog **"Discard this draft?"** · "The draft is removed. Nothing on the planning board changes. The discard is recorded in the audit log." · Cancel · **Discard draft** (white; the danger outline is reserved for emergency override, README §3.4).
@@ -172,7 +172,7 @@ The draft week by week, all units, read-only. Reuse `RosterGrid` and the board's
 - **Controls:** Unit select (default: the first unit with a gap in the shown week, else Unit A) · **Previous week** · "4 – 10 Jan 2027" · **Next week** · **First week** (in place of "Today", which is outside the window). Previous is disabled on the first week ("Start of the plan"), Next on the last ("End of the plan").
 - **All-units coverage strip** (card above the grid, H2 "All units · 4 – 10 Jan"): rows = 6 units × 3 blocks (unit name spans its rows), columns = 7 days, cells = `CoverageCell` (lowest/required, "short 15–17", tooltip with hourly counts). Each unit name is a button that sets the Unit select.
 - **Note above the grid** (`role="note"`, info tint): **"Draft · not on the planning board yet. Officers and supervisors can't see it until it's committed."**
-- **Grid:** `RosterGrid` with the draft payload (§10.4), read-only (no `onEmptyCell`, no `onPickChip`; chips keep their time tooltip). Officer column shows the pattern in words (§1). Pay-period column shows the draft's hours and the overtime pill. Day tags read **"Plan"**.
+- **Grid:** `RosterGrid` with the draft payload (§10.4), read-only (no `onEmptyCell`, no `onPickChip`; chips keep their time tooltip). Officer column shows the officer's own pattern in words (§1), not one facility pattern. Pay-period column shows the draft's hours and the overtime pill. Day tags read **"Plan"**.
 - **Look-back days:** the first week's rest and consecutive-day checks read the committed days before 4 Jan (amendment 2), but the grid shows only window days. Under the grid: "Rest and consecutive days at the start of the plan count the shifts already committed for late December."
 - **Legend** (the board's key): `D` Day 8 h · `E` Evening 8 h · `N` Night 8 h · `A12` 12 h 00–12 · `P12` 12 h 12–24 · `L16` 16 h 20:00–12:00 · `Off` · "Night shifts: N, A12, L16" · coverage "4 / 5 short 15–17 = fewest officers in any hour / needed" · "Overtime = pay-period hours over 80 h (status pill)". No extra, offer, sick or vac chips: a draft has none.
 
@@ -248,19 +248,21 @@ There is no override here. Emergency overrides stay one shift at a time on the p
 
 ---
 
-## 7. Planner read view of preferences: `/planner/preferences`
+## 7. Planner edits patterns on `/planner/preferences`
 
-- H1 **"Officer preferences"**; line: "What officers asked for, and whether the current draft meets it. Read-only: officers change their own on My schedule."
+- H1 **"Officer preferences"**; line: "What officers asked for, and whether the current draft meets it. The pattern is the planner's setting; officers change their wishes on My schedule."
 - Filters: Unit (All + six) · "Find an officer" (name, client-side) · **Not met only** checkbox.
 - Summary: "100 officers · 84 gave preferences · 16 gave none".
 - Table (sticky header and first column, scrolls inside the card):
 
-| Officer | Unit | Seniority | Shift length | Time of day | Days off | In the draft |
-|---|---|---|---|---|---|---|
-| Ruth Okafor | Unit B | since 2009 | 12 h | Days | Sat, Sun | `Met` (pass) |
-| Devon Clarke | Unit A | since 2024 | 8 h | Days | — | `Partly met` (warn) · "time of day: 9 night shifts" |
-| Sam Abara | Control | since 2016 | No preference | Nights | Wed | `Met` |
+| Officer | Unit | Seniority | Shift length | Time of day | Days off | Pattern | In the draft |
+|---|---|---|---|---|---|---|---|
+| Ruth Okafor | Unit B | since 2009 | 12 h | Days | Sat, Sun | 4 on, 4 off (read-only) | `Met` (pass) |
+| Devon Clarke | Unit A | since 2024 | 8 h | Days | — | **Pattern select** | `Partly met` (warn) · "time of day: 9 night shifts" |
+| Sam Abara | Control | since 2016 | No preference | Nights | Wed | **Pattern select** | `Met` |
 
+- **Pattern** (8 h officers): a select with the three patterns in words — "Rotating 5 on, 2 off (weekends rotate)" (default) · "Fixed 5 on, 2 off" · "7 on, 3 off". Saving uses `PUT /planner/preferences/{employeeId}/pattern`; success says **"Pattern saved. The next plan will use it."** and the row updates in place. The change does not touch an existing draft, exactly like a preference change.
+- **Pattern** (12 h officers): plain words **"4 on, 4 off"**, no select, helper "A 12-hour officer keeps the crew's pattern."
 - "In the draft" reads `No draft` (info) when there is none; "—" when the officer gave none.
 - Sort: unit order, then seniority (oldest first). No sortable headers.
 - Empty filter: "No officers match."
@@ -321,10 +323,10 @@ Rules: real buttons and links; labelled inputs; dialogs trap focus and return it
 Names are a proposal; `dev.build` owns the contract (docs/07). The UI needs these **meanings**.
 
 ### 10.1 `GET /planner/plan`
-`{ window: {from, to, periods}, defaultSeed, patterns8h: ["5_ON_2_OFF","7_ON_3_OFF"]|null, state: "NONE"|"DRAFT"|"COMMITTED", draft: DraftSummary|null, lastCommitted: {draftId, at, by, shiftsWritten}|null }`
+`{ window: {from, to, periods}, defaultSeed, patterns8h: ["ROTATING_5_2","5_ON_2_OFF","7_ON_3_OFF"]|null, state: "NONE"|"DRAFT"|"COMMITTED", draft: DraftSummary|null, lastCommitted: {draftId, at, by, shiftsWritten}|null }`. `patterns8h` is the legacy override list; the Generate box no longer shows it.
 
 ### 10.2 `POST /planner/drafts {seed, pattern8h?}` → `DraftSummary`
-`DraftSummary = { id, version, seed, pattern8h, status, createdAt, createdBy, generatedMs, scorecard }`. Replaces an open draft (the UI has asked). 409 while another is generating.
+`DraftSummary = { id, version, seed, pattern8h, status, createdAt, createdBy, generatedMs, scorecard }`. With no `pattern8h`, each 8 h officer uses their own pattern and `pattern8h` is `null`; a sent value is the one-release facility override. Replaces an open draft (the UI has asked). 409 while another is generating.
 
 ### 10.3 Scorecard
 ```
@@ -335,11 +337,12 @@ nights:      { bands: [{ label, hiredFrom, hiredTo, officers, nightShare,
                          avoidNightsAsked, avoidNightsGivenNights, nightShiftsAgainstWish }],
                newestFirstHeld, check: "plain sentence" }
 overtime:    { officersOver, hoursOver, thresholdHours }
+patterns:    { officers: [{ employeeNo, name, unitCode, pattern, words }], note }
 generatedMs
 ```
 
 ### 10.4 Draft roster
-`GET /planner/drafts/{id}/schedule?unitId&from&to` in the **same shape as `SchedulePayload`** (`web/src/api/types.ts`) so `RosterGrid` and `CoverageCell` render it unchanged; officer `rotation` carries the pattern words of §1. `GET /planner/drafts/{id}/coverage?from&to` → `[{ unitId, unitName, coverage: BlockCoverage[] }]` for the strip.
+`GET /planner/drafts/{id}/schedule?unitId&from&to` in the **same shape as `SchedulePayload`** (`web/src/api/types.ts`) so `RosterGrid` and `CoverageCell` render it unchanged; officer `rotation` carries that officer's own pattern words of §1. `GET /planner/drafts/{id}/coverage?from&to` → `[{ unitId, unitName, coverage: BlockCoverage[] }]` for the strip.
 
 ### 10.5 Gaps, warnings, compare
 - `GET /planner/drafts/{id}/gaps` → `[{ unitId, unitName, date, block, lowest, required, shortHours: ["15–17"], reason|null }]`
@@ -352,8 +355,9 @@ generatedMs
 - `POST /planner/drafts/{id}/discard` → 204.
 
 ### 10.7 Preferences
-- `GET /me/preferences` → `{ shiftLength: 8|12|16|null, timeOfDay: "DAY"|"EVENING"|"NIGHT"|null, daysOff: ["SAT","SUN"], maxDaysOff: 2, updatedAt|null, allowedLengths: [8,12,16] }`; `PUT` same body; `DELETE` clears. The token's own employee only.
-- `GET /planner/preferences?unitId` → `[{ employeeId, name, unitName, seniorityDate, shiftLength, timeOfDay, daysOff, inDraft: { status: "MET"|"PARTLY"|"NOT_MET"|"NO_DRAFT"|"NONE", unmet: ["plain words"] } }]`
+- `GET /me/preferences` → `{ shiftLength: 8|12|16|null, timesOfDay: ["DAY"|"EVENING"|"NIGHT"], daysOff: ["SAT","SUN"], maxDaysOff: 2, updatedAt|null, allowedLengths: [8,12,16] }`; `PUT` same body (the old single `timeOfDay` is accepted for one release); `DELETE` clears. The token's own employee only.
+- `GET /planner/preferences?unitId` → `[{ employeeId, name, unitName, seniorityDate, shiftLength, timesOfDay, daysOff, maxDaysOff, pattern, patternWords, patternEditable, inDraft: "MET"|"PARTLY"|"NOT_MET"|"NO_DRAFT"|"NONE" (or the api's status field), unmet: ["plain words"], updatedAt }]`
+- `PUT /planner/preferences/{employeeId}/pattern` body `{ pattern }` → the updated row; 400 for a 12 h officer, a 12 h code on an 8 h officer or an unknown code.
 
 ### 10.8 Planning board link (web, dev-build2)
 The board must open on `?unit=<id>&week=<Monday>` (README §5.1 already names the route). Since `98e6788` the week is component state; read it from the URL so the commit links land on the right unit and week, including weeks in 2027.
@@ -366,7 +370,7 @@ The board must open on `?unit=<id>&week=<Monday>` (README §5.1 already names th
 2. **Who sees others' preferences?** **Recommend:** PLANNER only for the prototype; supervisors for their units is a pilot privacy question (docs/09 §6).
 3. **Board URL parameters** (§10.8): a small web change for dev-build2, needed for the commit links.
 4. **Days-off limit:** 2 is my proposal; the UI takes `maxDaysOff` from the api.
-5. **8-hour pattern select** (§3.2): show it only if the api exposes the choice; if not, the roster's pattern words still say "5 on, 2 off".
+5. **Per-officer pattern** (§7): the Pattern select on Preferences saves through the api and says "Pattern saved. The next plan will use it."; the Generate box has no pattern select; the roster and scorecard say each officer's pattern in words.
 
 ---
 
@@ -391,6 +395,6 @@ Figures are examples; use the measured ones from the verified tip.
 
 ## 13. What I'll check when reviewing the built screens
 
-Scorecard tiles, explanations and panels as §2 · one yellow per screen in every state · status in words, not colour · tabs in the URL · "Show week" lands on the right unit and week with focus · Roster read-only with the "not on the planning board yet" note and pattern words · Compare uses the api's direction · commit dialog lists every warning and needs the one checkbox · stale (412), blocked (422) and locked (409) refusals say "Nothing was written" and keep the draft · success links open the board on the right unit and week · preferences save and clear with confirmation, disabled lengths explained · no rule codes anywhere · states as §9.1 · keyboard path §9.2 end to end · axe clean at 1440 and 768 px · footer line, no logo.
+Scorecard tiles, explanations and panels as §2 · one yellow per screen in every state · status in words, not colour · tabs in the URL · "Show week" lands on the right unit and week with focus · Roster read-only with the "not on the planning board yet" note and each officer's pattern words · each officer's pattern visible in words (Preferences select for 8 h, read-only 4 on/4 off for 12 h; no pattern select beside Generate) · Compare uses the api's direction · commit dialog lists every warning and needs the one checkbox · stale (412), blocked (422) and locked (409) refusals say "Nothing was written" and keep the draft · success links open the board on the right unit and week · preferences save and clear with confirmation, pattern save with its own confirmation, disabled lengths explained · no rule codes anywhere · states as §9.1 · keyboard path §9.2 end to end · axe clean at 1440 and 768 px · footer line, no logo.
 
 - The Roster tab's unit picker shows each unit's gap count for the visible week (`no gaps`, `1 gap`, `2 gaps`) and the selected unit's name heads its grid; the All-units strip stays clickable.
