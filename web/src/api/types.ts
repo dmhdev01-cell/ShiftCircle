@@ -713,7 +713,15 @@ export interface PlannerScorecard {
     }[];
     newestFirstHeld: boolean;
     check: string;
+    /** N12 night-crew figures (V6): officers on N12 and their night shifts. */
+    n12Officers?: number;
+    n12NightShifts?: number;
+    /** The api's plain sentence about the fixed day/night crews. */
+    crewNote?: string;
   };
+  /** The api's plain note about the 5-on/2-off changeover warnings. */
+  warningNote?: string;
+  pattern8h?: string;
   overtime: { officersOver: number; hoursOver: number; thresholdHours: number };
   generatedMs: number;
   /** Hours per officer across the quarter, min/avg/max. */

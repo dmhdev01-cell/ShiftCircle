@@ -726,6 +726,12 @@ export function PlannerPage() {
                 </Typography>
               ) : null}
 
+              {scorecard.warningNote ? (
+                <Typography sx={{ fontSize: 13, color: colour.text.secondary }}>
+                  {scorecard.warningNote}
+                </Typography>
+              ) : null}
+
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'flex-start' }}>
                 <Card sx={{ flex: '1 1 420px' }}>
                   <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -764,6 +770,17 @@ export function PlannerPage() {
                       </StatusPill>
                       <Typography sx={{ fontSize: 13 }}>{scorecard.nights.check}</Typography>
                     </Box>
+                    {scorecard.nights.n12NightShifts !== undefined ? (
+                      <Typography sx={{ fontSize: 13 }}>
+                        N12 night crew: {scorecard.nights.n12Officers ?? 0} officers ·{' '}
+                        {scorecard.nights.n12NightShifts} N12 night shifts in the quarter.
+                      </Typography>
+                    ) : null}
+                    {scorecard.nights.crewNote ? (
+                      <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
+                        {scorecard.nights.crewNote}
+                      </Typography>
+                    ) : null}
                   </CardContent>
                 </Card>
 

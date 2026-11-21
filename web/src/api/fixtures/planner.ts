@@ -90,7 +90,14 @@ function scorecard(seed: number) {
       ],
       newestFirstHeld: true,
       check: 'Newest first held in all 6 units.',
+      n12Officers: 38,
+      n12NightShifts: 456,
+      crewNote:
+        'D12 and N12 are fixed separate crews; the night crew is seeded from the newest officers, so nights are not re-picked day by day.',
     },
+    warningNote:
+      'At the weekend-rotation changeover an officer has one rest-day warning and one weekly-hours warning, and the changeover pay period is 72 hours.',
+    pattern8h: 'ROTATING_5_2',
     overtime: { officersOver: 18, hoursOver: 640, thresholdHours: 80 },
     generatedMs: 2400,
     quarterHours: { min: 480, avg: 512, max: 546 },
