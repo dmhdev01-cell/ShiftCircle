@@ -303,30 +303,11 @@ public final class PlanGenerator {
     Map<UUID, String> blocks = new HashMap<>();
     for (Unit unit : units) {
       List<Employee> candidates = new ArrayList<>(staff.getOrDefault(unit.id(), List.of()));
-      candidates.removeIf(employee -> effectiveLength(employee) != 8);
-      int nightNeed = (int) Math.ceil(unit.required().getOrDefault("NIGHT", 0) * 7.0 / 5.0);
-      List<Employee> byNight = new ArrayList<>(candidates);
-      byNight.sort(
-          (a, b) -> {
-            boolean volunteerA = "NIGHT".equals(a.pref().timeOfDay());
-            boolean volunteerB = "NIGHT".equals(b.pref().timeOfDay());
-            if (volunteerA != volunteerB) {
-              return volunteerA ? -1 : 1;
-            }
-            return volunteerA
-                ? a.seniority().compareTo(b.seniority())
-                : b.seniority().compareTo(a.seniority());
-          });
-      Set<UUID> nights = new LinkedHashSet<>();
-      for (Employee employee : byNight) {
-        if (nights.size() >= nightNeed) {
-          break;
-        }
-        nights.add(employee.id());
-        blocks.put(employee.id(), "NIGHT");
-      }
-      List<Employee> rest = new ArrayList<>();
-      candidates.stream().filter(employee -> !nights.contains(employee.id())).forEach(rest::add);
+      candidates.removeIf(employee -> effectiveLength(employee) != 8 || employee.fte() < 1.0);
+      // Only 12-hour officers work nights (person, 2026-11-21): an 8-hour officer is
+      // assigned to DAY or EVENING and never has an N8 shift. An 8 h NIGHT preference stays
+      // stored and is shown unmet with that plain reason.
+      List<Employee> rest = new ArrayList<>(candidates);
       int dayNeed = (int) Math.ceil(unit.required().getOrDefault("DAY", 0) * 7.0 / 5.0);
       int dayCount = 0;
       // Preference first: DAY then EVENING; seniority breaks the tie.
@@ -437,8 +418,8 @@ public final class PlanGenerator {
   private static Template templateFor(
       Employee employee, Unit unit, String block, Map<String, Template> templates) {
     int length = effectiveLength(employee);
-    if (length == 16) {
-      return templates.get("L16");
+    if (length == 8 && "NIGHT".equals(block)) {
+      return null;
     }
     if (length == 12) {
       return templates.get("NIGHT".equals(block) || "NIGHT".equals(employee.pref().timeOfDay())
@@ -675,6 +656,12 @@ public final class PlanGenerator {
     Map<String, Integer> counters = new HashMap<>();
     List<Employee> result = new ArrayList<>();
     for (Employee employee : employees) {
+      if (employee.fte() < 1.0) {
+        // The casual pool is placed after the full-time plan; it must not shift the phases that
+        // decide the full-timers' days, or adding casuals would change the plan they fill into.
+        result.add(employee);
+        continue;
+      }
       int cycle = employee.effectiveLength() == 12 ? 8 : 7;
       String key = employee.unitId() + "|" + blockOf.getOrDefault(employee.id(), "DAY");
       int index = counters.merge(key, 1, Integer::sum) - 1;
@@ -756,8 +743,12 @@ public final class PlanGenerator {
     scorecard.put("preferences", preferencesCard(employees, byEmployee));
     scorecard.put(
         "preferencesNote",
-        "The planner rosters 8- and 12-hour shifts only; a 16 h preference is shown unmet. Part-time"
+        "The planner rosters 8- and 12-hour shifts only; a 16 h preference is shown unmet. Only"
+            + " 12-hour officers work nights, so an 8 h night preference is shown unmet. Part-time"
             + " and casual officers are not guaranteed hours.");
+    scorecard.put(
+        "nightPolicy",
+        "Only 12-hour officers work nights; 8-hour officers work day or evening shifts.");
     scorecard.put(
         "nights",
         nightsCard(

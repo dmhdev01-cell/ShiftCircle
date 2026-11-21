@@ -1083,7 +1083,10 @@ public class PlannerService {
               && !"NONE".equals(time)
               && shifts.stream()
                   .anyMatch(shift -> !time.equals(preferenceOf((String) shift.get("code"))))) {
-            unmet.add("Time of day " + time);
+            unmet.add(
+                "NIGHT".equals(time) && (length == null || length == 8)
+                    ? "Time of day NIGHT: only 12-hour officers work nights"
+                    : "Time of day " + time);
           }
           if (!days.isEmpty()
               && shifts.stream()

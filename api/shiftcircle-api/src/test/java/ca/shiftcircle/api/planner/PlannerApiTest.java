@@ -150,6 +150,27 @@ class PlannerApiTest {
             draftId);
     assertThat(planned).isNotEmpty();
     assertThat(planned).allMatch(row -> !"L16".equals(row.get("template_code")));
+    assertThat(planned)
+        .as("only 12 h officers work nights; no 8 h N8 shift is rostered")
+        .allMatch(row -> !"N8".equals(row.get("template_code")));
+    Map<UUID, java.util.Set<String>> templatesByOfficer = new LinkedHashMap<>();
+    for (Map<String, Object> row : planned) {
+      templatesByOfficer
+          .computeIfAbsent((UUID) row.get("employee_id"), key -> new java.util.LinkedHashSet<>())
+          .add((String) row.get("template_code"));
+    }
+    for (Map.Entry<UUID, java.util.Set<String>> entry : templatesByOfficer.entrySet()) {
+      boolean eightHour =
+          entry.getValue().stream().allMatch(code -> nominalMinutes(code) == 480);
+      if (eightHour) {
+        assertThat(entry.getValue())
+            .as("8 h officer %s works day or evening only", entry.getKey())
+            .isSubsetOf("D8", "E8");
+      }
+    }
+    assertThat(templatesByOfficer.values().stream().anyMatch(codes -> codes.contains("A12")))
+        .as("12 h officers still cover nights")
+        .isTrue();
 
     Map<UUID, List<ShiftFact>> history = new LinkedHashMap<>();
     jdbc.query(
@@ -282,6 +303,9 @@ class PlannerApiTest {
     assertThat(weekendsByOfficer.values()).as("weekends worked per default officer")
         .allMatch(count -> count == 22);
 
+    System.out.println("night-rule gaps by block: " + jdbc.queryForList(
+        "SELECT block, count(*) AS gaps FROM plan_draft_gap WHERE draft_id = ?"
+            + " GROUP BY block ORDER BY block", draftId));
     System.out.println("whole-draft warnings: " + warnings.size());
   }
 
@@ -292,8 +316,9 @@ class PlannerApiTest {
         tokens.get("p.planner")));
     @SuppressWarnings("unchecked")
     Map<String, Object> scorecard = (Map<String, Object>) draft.get("scorecard");
-    @SuppressWarnings("unchecked")
     Map<String, Object> nights = (Map<String, Object>) scorecard.get("nights");
+    assertThat(scorecard.get("nightPolicy").toString())
+        .contains("Only 12-hour officers work nights");
     assertThat(nights.get("newestFirstHeld"))
         .as(String.valueOf(nights.get("check")))
         .isEqualTo(true);
@@ -331,6 +356,18 @@ class PlannerApiTest {
             send("GET", "/api/v1/planner/preferences", null, tokens.get("p.planner")).body(),
             List.class);
     assertThat(withSixteen.toString()).contains("the planner does not roster 16-hour shifts");
+    assertThat(
+            send("PUT", "/api/v1/me/preferences",
+                    "{\"shiftLength\":8,\"timeOfDay\":\"NIGHT\",\"daysOff\":[]}",
+                    tokens.get("t.nakamura"))
+                .statusCode())
+        .isEqualTo(200);
+    List<Map<String, Object>> withNight =
+        mapper.readValue(
+            send("GET", "/api/v1/planner/preferences", null, tokens.get("p.planner")).body(),
+            List.class);
+    assertThat(withNight.toString())
+        .contains("only 12-hour officers work nights");
     assertThat(
             send("PUT", "/api/v1/me/preferences",
                     "{\"daysOff\":[\"MON\",\"TUE\",\"WED\"]}", tokens.get("t.nakamura"))

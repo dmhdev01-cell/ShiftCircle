@@ -52,6 +52,16 @@ class PlanGeneratorFteTest {
                 (employee, unit, template, instant, current) ->
                     new PlanGenerator.Check(false, List.of()));
     long ms = (System.nanoTime() - start) / 1_000_000;
+    // The same officers without the casuals: the pool must actually fill leftovers.
+    List<PlanGenerator.Employee> fullTimeOnly =
+        employees.stream().filter(e -> e.fte() >= 1.0).toList();
+    int gapsWithoutPool =
+        new PlanGenerator()
+            .generate(fullTimeOnly, units, templates(), new HashMap<>(), "ROTATING_5_2", 20261001,
+                (employee, unit, template, instant, current) ->
+                    new PlanGenerator.Check(false, List.of()))
+            .gaps()
+            .size();
     Map<UUID, Map<Integer, Double>> casualHours = new LinkedHashMap<>();
     employees.stream().filter(e -> e.fte() < 1.0)
         .forEach(e -> casualHours.put(e.id(), new LinkedHashMap<>()));
@@ -75,11 +85,14 @@ class PlanGeneratorFteTest {
       }
     }
     System.out.println(
-        "FTE gaps " + result.gaps().size() + " of 1764, assignments "
+        "FTE gaps " + result.gaps().size() + " of 1764 (without pool " + gapsWithoutPool
+            + "), assignments "
             + result.assignments().size() + ", casuals " + casualHours.size() + ", " + ms + " ms; "
             + "fte bands " + result.scorecard().get("fteBands"));
     assertThat(casualHours.values().stream().anyMatch(m -> !m.isEmpty())).isTrue();
-    assertThat(result.gaps().size()).isLessThan(617);
+    assertThat(result.gaps().size())
+        .as("the casual pool fills leftovers: %s -> %s", gapsWithoutPool, result.gaps().size())
+        .isLessThan(gapsWithoutPool);
     assertThat(((Map<?, ?>) result.scorecard().get("fteBands")).get("bands"))
         .asList()
         .isNotEmpty();
