@@ -62,6 +62,16 @@ describe('the quarter plan', () => {
     expect(screen.getByText(/rotating pattern/)).toBeInTheDocument();
     expect(screen.getByText(/Quarter hours per officer: 480 min · 512 avg · 546 max/)).toBeInTheDocument();
     expect(screen.getByText(/Weekends worked: 4–11/)).toBeInTheDocument();
+    // "What this means" explains each tile in the design's words, one at a time.
+    const explained = screen.getAllByRole('button', { name: 'What this means' });
+    expect(explained).toHaveLength(6);
+    await user.click(explained[0]);
+    expect(
+      screen.getByRole('region', { name: 'What Coverage gaps means' }),
+    ).toHaveTextContent(/never breaks a blocking rule to fill a gap/);
+    await user.click(explained[0]);
+    expect(screen.queryByRole('region', { name: 'What Coverage gaps means' })).not.toBeInTheDocument();
+
     // The pattern picker speaks plainly, with the rotating default first.
     const pattern = screen.getByLabelText('8-hour pattern');
     expect(within(pattern).getAllByRole('option')[0]).toHaveTextContent(

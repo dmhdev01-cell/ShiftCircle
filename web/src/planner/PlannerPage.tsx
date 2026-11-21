@@ -42,6 +42,21 @@ const PATTERN_WORDS: Record<string, string> = {
   '7_ON_3_OFF': '7 on, 3 off',
 };
 
+const TILE_HELP: Record<string, string> = {
+  'Coverage gaps':
+    'A block (Day 07–15, Evening 15–23, Night 23–07) is short when any hour in it has fewer officers than the unit needs. The planner never breaks a blocking rule to fill a gap, so the gap stays visible for overtime or a supervisor to fill. See the Gaps tab.',
+  'Rule warnings':
+    "Every shift in the draft passed the same rule check as the planning board. Shifts a rule blocks are never placed; they become gaps. Warnings don't stop a plan, but you'll be asked to accept the list when you commit.",
+  'Preferences met':
+    'Officers can ask for a shift length, a time of day and days off. These are wishes, not guarantees: the planner meets them where staffing and the rules allow.',
+  'Night fairness':
+    'Night shifts are 8 h nights, 12 h 00–12 shifts and 16 h shifts. In each unit, officers who asked for nights get them first, most senior first. The rest go to the newest officers first. A senior officer works nights they did not ask for only when no newer officer in the unit can take the shift.',
+  'Overtime built in':
+    'Hours over 80 in a two-week pay period are paid as overtime. 8-hour officers work 5 on, 2 off: exactly 80 hours. 12-hour patterns give 72 to 96 hours a pay period and 16-hour patterns 64 to 80, so some overtime is built in before anyone picks up an extra shift.',
+  'Generated in':
+    "The planner follows fixed steps; it isn't AI. The same seed and the same data always give the same plan, so a plan can be checked and repeated.",
+};
+
 const KIND_WORDS: Record<string, string> = {
   SHIFT_LENGTH: 'Shift length',
   TIME_OF_DAY: 'Time of day',
@@ -70,6 +85,36 @@ function windowWords(from: string, to: string): string {
 }
 
 /** "1.4 s" for a millisecond figure. */
+/** "21 Nov, 09:14": one format for generated/committed lines (Regina time). */
+function whenWords(instant: string): string {
+  const parsed = new Date(instant);
+  if (Number.isNaN(parsed.getTime())) return instant;
+  const zone = 'America/Regina';
+  const day = new Intl.DateTimeFormat('en-CA', { day: 'numeric', timeZone: zone }).format(parsed);
+  const month = new Intl.DateTimeFormat('en-CA', { month: 'short', timeZone: zone }).format(parsed);
+  const time = new Intl.DateTimeFormat('en-CA', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: zone,
+  }).format(parsed);
+  return `${day} ${month}, ${time}`;
+}
+
+/** The six demo units by api code, for links and warnings that carry a code. */
+const UNIT_NAMES: Record<string, string> = {
+  A: 'Unit A',
+  B: 'Unit B',
+  C: 'Unit C',
+  ADM: 'Admissions',
+  CTL: 'Control',
+  ESC: 'Escort & transport',
+};
+
+function unitWords(code: string): string {
+  return UNIT_NAMES[code] ?? code;
+}
+
 function seconds(ms: number): string {
   return `${(ms / 1000).toFixed(1)} s`;
 }
@@ -325,13 +370,13 @@ export function PlannerPage() {
     ? {
         pill: 'pass' as const,
         text: 'Committed',
-        line: `Committed ${committed.committedAt.slice(0, 16).replace('T', ' ')} by P. Planner · ${committed.shiftsWritten.toLocaleString('en-CA')} shifts written`,
+        line: `Committed ${whenWords(committed.committedAt)} by P. Planner · ${committed.shiftsWritten.toLocaleString('en-CA')} shifts written`,
       }
     : draft
       ? {
           pill: 'warn' as const,
           text: 'Draft',
-          line: `Generated ${draft.createdAt.slice(0, 16).replace('T', ' ')} by ${draft.createdBy} · seed ${draft.seed} · took ${seconds(draft.generatedMs)}`,
+          line: `Generated ${whenWords(draft.createdAt)} by ${draft.createdBy} · seed ${draft.seed} · took ${seconds(draft.generatedMs)}`,
         }
       : {
           pill: 'info' as const,
@@ -510,7 +555,7 @@ export function PlannerPage() {
                     navigate(`/planning?unit=${encodeURIComponent(unit)}&week=${committed.firstWeek}`)
                   }
                 >
-                  Open unit {unit} on the planning board
+                  Open {unitWords(unit)} on the planning board
                 </Button>
               ))}
             </Box>
@@ -571,37 +616,70 @@ export function PlannerPage() {
           {tab === 'scorecard' && scorecard ? (
             <Box role="tabpanel" id="planner-panel-scorecard" aria-labelledby="planner-tab-scorecard" sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 3 }}>
-                <KpiTile
-                  label="Coverage gaps"
-                  value={scorecard.coverage.shortBlockDays}
-                  note={`block-days short, of ${scorecard.coverage.totalBlockDays.toLocaleString('en-CA')}`}
-                />
-                <KpiTile
-                  label="Rule warnings"
-                  value={scorecard.warnings.total}
-                  note={scorecard.warnings.note ?? 'no blocked shifts'}
-                />
-                <KpiTile
-                  label="Preferences met"
-                  value={`${Math.round((scorecard.preferences.met / Math.max(1, scorecard.preferences.asked)) * 100)}%`}
-                  note={`${scorecard.preferences.met} of ${scorecard.preferences.asked} wishes`}
-                />
-                <KpiTile
-                  label="Night fairness"
-                  value={scorecard.nights.newestFirstHeld ? 'Held' : 'Not held'}
-                  note="night shifts by seniority, below"
-                />
-                <KpiTile
-                  label="Overtime built in"
-                  value={`${scorecard.overtime.hoursOver} h`}
-                  note={`${scorecard.overtime.officersOver} officers over ${scorecard.overtime.thresholdHours} h in a pay period`}
-                />
-                <KpiTile
-                  label="Generated in"
-                  value={seconds(scorecard.generatedMs)}
-                  note={`seed ${draft.seed}`}
-                />
+                {[
+                  {
+                    label: 'Coverage gaps',
+                    value: scorecard.coverage.shortBlockDays,
+                    note: `block-days short, of ${scorecard.coverage.totalBlockDays.toLocaleString('en-CA')}`,
+                  },
+                  {
+                    label: 'Rule warnings',
+                    value: scorecard.warnings.total,
+                    note: scorecard.warnings.note ?? 'no blocked shifts',
+                  },
+                  {
+                    label: 'Preferences met',
+                    value: `${Math.round((scorecard.preferences.met / Math.max(1, scorecard.preferences.asked)) * 100)}%`,
+                    note: `${scorecard.preferences.met} of ${scorecard.preferences.asked} wishes`,
+                  },
+                  {
+                    label: 'Night fairness',
+                    value: scorecard.nights.newestFirstHeld ? 'Held' : 'Not held',
+                    note: 'night shifts by seniority, below',
+                  },
+                  {
+                    label: 'Overtime built in',
+                    value: `${scorecard.overtime.hoursOver} h`,
+                    note: `${scorecard.overtime.officersOver} officers over ${scorecard.overtime.thresholdHours} h in a pay period`,
+                  },
+                  {
+                    label: 'Generated in',
+                    value: seconds(scorecard.generatedMs),
+                    note: `seed ${draft.seed}`,
+                  },
+                ].map((tile) => (
+                  <Box key={tile.label} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <KpiTile label={tile.label} value={tile.value} note={tile.note} />
+                    <Button
+                      variant="text"
+                      color="primary"
+                      aria-expanded={explain === tile.label}
+                      aria-controls="planner-tile-help"
+                      onClick={() => setExplain(explain === tile.label ? null : tile.label)}
+                      sx={{ alignSelf: 'flex-start', minHeight: 44, fontSize: 12 }}
+                    >
+                      What this means
+                    </Button>
+                  </Box>
+                ))}
               </Box>
+
+              {explain && TILE_HELP[explain] ? (
+                <Box
+                  id="planner-tile-help"
+                  role="region"
+                  aria-label={`What ${explain} means`}
+                  sx={{
+                    p: '10px 12px',
+                    borderRadius: '8px',
+                    backgroundColor: colour.bg.subtle,
+                    fontSize: 13,
+                    color: colour.text.secondary,
+                  }}
+                >
+                  {TILE_HELP[explain]}
+                </Box>
+              ) : null}
 
               {scorecard.quarterHours || scorecard.weekends ? (
                 <Typography sx={{ fontSize: 13, color: colour.text.secondary }}>
@@ -729,7 +807,7 @@ export function PlannerPage() {
                               key={`${item.unitCode}-${item.date}-${index}`}
                               sx={{ fontSize: 13, color: colour.text.secondary }}
                             >
-                              {item.unitCode} · {shortDay(item.date)} · {item.employeeName} · {item.message}
+                              {unitWords(item.unitCode)} · {shortDay(item.date)} · {item.employeeName} · {item.message}
                             </Typography>
                           ))}
                         </Box>
@@ -957,6 +1035,7 @@ export function PlannerPage() {
               <Typography component="h3" sx={{ m: 0, fontSize: 15, fontWeight: 700 }}>
                 Rule warnings in this plan ({preview.warningCount})
               </Typography>
+              {preview.warningCount > 0 ? (
               <Box
                 tabIndex={0}
                 role="group"
@@ -973,12 +1052,13 @@ export function PlannerPage() {
                         key={`${item.unitCode}-${item.date}-${index}`}
                         sx={{ fontSize: 13, color: colour.text.secondary }}
                       >
-                        {item.unitCode} · {shortDay(item.date)} · {item.employeeName} · {item.message}
+                        {unitWords(item.unitCode)} · {shortDay(item.date)} · {item.employeeName} · {item.message}
                       </Typography>
                     ))}
                   </Box>
                 ))}
               </Box>
+              ) : null}
               {preview.warningCount > 0 ? (
                 <>
                   <FormControlLabel
