@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -36,6 +37,18 @@ public class PlannerController {
     this.planner = planner;
     this.scopeGuard = scopeGuard;
     this.demoLock = demoLock;
+  }
+
+  @org.springframework.web.bind.annotation.ExceptionHandler(PlannerConflictException.class)
+  public ResponseEntity<Object> conflict(PlannerConflictException conflict) {
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+        .body(
+            java.util.Map.of(
+                "type", "https://shiftcircle.local/problems/409",
+                "title", conflict.getMessage(),
+                "status", 409,
+                "reason", conflict.reason()));
   }
 
   @GetMapping("/plan")

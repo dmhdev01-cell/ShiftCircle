@@ -50,7 +50,7 @@ public final class RuleRowsV1 {
         "U-02",
         RuleTableCode.REST,
         true,
-        Map.of("afterShiftKind", "(D8|E8|N8|A12|P12)", "windowHours", 24,
+        Map.of("afterShiftKind", "(D8|E8|N8|A12|P12|D12|N12)", "windowHours", 24,
             "minExtensionMinutes", 0, "minRestHours", 12),
         RuleOutcome.WARN,
         OverridePolicy.ACKNOWLEDGE,
@@ -158,7 +158,7 @@ public final class RuleRowsV1 {
         Map.of("counts", "SHIFTS_NIGHT_12H", "max", 4, "overtimeSeverity", "WARN"),
         RuleOutcome.WARN,
         OverridePolicy.ACKNOWLEDGE,
-        "More than 4 consecutive overnight 00-12 shifts.",
+        "More than 4 consecutive overnight (00-12 or 19-07) shifts.",
         "MOCK",
         true,
         100);

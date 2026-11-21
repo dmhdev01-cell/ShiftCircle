@@ -1,6 +1,7 @@
 package ca.shiftcircle.api.planner;
 
 import ca.shiftcircle.api.rules.RuleCheckService;
+import ca.shiftcircle.api.schedule.ScheduleQuery;
 import ca.shiftcircle.api.security.AuthPrincipal;
 import ca.shiftcircle.rules.build.ShiftFact;
 import ca.shiftcircle.rules.build.ShiftKind;
@@ -50,11 +51,14 @@ public class PlannerService {
 
   private final JdbcTemplate jdbc;
   private final RuleCheckService ruleCheck;
+  private final ScheduleQuery scheduleQuery;
   private final ObjectMapper mapper = new ObjectMapper();
 
-  public PlannerService(JdbcTemplate jdbc, RuleCheckService ruleCheck) {
+  public PlannerService(
+      JdbcTemplate jdbc, RuleCheckService ruleCheck, ScheduleQuery scheduleQuery) {
     this.jdbc = jdbc;
     this.ruleCheck = ruleCheck;
+    this.scheduleQuery = scheduleQuery;
   }
 
   public record CommitAttempt(int status, Object body) {}
@@ -74,7 +78,9 @@ public class PlannerService {
             .orElse(null);
     Map<String, Object> committed =
         jdbc.queryForList(
-                "SELECT d.*, u.display_name AS committed_by_name FROM plan_draft d"
+                "SELECT d.*, cu.display_name AS created_by_name,"
+                    + " u.display_name AS committed_by_name FROM plan_draft d"
+                    + " LEFT JOIN app_user cu ON cu.id = d.created_by"
                     + " LEFT JOIN app_user u ON u.id = d.committed_by"
                     + " WHERE d.status = 'COMMITTED' ORDER BY d.committed_at DESC LIMIT 1")
             .stream()
@@ -84,9 +90,10 @@ public class PlannerService {
         new PlannerViews.Window(FROM, TO, PlanGenerator.PERIODS),
         DEFAULT_SEED,
         PATTERNS,
-        open == null ? "NONE" : "DRAFT",
+        open != null ? "DRAFT" : committed != null ? "COMMITTED" : "NONE",
         open == null ? null : draftSummary(open),
-        committed == null ? null : lastCommitted(committed));
+        committed == null ? null : lastCommitted(committed),
+        committed == null ? null : draftSummary(committed));
   }
 
   @Transactional
@@ -97,6 +104,30 @@ public class PlannerService {
     if (!PATTERNS.contains(pattern)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "pattern8h must be ROTATING_5_2, 5_ON_2_OFF or 7_ON_3_OFF");
+    }
+    Map<String, Object> committed =
+        jdbc.queryForList(
+                "SELECT d.id, d.committed_at, u.display_name FROM plan_draft d"
+                    + " LEFT JOIN app_user u ON u.id = d.committed_by"
+                    + " WHERE d.status = 'COMMITTED' AND d.from_date <= ? AND d.to_date >= ?"
+                    + " ORDER BY d.committed_at DESC LIMIT 1",
+                TO,
+                FROM)
+            .stream()
+            .findFirst()
+            .orElse(null);
+    if (committed != null) {
+      String when =
+          committed.get("committed_at") == null
+              ? "an earlier date"
+              : ((Timestamp) committed.get("committed_at")).toInstant().toString().substring(0, 10);
+      throw new PlannerConflictException(
+          "ALREADY_COMMITTED_WINDOW",
+          "This quarter is already committed ("
+              + when
+              + ", by "
+              + committed.get("display_name")
+              + "). To start over in the demo use Reset the demo data.");
     }
     jdbc.update("DELETE FROM plan_draft WHERE status = 'DRAFT'");
 
@@ -741,26 +772,237 @@ public class PlannerService {
             ((java.sql.Date) draft.get("from_date")).toLocalDate()));
   }
 
+  /**
+   * Draft versus the board (docs/07 §4.9): every measure is computed twice, once from the committed
+   * shifts the board shows and once from the draft. Coverage uses the board's own absolute-time
+   * calculator for both sides, so a 23:00 shift counts after midnight and the two columns are
+   * comparable; the plan's own gap count uses the same measure.
+   */
   public PlannerViews.CompareView compare(UUID id) {
-    requireDraft(id);
-    int draftShifts =
-        jdbc.queryForObject(
-            "SELECT count(*) FROM plan_draft_assignment WHERE draft_id = ?", Integer.class, id);
+    Map<String, Object> draftRow = requireDraft(id);
+    int draftWarnings = ((Number) draftRow.get("warning_count")).intValue();
+
+    List<Map<String, Object>> units = jdbc.queryForList("SELECT id, code FROM unit ORDER BY code");
+    Map<UUID, int[]> boardGapsByUnit = new LinkedHashMap<>();
+    long boardGaps = 0;
+    double boardGapHours = 0;
+    for (Map<String, Object> unit : units) {
+      UUID unitId = (UUID) unit.get("id");
+      ScheduleQuery.SchedulePayload payload = scheduleQuery.forUnit(unitId, FROM, TO);
+      int gaps = 0;
+      for (ScheduleQuery.BlockCoverage block : payload.coverage()) {
+        if (!block.covered()) {
+          gaps++;
+          int missing = Math.max(0, block.required() - block.scheduled().lowestHourly());
+          boardGapHours += missing * 8.0;
+        }
+      }
+      boardGaps += gaps;
+      boardGapsByUnit.put(unitId, new int[] {gaps});
+    }
+
     int draftGaps =
         jdbc.queryForObject(
             "SELECT count(*) FROM plan_draft_gap WHERE draft_id = ?", Integer.class, id);
-    int committed =
+    double draftGapHours =
         jdbc.queryForObject(
-            "SELECT count(*) FROM shift_assignment WHERE status <> 'CANCELLED'"
-                + " AND work_date BETWEEN ? AND ?",
-            Integer.class,
+            "SELECT coalesce(sum(greatest(required - placed, 0) * 8), 0) FROM plan_draft_gap"
+                + " WHERE draft_id = ?",
+            Double.class,
+            id);
+    Map<UUID, Integer> draftGapsByUnit = new HashMap<>();
+    jdbc.query(
+        "SELECT unit_id, count(*) AS gaps FROM plan_draft_gap WHERE draft_id = ? GROUP BY unit_id",
+        (RowCallbackHandler)
+            rs -> draftGapsByUnit.put((UUID) rs.getObject("unit_id"), rs.getInt("gaps")),
+        id);
+
+    List<Map<String, Object>> boardRows =
+        jdbc.queryForList(
+            "SELECT a.employee_id, t.code, t.duration_minutes, t.start_time, a.work_date"
+                + " FROM shift_assignment a JOIN shift_template t ON t.id = a.shift_template_id"
+                + " WHERE a.status <> 'CANCELLED' AND a.work_date BETWEEN ? AND ?",
             FROM,
             TO);
-    List<PlannerViews.CompareRow> rows =
-        List.of(
-            new PlannerViews.CompareRow("shifts", "Shifts", committed, draftShifts, "count", "NEUTRAL"),
-            new PlannerViews.CompareRow("gaps", "Coverage gaps", 0, draftGaps, "count", "LOWER_IS_BETTER"));
-    return new PlannerViews.CompareView(draftShifts, draftGaps, committed, rows);
+    List<Map<String, Object>> draftRows =
+        jdbc.queryForList(
+            "SELECT a.employee_id, t.code, t.duration_minutes, t.start_time, a.work_date"
+                + " FROM plan_draft_assignment a"
+                + " JOIN shift_template t ON t.id = a.shift_template_id WHERE a.draft_id = ?",
+            id);
+    List<UUID> employeeIds =
+        jdbc.queryForList("SELECT id FROM employee WHERE active ORDER BY employee_no", UUID.class);
+    Map<UUID, PlanGenerator.Pref> prefs = preferencesById();
+    Stats board = stats(boardRows, employeeIds, prefs);
+    Stats draft = stats(draftRows, employeeIds, prefs);
+    List<Map<String, Object>> committed =
+        jdbc.queryForList(
+            "SELECT warning_count FROM plan_draft WHERE status = 'COMMITTED'"
+                + " AND from_date <= ? AND to_date >= ? ORDER BY committed_at DESC LIMIT 1",
+            TO,
+            FROM);
+    int boardWarnings =
+        committed.isEmpty() ? 0 : ((Number) committed.get(0).get("warning_count")).intValue();
+
+    List<PlannerViews.CompareRow> rows = new ArrayList<>();
+    rows.add(row("coverageGaps", "Coverage gaps (short block-days)", boardGaps, draftGaps,
+        "count", "LOWER_IS_BETTER"));
+    rows.add(row("gapHours", "Unfilled gap hours", boardGapHours, draftGapHours, "hours",
+        "LOWER_IS_BETTER"));
+    rows.add(row("shifts", "Shifts", board.shifts(), draft.shifts(), "count", "NEUTRAL"));
+    rows.add(row("officers", "Officers scheduled", board.officers(), draft.officers(), "count",
+        "NEUTRAL"));
+    rows.add(row("plannedHours", "Planned hours", board.hours(), draft.hours(), "hours",
+        "NEUTRAL"));
+    rows.add(row("warnings", "Warnings added by the plan", boardWarnings, draftWarnings, "count",
+        "LOWER_IS_BETTER"));
+    rows.add(row("preferencesMet", "Preferences met", board.preferencesMet(),
+        draft.preferencesMet(), "count", "HIGHER_IS_BETTER"));
+    rows.add(row("weekendsMin", "Weekends worked (min)", board.weekendsMin(),
+        draft.weekendsMin(), "days", "NEUTRAL"));
+    rows.add(row("weekendsAvg", "Weekends worked (avg)", board.weekendsAvg(),
+        draft.weekendsAvg(), "days", "NEUTRAL"));
+    rows.add(row("weekendsMax", "Weekends worked (max)", board.weekendsMax(),
+        draft.weekendsMax(), "days", "NEUTRAL"));
+    for (Map<String, Object> unit : units) {
+      UUID unitId = (UUID) unit.get("id");
+      String code = (String) unit.get("code");
+      rows.add(
+          new PlannerViews.CompareRow(
+              "unit:" + code + ":coverageGaps",
+              code + " coverage gaps",
+              boardGapsByUnit.getOrDefault(unitId, new int[] {0})[0],
+              draftGapsByUnit.getOrDefault(unitId, 0),
+              "count",
+              "LOWER_IS_BETTER"));
+    }
+    String draftStatus = (String) draftRow.get("status");
+    String basis =
+        "COMMITTED".equals(draftStatus)
+            ? "The committed plan is compared with the current board, including supervisor edits"
+                + " since the commit."
+            : "The draft is compared with the current board (the last committed plan, or the"
+                + " seeded roster before a commit).";
+    return new PlannerViews.CompareView(
+        draft.shifts(), draftGaps, board.shifts(), draftStatus, basis, rows);
+  }
+
+  private static PlannerViews.CompareRow row(
+      String key, String label, double board, double draft, String unit, String direction) {
+    return new PlannerViews.CompareRow(key, label, board, draft, unit, direction);
+  }
+
+  private record Stats(
+      int shifts,
+      int officers,
+      double hours,
+      int weekendsMin,
+      double weekendsAvg,
+      int weekendsMax,
+      int preferencesMet) {}
+
+  private static Stats stats(
+      List<Map<String, Object>> rows,
+      List<UUID> employeeIds,
+      Map<UUID, PlanGenerator.Pref> prefs) {
+    Map<UUID, List<Map<String, Object>>> byEmployee = new HashMap<>();
+    for (Map<String, Object> row : rows) {
+      byEmployee
+          .computeIfAbsent((UUID) row.get("employee_id"), key -> new ArrayList<>())
+          .add(row);
+    }
+    double hours =
+        rows.stream()
+            .mapToDouble(
+                row -> ((Number) row.get("duration_minutes")).doubleValue() / 60.0)
+            .sum();
+    List<Integer> weekends = new ArrayList<>();
+    int preferencesMet = 0;
+    for (UUID employeeId : employeeIds) {
+      List<Map<String, Object>> shifts = byEmployee.getOrDefault(employeeId, List.of());
+      Set<LocalDate> weekendDays = new HashSet<>();
+      for (Map<String, Object> shift : shifts) {
+        LocalDate date = ((java.sql.Date) shift.get("work_date")).toLocalDate();
+        if (date.getDayOfWeek() == java.time.DayOfWeek.SATURDAY
+            || date.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
+          weekendDays.add(date);
+        }
+      }
+      weekends.add(weekendDays.size());
+      PlanGenerator.Pref pref = prefs.get(employeeId);
+      if (pref != null && !shifts.isEmpty()) {
+        boolean lengthMet =
+            pref.shiftLength() == null
+                || shifts.stream()
+                    .allMatch(
+                        shift ->
+                            ((Number) shift.get("duration_minutes")).intValue()
+                                == pref.shiftLength() * 60);
+        boolean timeMet =
+            pref.timeOfDay() == null
+                || "NONE".equals(pref.timeOfDay())
+                || shifts.stream()
+                    .allMatch(
+                        shift ->
+                            pref.timeOfDay().equals(timeOfDay(shift)));
+        boolean daysMet =
+            pref.daysOff() == null
+                || pref.daysOff().isEmpty()
+                || shifts.stream()
+                    .noneMatch(
+                        shift ->
+                            pref.daysOff()
+                                .contains(
+                                    ((java.sql.Date) shift.get("work_date"))
+                                        .toLocalDate()
+                                        .getDayOfWeek()
+                                        .name()
+                                        .substring(0, 3)));
+        if (lengthMet && timeMet && daysMet) {
+          preferencesMet++;
+        }
+      }
+    }
+    return new Stats(
+        rows.size(),
+        byEmployee.size(),
+        round1(hours),
+        weekends.stream().mapToInt(Integer::intValue).min().orElse(0),
+        round1(weekends.stream().mapToInt(Integer::intValue).average().orElse(0)),
+        weekends.stream().mapToInt(Integer::intValue).max().orElse(0),
+        preferencesMet);
+  }
+
+  private static String timeOfDay(Map<String, Object> shift) {
+    int hour = ((java.sql.Time) shift.get("start_time")).toLocalTime().getHour();
+    if (hour == 7) {
+      return "DAY";
+    }
+    if (hour == 12 || hour == 15) {
+      return "EVENING";
+    }
+    return "NIGHT";
+  }
+
+  private static double round1(double value) {
+    return Math.round(value * 10.0) / 10.0;
+  }
+
+  private Map<UUID, PlanGenerator.Pref> preferencesById() {
+    Map<UUID, PlanGenerator.Pref> prefs = new HashMap<>();
+    jdbc.query(
+        "SELECT employee_id, shift_length, time_of_day, days_off FROM officer_preference",
+        (RowCallbackHandler)
+            rs ->
+                prefs.put(
+                    (UUID) rs.getObject("employee_id"),
+                    new PlanGenerator.Pref(
+                        rs.getObject("shift_length") == null
+                            ? null
+                            : rs.getInt("shift_length"),
+                        rs.getString("time_of_day"),
+                        daysOff(rs.getArray("days_off")))));
+    return prefs;
   }
 
   /**
@@ -852,7 +1094,10 @@ public class PlannerService {
               && !"NONE".equals(time)
               && shifts.stream()
                   .anyMatch(shift -> !time.equals(preferenceOf((String) shift.get("code"))))) {
-            unmet.add("Time of day " + time);
+            unmet.add(
+                "NIGHT".equals(time) && (length == null || length == 8)
+                    ? "Time of day NIGHT: only 12-hour officers work nights"
+                    : "Time of day " + time);
           }
           if (!days.isEmpty()
               && shifts.stream()
@@ -998,18 +1243,31 @@ public class PlannerService {
     Map<UUID, Integer> phases = new HashMap<>();
     return jdbc.query(
         "SELECT e.id, e.employee_no, e.first_name || ' ' || e.last_name AS name,"
-            + " e.home_unit_id, e.seniority_date, p.shift_length, p.time_of_day, p.days_off"
+            + " e.home_unit_id, e.seniority_date, e.fte, p.shift_length, p.time_of_day, p.days_off,"
+            + " rp.code AS crew"
             + " FROM employee e LEFT JOIN officer_preference p ON p.employee_id = e.id"
+            + " LEFT JOIN rotation_pattern rp ON rp.id = e.rotation_pattern_id"
             + " ORDER BY e.home_unit_id, e.employee_no",
         (rs, row) -> {
           UUID unitId = rs.getObject("home_unit_id", UUID.class);
           PlanGenerator.Unit unit = byId.get(unitId);
           int index = phases.merge(unitId, 1, Integer::sum) - 1;
           Integer preferred = rs.getObject("shift_length", Integer.class);
+          String crew = rs.getString("crew");
           int effective = 8;
           // The planner does not roster 16-hour patterns: a 16 h preference is stored, shown
           // unmet with that reason, and planned as 12 h (or 8 h) so no L16 is generated.
-          if (preferred != null && preferred >= 12 && unit.allows12h()) {
+          if (crew != null
+              && (crew.startsWith("N12")
+                  || crew.startsWith("D12")
+                  || crew.startsWith("CASUAL_12"))) {
+            effective = 12;
+          } else if (crew != null
+              && (crew.startsWith("D8")
+                  || crew.startsWith("E8")
+                  || crew.startsWith("CASUAL_8"))) {
+            effective = 8;
+          } else if (preferred != null && preferred >= 12 && unit.allows12h()) {
             effective = 12;
           }
           return new PlanGenerator.Employee(
@@ -1019,9 +1277,11 @@ public class PlannerService {
               unitId,
               unit.code(),
               rs.getDate("seniority_date").toLocalDate(),
+              rs.getDouble("fte"),
               new PlanGenerator.Pref(preferred, rs.getString("time_of_day"), daysOff(rs.getArray("days_off"))),
               effective,
-              index % 7);
+              index % 7,
+              crew);
         });
   }
 

@@ -55,7 +55,16 @@ class JwtServiceTest {
   void rejectsATamperedSignature() {
     String token = service.sign(new AuthPrincipal("m.ellis", "M. Ellis", List.of("SUPERVISOR"),
         List.of("A"), null));
-    String tampered = token.substring(0, token.length() - 2) + "xx";
+    // Tamper the first signature character, not the last two: the final base64 character of a
+    // 32-byte HMAC carries only 4 significant bits (2 padding bits), so some "tampered" suffixes
+    // decode to the same signature bytes and a correct verifier accepts them. That made this test
+    // flake (~1 in 1,000) rather than catch a product defect.
+    int signatureStart = token.lastIndexOf('.') + 1;
+    char first = token.charAt(signatureStart);
+    String tampered =
+        token.substring(0, signatureStart)
+            + (first == 'A' ? 'B' : 'A')
+            + token.substring(signatureStart + 1);
 
     assertThatThrownBy(() -> service.verify(tampered))
         .isInstanceOf(JwtService.InvalidTokenException.class);

@@ -1,5 +1,6 @@
 package ca.shiftcircle.api.schedule;
 
+import ca.shiftcircle.api.coverage.CoverageCalculator;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -101,33 +102,60 @@ public class ScheduleQuery {
             from,
             to);
 
-    List<Map<String, Object>> actuals =
-        jdbc.queryForList(
+    // Coverage is absolute time (ADR-013/017): the NIGHT block on date D runs 23:00 D to 07:00
+    // D+1, so a 23:00 shift must be counted in the hours after midnight. The display query above
+    // keeps one row per shift; these intervals include the next day's early shift for that block.
+    List<CoverageCalculator.Interval> scheduledIntervals =
+        jdbc.query(
+            "SELECT start_at, end_at FROM shift_assignment WHERE unit_id = ?"
+                + " AND status <> 'CANCELLED' AND work_date BETWEEN ? AND ?",
+            (rs, rowNum) ->
+                new CoverageCalculator.Interval(
+                    rs.getTimestamp("start_at").toInstant(),
+                    rs.getTimestamp("end_at").toInstant()),
+            unitId,
+            from.minusDays(1),
+            to.plusDays(1));
+    List<CoverageCalculator.Interval> actualIntervals =
+        jdbc.query(
             "SELECT te.start_at, te.end_at FROM time_entry te"
                 + " JOIN shift_assignment s ON s.id = te.shift_assignment_id"
                 + " WHERE s.unit_id = ? AND s.work_date BETWEEN ? AND ?"
                 + " AND te.absence_type IS NULL",
+            (rs, rowNum) ->
+                new CoverageCalculator.Interval(
+                    rs.getTimestamp("start_at").toInstant(),
+                    rs.getTimestamp("end_at").toInstant()),
             unitId,
-            from,
-            to);
+            from.minusDays(1),
+            to.plusDays(1));
 
     List<LocalDate> days = new ArrayList<>();
     for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
       days.add(date);
     }
 
+    CoverageCalculator calculator = new CoverageCalculator();
     List<BlockCoverage> coverage = new ArrayList<>();
     for (LocalDate date : days) {
-      for (String block : List.of("DAY", "EVENING", "NIGHT")) {
-        int need = required.getOrDefault(block, 0);
-        int[] scheduledHours = hourly(date, assignments, true);
-        int[] actualHours = hourly(date, actuals, false);
-        HourlyCoverage scheduled = coverage(need, scheduledHours, block);
-        HourlyCoverage actual =
-            date.isBefore(LocalDate.now(REGINA)) ? coverage(need, actualHours, block) : null;
+      Map<String, CoverageCalculator.BlockCoverage> actualByBlock = new java.util.HashMap<>();
+      if (date.isBefore(LocalDate.now(REGINA))) {
+        for (CoverageCalculator.BlockCoverage block :
+            calculator.forDay(date, required, actualIntervals)) {
+          actualByBlock.put(block.block(), block);
+        }
+      }
+      for (CoverageCalculator.BlockCoverage block :
+          calculator.forDay(date, required, scheduledIntervals)) {
+        CoverageCalculator.BlockCoverage actual = actualByBlock.get(block.block());
         coverage.add(
-            new BlockCoverage(block, date, need, scheduled, actual,
-                scheduled.shortHours().isEmpty()));
+            new BlockCoverage(
+                block.block(),
+                date,
+                block.required(),
+                convert(block.coverage()),
+                actual == null ? null : convert(actual.coverage()),
+                block.covered()));
       }
     }
 
@@ -363,81 +391,13 @@ public class ScheduleQuery {
     return qualifications;
   }
 
-  /** Hourly headcount for the day, for assignments or actual entries. */
-  private int[] hourly(LocalDate date, List<Map<String, Object>> entries, boolean assignments) {
-    int[] counts = new int[24];
-    for (Map<String, Object> entry : entries) {
-      if (assignments) {
-        if (!localDate(entry.get("work_date")).equals(date)) {
-          continue;
-        }
-      }
-      java.time.Instant start = ((java.sql.Timestamp) entry.get("start_at")).toInstant();
-      java.time.Instant end = ((java.sql.Timestamp) entry.get("end_at")).toInstant();
-      if (!start.atZone(REGINA).toLocalDate().equals(date)) {
-        continue;
-      }
-      for (int hour = 0; hour < 24; hour++) {
-        java.time.Instant hourStart = date.atTime(hour, 0).atZone(REGINA).toInstant();
-        java.time.Instant hourEnd = hourStart.plusSeconds(3600);
-        if (start.isBefore(hourEnd) && end.isAfter(hourStart)) {
-          counts[hour]++;
-        }
-      }
-    }
-    return counts;
-  }
-
-  private HourlyCoverage coverage(int required, int[] hourly, String block) {
-    int from = blockFrom(block);
-    int to = blockTo(block);
-    int lowest = Integer.MAX_VALUE;
-    int highest = 0;
-    List<ShortHour> shortHours = new ArrayList<>();
-    int runStart = -1;
-    int runCount = 0;
-
-    for (int hour = from; hour < to; hour++) {
-      int count = hourly[hour % 24];
-      lowest = Math.min(lowest, count);
-      highest = Math.max(highest, count);
-      if (count < required) {
-        if (runStart < 0) {
-          runStart = hour;
-          runCount = count;
-        } else {
-          runCount = Math.min(runCount, count);
-        }
-      } else if (runStart >= 0) {
-        shortHours.add(new ShortHour(time(runStart), time(hour), runCount));
-        runStart = -1;
-      }
-    }
-    if (runStart >= 0) {
-      shortHours.add(new ShortHour(time(runStart), time(to), runCount));
-    }
-
-    return new HourlyCoverage(lowest == Integer.MAX_VALUE ? 0 : lowest, shortHours, highest);
-  }
-
-  private static int blockFrom(String block) {
-    return switch (block) {
-      case "DAY" -> 7;
-      case "EVENING" -> 15;
-      default -> 23;
-    };
-  }
-
-  private static int blockTo(String block) {
-    return switch (block) {
-      case "DAY" -> 15;
-      case "EVENING" -> 23;
-      default -> 31;
-    };
-  }
-
-  private static String time(int hour) {
-    return String.format("%02d:00", hour % 24);
+  private static HourlyCoverage convert(CoverageCalculator.HourlyCoverage coverage) {
+    return new HourlyCoverage(
+        coverage.lowestHourly(),
+        coverage.shortHours().stream()
+            .map(hour -> new ShortHour(hour.from(), hour.to(), hour.count()))
+            .toList(),
+        coverage.maxHourly());
   }
 
   private static LocalDate localDate(Object value) {

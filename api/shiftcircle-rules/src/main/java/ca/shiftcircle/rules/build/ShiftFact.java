@@ -10,7 +10,7 @@ import java.time.Instant;
  * @param assignmentId assignment identifier, echoed in evidence
  * @param employeeId employee the shift belongs to
  * @param unitCode unit the shift is on
- * @param templateCode shift template code (D8, E8, N8, A12, P12, L16)
+ * @param templateCode shift template code (D8, E8, N8, A12, P12, D12, N12, L16)
  * @param start start instant
  * @param end end instant
  * @param kind rostered or extra
@@ -45,11 +45,14 @@ public record ShiftFact(
   }
 
   /**
-   * The shift KIND is the pattern code, not the worked duration (review F5): a P12 extended by
-   * 30 minutes is still a 12-hour shift for the consecutive and long-shift rules.
+   * The shift KIND is the pattern code, not the worked duration (review F5): a P12 or N12
+   * extended by 30 minutes is still a 12-hour shift for the consecutive and long-shift rules.
    */
   public boolean isTwelveHour() {
-    return "A12".equals(templateCode) || "P12".equals(templateCode);
+    return "A12".equals(templateCode)
+        || "P12".equals(templateCode)
+        || "D12".equals(templateCode)
+        || "N12".equals(templateCode);
   }
 
   public boolean isSixteenHour() {
@@ -60,7 +63,7 @@ public record ShiftFact(
   public int nominalMinutes() {
     return switch (templateCode) {
       case "D8", "E8", "N8" -> 480;
-      case "A12", "P12" -> 720;
+      case "A12", "P12", "D12", "N12" -> 720;
       case "L16" -> 960;
       // An unknown code has no nominal length; reporting the worked duration lets L-01 reject it.
       default -> durationMinutes();

@@ -51,7 +51,9 @@ import tools.jackson.databind.ObjectMapper;
 class PlannerApiTest {
 
   static final PostgreSQLContainer POSTGRES =
-      new PostgreSQLContainer("postgres:17-alpine").withDatabaseName("shiftcircle");
+      new PostgreSQLContainer("postgres:17-alpine")
+          .withDatabaseName("shiftcircle")
+          .withUrlParam("connectTimeout", "30");
 
   static {
     POSTGRES.start();
@@ -150,6 +152,27 @@ class PlannerApiTest {
             draftId);
     assertThat(planned).isNotEmpty();
     assertThat(planned).allMatch(row -> !"L16".equals(row.get("template_code")));
+    assertThat(planned)
+        .as("only 12 h officers work nights; no 8 h N8 shift is rostered")
+        .allMatch(row -> !"N8".equals(row.get("template_code")));
+    Map<UUID, java.util.Set<String>> templatesByOfficer = new LinkedHashMap<>();
+    for (Map<String, Object> row : planned) {
+      templatesByOfficer
+          .computeIfAbsent((UUID) row.get("employee_id"), key -> new java.util.LinkedHashSet<>())
+          .add((String) row.get("template_code"));
+    }
+    for (Map.Entry<UUID, java.util.Set<String>> entry : templatesByOfficer.entrySet()) {
+      boolean eightHour =
+          entry.getValue().stream().allMatch(code -> nominalMinutes(code) == 480);
+      if (eightHour) {
+        assertThat(entry.getValue())
+            .as("8 h officer %s works day or evening only", entry.getKey())
+            .isSubsetOf("D8", "E8");
+      }
+    }
+    assertThat(templatesByOfficer.values().stream().anyMatch(codes -> codes.contains("A12")))
+        .as("12 h officers still cover nights")
+        .isTrue();
 
     Map<UUID, List<ShiftFact>> history = new LinkedHashMap<>();
     jdbc.query(
@@ -282,6 +305,9 @@ class PlannerApiTest {
     assertThat(weekendsByOfficer.values()).as("weekends worked per default officer")
         .allMatch(count -> count == 22);
 
+    System.out.println("night-rule gaps by block: " + jdbc.queryForList(
+        "SELECT block, count(*) AS gaps FROM plan_draft_gap WHERE draft_id = ?"
+            + " GROUP BY block ORDER BY block", draftId));
     System.out.println("whole-draft warnings: " + warnings.size());
   }
 
@@ -292,8 +318,9 @@ class PlannerApiTest {
         tokens.get("p.planner")));
     @SuppressWarnings("unchecked")
     Map<String, Object> scorecard = (Map<String, Object>) draft.get("scorecard");
-    @SuppressWarnings("unchecked")
     Map<String, Object> nights = (Map<String, Object>) scorecard.get("nights");
+    assertThat(scorecard.get("nightPolicy").toString())
+        .contains("Only 12-hour officers work nights");
     assertThat(nights.get("newestFirstHeld"))
         .as(String.valueOf(nights.get("check")))
         .isEqualTo(true);
@@ -333,6 +360,18 @@ class PlannerApiTest {
     assertThat(withSixteen.toString()).contains("the planner does not roster 16-hour shifts");
     assertThat(
             send("PUT", "/api/v1/me/preferences",
+                    "{\"shiftLength\":8,\"timeOfDay\":\"NIGHT\",\"daysOff\":[]}",
+                    tokens.get("t.nakamura"))
+                .statusCode())
+        .isEqualTo(200);
+    List<Map<String, Object>> withNight =
+        mapper.readValue(
+            send("GET", "/api/v1/planner/preferences", null, tokens.get("p.planner")).body(),
+            List.class);
+    assertThat(withNight.toString())
+        .contains("only 12-hour officers work nights");
+    assertThat(
+            send("PUT", "/api/v1/me/preferences",
                     "{\"daysOff\":[\"MON\",\"TUE\",\"WED\"]}", tokens.get("t.nakamura"))
                 .statusCode())
         .isEqualTo(400);
@@ -351,14 +390,35 @@ class PlannerApiTest {
   }
 
   @Test
-  @Order(6)
+  @Order(7)
   void previewAndCommitWriteEveryShiftAtomicallyAndAuditOnce() throws Exception {
+    HttpResponse<String> generated =
+        send("POST", "/api/v1/planner/drafts", "{\"seed\":20261001}", tokens.get("p.planner"));
+    assertThat(generated.statusCode()).as(generated.body()).isEqualTo(201);
+    draftId = UUID.fromString((String) json(generated).get("id"));
+
     Map<String, Object> preview =
         json(send("GET", "/api/v1/planner/drafts/" + draftId + "/commit-preview", null,
             tokens.get("p.planner")));
     warningCount = ((Number) preview.get("warningCount")).intValue();
     int shifts = ((Number) preview.get("shiftsToWrite")).intValue();
     assertThat(shifts).isEqualTo(assignmentCount());
+
+    UUID period = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO pay_period (id, start_date, end_date, status) VALUES (?, DATE '2027-01-04',"
+            + " DATE '2027-01-17', 'LOCKED')",
+        period);
+    HttpResponse<String> locked =
+        sendWithHeaders(
+            "POST",
+            "/api/v1/planner/drafts/" + draftId + "/commit",
+            "{\"acceptedWarningCount\":" + warningCount + "}",
+            tokens.get("p.planner"),
+            Map.of("If-Match", "\"0\""));
+    assertThat(locked.statusCode()).isEqualTo(409);
+    assertThat(json(locked).get("reason")).isEqualTo("LOCKED_PERIOD");
+    jdbc.update("DELETE FROM pay_period WHERE id = ?", period);
 
     HttpResponse<String> committed =
         sendWithHeaders(
@@ -396,49 +456,6 @@ class PlannerApiTest {
                     Map.of("If-Match", "\"1\""))
                 .statusCode())
         .isEqualTo(409);
-  }
-
-  @Test
-  @Order(7)
-  void aDraftThatTouchesALockedPeriodIsRefusedAtCommit() throws Exception {
-    HttpResponse<String> generated =
-        send("POST", "/api/v1/planner/drafts", "{\"seed\":20261001}", tokens.get("p.planner"));
-    assertThat(generated.statusCode()).isEqualTo(201);
-    UUID second = UUID.fromString((String) json(generated).get("id"));
-
-    // The commit created the quarter's whole 14-day pay periods and every unit's schedule period.
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT count(*) FROM pay_period WHERE start_date >= DATE '2027-01-04'"
-                    + " AND end_date <= DATE '2027-04-11'",
-                Integer.class))
-        .isEqualTo(7);
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT count(*) FROM schedule_period WHERE start_date >= DATE '2027-01-04'"
-                    + " AND end_date <= DATE '2027-04-11'",
-                Integer.class))
-        .isEqualTo(42);
-    UUID period =
-        jdbc.queryForObject(
-            "SELECT id FROM pay_period WHERE start_date = DATE '2027-01-04'", UUID.class);
-    assertThat(
-            send("POST", "/api/v1/pay-periods/" + period + "/lock", null, tokens.get("m.ellis"))
-                .statusCode())
-        .isEqualTo(200);
-
-    Map<String, Object> preview =
-        json(send("GET", "/api/v1/planner/drafts/" + second + "/commit-preview", null,
-            tokens.get("p.planner")));
-    HttpResponse<String> refused =
-        sendWithHeaders(
-            "POST",
-            "/api/v1/planner/drafts/" + second + "/commit",
-            "{\"acceptedWarningCount\":" + preview.get("warningCount") + "}",
-            tokens.get("p.planner"),
-            Map.of("If-Match", "\"0\""));
-    assertThat(refused.statusCode()).isEqualTo(409);
-    assertThat(json(refused).get("reason")).isEqualTo("LOCKED_PERIOD");
   }
 
   @Test
@@ -544,15 +561,19 @@ class PlannerApiTest {
   }
 
   @Test
-  @Order(11)
+  @Order(6)
   void aSeededLateShiftBlocksTheFirstProposalInsteadOfBeingIgnored() throws Exception {
+    HttpResponse<String> baseResponse =
+        send("POST", "/api/v1/planner/drafts", "{\"seed\":20261001}", tokens.get("p.planner"));
+    assertThat(baseResponse.statusCode()).as(baseResponse.body()).isEqualTo(201);
+    UUID base = UUID.fromString((String) json(baseResponse).get("id"));
     Map<String, Object> first =
         jdbc.queryForMap(
-            "SELECT employee_id, unit_id, shift_template_id, start_at FROM shift_assignment"
-                + " WHERE plan_draft_id = ? AND work_date = DATE '2027-01-04'"
+            "SELECT employee_id, unit_id, shift_template_id, start_at FROM plan_draft_assignment"
+                + " WHERE draft_id = ? AND work_date = DATE '2027-01-04'"
                 + " AND EXTRACT(HOUR FROM start_at AT TIME ZONE 'America/Regina') = 7"
                 + " ORDER BY employee_id LIMIT 1",
-            draftId);
+            base);
     UUID employeeId = (UUID) first.get("employee_id");
     UUID unitId = (UUID) first.get("unit_id");
     UUID templateId = (UUID) first.get("shift_template_id");
@@ -595,6 +616,147 @@ class PlannerApiTest {
     } finally {
       jdbc.update("DELETE FROM shift_assignment WHERE id = ?", seeded);
     }
+  }
+
+  @Test
+  @Order(12)
+  void aSecondDraftOverACommittedQuarterIsRefusedWithAReason() throws Exception {
+    HttpResponse<String> response =
+        send("POST", "/api/v1/planner/drafts", "{\"seed\":20261001}", tokens.get("p.planner"));
+    assertThat(response.statusCode()).isEqualTo(409);
+    Map<String, Object> body = json(response);
+    assertThat(response.headers().firstValue("Content-Type").orElse(""))
+        .contains("application/problem+json");
+    assertThat(body.get("reason")).isEqualTo("ALREADY_COMMITTED_WINDOW");
+    assertThat(body.get("title").toString()).contains("already committed")
+        .contains("Reset the demo data");
+  }
+
+  @Test
+  @Order(13)
+  @SuppressWarnings("unchecked")
+  void theCompareUsesTheRealBoardAndTheSameCoverageForBothSides() throws Exception {
+    Map<String, Object> compare =
+        json(send("GET", "/api/v1/planner/drafts/" + draftId + "/compare", null,
+            tokens.get("p.planner")));
+    List<Map<String, Object>> rows = (List<Map<String, Object>>) compare.get("rows");
+    Map<String, Map<String, Object>> byKey = new java.util.LinkedHashMap<>();
+    for (Map<String, Object> row : rows) {
+      byKey.put((String) row.get("key"), row);
+    }
+    assertThat(byKey)
+        .containsKeys(
+            "coverageGaps", "gapHours", "shifts", "officers", "plannedHours", "warnings",
+            "preferencesMet", "weekendsMin", "weekendsAvg", "weekendsMax");
+
+    double committedShifts = ((Number) compare.get("committedShifts")).doubleValue();
+    double draftShifts = ((Number) compare.get("draftShifts")).doubleValue();
+    assertThat(committedShifts).isEqualTo(draftShifts);
+    assertThat(byKey.get("shifts").get("board")).isEqualTo(committedShifts);
+    assertThat(byKey.get("shifts").get("draft")).isEqualTo(draftShifts);
+
+    // Coverage gaps must be the real board number, not a hard-coded zero, and the same measure on
+    // both sides: the committed shifts and the draft are the same plan.
+    double boardGaps = ((Number) byKey.get("coverageGaps").get("board")).doubleValue();
+    double draftGaps = ((Number) byKey.get("coverageGaps").get("draft")).doubleValue();
+    assertThat(boardGaps).isEqualTo(draftGaps).isPositive();
+    assertThat(byKey.get("coverageGaps").get("direction")).isEqualTo("LOWER_IS_BETTER");
+    assertThat(((Number) byKey.get("gapHours").get("board")).doubleValue()).isPositive();
+    assertThat(byKey.get("officers").get("board")).isEqualTo(byKey.get("officers").get("draft"));
+    assertThat(((Number) byKey.get("officers").get("board")).intValue()).isPositive();
+    assertThat(byKey.get("plannedHours").get("board"))
+        .isEqualTo(byKey.get("plannedHours").get("draft"));
+    assertThat(((Number) byKey.get("warnings").get("draft")).intValue()).isEqualTo(warningCount);
+    assertThat(byKey.get("warnings").get("board")).isEqualTo(byKey.get("warnings").get("draft"));
+    for (String key : List.of("weekendsMin", "weekendsAvg", "weekendsMax")) {
+      assertThat(byKey.get(key).get("board")).isEqualTo(byKey.get(key).get("draft"));
+    }
+
+    // By unit, and the unit rows add up to the facility total.
+    double unitDraftGaps = 0;
+    int unitRows = 0;
+    for (Map.Entry<String, Map<String, Object>> entry : byKey.entrySet()) {
+      if (entry.getKey().startsWith("unit:") && entry.getKey().endsWith(":coverageGaps")) {
+        unitRows++;
+        unitDraftGaps += ((Number) entry.getValue().get("draft")).doubleValue();
+        assertThat(entry.getValue().get("unit")).isNotNull();
+      }
+    }
+    assertThat(unitRows).isEqualTo(6);
+    assertThat(unitDraftGaps).isEqualTo(draftGaps);
+  }
+
+  @Test
+  @Order(14)
+  @SuppressWarnings("unchecked")
+  void theCommittedPlanStaysReadableAndComparesWithTheCurrentBoard() throws Exception {
+    Map<String, Object> plan =
+        json(send("GET", "/api/v1/planner/plan", null, tokens.get("p.planner")));
+    assertThat(plan.get("state")).isEqualTo("COMMITTED");
+    assertThat(plan.get("draft")).isNull();
+    assertThat(plan.get("lastCommitted")).isNotNull();
+    Map<String, Object> committedDraft = (Map<String, Object>) plan.get("committedDraft");
+    assertThat(committedDraft).isNotNull();
+    assertThat(committedDraft.get("id")).isEqualTo(draftId.toString());
+    assertThat(committedDraft.get("status")).isEqualTo("COMMITTED");
+    assertThat((Map<String, Object>) committedDraft.get("scorecard")).isNotEmpty();
+
+    // The read-only tabs work for a committed id, not only an open draft.
+    assertThat(send("GET", "/api/v1/planner/drafts/" + draftId + "/gaps", null,
+            tokens.get("p.planner")).statusCode())
+        .isEqualTo(200);
+    assertThat(send("GET", "/api/v1/planner/drafts/" + draftId + "/warnings", null,
+            tokens.get("p.planner")).statusCode())
+        .isEqualTo(200);
+    UUID unitA = jdbc.queryForObject("SELECT id FROM unit WHERE code = 'A'", UUID.class);
+    assertThat(
+            send("GET",
+                    "/api/v1/planner/drafts/" + draftId + "/schedule?unitId=" + unitA
+                        + "&from=2027-01-04&to=2027-01-10",
+                    null,
+                    tokens.get("p.planner"))
+                .statusCode())
+        .isEqualTo(200);
+    assertThat(
+            send("GET", "/api/v1/planner/drafts/" + draftId + "/coverage?from=2027-01-04&to=2027-01-10",
+                    null, tokens.get("p.planner"))
+                .statusCode())
+        .isEqualTo(200);
+
+    Map<String, Object> before =
+        json(send("GET", "/api/v1/planner/drafts/" + draftId + "/compare", null,
+            tokens.get("p.planner")));
+    assertThat(before.get("draftStatus")).isEqualTo("COMMITTED");
+    assertThat(before.get("basis").toString()).contains("supervisor edits since the commit");
+    int boardShifts = ((Number) before.get("committedShifts")).intValue();
+    int draftShifts = ((Number) before.get("draftShifts")).intValue();
+    assertThat(boardShifts).isEqualTo(draftShifts);
+
+    // A supervisor edit after the commit: the board side must move, the committed plan must not.
+    UUID cancelled =
+        jdbc.queryForObject(
+            "SELECT id FROM shift_assignment WHERE plan_draft_id = ? ORDER BY work_date, start_at"
+                + " LIMIT 1",
+            UUID.class,
+            draftId);
+    jdbc.update("UPDATE shift_assignment SET status = 'CANCELLED' WHERE id = ?", cancelled);
+    try {
+      Map<String, Object> after =
+          json(send("GET", "/api/v1/planner/drafts/" + draftId + "/compare", null,
+              tokens.get("p.planner")));
+      assertThat(((Number) after.get("committedShifts")).intValue()).isEqualTo(boardShifts - 1);
+      assertThat(((Number) after.get("draftShifts")).intValue()).isEqualTo(draftShifts);
+      assertThat(after.get("basis").toString()).contains("current board");
+    } finally {
+      jdbc.update("UPDATE shift_assignment SET status = 'PLANNED' WHERE id = ?", cancelled);
+    }
+
+    assertThat(send("GET", "/api/v1/planner/drafts/" + draftId + "/gaps", null, null)
+            .statusCode())
+        .isEqualTo(401);
+    assertThat(send("GET", "/api/v1/planner/drafts/" + draftId + "/compare", null,
+            tokens.get("m.ellis")).statusCode())
+        .isEqualTo(403);
   }
 
   // ---------------------------------------------------------------------------------------------

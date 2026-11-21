@@ -1,5 +1,6 @@
 package ca.shiftcircle.api.planner;
 
+import ca.shiftcircle.api.coverage.CoverageCalculator;
 import ca.shiftcircle.rules.build.ShiftFact;
 import ca.shiftcircle.rules.build.ShiftKind;
 import java.time.DayOfWeek;
@@ -45,9 +46,28 @@ public final class PlanGenerator {
       UUID unitId,
       String unitCode,
       LocalDate seniority,
+      double fte,
       Pref pref,
       int effectiveLength,
-      int phase) {}
+      int phase,
+      String crew) {
+
+    /** Existing callers and the 100 seed: no crew row, so the planner uses the old patterns. */
+    public Employee(
+        UUID id,
+        String employeeNo,
+        String name,
+        UUID unitId,
+        String unitCode,
+        LocalDate seniority,
+        double fte,
+        Pref pref,
+        int effectiveLength,
+        int phase) {
+      this(id, employeeNo, name, unitId, unitCode, seniority, fte, pref, effectiveLength, phase,
+          null);
+    }
+  }
 
   public record Unit(
       UUID id,
@@ -206,13 +226,23 @@ public final class PlanGenerator {
         // covered: the default 5/2 officer then works exactly 80 h per period instead of losing
         // shifts to a surplus. A Block rule still skips the day (and the scorecard shows it).
         for (Employee employee : staff.getOrDefault(unit.id(), List.of())) {
-          if (assignedToday.contains(employee.id()) || !works(employee, date, pattern8h)) {
+          if (employee.fte() < 1.0
+              || assignedToday.contains(employee.id())
+              || !works(employee, date, pattern8h)) {
             continue;
           }
+          String crew = crewOf(employee);
           String preferredBlock =
-              effectiveLength(employee) == 8
-                  ? blockOf.getOrDefault(employee.id(), "DAY")
-                  : preferenceBlock(employee.pref());
+              crew != null
+                  ? switch (crew) {
+                    case "N12" -> "NIGHT";
+                    case "D12", "D8" -> "DAY";
+                    case "E8" -> "EVENING";
+                    default -> "DAY";
+                  }
+                  : effectiveLength(employee) == 8
+                      ? blockOf.getOrDefault(employee.id(), "DAY")
+                      : preferenceBlock(employee.pref());
           Template template = templateFor(employee, unit, preferredBlock, templates);
           if (template == null || !covers(template, preferredBlock)) {
             continue;
@@ -273,6 +303,9 @@ public final class PlanGenerator {
       }
     }
 
+    casualPool(units, staff, blockOf, assignments, byEmployee, facts, warnings, templates,
+        verifier, employees);
+    gaps = recomputeGaps(units, assignments);
     Map<String, Object> scorecard =
         scorecard(
             employees, units, assignments, byEmployee, gaps, warnings, pattern8h, started, facts,
@@ -296,31 +329,25 @@ public final class PlanGenerator {
     Map<UUID, String> blocks = new HashMap<>();
     for (Unit unit : units) {
       List<Employee> candidates = new ArrayList<>(staff.getOrDefault(unit.id(), List.of()));
-      candidates.removeIf(employee -> effectiveLength(employee) != 8);
-      int nightNeed = (int) Math.ceil(unit.required().getOrDefault("NIGHT", 0) * 7.0 / 5.0);
-      List<Employee> byNight = new ArrayList<>(candidates);
-      byNight.sort(
-          (a, b) -> {
-            boolean volunteerA = "NIGHT".equals(a.pref().timeOfDay());
-            boolean volunteerB = "NIGHT".equals(b.pref().timeOfDay());
-            if (volunteerA != volunteerB) {
-              return volunteerA ? -1 : 1;
-            }
-            return volunteerA
-                ? a.seniority().compareTo(b.seniority())
-                : b.seniority().compareTo(a.seniority());
-          });
-      Set<UUID> nights = new LinkedHashSet<>();
-      for (Employee employee : byNight) {
-        if (nights.size() >= nightNeed) {
-          break;
+      candidates.removeIf(employee -> effectiveLength(employee) != 8 || employee.fte() < 1.0);
+      // Only 12-hour officers work nights (person, 2026-11-21): an 8-hour officer is
+      // assigned to DAY or EVENING and never has an N8 shift. An 8 h NIGHT preference stays
+      // stored and is shown unmet with that plain reason.
+      // Fixed 8 h crews keep their block; the flexible remainder fills the day need.
+      int fixedDay = 0;
+      for (Employee employee : candidates) {
+        String crew = crewOf(employee);
+        if ("D8".equals(crew)) {
+          blocks.put(employee.id(), "DAY");
+          fixedDay++;
+        } else if ("E8".equals(crew)) {
+          blocks.put(employee.id(), "EVENING");
         }
-        nights.add(employee.id());
-        blocks.put(employee.id(), "NIGHT");
       }
       List<Employee> rest = new ArrayList<>();
-      candidates.stream().filter(employee -> !nights.contains(employee.id())).forEach(rest::add);
-      int dayNeed = (int) Math.ceil(unit.required().getOrDefault("DAY", 0) * 7.0 / 5.0);
+      candidates.stream().filter(employee -> !blocks.containsKey(employee.id())).forEach(rest::add);
+      int dayNeed = Math.max(
+          0, (int) Math.ceil(unit.required().getOrDefault("DAY", 0) * 7.0 / 5.0) - fixedDay);
       int dayCount = 0;
       // Preference first: DAY then EVENING; seniority breaks the tie.
       rest.sort(
@@ -351,10 +378,17 @@ public final class PlanGenerator {
       Map<UUID, String> blockOf) {
     List<Employee> candidates = new ArrayList<>();
     for (Employee employee : employees) {
-      if (assignedToday.contains(employee.id()) || !works(employee, date, pattern8h)) {
+      if (employee.fte() < 1.0
+          || assignedToday.contains(employee.id())
+          || !works(employee, date, pattern8h)) {
         continue;
       }
-      if (effectiveLength(employee) == 8
+      String crew = crewOf(employee);
+      if (crew != null) {
+        if (!crewCovers(crew, block)) {
+          continue;
+        }
+      } else if (effectiveLength(employee) == 8
           && !block.equals(blockOf.getOrDefault(employee.id(), "DAY"))) {
         continue;
       }
@@ -425,11 +459,46 @@ public final class PlanGenerator {
     return employee.effectiveLength();
   }
 
+  /** The crew code from rotation_pattern, normalised to D12/N12/D8/E8, or null. */
+  private static String crewOf(Employee employee) {
+    String code = employee.crew();
+    if (code == null) {
+      return null;
+    }
+    if (code.startsWith("N12") || code.startsWith("CASUAL_12")) {
+      return "N12";
+    }
+    if (code.startsWith("D12")) {
+      return "D12";
+    }
+    if (code.startsWith("D8")) {
+      return "D8";
+    }
+    if (code.startsWith("E8")) {
+      return "E8";
+    }
+    return null;
+  }
+
+  private static boolean crewCovers(String crew, String block) {
+    return switch (crew) {
+      case "N12" -> "NIGHT".equals(block) || "EVENING".equals(block);
+      case "D12" -> "DAY".equals(block) || "EVENING".equals(block);
+      case "D8" -> "DAY".equals(block);
+      case "E8" -> "EVENING".equals(block);
+      default -> true;
+    };
+  }
+
   private static Template templateFor(
       Employee employee, Unit unit, String block, Map<String, Template> templates) {
     int length = effectiveLength(employee);
-    if (length == 16) {
-      return templates.get("L16");
+    String crew = crewOf(employee);
+    if (crew != null) {
+      return crewCovers(crew, block) ? templates.get(crew) : null;
+    }
+    if (length == 8 && "NIGHT".equals(block)) {
+      return null;
     }
     if (length == 12) {
       return templates.get("NIGHT".equals(block) || "NIGHT".equals(employee.pref().timeOfDay())
@@ -449,6 +518,8 @@ public final class PlanGenerator {
       case "N8" -> "NIGHT".equals(block);
       case "D8" -> "DAY".equals(block);
       case "E8" -> "EVENING".equals(block);
+      case "D12" -> "DAY".equals(block) || "EVENING".equals(block);
+      case "N12" -> "NIGHT".equals(block) || "EVENING".equals(block);
       case "A12" -> "NIGHT".equals(block) || "DAY".equals(block);
       case "P12" -> "DAY".equals(block) || "EVENING".equals(block);
       case "L16" -> "DAY".equals(block) || "EVENING".equals(block);
@@ -487,6 +558,157 @@ public final class PlanGenerator {
         : pref.timeOfDay();
   }
 
+  /**
+   * Casual/part-time pool: after full-timers are placed, officers with FTE < 1 fill the leftover
+   * coverage, nights first, newest-first, each proposal verified by the engine, never above
+   * FTE x 80 hours in a pay period, fixed iteration count. Unfilled gaps stay gaps.
+   */
+  private static void casualPool(
+      List<Unit> units,
+      Map<UUID, List<Employee>> staff,
+      Map<UUID, String> blockOf,
+      List<Assignment> assignments,
+      Map<UUID, List<Assignment>> byEmployee,
+      Map<UUID, List<ShiftFact>> facts,
+      List<Warning> warnings,
+      Map<String, Template> templates,
+      Verifier verifier,
+      List<Employee> employees) {
+    Set<String> warningKeys = new LinkedHashSet<>();
+    Map<UUID, Double> target = new HashMap<>();
+    employees.stream().filter(e -> e.fte() < 1.0).forEach(e -> target.put(e.id(), e.fte() * 80.0));
+    Map<UUID, Double[]> hours = new HashMap<>();
+    employees.stream().filter(e -> e.fte() < 1.0)
+        .forEach(e -> hours.put(e.id(), new Double[7]));
+    for (Assignment assignment : assignments) {
+      Double[] perPeriod = hours.get(assignment.employeeId());
+      if (perPeriod == null) {
+        continue;
+      }
+      int period = (int) (ChronoUnit.DAYS.between(FROM, assignment.date()) / 14);
+      if (period >= 0 && period < 7) {
+        perPeriod[period] =
+            (perPeriod[period] == null ? 0 : perPeriod[period])
+                + Duration.between(assignment.start(), assignment.end()).toMinutes() / 60.0;
+      }
+    }
+    Map<UUID, List<Employee>> casuals = new HashMap<>();
+    employees.stream()
+        .filter(e -> e.fte() < 1.0)
+        .forEach(e -> casuals.computeIfAbsent(e.unitId(), k -> new ArrayList<>()).add(e));
+    casuals.values().forEach(list -> list.sort(Comparator.comparing(Employee::seniority).reversed()));
+    Map<String, int[]> coverage = new HashMap<>();
+    Map<String, Set<UUID>> assigned = new HashMap<>();
+    for (Assignment assignment : assignments) {
+      String key = assignment.unitId() + "|" + assignment.date();
+      addHours(coverage.computeIfAbsent(key, k -> new int[24]),
+          assignment.start().atZone(REGINA).getHour(),
+          (int) Duration.between(assignment.start(), assignment.end()).toMinutes());
+      assigned.computeIfAbsent(key, k -> new LinkedHashSet<>()).add(assignment.employeeId());
+    }
+    int iterations = 0;
+    for (Unit unit : units) {
+      for (LocalDate date = FROM; !date.isAfter(TO); date = date.plusDays(1)) {
+        String key = unit.id() + "|" + date;
+        int[] hoursInDay = coverage.computeIfAbsent(key, k -> new int[24]);
+        Set<UUID> already = assigned.computeIfAbsent(key, k -> new LinkedHashSet<>());
+        for (String block : BLOCKS) {
+          int required = unit.required().getOrDefault(block, 0);
+          while (minimumCoverage(hoursInDay, block) < required && iterations++ < 5000) {
+            Employee chosen = null;
+            Template chosenTemplate = null;
+            Check chosenCheck = null;
+            for (Employee candidate : casuals.getOrDefault(unit.id(), List.of())) {
+              if (already.contains(candidate.id())) {
+                continue;
+              }
+              Template template = templateFor(candidate, unit, block, templates);
+              if (template == null || !covers(template, block)) {
+                continue;
+              }
+              int period = (int) (ChronoUnit.DAYS.between(FROM, date) / 14);
+              double planned = hours.get(candidate.id())[period] == null
+                  ? 0 : hours.get(candidate.id())[period];
+              double shiftHours = template.minutes() / 60.0;
+              if (planned + shiftHours > target.get(candidate.id()) + 0.001) {
+                continue;
+              }
+              Instant start = date.atTime(template.start()).atZone(REGINA).toInstant();
+              Check check = verifier.check(candidate, unit, template, start,
+                  facts.getOrDefault(candidate.id(), List.of()));
+              if (!check.blocked()) {
+                chosen = candidate;
+                chosenTemplate = template;
+                chosenCheck = check;
+                break;
+              }
+            }
+            if (chosen == null) {
+              break;
+            }
+            Instant start = date.atTime(chosenTemplate.start()).atZone(REGINA).toInstant();
+            Instant end = start.plus(Duration.ofMinutes(chosenTemplate.minutes()));
+            int period = (int) (ChronoUnit.DAYS.between(FROM, date) / 14);
+            hours.get(chosen.id())[period] =
+                (hours.get(chosen.id())[period] == null ? 0 : hours.get(chosen.id())[period])
+                    + chosenTemplate.minutes() / 60.0;
+            addHours(hoursInDay, chosenTemplate.start().getHour(), chosenTemplate.minutes());
+            already.add(chosen.id());
+            Assignment assignment = new Assignment(chosen.id(), chosen.name(), unit.id(),
+                unit.code(), chosenTemplate.id(), chosenTemplate.code(), date, start, end,
+                chosenCheck == null ? List.of() : chosenCheck.warnings());
+            assignments.add(assignment);
+            byEmployee.computeIfAbsent(chosen.id(), k -> new ArrayList<>()).add(assignment);
+            facts.computeIfAbsent(chosen.id(), k -> new ArrayList<>()).add(
+                new ShiftFact("plan:" + date + ":" + chosenTemplate.code(), chosen.employeeNo(),
+                    unit.code(), chosenTemplate.code(), start, end, ShiftKind.ROSTERED, 0, true,
+                    true));
+            for (RuleWarning warning : assignment.warnings()) {
+              addWarning(warnings, warningKeys, chosen.id().toString(), warning,
+                  unit.code(), chosen.name(), date, chosenTemplate.code());
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private static Map<String, Object> fteBandsCard(
+      List<Employee> employees, Map<UUID, List<Assignment>> byEmployee) {
+    List<Map<String, Object>> bands = new ArrayList<>();
+    for (String band : List.of("FULL_TIME", "0.7_TO_0.9", "UNDER_0.7")) {
+      List<Employee> members = employees.stream().filter(e -> bandOf(e.fte()).equals(band)).toList();
+      if (members.isEmpty()) {
+        continue;
+      }
+      List<Double> planned = new ArrayList<>();
+      List<Double> targets = new ArrayList<>();
+      for (Employee employee : members) {
+        planned.add(byEmployee.getOrDefault(employee.id(), List.of()).stream()
+            .mapToDouble(s -> Duration.between(s.start(), s.end()).toMinutes() / 60.0).sum());
+        targets.add(employee.fte() * 80.0 * 7);
+      }
+      Map<String, Object> row = new LinkedHashMap<>();
+      row.put("band", band);
+      row.put("officers", members.size());
+      row.put("targetHours", round1(targets.stream().mapToDouble(Double::doubleValue).average().orElse(0)));
+      row.put("plannedMin", round1(planned.stream().mapToDouble(Double::doubleValue).min().orElse(0)));
+      row.put("plannedAvg", round1(planned.stream().mapToDouble(Double::doubleValue).average().orElse(0)));
+      row.put("plannedMax", round1(planned.stream().mapToDouble(Double::doubleValue).max().orElse(0)));
+      bands.add(row);
+    }
+    return Map.of(
+        "bands", bands,
+        "note", "Part-time and casual officers are not guaranteed hours; they fill what is left.");
+  }
+
+  private static String bandOf(double fte) {
+    if (fte >= 1.0) {
+      return "FULL_TIME";
+    }
+    return fte >= 0.7 ? "0.7_TO_0.9" : "UNDER_0.7";
+  }
+
   /** One item per officer per rule: the changeover warning is one event, not one per later shift. */
   private static void addWarning(
       List<Warning> warnings,
@@ -515,9 +737,23 @@ public final class PlanGenerator {
     Map<String, Integer> counters = new HashMap<>();
     List<Employee> result = new ArrayList<>();
     for (Employee employee : employees) {
-      int cycle = employee.effectiveLength() == 12 ? 8 : 7;
-      String key = employee.unitId() + "|" + blockOf.getOrDefault(employee.id(), "DAY");
+      if (employee.fte() < 1.0) {
+        // The casual pool is placed after the full-time plan; it must not shift the phases that
+        // decide the full-timers' days, or adding casuals would change the plan they fill into.
+        result.add(employee);
+        continue;
+      }
+      int length = employee.effectiveLength();
+      String crew = crewOf(employee);
+      String key =
+          length == 12
+              ? employee.unitId() + "|" + (crew == null ? "12" : crew)
+              : employee.unitId() + "|" + blockOf.getOrDefault(employee.id(), "DAY");
       int index = counters.merge(key, 1, Integer::sum) - 1;
+      // 12 h crews are paired: two officers per post take phases j and j+4 of the 8-day cycle,
+      // so exactly the post count is on duty every day. Sequential phases would put a 2-officer
+      // crew all on for four days and all off for four. 8 h phases stay sequential.
+      int phase = length == 12 ? Math.floorMod(index / 2 + (index % 2) * 4, 8) : index % 7;
       result.add(
           new Employee(
               employee.id(),
@@ -526,11 +762,51 @@ public final class PlanGenerator {
               employee.unitId(),
               employee.unitCode(),
               employee.seniority(),
+              employee.fte(),
               employee.pref(),
               employee.effectiveLength(),
-              index % cycle));
+              phase,
+              employee.crew()));
     }
     return result;
+  }
+
+  /**
+   * Gaps are absolute-time coverage (ADR-013/017), the same measure the planning board shows: the
+   * NIGHT block on date D runs 23:00 D to 07:00 D+1, so a 23:00 shift counts in the hours after
+   * midnight. Using the board's calculator keeps the plan's gap count and the board's identical.
+   */
+  private static List<Gap> recomputeGaps(
+      List<Unit> units, List<Assignment> assignments) {
+    Map<UUID, List<CoverageCalculator.Interval>> intervalsByUnit = new HashMap<>();
+    for (Assignment assignment : assignments) {
+      intervalsByUnit
+          .computeIfAbsent(assignment.unitId(), key -> new ArrayList<>())
+          .add(new CoverageCalculator.Interval(assignment.start(), assignment.end()));
+    }
+    CoverageCalculator calculator = new CoverageCalculator();
+    List<Gap> gaps = new ArrayList<>();
+    for (Unit unit : units) {
+      List<CoverageCalculator.Interval> intervals =
+          intervalsByUnit.getOrDefault(unit.id(), List.of());
+      for (LocalDate date = FROM; !date.isAfter(TO); date = date.plusDays(1)) {
+        for (CoverageCalculator.BlockCoverage block :
+            calculator.forDay(date, unit.required(), intervals)) {
+          if (!block.covered()) {
+            gaps.add(
+                new Gap(
+                    unit.id(),
+                    unit.code(),
+                    date,
+                    block.block(),
+                    block.required(),
+                    block.coverage().lowestHourly(),
+                    "No eligible officer left without a Block rule; a supervisor fills this"));
+          }
+        }
+      }
+    }
+    return gaps;
   }
 
   private static Map<String, Object> scorecard(
@@ -557,8 +833,12 @@ public final class PlanGenerator {
     scorecard.put("preferences", preferencesCard(employees, byEmployee));
     scorecard.put(
         "preferencesNote",
-        "The planner rosters 8- and 12-hour shifts only; a 16 h preference is shown unmet. Part-time"
+        "The planner rosters 8- and 12-hour shifts only; a 16 h preference is shown unmet. Only"
+            + " 12-hour officers work nights, so an 8 h night preference is shown unmet. Part-time"
             + " and casual officers are not guaranteed hours.");
+    scorecard.put(
+        "nightPolicy",
+        "Only 12-hour officers work nights; 8-hour officers work day or evening shifts.");
     scorecard.put(
         "nights",
         nightsCard(
@@ -573,6 +853,7 @@ public final class PlanGenerator {
             blockOf));
     scorecard.put("overtime", overtimeCard(employees, byEmployee));
     scorecard.put("weekends", weekendsCard(employees, byEmployee));
+    scorecard.put("fteBands", fteBandsCard(employees, byEmployee));
     scorecard.put("quarterHours", quarterHoursCard(employees, byEmployee));
     if ("ROTATING_5_2".equals(pattern8h)) {
       scorecard.put(
@@ -767,10 +1048,27 @@ public final class PlanGenerator {
         }
       }
     }
+    long n12Shifts =
+        assignments.stream().filter(shift -> "N12".equals(shift.templateCode())).count();
+    long n12Officers =
+        employees.stream()
+            .filter(
+                employee ->
+                    byEmployee.getOrDefault(employee.id(), List.of()).stream()
+                        .anyMatch(shift -> "N12".equals(shift.templateCode())))
+            .count();
     Map<String, Object> result = new LinkedHashMap<>();
     result.put("bands", bands);
     result.put("newestFirstHeld", held);
     result.put("check", check);
+    result.put("n12Officers", n12Officers);
+    result.put("n12NightShifts", n12Shifts);
+    if (n12Shifts > 0) {
+      result.put(
+          "crewNote",
+          "D12 and N12 are fixed separate crews; the 150 dataset seeds the newest officers into the"
+              + " night crew, so nights are not re-picked day by day.");
+    }
     return result;
   }
 
@@ -857,7 +1155,10 @@ public final class PlanGenerator {
   }
 
   private static boolean isNight(String templateCode) {
-    return "N8".equals(templateCode) || "A12".equals(templateCode) || "L16".equals(templateCode);
+    return "N8".equals(templateCode)
+        || "A12".equals(templateCode)
+        || "N12".equals(templateCode)
+        || "L16".equals(templateCode);
   }
 
   private static double round1(double value) {

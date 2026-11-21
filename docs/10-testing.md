@@ -57,7 +57,7 @@ Each line is at least three tests: just under, exactly at, just over. Times are 
 | U-05 max 16 h in any 24 h | rostered 16 h shift (exactly 16 h) → PASS | 16 h shift + 15 min extension → **BLOCK** (emergency override only) | — |
 | U-08 max 7 consecutive work days (8 h) | 7 → PASS | 8th day scheduled → **BLOCK**; 8th day via overtime → **WARN** | — |
 | U-09 max 4 consecutive 12 h shifts | 4 → PASS | 5th scheduled → **BLOCK**; 5th via OT → **WARN** | — |
-| U-10 max 4 consecutive 12 h overnight (00–12) shifts | 4 → PASS | 5th → **WARN** | — |
+| U-10 max 4 consecutive 12 h overnight (19–07; A12 00–12 and N12 19–07) shifts | 4 → PASS | 5th → **WARN** | — |
 | U-11 16 h shifts: 3 per 7 d, 10 per 28 d | 3 in 7 d → PASS | 4th within 7 d → **WARN**; 11th within 28 d → **WARN** | 4th exactly 7 d after the 1st → PASS (window boundary) |
 | U-12 2 consecutive days off per 7 | 48 h off → PASS | 47 h 59 m off → **WARN** (a break of 24 h or less isn't a day of rest) | — |
 | U-14 weekly ceiling 48 warn / 60 block | 48 h → PASS | 48.25 h → **WARN**; 60.25 h → **BLOCK** (no override, ADR-023) | — |
@@ -66,7 +66,7 @@ Each line is at least three tests: just under, exactly at, just over. Times are 
 | P-04 OT under 30 min unpaid | 29 m → 0 | 30 m → 0.5 h | — |
 | L-01 / S-03 16 h regular only where allowed | 16 h rostered on a unit with `allows_16h` → PASS | 16 h rostered on a unit without it → **BLOCK** | — |
 | Pay-period lock precondition (ADR-017) | one shift ended 1 min before now with no actual → lock **409 missing-actuals** | shift ending exactly now (`end_at = now`) with no actual → **409** (it counts as ended); with an actual or absence → lock succeeds | shift ending 1 min after now with no actual → not counted; lock succeeds if all ended shifts are recorded |
-| Time zones / midnight | Night 23:00–07:00 crossing midnight: `work_date` = start date; a 12:00–24:00 shift **ends at 00:00 the next day** (not 23:59); 00:00–12:00 shift belongs to its own date; a 16 h shift 20:00–12:00 spans two dates; rest maths correct across midnight and month end (31 Oct → 1 Nov) | | |
+| Time zones / midnight | Night 23:00–07:00 crossing midnight: `work_date` = start date; a 12:00–24:00 shift **ends at 00:00 the next day** (not 23:59); 00:00–12:00 shift belongs to its own date; a 16 h shift 20:00–12:00 spans two dates; N12 19:00–07:00 crosses midnight with `work_date` = the start date and counts 12 h in the 168 h window; rest maths correct across midnight and month end (31 Oct → 1 Nov) | | |
 
 **U-15 is a board status, not a rule row.** The board reads the pay period that contains the
 requested `from` date and shows UNDER below 72 h, APPROACHING from 72 h, and IN_OVERTIME from 80 h.
@@ -85,7 +85,7 @@ These are the verification cases. Pick 2–5 for the build record (recommended: 
 | T2 | 12 h shift Fri 12:00–24:00; assign a Day 8 h shift Sat 07:00 (7 h rest; 17 h in 24 h) (planted **PC-01**) | **BLOCK** U-01 and U-05; message names both shifts; nothing saved. U-14 also blocks when the proposal takes the week over the 60 h ceiling (it does for the demo's Nia) |
 | T3 | **Boundary:** Night 8 h ends 07:00; Evening starts 15:00 (exactly 8 h) (planted **PC-02**) | U-01 PASS; U-02 WARN; saves after acknowledgement |
 | T4 | A 16 h shift 20:00–12:00, then a shift starting 20:00 the same day (8 h rest) | U-01 PASS (exactly 8 h), **BLOCK** U-03 (needs 12 h after a 16 h shift) |
-| T5 | Fifth consecutive 12 h overnight 00–12 shift (planted **PC-04**) | WARN U-10; saves after acknowledgement |
+| T5 | Fifth consecutive 12 h overnight 19–07 shift (planted **PC-04**) | WARN U-10; saves after acknowledgement |
 | T6 | Overtime candidates for planted open shift **PC-08** | Order matches fewest-OT-then-seniority; an officer with insufficient rest is SKIPPED and keeps their place; unqualified officer UNAVAILABLE for Control (**PC-09**) |
 | T7 | Rules admin lowers U-10 from 4 to 3 nights; build + dry run | Dry run lists the existing 4-night runs (**PC-06**) as new warnings; after approval and publish, the same check now warns; **no code change** |
 | T8 | Payroll export for locked period 26 Oct – 8 Nov (planted **PC-05**) | CSV equals the golden file; per-officer totals equal actual hours; overtime only for hours beyond the 80 h period threshold |
@@ -222,4 +222,13 @@ Things the design describes that the prototype does **not** have. They are liste
 
 - **Cycle-average hours in payroll:** payroll overtime stays per 14-day period (P-01, unchanged). The planner scorecard reports `quarterHours` per officer (min/avg/max) as a U-13 report-only figure; the default rotating pattern's 72 h changeover period is not rebalanced by payroll, and real cycle averaging would need a rule change.
 
-- **16-hour shifts in the planner:** the planner rosters 8- and 12-hour shifts only; a 16 h preference is stored and shown unmet ("the planner does not roster 16-hour shifts"). In practice a "16 h shift" is probably a double 8 h shift worked as overtime; the person is confirming. The seeded L16 officers, template and U-03/U-05/U-11 are unchanged.
+- **16-hour shifts in the planner:** the planner rosters 8- and 12-hour shifts only; a 16 h preference is stored and shown unmet ("the planner does not roster 16-hour shifts"). In practice a "16 h shift" is a 12 h shift plus an extension of about 4 h worked as overtime and recorded after the fact (the U-04/U-05/P-01 paths); the person confirmed this on 2026-11-21. The seeded L16 officers, template and U-03/U-05/U-11 are unchanged; retiring L16 is a post-freeze option.
+
+- **Part-time/casual hours:** the planner targets FTE × 80 h per pay period for FTE < 1.0 officers, who fill leftover gaps and nights newest-first and are never guaranteed hours; the scorecard reports planned vs target by FTE band. Payroll overtime stays per period and does not average over a cycle.
+
+- **D12/N12 crews (V6):** `HoursAndRunsRulesTest` adds the boundary cases: D12/N12 are 12 h kinds with nominal 720; U-02 warns after an N12 into a D12; U-09 four D12 pass and five block; U-10 four N12 pass and five warn (the fact builder counts N12 as an overnight); U-14 four N12 = 48 h pass, five = 60 h warn, plus a D8 = 68 h block (midnight crossing counted); U-05 a 16 h D12 extension passes and 16.25 h blocks. `PlanGeneratorCrewTest` proves 4 N12 + 4 D12 + 4 D8 + 2 E8 stay in their crews, 2 N12 on every one of the 98 nights, no N8/L16/A12/P12, and the scorecard reports the N12 crew.
+- **Night rule:** an 8 h officer never gets N8; the default plan's night blocks are covered only by 12 h A12 (100 seed) or N12 crew (150); an 8 h NIGHT preference is shown unmet with "only 12-hour officers work nights". The default 100 plan is 727 gaps of 1,764 (DAY 109, EVENING 30, NIGHT 588) after the paired 12 h phases; every unit-night is still short with 14 effective 12 h officers for 19 posts.
+- **Coverage is absolute time:** `ScheduleQuery` and the plan's gap report use `CoverageCalculator`; the NIGHT block on D is 23:00 D to 07:00 D+1. The board and a committed plan now agree exactly (576 before the night rule; the same per-unit/per-block counts), instead of the old day-modulo board counting every night short (1,058 vs 571).
+- **Planner compare:** after a commit the board and draft columns are identical (coverage gaps, shifts, officers, hours, warnings, weekends); before a commit the board is the seeded state. The compare is real, not two rows with a hard-coded 0. A committed id stays readable (`committedDraft` in `/planner/plan`, gaps/warnings/schedule/coverage/compare all 200), and a supervisor edit after the commit moves only the board column; `draftStatus: COMMITTED` and `basis` say the comparison includes edits since the commit.
+- **Reset lock:** acquire on the request thread, release on the virtual reset thread. `DemoOperationLockTest` proves a cross-thread release and no double permit; `DemoResetApiTest` resets twice in a row (~5 s each) and pins the 100 checksum, no D12/N12 in the 100 roster, and ADM/ESC `allows_12h=false` after V6.
+- **Time entries:** `PUT /time-entries` with `workedAsScheduled:true` plus actual times is `400` problem+json ("Send either workedAsScheduled or the actual times, not both") and writes nothing; an adjusted actual must be within 24 h of the rostered shift.

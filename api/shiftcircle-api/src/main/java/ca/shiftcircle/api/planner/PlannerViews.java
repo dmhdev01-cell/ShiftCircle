@@ -32,7 +32,8 @@ public final class PlannerViews {
       List<String> patterns8h,
       String state,
       DraftSummary draft,
-      LastCommitted lastCommitted) {}
+      LastCommitted lastCommitted,
+      DraftSummary committedDraft) {}
 
   public record GapView(
       UUID unitId, String unitCode, String unitName, LocalDate date, String block, int required,
@@ -63,7 +64,12 @@ public final class PlannerViews {
       String key, String label, double board, double draft, String unit, String direction) {}
 
   public record CompareView(
-      int draftShifts, int draftGaps, int committedShifts, List<CompareRow> rows) {}
+      int draftShifts,
+      int draftGaps,
+      int committedShifts,
+      String draftStatus,
+      String basis,
+      List<CompareRow> rows) {}
 
   public record PreferenceView(
       UUID employeeId,

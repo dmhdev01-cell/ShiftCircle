@@ -372,7 +372,7 @@ same validation as the grid (R24/R28: rule values are code input).
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
 | GET | `/planner/plan` | Window (4 Jan – 11 Apr 2027, 7 periods), default seed, the 8 h patterns, current draft and last committed plan | PLANNER |
-| POST | `/planner/drafts` | `{seed, pattern8h?}` → generate a draft over the whole quarter; replaces the open draft | PLANNER |
+| POST | `/planner/drafts` | `{seed, pattern8h?}` → generate a draft over the whole quarter; replaces the open draft. If the window already has a committed plan, `409` problem+json with `reason: ALREADY_COMMITTED_WINDOW` and a plain sentence naming the commit date/author and pointing at Reset the demo data | PLANNER |
 | GET | `/planner/drafts/{id}` | Draft summary and scorecard | PLANNER |
 | GET | `/planner/drafts/{id}/schedule?unitId&from&to` | The Roster tab: the draft's shifts in the same `SchedulePayload` shape as the planning board (`rotation` says the pattern in words; `publishedState` is false; `period` null) | PLANNER |
 | GET | `/planner/drafts/{id}/coverage?from&to` | One entry per unit with its `BlockCoverage[]` (same hourly shape as the board) | PLANNER |
@@ -381,9 +381,18 @@ same validation as the grid (R24/R28: rule values are code input).
 | GET | `/planner/drafts/{id}/commit-preview` | Version, shifts, officers, gaps and warning count the commit will ask to accept | PLANNER |
 | POST | `/planner/drafts/{id}/commit` | `If-Match: <version>`, `{acceptedWarningCount}` → write every assignment atomically and audit once; 412 stale, 422 per-assignment failures, 409 locked period or changed warnings | PLANNER |
 | POST | `/planner/drafts/{id}/discard` | Discard an open draft | PLANNER |
-| GET | `/planner/drafts/{id}/compare` | Draft vs the committed roster (counts and gaps) | PLANNER |
+| GET | `/planner/drafts/{id}/compare` | Draft vs the board. Rows cover coverage gaps, unfilled gap hours, shifts, officers scheduled, planned hours, plan-added warnings, preferences met, and weekends min/avg/max, each with `board`, `draft`, `unit` and `direction` (`LOWER_IS_BETTER`/`HIGHER_IS_BETTER`/`NEUTRAL`), plus one coverage-gap row per unit. Board measures come from the committed shifts through the board's own coverage code; draft measures from the plan tables | PLANNER |
 | GET | `/planner/preferences?unitId=` | Every officer's preferences with how the open draft met them | PLANNER |
 | GET · PUT · DELETE | `/me/preferences` | The signed-in officer's own preferences (`shiftLength`, `timeOfDay`, up to 2 `daysOff`) | any account linked to an officer |
+
+**After a commit the plan is still readable.** `GET /planner/plan` answers `state: COMMITTED`, `draft: null`,
+`lastCommitted` as before, and a `committedDraft` with the same `DraftSummary` shape (`id`, `version`,
+`seed`, `pattern8h`, `status: COMMITTED`, `createdAt`, `createdBy`, `generatedMs`, `scorecard`). The
+read-only endpoints `GET /planner/drafts/{id}/gaps`, `/warnings`, `/schedule`, `/coverage` and
+`/compare` answer for a committed id, so the tabs survive the commit. Compare adds `draftStatus`
+and `basis`: a committed plan is compared with the **current board, including supervisor edits since
+the commit**; an open draft is compared with the last committed plan (or the seeded roster before a
+commit). A committed id is never writable: commit/discard still refuse it.
 
 **A draft is not a roster.** `plan_draft_assignment` is separate from `shift_assignment`; the
 planning board never reads it. Every generated assignment is verified by `RuleCheckService` against
@@ -392,17 +401,25 @@ visible gap instead of a shift. Commit re-runs every check against the current c
 refuses any Block with a per-assignment list, requires the exact warning count to be acknowledged
 (`acceptedWarningCount`), refuses a locked period, and writes all rows plus one `commit_plan` audit
 event in one transaction. Each written row carries `plan_draft_id`; overrides are never implied.
-The scorecard carries coverage gaps, warnings by plain rule name (only warnings the plan adds:
-each officer's history-only baseline is subtracted), preferences asked/met by kind,
-night share by seniority band plus the newest-first check, officers and hours over 80, generation
-time, and weekends worked per officer (min/avg/max). The default 8 h pattern is `ROTATING_5_2` (chosen by the person on 2026-11-21): the days-off pair
-retreats one weekday per pay period and the wrap takes a 3-day break, so weekends rotate; the
-changeover period is 72 h, an officer has one U-12 and one U-14 warning there (where a seventh
-consecutive day would otherwise block, a second 72 h period is used), and hours are balanced over
-the quarter (the scorecard says so and reports `quarterHours` min/avg/max as a
-report-only U-13 figure). `5_ON_2_OFF` (fixed pairs, 80 h, no warnings) and `7_ON_3_OFF` are
-selectable, and 12 h/16 h patterns keep their 4-on/4-off and 1-on/2-off cycles. A committed quarter creates its seven 14-day pay periods and each unit's
-schedule periods, so it can be locked and paid.
+The scorecard carries coverage gaps measured in absolute time (the NIGHT block on date D runs
+23:00 D to 07:00 D+1, the same code the board uses), warnings by plain rule name (only warnings the
+plan adds: each officer's history-only baseline is subtracted), preferences asked/met by kind,
+night share by seniority band plus the newest-first check and `nightPolicy` (only 12 h officers
+work nights; an 8 h night preference is shown unmet with that reason), `n12Officers`/
+`n12NightShifts` and a fixed-crew note when the dataset has N12 crews, officers and hours over 80,
+generation time, weekends worked per officer (min/avg/max), and `fteBands` (full-time / 0.7-0.9 /
+under 0.7: officers, target hours, planned min/avg/max) with the plain note that part-time and
+casual officers are not guaranteed hours. The default 8 h pattern is `ROTATING_5_2` (chosen by the
+person on 2026-11-21): the days-off pair retreats one weekday per pay period and the wrap takes a
+3-day break, so weekends rotate; the changeover period is 72 h, an officer has one U-12 and one
+U-14 warning there (where a seventh consecutive day would otherwise block, a second 72 h period is
+used), and hours are balanced over the quarter (the scorecard says so and reports `quarterHours`
+min/avg/max as a report-only U-13 figure). `5_ON_2_OFF` (fixed pairs, 80 h, no warnings) and
+`7_ON_3_OFF` are selectable. The 100 seed's 12 h officers use A12/P12 4-on/4-off; the 150 dataset
+uses the V6 D12 07-19 / N12 19-07 crews with paired phases. The planner never rosters 16 h (a 16 h
+preference is stored and shown unmet; in practice a "16 h shift" is a 12 h shift plus ~4 h overtime
+extension recorded after the fact). A committed quarter creates its seven 14-day pay periods and
+each unit's schedule periods, so it can be locked and paid.
 
 ### 4.10 Demo reset (demo profile only)
 

@@ -36,7 +36,9 @@ class ReferenceDataMatchesRuleRowsTest {
 
   @Container
   static final PostgreSQLContainer POSTGRES =
-      new PostgreSQLContainer("postgres:17-alpine").withDatabaseName("shiftcircle");
+      new PostgreSQLContainer("postgres:17-alpine")
+          .withDatabaseName("shiftcircle")
+          .withUrlParam("connectTimeout", "30");
 
   @BeforeAll
   static void migrate() {

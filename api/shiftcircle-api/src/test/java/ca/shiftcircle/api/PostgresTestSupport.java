@@ -28,13 +28,17 @@ public final class PostgresTestSupport {
 
   public static synchronized PostgreSQLContainer postgres() {
     if (postgres == null) {
+      // One container hosts a database per Spring test context and Spring's context cache keeps
+      // those contexts (and their Hikari pools) alive. With a pool of 4 and 26+ contexts the
+      // default max_connections=100 is exhausted ("sorry, too many clients already"), so give the
+      // test server headroom instead of relying on a class order or a rerun.
       postgres =
-          // One database per test class means one Spring context (and one
-          // connection pool) per class; the server's default of 100 clients is
-          // reached once the suite passes ~250 tests.
           new PostgreSQLContainer("postgres:17-alpine")
               .withDatabaseName("shiftcircle")
-              .withCommand("postgres", "-c", "max_connections=400");
+              .withCommand("postgres", "-c", "max_connections=400")
+              // A loaded Docker Desktop can take more than the JDBC default 10 s to open the
+              // published port after Testcontainers reports the container started.
+              .withUrlParam("connectTimeout", "30");
       postgres.start();
     }
     return postgres;
@@ -49,7 +53,9 @@ public final class PostgresTestSupport {
     String database = "sc_test_" + DATABASES.incrementAndGet();
     String base = baseUrl(container);
     createDatabase(base, container.getUsername(), container.getPassword(), database);
-    registry.add("spring.datasource.url", () -> base + "/" + database);
+    // The test database is local and TLS adds an SSL handshake that can flake while a dozen
+    // contexts start under load; production keeps its own TLS settings.
+    registry.add("spring.datasource.url", () -> base + "/" + database + "?sslmode=disable");
     registry.add("spring.datasource.username", container::getUsername);
     registry.add("spring.datasource.password", container::getPassword);
   }
@@ -61,7 +67,7 @@ public final class PostgresTestSupport {
   }
 
   private static void createDatabase(String base, String user, String password, String database) {
-    try (Connection connection = DriverManager.getConnection(base + "/postgres", user, password);
+    try (Connection connection = DriverManager.getConnection(base + "/postgres?sslmode=disable", user, password);
         Statement statement = connection.createStatement()) {
       statement.execute("CREATE DATABASE " + database);
     } catch (SQLException e) {

@@ -124,6 +124,12 @@ build validator refuses a stored one):
 6. **Publish**: the new rule base is swapped in live, with no restart. The version is stored with who, when, why and the effective date.
 7. **Roll back**: any earlier version can be republished through the same approval.
 
+**Baseline exception.** The seed migrations publish the baseline row set directly: V2 as version 1
+and V6 as version 2, with `created_by`/`approved_by` NULL, a recorded `change_reason` and no
+`audit_event` row. This is the only path that skips maker/checker; every later version goes through
+steps 1–7. V6's version 2 adds D12/N12 to U-02's kind list and says U-10 is "overnight (00-12 or
+19-07)" because the counter still includes A12 00–12 night-block shifts as in version 1.
+
 ## 7. Runtime evaluation
 
 ```text
