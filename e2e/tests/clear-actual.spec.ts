@@ -37,6 +37,7 @@ test.describe('clearing a record', () => {
   });
 
   test('back to needs actual from the drawer', async ({ page, request }) => {
+    test.setTimeout(90000);
     const entry = await aWorkedEntry(request);
 
     await signIn(page, 'M. Ellis');

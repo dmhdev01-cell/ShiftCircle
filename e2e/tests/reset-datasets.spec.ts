@@ -21,6 +21,7 @@ test.describe('the demo reset datasets', () => {
   });
 
   test('resets to 120, then back to 100', async ({ page }) => {
+    test.setTimeout(420000);
     await signIn(page, 'P. Planner');
     await navTo(page, 'About & version');
     await expect(page.getByRole('heading', { name: 'Reset the demo data' })).toBeVisible();

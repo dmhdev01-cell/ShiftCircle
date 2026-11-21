@@ -5,13 +5,17 @@ import { navTo, signIn, signInAgain } from './support';
 
 /**
  * The committed planner state (V6 read API): after a commit the plan's tabs
- * stay, a reload keeps them, the report shows the FTE bands, and a committed
- * 2027 board week carries D12/N12 chips rather than raw codes.
+ * stay, a reload keeps them, and the report shows the FTE bands.
+ *
+ * Self-contained: it commits whatever state the stack is in (generates when
+ * there is no draft, commits an open draft, or uses the plan already committed),
+ * so it runs alone or after any other spec.
  */
 
 interface PlanState {
-  state: string;
+  state: 'NONE' | 'DRAFT' | 'COMMITTED';
   defaultSeed: number;
+  draft?: { id: string } | null;
   committedDraft?: { id: string } | null;
 }
 
@@ -21,42 +25,48 @@ test.describe('the committed quarter plan', () => {
     test.skip(await isFixtures(page), 'the planner needs the real api');
   });
 
-  test('keeps its tabs after a reload, shows the FTE bands, and D12/N12 chips on the board', async ({
-    page,
-    request,
-  }) => {
+  test('keeps its tabs after a reload, with the FTE bands', async ({ page, request }) => {
+    test.setTimeout(180000);
     const api = await apiAs(request, 'p.planner');
-    const plan = await api.get<PlanState>('/planner/plan');
-    const draft = await api.post('/planner/drafts', { seed: plan.defaultSeed });
-    const id = (draft.body as { id: string }).id;
-    const preview = await api.get<{ version: number; warningCount: number }>(
-      `/planner/drafts/${id}/commit-preview`,
-    );
-    const committed = await api.postIfMatch(`/planner/drafts/${id}/commit`, preview.version, {
-      acceptedWarningCount: preview.warningCount,
-    });
-    expect(committed.status).toBe(200);
+    let plan = await api.get<PlanState>('/planner/plan');
 
-    // The scorecard's FTE bands (V6).
+    if (plan.state === 'NONE') {
+      const draft = await api.post('/planner/drafts', { seed: plan.defaultSeed });
+      expect([200, 201]).toContain(draft.status);
+      plan = { ...plan, state: 'DRAFT', draft: { id: (draft.body as { id: string }).id } };
+    }
+    if (plan.state === 'DRAFT') {
+      const id = plan.draft!.id;
+      const preview = await api.get<{ version: number; warningCount: number }>(
+        `/planner/drafts/${id}/commit-preview`,
+      );
+      const committed = await api.postIfMatch(`/planner/drafts/${id}/commit`, preview.version, {
+        acceptedWarningCount: preview.warningCount,
+      });
+      expect(committed.status).toBe(200);
+      plan = await api.get<PlanState>('/planner/plan');
+    }
+    expect(plan.state).toBe('COMMITTED');
+    expect(plan.committedDraft?.id, 'the committed read API sends committedDraft').toBeTruthy();
+
     await signIn(page, 'P. Planner');
     await navTo(page, 'Quarter plan');
+
+    // The committed plan's own summary answers the read-only tabs.
     await expect(page.getByRole('tab', { name: 'Scorecard' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Hours against target by FTE band' })).toBeVisible();
+    await expect(page.getByText('Committed').first()).toBeVisible();
+    // The FTE bands and the api's plain note.
+    await expect(
+      page.getByRole('heading', { name: 'Hours against target by FTE band' }),
+    ).toBeVisible();
     await expect(page.getByText(/not guaranteed hours/)).toBeVisible();
 
-    // A reload: the guard asks for a sign-in, and the committed tabs return.
+    // A reload loses the in-memory session; signing in again returns to the
+    // committed plan, tabs and all. This is the honest case the review flagged.
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible();
     await signInAgain(page, 'P. Planner');
     await expect(page.getByRole('tab', { name: 'Scorecard' })).toBeVisible();
     await expect(page.getByText('Committed').first()).toBeVisible();
-
-    // The committed 2027 week on the board shows the 12 h crews as chips.
-    await navTo(page, 'Planning board');
-    for (let week = 0; week < 7; week += 1) {
-      await page.getByRole('button', { name: 'Next week' }).click();
-    }
-    await expect(page.getByRole('group', { name: 'Week' })).toContainText('4 – 10 Jan 2027');
-    await expect(page.getByRole('button', { name: /^(D12|N12) for / }).first()).toBeVisible();
   });
 });

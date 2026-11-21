@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
@@ -113,6 +113,26 @@ describe('the demo reset', () => {
 
     expect(reset).toHaveBeenCalledWith('RESET', '120');
     expect(await screen.findByText(/rebuilt in 20 s/)).toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+
+  it('names the datasets honestly when the api sends ids alone', async () => {
+    // p3-api-ds sends ["100","120"]; the card says what they are instead of
+    // showing a bare number, and still sends the id the api chose.
+    stubVersion(true, ['100', '120']);
+    const user = userEvent.setup();
+    renderAbout();
+    await user.selectOptions(await screen.findByLabelText('Mock sign-in: choose a role'), 'PLANNER');
+
+    const dataset = await screen.findByLabelText('Dataset');
+    const labels = within(dataset)
+      .getAllByRole('option')
+      .map((option) => option.textContent);
+    expect(labels).toEqual([
+      '100: the seeded demo data',
+      '120: 100 full-time crews + 20 casual relief officers',
+    ]);
+    expect((dataset as HTMLSelectElement).value).toBe('100');
     vi.restoreAllMocks();
   });
 

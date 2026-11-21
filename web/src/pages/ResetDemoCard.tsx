@@ -11,6 +11,16 @@ import type { DemoResetStatus } from '../api/types';
 import { invalidateVersionCache } from '../api/useVersion';
 import { colour } from '../theme/tokens';
 
+/**
+ * What the datasets are, in the person's words (P3 amendments 20-21). The api
+ * currently sends the ids alone; when it sends a name, that name wins. A
+ * dataset this build does not know shows its id, nothing invented.
+ */
+const DATASET_WORDS: Record<string, string> = {
+  '100': '100: the seeded demo data',
+  '120': '120: 100 full-time crews + 20 casual relief officers',
+};
+
 const STEP_WORDS: Record<string, string> = {
   clean: 'Clearing the demo data',
   audit: 'Erasing the audit history',
@@ -31,7 +41,11 @@ export function ResetDemoCard({
   datasets?: { id: string; name: string }[];
 }) {
   const [confirm, setConfirm] = useState('');
-  const [dataset, setDataset] = useState(datasets[0]?.id ?? '100');
+  // Default to the seeded 100 dataset when the api offers it (its checksum and
+  // golden are the untouched baseline); any other list defaults to its first.
+  const [dataset, setDataset] = useState(
+    datasets.some((entry) => entry.id === '100') ? '100' : (datasets[0]?.id ?? '100'),
+  );
   const [status, setStatus] = useState<DemoResetStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -127,7 +141,9 @@ export function ResetDemoCard({
               >
                 {datasets.map((entry) => (
                   <option key={entry.id} value={entry.id}>
-                    {entry.name}
+                    {entry.name && entry.name !== entry.id
+                      ? entry.name
+                      : (DATASET_WORDS[entry.id] ?? entry.id)}
                   </option>
                 ))}
               </Box>
