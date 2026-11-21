@@ -291,6 +291,14 @@ describe('the planning board', () => {
     await waitFor(() => expect(screen.getByTestId('search').textContent).toContain('week=2026-11-16'));
   });
 
+  it('says when a week has no shifts at all', async () => {
+    stubVersion();
+
+    renderBoard('/planning?week=2027-01-04');
+
+    expect(await screen.findByText(/No shifts on this week yet/)).toBeInTheDocument();
+  });
+
   it('offers the supervisor the publish action for the roster week', async () => {    renderBoard();
 
     expect(await screen.findByText('Not published')).toBeInTheDocument();
