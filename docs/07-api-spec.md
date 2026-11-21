@@ -412,7 +412,7 @@ work nights; an 8 h night preference is shown unmet with that reason), `absences
 `days`, `coveredByRelief`, `uncovered` and one plain line such as "3 officers on leave were
 skipped: relief officers covered 22 of the shifts"), `n12Officers`/
 `n12NightShifts` and a fixed-crew note when the dataset has N12 crews, officers and hours over 80,
-generation time, weekends worked per officer (min/avg/max), `fteBands` (full-time / 0.7-0.9 /
+generation time, the staffing report (`staffing`: leave allowance, periods split at closure boundaries, per-unit allocated/filled/needed/shortfall and the visible breakdown), weekends worked per officer (min/avg/max), `fteBands` (full-time / 0.7-0.9 /
 under 0.7: officers, target hours, planned min/avg/max) with the plain note that part-time and
 casual officers are not guaranteed hours, and `patterns` (`officers: [{employeeNo, name, unitCode,
 pattern, words}]` plus a plain note) so every officer's pattern is visible in words, never a raw
@@ -428,6 +428,20 @@ A12/P12 4-on/4-off; the 120 dataset uses the V6 D12 07-19 / N12 19-07 crews with
 planner never rosters 16 h (a 16 h preference is stored and shown unmet; in practice a "16 h shift"
 is a 12 h shift plus ~4 h overtime extension recorded after the fact). A committed quarter creates
 its seven 14-day pay periods and each unit's schedule periods, so it can be locked and paid.
+
+### 4.11 Units, closures and staffing (Release 3, ADR-027 addendum)
+
+| Method | Path | Purpose | Roles |
+|---|---|---|---|
+| GET | `/planner/units` | Units with `today` (`OPEN`/`CLOSED`/`SWITCHED_OFF`), `todayNote`, `allocated`, `filled` and `closures` (`id`, `closedFrom`, `reopensOn|null`, `reason`, `createdBy`, `createdAt`, `state` `FUTURE`/`CURRENT`/`ENDED`) | PLANNER |
+| POST | `/planner/units/{id}/closures/preview` | `{closedFrom, reopensOn?}` → `{officersHomed, publishedShiftsAffected}`; no write | PLANNER |
+| POST · PUT · DELETE | `/planner/units/{id}/closures[/{closureId}]` | Close from a date, change/reopen, or remove; reason required (>=5 characters). 400 plain messages for a past closing date, reopening not after closing, an overlapping closure, or a short reason; 404 unknown unit/closure | PLANNER |
+| GET | `/planner/flagged-shifts` | Future non-cancelled `shift_assignment` rows in a unit closed on the shift date: `shiftId, unitId, unitCode, unitName, date, templateCode, shiftLabel, officerName, start, end, closedFrom, reason`. Nothing is deleted | PLANNER |
+| GET | `/planner/staffing` | `leaveAllowance`, `periods` split at every closure boundary (max 3 by shortage), each with unit rows `{closed, allocated, filled, needed, shortfall, breakdown{posts12Day, posts12Night, posts8, rawNeeded, leaveAllowance, needed}}` and summed `totals`; `note`/`truncated` when capped | PLANNER |
+| PUT | `/planner/units/{id}/staffing` | `{allocated, reason}` → the unit's staffing row; 0-999 whole number, reason >=5, audited | PLANNER |
+| PUT | `/planner/settings/leave-allowance` | `{percent, reason}` → `{leaveAllowance}`; 0-50 whole percent, reason >=5, audited | PLANNER |
+
+`needed = ceil((2 × (posts12Day + posts12Night) + 1.4 × posts8) / (1 - leaveAllowance))`. With 12 h allowed, `posts12Day` is the DAY minimum, `posts12Night` the NIGHT minimum and `posts8 = max(0, EVENING - NIGHT)` (the 19-23 hours the night crew does not cover); a unit without 12 h uses 8 h posts for every block. `shortfall = max(0, needed - filled)`. A unit closed for a whole period needs 0. The board/roster `SchedulePayload.unit` and each planner `UnitCoverage` carry `closedFrom`, `closedTo`, `closedLabel`, `closedReason` and `closedDates`; the Coverage report carries `closureNotes`; the wall display carries `closedToday`/`closedNote`. Audit codes: `unit_closure_added`, `unit_closure_changed`, `unit_closure_removed`, `unit_staffing_changed`, `leave_allowance_changed`. The 100/120 seeds have no closure rows, so their checksums, payroll golden and plan fingerprints are unchanged until a planner closes a unit.
 
 ### 4.10 Demo reset (demo profile only)
 
