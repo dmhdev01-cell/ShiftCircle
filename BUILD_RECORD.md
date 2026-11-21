@@ -20,7 +20,7 @@ Only the web publishes a port. A published rule version is compiled and swapped 
 - Drools decision tables are edited in the app; publishing uses maker/checker, test scenarios and a dry run (ADR-012).
 - Coverage is by unit and block, measured hourly in absolute time (the NIGHT block on D is 23:00 D–07:00 D+1). Overtime is the hours over the pay-period threshold (ADR-013, 016, 017).
 - Baseline rule set v2 (V6) is seeded PUBLISHED by migration, like v1, without maker/checker and without an audit row; every later version uses maker/checker (docs/04 §6).
-- The planner enforces rest, hours and Block rules, not qualification coverage; the 120 dataset seeds CTL/ESC/FIRST_AID by crew, but a draft is not qualification-verified. The planner also does not read planned leave, so the casual pool is relief only and mostly idle when the full-time crews cover every block.
+- The planner enforces rest, hours and Block rules, not qualification coverage; the 120 dataset seeds CTL/ESC/FIRST_AID by crew, but a draft is not qualification-verified. The planner reads future absences entered with `POST /planner/absences` and skips that officer on those dates (a read-only input, not leave management); with no leave seeded the casual pool is relief only and mostly idle when the full-time crews cover every block.
 - **Deviations confirmed by the project lead on 2026-11-20:** only emergency Blocks can be overridden (ADR-023); lock and export are facility-wide (ADR-022); cross-unit cover (ADR-024). Audit relies on triggers, not grants (ADR-018, prototype only).
 
 ## 3. AI-assisted development

@@ -51,6 +51,27 @@ class ApiProblemAdviceTest {
   }
 
   @Test
+  void aPayPeriodOverlapIsNotReportedAsAnOfficerShiftConflict() {
+    ResponseEntity<Map<String, Object>> response =
+        advice.onConflict(
+            new DataIntegrityViolationException(
+                "could not execute statement",
+                new SQLException(
+                    "ERROR: conflicting key value violates exclusion constraint"
+                        + " \"pay_period_no_overlap\"",
+                    "23P01")));
+
+    assertThat(response.getStatusCode().value()).isEqualTo(409);
+    assertThat(response.getBody())
+        .containsEntry("type", "https://shiftcircle.local/problems/pay-period-overlap");
+    assertThat(response.getBody().get("title").toString()).contains("pay periods").contains("overlap");
+    assertThat(response.getBody().toString())
+        .doesNotContain("23P01")
+        .doesNotContain("pay_period_no_overlap")
+        .doesNotContain("already has a shift");
+  }
+
+  @Test
   void aUniqueConstraintBecomesA409Problem() {
     ResponseEntity<Map<String, Object>> response =
         advice.onConflict(

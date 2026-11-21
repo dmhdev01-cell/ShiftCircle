@@ -421,6 +421,25 @@ class PlannerApiTest {
             Map.of("If-Match", "\"999\""));
     assertThat(stale.statusCode()).as("a stale version is 412").isEqualTo(412);
 
+    UUID overlap = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO pay_period (id, start_date, end_date, status) VALUES (?, DATE '2027-01-10',"
+            + " DATE '2027-01-23', 'OPEN')",
+        overlap);
+    HttpResponse<String> overlapping =
+        sendWithHeaders(
+            "POST",
+            "/api/v1/planner/drafts/" + draftId + "/commit",
+            "{\"acceptedWarningCount\":" + warningCount + "}",
+            tokens.get("p.planner"),
+            Map.of("If-Match", "\"0\""));
+    assertThat(overlapping.statusCode()).isEqualTo(409);
+    assertThat(json(overlapping).get("reason")).isEqualTo("PAY_PERIOD_OVERLAP");
+    assertThat(json(overlapping).get("title").toString())
+        .contains("pay periods")
+        .contains("overlap");
+    jdbc.update("DELETE FROM pay_period WHERE id = ?", overlap);
+
     UUID period = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO pay_period (id, start_date, end_date, status) VALUES (?, DATE '2027-01-04',"

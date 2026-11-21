@@ -58,6 +58,7 @@ class Demo120ResetApiTest {
   @BeforeAll
   void login() throws Exception {
     tokens.put("p.planner", login("p.planner"));
+    tokens.put("m.ellis", login("m.ellis"));
   }
 
   @Test
@@ -204,7 +205,79 @@ class Demo120ResetApiTest {
         .isPositive();
     assertNoBlocks(draftId);
     qualificationReport(draftId, "120");
-    send("POST", "/api/v1/planner/drafts/" + draftId + "/discard", null, tokens.get("p.planner"));
+
+    Map<String, Object> preview120 = preview(draftId);
+    int warnings120 = ((Number) preview120.get("warningCount")).intValue();
+    int shifts120 = ((Number) preview120.get("shiftsToWrite")).intValue();
+    HttpResponse<String> committed120 =
+        sendWithHeaders(
+            "POST",
+            "/api/v1/planner/drafts/" + draftId + "/commit",
+            "{\"acceptedWarningCount\":" + warnings120 + "}",
+            tokens.get("p.planner"),
+            Map.of("If-Match", "\"0\""));
+    assertThat(committed120.statusCode()).as(committed120.body()).isEqualTo(200);
+    Map<String, Object> commitBody120 =
+        mapper.readValue(committed120.body(), Map.class);
+    assertThat(((Number) commitBody120.get("shiftsWritten")).intValue()).isEqualTo(shifts120);
+    assertThat(shifts120).as("the 120 commit is the full plan").isBetween(5000, 5200);
+    System.out.println("COMMIT120 shiftsWritten=" + shifts120);
+
+    UUID unitA = jdbc.queryForObject("SELECT id FROM unit WHERE code = 'A'", UUID.class);
+    HttpResponse<String> schedule =
+        send(
+            "GET",
+            "/api/v1/schedule?unitId=" + unitA + "&from=2027-01-04&to=2027-01-10",
+            null,
+            tokens.get("m.ellis"));
+    assertThat(schedule.statusCode()).as(schedule.body()).isEqualTo(200);
+    Map<String, Object> board = mapper.readValue(schedule.body(), Map.class);
+    List<Map<String, Object>> officers = (List<Map<String, Object>>) board.get("officers");
+    int shiftItems = 0;
+    for (Map<String, Object> officer : officers) {
+      List<Map<String, Object>> days = (List<Map<String, Object>>) officer.get("cells");
+      for (Map<String, Object> day : days) {
+        List<Map<String, Object>> items = (List<Map<String, Object>>) day.get("items");
+        shiftItems += items.stream().filter(item -> "SHIFT".equals(item.get("type"))).count();
+      }
+    }
+    assertThat(shiftItems).as("the committed 2027 week is on the supervisor board").isPositive();
+    System.out.println("BOARD120 shiftsInWeek=" + shiftItems);
+
+    // A fresh 120 draft with a LOCKED first period must refuse with LOCKED_PERIOD.
+    send(
+        "POST",
+        "/api/v1/demo/reset",
+        "{\"confirm\":\"RESET\",\"dataset\":\"120\"}",
+        tokens.get("p.planner"));
+    assertThat(awaitDone().get("state")).isEqualTo("DONE");
+    HttpResponse<String> generatedLocked =
+        send(
+            "POST",
+            "/api/v1/planner/drafts",
+            "{\"seed\":20261001}",
+            tokens.get("p.planner"));
+    assertThat(generatedLocked.statusCode()).as(generatedLocked.body()).isEqualTo(201);
+    UUID lockedDraft =
+        UUID.fromString((String) mapper.readValue(generatedLocked.body(), Map.class).get("id"));
+    UUID lockedPeriod = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO pay_period (id, start_date, end_date, status) VALUES (?, DATE '2027-01-04',"
+            + " DATE '2027-01-17', 'LOCKED')",
+        lockedPeriod);
+    HttpResponse<String> lockedCommit =
+        sendWithHeaders(
+            "POST",
+            "/api/v1/planner/drafts/" + lockedDraft + "/commit",
+            "{\"acceptedWarningCount\":"
+                + ((Number) preview(lockedDraft).get("warningCount")).intValue()
+                + "}",
+            tokens.get("p.planner"),
+            Map.of("If-Match", "\"0\""));
+    assertThat(lockedCommit.statusCode()).isEqualTo(409);
+    assertThat(mapper.readValue(lockedCommit.body(), Map.class).get("reason"))
+        .isEqualTo("LOCKED_PERIOD");
+    jdbc.update("DELETE FROM pay_period WHERE id = ?", lockedPeriod);
 
     send(
         "POST",
@@ -232,7 +305,22 @@ class Demo120ResetApiTest {
     UUID draft100 =
         UUID.fromString((String) mapper.readValue(generated100.body(), Map.class).get("id"));
     qualificationReport(draft100, "100");
-    send("POST", "/api/v1/planner/drafts/" + draft100 + "/discard", null, tokens.get("p.planner"));
+    Map<String, Object> preview100 = preview(draft100);
+    int warnings100 = ((Number) preview100.get("warningCount")).intValue();
+    int shifts100 = ((Number) preview100.get("shiftsToWrite")).intValue();
+    HttpResponse<String> committed100 =
+        sendWithHeaders(
+            "POST",
+            "/api/v1/planner/drafts/" + draft100 + "/commit",
+            "{\"acceptedWarningCount\":" + warnings100 + "}",
+            tokens.get("p.planner"),
+            Map.of("If-Match", "\"0\""));
+    assertThat(committed100.statusCode()).as(committed100.body()).isEqualTo(200);
+    assertThat(((Number) mapper.readValue(committed100.body(), Map.class).get("shiftsWritten"))
+            .intValue())
+        .isEqualTo(shifts100)
+        .isPositive();
+    System.out.println("COMMIT100 shiftsWritten=" + shifts100);
 
     Map<?, ?> version =
         mapper.readValue(send("GET", "/api/v1/version", null, null).body(), Map.class);
@@ -385,6 +473,36 @@ class Demo120ResetApiTest {
             + total
             + " byUnitBlock="
             + failures);
+  }
+
+  private Map<String, Object> preview(UUID draftId) throws Exception {
+    HttpResponse<String> response =
+        send(
+            "GET",
+            "/api/v1/planner/drafts/" + draftId + "/commit-preview",
+            null,
+            tokens.get("p.planner"));
+    assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+    return mapper.readValue(response.body(), Map.class);
+  }
+
+  private HttpResponse<String> sendWithHeaders(
+      String method, String path, String body, String token, Map<String, String> headers)
+      throws Exception {
+    String port = environment.getRequiredProperty("local.server.port");
+    HttpRequest.Builder builder =
+        HttpRequest.newBuilder(URI.create("http://localhost:" + port + path));
+    headers.forEach(builder::header);
+    if (body != null) {
+      builder.header("Content-Type", "application/json")
+          .method(method, HttpRequest.BodyPublishers.ofString(body));
+    } else {
+      builder.method(method, HttpRequest.BodyPublishers.noBody());
+    }
+    if (token != null) {
+      builder.header("Authorization", "Bearer " + token);
+    }
+    return client.send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
   }
 
   private Map<String, Object> awaitDone() throws Exception {

@@ -325,8 +325,10 @@ public class Demo120DatasetProvider implements DemoDatasetProvider {
   }
 
   private void seedPeriods(Map<String, UUID> units) {
+    // Match the 100 seed's layout: the last seeded period is 21 Dec - 3 Jan, so the planner's
+    // first 2027 period (4-17 Jan) starts cleanly and cannot overlap a seeded one.
     LocalDate[] starts = {
-      LocalDate.of(2026, 11, 30), LocalDate.of(2026, 12, 14), LocalDate.of(2026, 12, 28)
+      LocalDate.of(2026, 11, 23), LocalDate.of(2026, 12, 7), LocalDate.of(2026, 12, 21)
     };
     for (LocalDate start : starts) {
       LocalDate end = start.plusDays(13);

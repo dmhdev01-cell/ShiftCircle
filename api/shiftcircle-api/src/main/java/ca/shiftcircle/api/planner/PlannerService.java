@@ -175,9 +175,10 @@ public class PlannerService {
         };
 
     long before = System.nanoTime();
+    Map<UUID, java.util.Set<LocalDate>> leave = loadLeave();
     PlanGenerator.Result result =
         new PlanGenerator()
-            .generate(employees, units, templates, history, pattern, seed, verifier);
+            .generate(employees, units, templates, history, pattern, seed, verifier, leave);
     int generatedMs = (int) ((System.nanoTime() - before) / 1_000_000);
 
     UUID id = UUID.randomUUID();
@@ -1014,16 +1015,44 @@ public class PlannerService {
     List<UUID> units = jdbc.queryForList("SELECT id FROM unit ORDER BY code", UUID.class);
     for (LocalDate start = FROM; !start.isAfter(TO); start = start.plusDays(14)) {
       LocalDate end = start.plusDays(13);
+      // An identical period is idempotent. Any other overlap is refused with a plain 409: silently
+      // absorbing it would leave the quarter with a period that is not the planner's 14-day grid.
+      List<Map<String, Object>> existing =
+          jdbc.queryForList(
+              "SELECT start_date, end_date FROM pay_period"
+                  + " WHERE start_date <= ? AND end_date >= ? ORDER BY start_date",
+              end,
+              start);
+      LocalDate periodStart = start;
+      LocalDate periodEnd = end;
+      Map<String, Object> overlap =
+          existing.stream()
+              .filter(
+                  row ->
+                      !(periodStart.equals(
+                              ((java.sql.Date) row.get("start_date")).toLocalDate())
+                          && periodEnd.equals(
+                              ((java.sql.Date) row.get("end_date")).toLocalDate())))
+              .findFirst()
+              .orElse(null);
+      if (overlap != null) {
+        throw new PlannerConflictException(
+            "PAY_PERIOD_OVERLAP",
+            "The pay periods for this plan overlap periods that already exist ("
+                + overlap.get("start_date")
+                + " to "
+                + overlap.get("end_date")
+                + "). Reset the demo data or choose a different quarter.");
+      }
+      boolean identical = !existing.isEmpty();
       UUID payPeriod = UUID.nameUUIDFromBytes(("plan-pay:" + start).getBytes(java.nio.charset.StandardCharsets.UTF_8));
-      jdbc.update(
-          "INSERT INTO pay_period (id, start_date, end_date, status)"
-              + " SELECT ?, ?, ?, 'OPEN' WHERE NOT EXISTS"
-              + " (SELECT 1 FROM pay_period WHERE start_date = ? AND end_date = ?)",
-          payPeriod,
-          start,
-          end,
-          start,
-          end);
+      if (!identical) {
+        jdbc.update(
+            "INSERT INTO pay_period (id, start_date, end_date, status) VALUES (?, ?, ?, 'OPEN')",
+            payPeriod,
+            start,
+            end);
+      }
       for (UUID unit : units) {
         UUID schedulePeriod =
             UUID.nameUUIDFromBytes(
@@ -1302,6 +1331,81 @@ public class PlannerService {
   }
 
   /** Committed assignments around the window; the planner verifies against these, not the draft. */
+  /** Planned absences in the quarter: employee -> dates they are unavailable. Read-only input. */
+  private Map<UUID, java.util.Set<LocalDate>> loadLeave() {
+    Map<UUID, java.util.Set<LocalDate>> leave = new HashMap<>();
+    jdbc.query(
+        "SELECT employee_id, start_at, end_at FROM absence WHERE start_at < ? AND end_at > ?",
+        (RowCallbackHandler)
+            rs -> {
+              UUID employeeId = rs.getObject("employee_id", UUID.class);
+              Instant start = rs.getTimestamp("start_at").toInstant();
+              Instant end = rs.getTimestamp("end_at").toInstant();
+              LocalDate startDate = start.atZone(REGINA).toLocalDate();
+              LocalDate endDate = end.atZone(REGINA).toLocalDate();
+              if (end.equals(endDate.atStartOfDay(REGINA).toInstant())) {
+                endDate = endDate.minusDays(1);
+              }
+              for (LocalDate date = startDate;
+                  !date.isAfter(endDate);
+                  date = date.plusDays(1)) {
+                if (!date.isBefore(FROM) && !date.isAfter(TO)) {
+                  leave.computeIfAbsent(employeeId, key -> new HashSet<>()).add(date);
+                }
+              }
+            },
+        Timestamp.from(TO.plusDays(1).atStartOfDay(REGINA).toInstant()),
+        Timestamp.from(FROM.atStartOfDay(REGINA).toInstant()));
+    return leave;
+  }
+
+  /** A planner adds a future absence; it is read by the next generate, never approved or managed. */
+  @Transactional
+  public Map<String, Object> planAbsence(
+      UUID employeeId, LocalDate date, String type, AuthPrincipal principal) {
+    if (employeeId == null || date == null || type == null) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "employeeId, date and type are required");
+    }
+    if (date.isBefore(FROM) || date.isAfter(TO)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "The absence date must be inside the plan quarter");
+    }
+    if (!Set.of("SICK", "VACATION", "OTHER").contains(type)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "type must be SICK, VACATION or OTHER");
+    }
+    Integer active =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM employee WHERE id = ? AND active", Integer.class, employeeId);
+    if (active == null || active == 0) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found");
+    }
+    UUID id = UUID.randomUUID();
+    Instant start = date.atStartOfDay(REGINA).toInstant();
+    Instant end = date.plusDays(1).atStartOfDay(REGINA).toInstant();
+    jdbc.update(
+        "INSERT INTO absence (id, employee_id, type, start_at, end_at, recorded_by)"
+            + " VALUES (?, ?, ?, ?, ?, (SELECT id FROM app_user WHERE username = ?))",
+        id,
+        employeeId,
+        type,
+        Timestamp.from(start),
+        Timestamp.from(end),
+        principal.username());
+    audit(
+        principal,
+        "record_absence",
+        "absence",
+        id,
+        Map.of("employeeId", employeeId.toString(), "date", date.toString(), "type", type));
+    return Map.of(
+        "id", id.toString(),
+        "employeeId", employeeId.toString(),
+        "date", date.toString(),
+        "type", type);
+  }
+
   private Map<UUID, List<ShiftFact>> loadHistory(Instant from, Instant to) {
     Map<UUID, List<ShiftFact>> history = new HashMap<>();
     jdbc.query(
