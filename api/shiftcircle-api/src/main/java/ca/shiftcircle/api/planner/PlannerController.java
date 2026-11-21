@@ -1,8 +1,11 @@
 package ca.shiftcircle.api.planner;
 
+import ca.shiftcircle.api.schedule.ScheduleQuery;
 import ca.shiftcircle.api.security.ScopeGuard;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -52,6 +55,25 @@ public class PlannerController {
   @GetMapping("/drafts/{id}/gaps")
   public List<PlannerViews.GapView> gaps(@PathVariable UUID id) {
     return planner.gaps(id);
+  }
+
+  /** The Roster tab: the same shape as the planning board, built from the draft's own rows. */
+  @GetMapping("/drafts/{id}/schedule")
+  public ScheduleQuery.SchedulePayload schedule(
+      @PathVariable UUID id,
+      @RequestParam UUID unitId,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+    return planner.schedule(id, unitId, from, to);
+  }
+
+  /** The Coverage strip across every unit, one entry per unit. */
+  @GetMapping("/drafts/{id}/coverage")
+  public List<PlannerViews.UnitCoverage> coverage(
+      @PathVariable UUID id,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+    return planner.draftCoverage(id, from, to);
   }
 
   @GetMapping("/drafts/{id}/warnings")

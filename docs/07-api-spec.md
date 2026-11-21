@@ -374,6 +374,8 @@ same validation as the grid (R24/R28: rule values are code input).
 | GET | `/planner/plan` | Window (4 Jan – 11 Apr 2027, 7 periods), default seed, the 8 h patterns, current draft and last committed plan | PLANNER |
 | POST | `/planner/drafts` | `{seed, pattern8h?}` → generate a draft over the whole quarter; replaces the open draft | PLANNER |
 | GET | `/planner/drafts/{id}` | Draft summary and scorecard | PLANNER |
+| GET | `/planner/drafts/{id}/schedule?unitId&from&to` | The Roster tab: the draft's shifts in the same `SchedulePayload` shape as the planning board (`rotation` says the pattern in words; `publishedState` is false; `period` null) | PLANNER |
+| GET | `/planner/drafts/{id}/coverage?from&to` | One entry per unit with its `BlockCoverage[]` (same hourly shape as the board) | PLANNER |
 | GET | `/planner/drafts/{id}/gaps` | Short block-days with unit, date, block, required and placed | PLANNER |
 | GET | `/planner/drafts/{id}/warnings` | All warnings, grouped by plain rule name | PLANNER |
 | GET | `/planner/drafts/{id}/commit-preview` | Version, shifts, officers, gaps and warning count the commit will ask to accept | PLANNER |
@@ -390,11 +392,15 @@ visible gap instead of a shift. Commit re-runs every check against the current c
 refuses any Block with a per-assignment list, requires the exact warning count to be acknowledged
 (`acceptedWarningCount`), refuses a locked period, and writes all rows plus one `commit_plan` audit
 event in one transaction. Each written row carries `plan_draft_id`; overrides are never implied.
-The scorecard carries coverage gaps, warnings by plain rule name, preferences asked/met by kind,
+The scorecard carries coverage gaps, warnings by plain rule name (only warnings the plan adds:
+each officer's history-only baseline is subtracted), preferences asked/met by kind,
 night share by seniority band plus the newest-first check, officers and hours over 80, generation
-time, and weekends worked per officer (min/avg/max). The default 8 h pattern is `ROTATING_5_2`
-(weekends rotate, 80 h per period); `5_ON_2_OFF` and `7_ON_3_OFF` are selectable, and 12 h/16 h
-patterns keep their 4-on/4-off and 1-on/2-off cycles.
+time, and weekends worked per officer (min/avg/max). The default 8 h pattern is `5_ON_2_OFF`
+(fixed pair per officer, phases staggered, 80 h per period, no U-08/U-12/U-14); `ROTATING_5_2`
+(weekends rotate, 80 h, but a U-12 warning at the pair wrap for some phases) and `7_ON_3_OFF` are
+selectable and show their warnings honestly, and 12 h/16 h patterns keep their 4-on/4-off and
+1-on/2-off cycles. A committed quarter creates its seven 14-day pay periods and each unit's
+schedule periods, so it can be locked and paid.
 
 ## 5. Screen-to-endpoint map
 

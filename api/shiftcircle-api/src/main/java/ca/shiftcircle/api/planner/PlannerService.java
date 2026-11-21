@@ -92,7 +92,7 @@ public class PlannerService {
   public PlannerViews.DraftSummary generate(
       PlannerViews.DraftCreation creation, AuthPrincipal principal) {
     long seed = creation.seed() == 0 ? DEFAULT_SEED : creation.seed();
-    String pattern = creation.pattern8h() == null ? "ROTATING_5_2" : creation.pattern8h();
+    String pattern = creation.pattern8h() == null ? "5_ON_2_OFF" : creation.pattern8h();
     if (!PATTERNS.contains(pattern)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "pattern8h must be ROTATING_5_2, 5_ON_2_OFF or 7_ON_3_OFF");
@@ -106,6 +106,12 @@ public class PlannerService {
         loadHistory(
             FROM.minusDays(35).atStartOfDay(REGINA).toInstant(),
             FROM.atStartOfDay(REGINA).toInstant());
+    // Warnings the seeded history already has are not this plan's warnings: subtract them so the
+    // scorecard counts what the draft adds, not the same history window repeated per proposal.
+    Map<UUID, Set<String>> baselineWarnings = new HashMap<>();
+    history.forEach(
+        (employeeId, shifts) ->
+            baselineWarnings.put(employeeId, warningKeys(ruleCheck.evaluateFacts(shifts))));
 
     PlanGenerator.Verifier verifier =
         (employee, unit, template, start, current) -> {
@@ -125,9 +131,12 @@ public class PlannerService {
           boolean blocked =
               outcome.ruleResults().stream().anyMatch(result -> "BLOCK".equals(result.outcome()));
 
+          Set<String> baseline =
+              baselineWarnings.getOrDefault(employee.id(), Set.of());
           List<PlanGenerator.RuleWarning> warnings =
               outcome.ruleResults().stream()
                   .filter(result -> "WARN".equals(result.outcome()))
+                  .filter(result -> !baseline.contains(warningKey(result)))
                   .map(result -> new PlanGenerator.RuleWarning(result.ruleCode(), result.message()))
                   .toList();
           return new PlanGenerator.Check(blocked, warnings);
@@ -285,6 +294,229 @@ public class PlannerService {
   }
 
   // ---------------------------------------------------------------------------------------------
+  // Draft schedule and coverage (same shapes as the planning board)
+  // ---------------------------------------------------------------------------------------------
+
+  public ca.shiftcircle.api.schedule.ScheduleQuery.SchedulePayload schedule(
+      UUID id, UUID unitId, LocalDate from, LocalDate to) {
+    Map<String, Object> draft = requireDraft(id);
+    validateRange(from, to);
+    Map<String, Object> unit =
+        jdbc.queryForMap("SELECT id, name FROM unit WHERE id = ?", unitId);
+    Map<String, Integer> required = required(unitId);
+    List<Map<String, Object>> planned = plannedForUnit(id, unitId, from, to);
+    List<LocalDate> days = days(from, to);
+    List<ca.shiftcircle.api.schedule.ScheduleQuery.BlockCoverage> coverage =
+        coverageFor(required, planned, days, true);
+
+    Map<UUID, List<Map<String, Object>>> byOfficer = new LinkedHashMap<>();
+    Map<UUID, Map<String, Object>> officerRows = new LinkedHashMap<>();
+    for (Map<String, Object> row : planned) {
+      UUID employeeId = (UUID) row.get("employee_id");
+      officerRows.putIfAbsent(employeeId, row);
+      byOfficer.computeIfAbsent(employeeId, key -> new ArrayList<>()).add(row);
+    }
+    Map<UUID, List<String>> qualifications = qualifications(officerRows.keySet());
+    String pattern = (String) draft.get("pattern8h");
+    LocalDate periodStart =
+        ((java.sql.Date) draft.get("from_date")).toLocalDate()
+            .plusDays((java.time.temporal.ChronoUnit.DAYS.between(
+                        ((java.sql.Date) draft.get("from_date")).toLocalDate(), from) / 14) * 14);
+    LocalDate periodEnd = periodStart.plusDays(13);
+    List<ca.shiftcircle.api.schedule.ScheduleQuery.OfficerRow> officers = new ArrayList<>();
+    officerRows.forEach(
+        (employeeId, row) -> {
+          Map<LocalDate, List<ca.shiftcircle.api.schedule.ScheduleQuery.ShiftItem>> cells =
+              new LinkedHashMap<>();
+          days.forEach(day -> cells.put(day, new ArrayList<>()));
+          double periodHours = 0;
+          for (Map<String, Object> shift : byOfficer.getOrDefault(employeeId, List.of())) {
+            LocalDate date = ((java.sql.Date) shift.get("work_date")).toLocalDate();
+            Instant start = ((Timestamp) shift.get("start_at")).toInstant();
+            Instant end = ((Timestamp) shift.get("end_at")).toInstant();
+            if (!date.isBefore(periodStart) && !date.isAfter(periodEnd)) {
+              periodHours += Duration.between(start, end).toMinutes() / 60.0;
+            }
+            cells
+                .getOrDefault(date, new ArrayList<>())
+                .add(
+                    new ca.shiftcircle.api.schedule.ScheduleQuery.ShiftItem(
+                        "SHIFT",
+                        (UUID) shift.get("id"),
+                        (String) shift.get("template_code"),
+                        start.toString(),
+                        end.toString(),
+                        "ROSTERED",
+                        false,
+                        0));
+          }
+          periodHours = Math.round(periodHours * 100.0) / 100.0;
+          String status = periodHours >= 80 ? "IN_OVERTIME" : periodHours >= 72 ? "APPROACHING" : "UNDER";
+          List<ca.shiftcircle.api.schedule.ScheduleQuery.DayCell> dayCells = new ArrayList<>();
+          cells.forEach(
+              (date, items) ->
+                  dayCells.add(new ca.shiftcircle.api.schedule.ScheduleQuery.DayCell(date, items)));
+          officers.add(
+              new ca.shiftcircle.api.schedule.ScheduleQuery.OfficerRow(
+                  employeeId,
+                  (String) row.get("employee_name"),
+                  rotation(row, pattern),
+                  qualifications.getOrDefault(employeeId, List.of()),
+                  periodHours,
+                  80.0,
+                  status,
+                  dayCells));
+        });
+    return new ca.shiftcircle.api.schedule.ScheduleQuery.SchedulePayload(
+        new ca.shiftcircle.api.schedule.ScheduleQuery.UnitView(unitId, (String) unit.get("name")),
+        from,
+        to,
+        days,
+        LocalDate.now(REGINA).toString(),
+        coverage,
+        officers,
+        ((Number) draft.get("warning_count")).intValue(),
+        0,
+        new ca.shiftcircle.api.schedule.ScheduleQuery.PublishedState(false, null),
+        null);
+  }
+
+  public List<PlannerViews.UnitCoverage> draftCoverage(UUID id, LocalDate from, LocalDate to) {
+    requireDraft(id);
+    validateRange(from, to);
+    List<LocalDate> days = days(from, to);
+    List<PlannerViews.UnitCoverage> result = new ArrayList<>();
+    for (Map<String, Object> unit : jdbc.queryForList("SELECT id, name FROM unit ORDER BY code")) {
+      UUID unitId = (UUID) unit.get("id");
+      List<Map<String, Object>> planned = plannedForUnit(id, unitId, from, to);
+      result.add(
+          new PlannerViews.UnitCoverage(
+              unitId,
+              (String) unit.get("name"),
+              coverageFor(required(unitId), planned, days, false)));
+    }
+    return result;
+  }
+
+  private void validateRange(LocalDate from, LocalDate to) {
+    if (to.isBefore(from) || ChronoUnit.DAYS.between(from, to) > 31) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "from and to must span at most 31 days, in order");
+    }
+  }
+
+  private Map<String, Integer> required(UUID unitId) {
+    Map<String, Integer> required = new LinkedHashMap<>();
+    jdbc.query(
+        "SELECT block, min_staff FROM unit_requirement WHERE unit_id = ? AND effective_to IS NULL",
+        (RowCallbackHandler) rs -> required.put(rs.getString("block"), rs.getInt("min_staff")),
+        unitId);
+    return required;
+  }
+
+  private List<Map<String, Object>> plannedForUnit(
+      UUID draftId, UUID unitId, LocalDate from, LocalDate to) {
+    return jdbc.queryForList(
+        "SELECT a.id, a.employee_id, a.work_date, a.start_at, a.end_at,"
+            + " e.first_name || ' ' || e.last_name AS employee_name,"
+            + " t.code AS template_code, t.duration_minutes"
+            + " FROM plan_draft_assignment a JOIN employee e ON e.id = a.employee_id"
+            + " JOIN shift_template t ON t.id = a.shift_template_id"
+            + " WHERE a.draft_id = ? AND a.unit_id = ? AND a.work_date BETWEEN ? AND ?"
+            + " ORDER BY a.start_at",
+        draftId,
+        unitId,
+        from,
+        to);
+  }
+
+  private List<ca.shiftcircle.api.schedule.ScheduleQuery.BlockCoverage> coverageFor(
+      Map<String, Integer> required,
+      List<Map<String, Object>> planned,
+      List<LocalDate> days,
+      boolean withActual) {
+    List<ca.shiftcircle.api.schedule.ScheduleQuery.BlockCoverage> coverage = new ArrayList<>();
+    Map<LocalDate, List<ca.shiftcircle.api.coverage.CoverageCalculator.Interval>> intervals =
+        new HashMap<>();
+    for (Map<String, Object> row : planned) {
+      intervals
+          .computeIfAbsent(
+              ((java.sql.Date) row.get("work_date")).toLocalDate(), key -> new ArrayList<>())
+          .add(
+              new ca.shiftcircle.api.coverage.CoverageCalculator.Interval(
+                  ((Timestamp) row.get("start_at")).toInstant(),
+                  ((Timestamp) row.get("end_at")).toInstant()));
+    }
+    for (LocalDate date : days) {
+      List<ca.shiftcircle.api.coverage.CoverageCalculator.BlockCoverage> blocks =
+          new ca.shiftcircle.api.coverage.CoverageCalculator()
+              .forDay(date, required, intervals.getOrDefault(date, List.of()));
+      for (ca.shiftcircle.api.coverage.CoverageCalculator.BlockCoverage block : blocks) {
+        List<ca.shiftcircle.api.schedule.ScheduleQuery.ShortHour> shortHours = new ArrayList<>();
+        block
+            .coverage()
+            .shortHours()
+            .forEach(
+                shortHour ->
+                    shortHours.add(
+                        new ca.shiftcircle.api.schedule.ScheduleQuery.ShortHour(
+                            shortHour.from(), shortHour.to(), shortHour.count())));
+        coverage.add(
+            new ca.shiftcircle.api.schedule.ScheduleQuery.BlockCoverage(
+                block.block(),
+                date,
+                block.required(),
+                new ca.shiftcircle.api.schedule.ScheduleQuery.HourlyCoverage(
+                    block.coverage().lowestHourly(),
+                    shortHours,
+                    block.coverage().maxHourly()),
+                null,
+                block.covered()));
+      }
+    }
+    return coverage;
+  }
+
+  private List<LocalDate> days(LocalDate from, LocalDate to) {
+    List<LocalDate> days = new ArrayList<>();
+    for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
+      days.add(date);
+    }
+    return days;
+  }
+
+  private Map<UUID, List<String>> qualifications(java.util.Collection<UUID> employeeIds) {
+    Map<UUID, List<String>> result = new HashMap<>();
+    if (employeeIds.isEmpty()) {
+      return result;
+    }
+    jdbc.query(
+        "SELECT eq.employee_id, q.code FROM employee_qualification eq"
+            + " JOIN qualification q ON q.id = eq.qualification_id",
+        (RowCallbackHandler)
+            rs ->
+            result
+                .computeIfAbsent(rs.getObject("employee_id", UUID.class), key -> new ArrayList<>())
+                .add(rs.getString("code")));
+    return result;
+  }
+
+  private static String rotation(Map<String, Object> row, String pattern8h) {
+    int minutes = ((Number) row.get("duration_minutes")).intValue();
+    if (minutes == 960) {
+      return "1 on, 2 off";
+    }
+    if (minutes == 720) {
+      return "4 on, 4 off";
+    }
+    return switch (pattern8h) {
+      case "ROTATING_5_2" -> "5 on, 2 off (weekends rotate)";
+      case "7_ON_3_OFF" -> "7 on, 3 off";
+      default -> "5 on, 2 off";
+    };
+  }
+
+  // ---------------------------------------------------------------------------------------------
   // Commit
   // ---------------------------------------------------------------------------------------------
 
@@ -334,6 +566,7 @@ public class PlannerService {
           Map.of("reason", "LOCKED_PERIOD", "assignments", locked));
     }
 
+    ensurePlanPeriods();
     List<Map<String, Object>> planned =
         jdbc.queryForList(
             "SELECT a.*, t.code AS template_code, e.first_name || ' ' || e.last_name AS employee_name,"
@@ -346,6 +579,10 @@ public class PlannerService {
         loadHistory(
             FROM.minusDays(35).atStartOfDay(REGINA).toInstant(),
             TO.plusDays(1).atStartOfDay(REGINA).toInstant());
+    Map<UUID, Set<String>> baselineWarnings = new HashMap<>();
+    facts.forEach(
+        (employeeId, shifts) ->
+            baselineWarnings.put(employeeId, warningKeys(ruleCheck.evaluateFacts(shifts))));
     List<PlannerViews.CommitFailure> failures = new ArrayList<>();
     int warnings = 0;
     for (Map<String, Object> row : planned) {
@@ -399,9 +636,11 @@ public class PlannerService {
               .filter(result -> "BLOCK".equals(result.outcome()))
               .map(result -> result.ruleCode() + ": " + result.message())
               .toList();
+      Set<String> baseline = baselineWarnings.getOrDefault(employeeId, Set.of());
       warnings +=
           (int) outcome.ruleResults().stream()
               .filter(result -> "WARN".equals(result.outcome()))
+              .filter(result -> !baseline.contains(warningKey(result)))
               .count();
       if (!blocks.isEmpty()) {
         failures.add(
@@ -519,6 +758,44 @@ public class PlannerService {
             new PlannerViews.CompareRow("shifts", "Shifts", committed, draftShifts, "count", "NEUTRAL"),
             new PlannerViews.CompareRow("gaps", "Coverage gaps", 0, draftGaps, "count", "LOWER_IS_BETTER"));
     return new PlannerViews.CompareView(draftShifts, draftGaps, committed, rows);
+  }
+
+  /**
+   * A committed quarter needs its 14-day pay periods and each unit's schedule period, or the plan
+   * can never be locked or paid (review-r2 honest gap). Facility-wide, idempotent, OPEN/DRAFT;
+   * a period someone already locked is left alone and commit refuses it above.
+   */
+  private void ensurePlanPeriods() {
+    List<UUID> units = jdbc.queryForList("SELECT id FROM unit ORDER BY code", UUID.class);
+    for (LocalDate start = FROM; !start.isAfter(TO); start = start.plusDays(14)) {
+      LocalDate end = start.plusDays(13);
+      UUID payPeriod = UUID.nameUUIDFromBytes(("plan-pay:" + start).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      jdbc.update(
+          "INSERT INTO pay_period (id, start_date, end_date, status)"
+              + " SELECT ?, ?, ?, 'OPEN' WHERE NOT EXISTS"
+              + " (SELECT 1 FROM pay_period WHERE start_date = ? AND end_date = ?)",
+          payPeriod,
+          start,
+          end,
+          start,
+          end);
+      for (UUID unit : units) {
+        UUID schedulePeriod =
+            UUID.nameUUIDFromBytes(
+                ("plan-schedule:" + unit + ":" + start)
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        jdbc.update(
+            "INSERT INTO schedule_period (id, unit_id, start_date, end_date, status)"
+                + " SELECT ?, ?, ?, ?, 'DRAFT' WHERE NOT EXISTS"
+                + " (SELECT 1 FROM schedule_period WHERE unit_id = ? AND start_date = ?)",
+            schedulePeriod,
+            unit,
+            start,
+            end,
+            unit,
+            start);
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -854,6 +1131,22 @@ public class PlannerService {
         ((Timestamp) row.get("committed_at")).toInstant().toString(),
         (String) row.get("committed_by_name"),
         shifts);
+  }
+
+  private static Set<String> warningKeys(RuleCheckService.OutcomeView outcome) {
+    Set<String> keys = new java.util.HashSet<>();
+    outcome.ruleResults().stream()
+        .filter(result -> "WARN".equals(result.outcome()))
+        .forEach(result -> keys.add(warningKey(result)));
+    return keys;
+  }
+
+  private static String warningKey(RuleCheckService.ResultView result) {
+    return result.ruleCode()
+        + "|"
+        + result.evidence().stream()
+            .map(RuleCheckService.EvidenceView::label)
+            .toList();
   }
 
   private UUID requireEmployee(AuthPrincipal principal) {

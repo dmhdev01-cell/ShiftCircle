@@ -50,6 +50,26 @@ class WeekendRotationProbeTest {
   }
 
   @Test
+  void everyPhaseOfARotatingSevenPeriodQuarterWarnsAtTheWrap() {
+    for (int phase = 0; phase < 7; phase++) {
+      List<ShiftFact> shifts = new ArrayList<>();
+      for (int day = 0; day < 7 * 14; day++) {
+        LocalDate date = START.plusDays(day);
+        int period = day / 14;
+        int pairStart = Math.floorMod(phase - period, 7);
+        int weekDay = date.getDayOfWeek().getValue() - 1;
+        if (weekDay == pairStart || weekDay == (pairStart + 1) % 7) {
+          continue;
+        }
+        shifts.add(shift("officer", "D8", date.toString(), "07:00", 480));
+      }
+      assertThat(warningsOf(shifts))
+          .as("phase %s hits the Sun-Mon wrap inside seven periods", phase)
+          .isNotEmpty();
+    }
+  }
+
+  @Test
   void movingThePairEarlierEveryWeekWarns() {
     assertThat(warningsOf(rotaEarlier(1))).isNotEmpty();
   }

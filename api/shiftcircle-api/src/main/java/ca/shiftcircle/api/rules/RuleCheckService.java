@@ -106,6 +106,11 @@ public class RuleCheckService {
     return evaluateFacts(shifts, published.snapshot());
   }
 
+  /** Evaluate facts the caller already built; used to baseline existing warnings per officer. */
+  public OutcomeView evaluateFacts(List<ShiftFact> shifts) {
+    return evaluateFacts(shifts, published.snapshot());
+  }
+
   private ShiftFact factFor(Change change) {
     Map<String, Object> employee =
         jdbc.queryForMap(
