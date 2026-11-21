@@ -52,7 +52,9 @@ function scorecard(seed: number) {
       byKind: [
         { kind: 'SHIFT_LENGTH' as const, asked: 100, met: 88 },
         { kind: 'TIME_OF_DAY' as const, asked: 230, met: 162 - nudge },
-        { kind: 'DAYS_OFF' as const, asked: 200, met: 162 },
+        // Nobody asked for particular days off in the demo plan (the real 120
+        // plan's shape): the table must say 'none asked', not 0%.
+        { kind: 'DAYS_OFF' as const, asked: 0, met: 0 },
       ],
     },
     nights: {

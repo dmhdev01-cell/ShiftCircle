@@ -55,6 +55,38 @@ function shortWhen(value: unknown): string {
   return formatAt(raw);
 }
 
+/** The planner's pattern codes in the words the planner screen uses. */
+const PATTERN_WORDS: Record<string, string> = {
+  ROTATING_5_2: 'rotating 5 on, 2 off',
+  '5_ON_2_OFF': 'fixed 5 on, 2 off',
+  '7_ON_3_OFF': '7 on, 3 off',
+};
+
+const ABSENCE_WORDS: Record<string, string> = {
+  SICK: 'Sick',
+  VACATION: 'Vacation',
+};
+
+/** A date-only value as "4 Jan 2027"; anything else as written. */
+function plainDate(value: unknown): string {
+  const raw = text(value);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!match) return raw;
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${raw}T12:00:00Z`));
+}
+
+/** A count with the house thousands separator, or '' when absent. */
+function count(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '';
+  const number = Number(value);
+  return Number.isFinite(number) ? number.toLocaleString('en-CA') : text(value);
+}
+
 /** A key as a person reads it: "rowCount" -> "Row count". */
 function keyWords(key: string): string {
   const spaced = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ');
@@ -152,6 +184,49 @@ function sentenceFor(action: string, after: Record<string, unknown>): string {
       return 'Assigned from the overtime board';
     case 'create_open_shift':
       return plainFacts(after);
+    case 'generate_plan': {
+      // The api's own facts, in words: no raw Pattern8h / Generated ms keys.
+      const placed = count(after.assignments);
+      return [
+        placed ? `${placed} shifts placed` : '',
+        after.gaps !== undefined && after.gaps !== null ? `${count(after.gaps)} block-days short` : '',
+        after.warnings !== undefined && after.warnings !== null
+          ? `${count(after.warnings)} warnings`
+          : '',
+        after.seed !== undefined ? `seed ${text(after.seed)}` : '',
+        after.pattern8h ? (PATTERN_WORDS[String(after.pattern8h)] ?? text(after.pattern8h)) : '',
+        after.generatedMs !== undefined
+          ? `took ${(Number(after.generatedMs) / 1000).toFixed(1)} s`
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' · ');
+    }
+    case 'commit_plan': {
+      const shifts = count(after.assignments);
+      const units = Array.isArray(after.units) ? after.units.length : 0;
+      return [
+        shifts ? `${shifts} shifts written` : '',
+        after.officers !== undefined ? `${count(after.officers)} officers` : '',
+        after.warnings !== undefined ? `${count(after.warnings)} warnings accepted` : '',
+        units ? `across ${units} units` : '',
+      ]
+        .filter(Boolean)
+        .join(' · ');
+    }
+    case 'discard_plan': {
+      const shifts = count(after.assignments);
+      return shifts ? `${shifts} shifts discarded` : 'Draft discarded';
+    }
+    case 'record_absence': {
+      const kind = ABSENCE_WORDS[String(after.type)] ?? text(after.type);
+      const when = after.date ? plainDate(after.date) : '';
+      return [kind ? `${kind} recorded` : '', when].filter(Boolean).join(' · ');
+    }
+    case 'demo_reset':
+      return [after.dataset ? `Dataset ${text(after.dataset)}` : '', after.seed ? `seed ${text(after.seed)}` : '']
+        .filter(Boolean)
+        .join(' · ') || 'Demo data reset';
     case 'rule_set_draft':
     case 'rule_set_build':
     case 'rule_set_submit':

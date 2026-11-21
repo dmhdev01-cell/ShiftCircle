@@ -72,4 +72,44 @@ describe('the audit summary', () => {
       expect(line.length, code).toBeGreaterThan(0);
     }
   });
+
+  it('counts a generated plan in words instead of raw keys', () => {
+    expect(
+      summaryOf(
+        event('generate_plan', {
+          assignments: 6586,
+          gaps: 38,
+          warnings: 7,
+          seed: 20261001,
+          pattern8h: 'ROTATING_5_2',
+          generatedMs: 588,
+        }),
+      ),
+    ).toBe('6,586 shifts placed · 38 block-days short · 7 warnings · seed 20261001 · rotating 5 on, 2 off · took 0.6 s');
+  });
+
+  it('says what a commit wrote, and counts the units', () => {
+    expect(
+      summaryOf(
+        event('commit_plan', {
+          assignments: 6586,
+          officers: 100,
+          warnings: 7,
+          units: ['A', 'B', 'C', 'ADM', 'CTL', 'ESC'],
+        }),
+      ),
+    ).toBe('6,586 shifts written · 100 officers · 7 warnings accepted · across 6 units');
+  });
+
+  it('reads planned leave as a date and a word', () => {
+    expect(
+      summaryOf(event('record_absence', { type: 'VACATION', date: '2027-01-05', employeeId: UUID })),
+    ).toBe('Vacation recorded · 5 Jan 2027');
+  });
+
+  it('names the dataset a reset generated', () => {
+    expect(summaryOf(event('demo_reset', { dataset: '120', seed: '20261001' }))).toBe(
+      'Dataset 120 · seed 20261001',
+    );
+  });
 });

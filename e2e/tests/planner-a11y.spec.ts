@@ -13,7 +13,7 @@ import { ensurePlannableQuarter, expectAccessible, signIn } from './support';
 test.describe('the planner, accessible and by keyboard', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/login');
-    test.skip(await isFixtures(page), 'the planner needs the real api');
+    test.skip(process.env.E2E_MODE === 'fixtures' || (await isFixtures(page)), 'the planner needs the real api');
   });
 
   test('the landing, scorecard and gaps pass axe; the commit dialog works by keyboard', async ({

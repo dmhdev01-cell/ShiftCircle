@@ -33,7 +33,7 @@ async function aWorkedEntry(request: APIRequestContext): Promise<TimeEntry> {
 test.describe('clearing a record', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/login');
-    test.skip(await isFixtures(page), 'the time entries come from the real api');
+    test.skip(process.env.E2E_MODE === 'fixtures' || (await isFixtures(page)), 'the time entries come from the real api');
   });
 
   test('back to needs actual from the drawer', async ({ page, request }) => {

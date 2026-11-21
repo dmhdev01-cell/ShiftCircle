@@ -17,7 +17,7 @@ const SEED_CHECKSUM = '3390148255db715844c4df90f553ae342530417621539b23499f638c5
 test.describe('the demo reset datasets', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/login');
-    test.skip(await isFixtures(page), 'the reset needs the real api on the demo profile');
+    test.skip(process.env.E2E_MODE === 'fixtures' || (await isFixtures(page)), 'the reset needs the real api on the demo profile');
   });
 
   test('resets to 120, then back to 100', async ({ page }) => {

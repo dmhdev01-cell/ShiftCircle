@@ -343,7 +343,11 @@ export function MySchedulePage() {
             payload.employee.unit.name,
             payload.employee.rotation,
             ...payload.employee.qualifications.map(qualificationLabel),
-          ].join(' · ')}
+          ]
+            // An empty clause (no rotation, no qualification) must not leave a
+            // double separator: "Unit B · Living unit · · First aid".
+            .filter((part) => typeof part === 'string' && part.trim() !== '')
+            .join(' · ')}
         </Typography>
       </Box>
 
@@ -366,8 +370,6 @@ export function MySchedulePage() {
           <span>Overtime = pay-period hours over {payload.payPeriod.thresholdHours} h (status pill)</span>
         </Legend>
       </Card>
-
-      <MyPreferencesCard />
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
         <Box
@@ -474,6 +476,10 @@ export function MySchedulePage() {
           </Box>
         </Box>
       </Box>
+
+      {/* Observation m6: the officer's own preferences belong below the
+          next-shift cards, not between the key and the shift they open. */}
+      <MyPreferencesCard />
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'flex-start' }}>
         <Box sx={{ flex: '999 1 600px', minWidth: 0 }}>

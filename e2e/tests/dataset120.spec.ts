@@ -196,12 +196,15 @@ async function fifthDayOfFour(
 test.describe('dataset 120', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/login');
-    test.skip(await isFixtures(page), 'the crews and casuals need the real api');
+    test.skip(process.env.E2E_MODE === 'fixtures' || (await isFixtures(page)), 'the crews and casuals need the real api');
   });
 
   // Leave the seeded 100 dataset behind: the rest of the suite (and the demo)
   // assumes the untouched baseline, and the reset is the only stack-wide write.
   test.afterAll(async ({ request }) => {
+    // In a fixtures run the test skips, but afterAll still runs: there is no
+    // api behind that build, so leave its in-memory data alone.
+    if (process.env.E2E_MODE === 'fixtures') return;
     test.setTimeout(180_000);
     await resetTo(request, '100');
   });

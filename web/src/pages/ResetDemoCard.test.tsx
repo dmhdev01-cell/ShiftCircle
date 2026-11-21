@@ -42,7 +42,7 @@ describe('the demo reset', () => {
     await user.selectOptions(await screen.findByLabelText('Mock sign-in: choose a role'), 'PLANNER');
 
     expect(await screen.findByRole('heading', { name: 'Reset the demo data' })).toBeInTheDocument();
-    expect(screen.getByText(/about 20 seconds/)).toBeInTheDocument();
+    expect(screen.getByText(/a few seconds/)).toBeInTheDocument();
 
     const button = screen.getByRole('button', { name: 'Reset demo data' });
     expect(button).toBeDisabled();
