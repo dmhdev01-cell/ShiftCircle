@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
@@ -121,6 +121,59 @@ describe('displayPayload whitelist', () => {
     expect(() =>
       toDisplayToday({ ...demoDisplayToday(null), totalOpenShifts: -1 }),
     ).toThrow(/total open shifts/);
+  });
+});
+
+describe('leaving the wall display', () => {
+  it('offers a supervisor a visible exit that lands on their board', async () => {
+    // Observation #7: the only way out was small light-blue text at the end of
+    // the footer line, which the person could not find.
+    startAt(DAY_TIME);
+    renderDisplay();
+    await firstLoad();
+
+    const exit = screen.getByRole('button', { name: 'Exit the wall display' });
+    expect(exit).toBeVisible();
+
+    // A direct click: the page's clock is fake, so user-event's timers would
+    // never fire.
+    await act(async () => {
+      exit.click();
+    });
+    // The display is gone; real timers let the next screen settle.
+    vi.useRealTimers();
+    expect(await screen.findByRole('heading', { name: 'Planning board', level: 1 })).toBeInTheDocument();
+  });
+
+  it('leaves on Escape', async () => {
+    startAt(DAY_TIME);
+    renderDisplay();
+    await firstLoad();
+
+    await act(async () => {
+      fireEvent.keyDown(window, { key: 'Escape' });
+    });
+
+    vi.useRealTimers();
+    expect(await screen.findByRole('heading', { name: 'Planning board', level: 1 })).toBeInTheDocument();
+  });
+
+  it('gives the unit-office TV no way out by design', async () => {
+    startAt(DAY_TIME);
+    const { setActingUser } = await import('../api/session');
+    const displayUser = (await import('../api/fixtures/demoUsers')).demoUsers.find((user) =>
+      user.roles.includes('DISPLAY'),
+    );
+    setActingUser(displayUser ?? null);
+
+    renderDisplay();
+    await firstLoad();
+
+    expect(screen.queryByRole('button', { name: 'Exit the wall display' })).not.toBeInTheDocument();
+    await act(async () => {
+      fireEvent.keyDown(window, { key: 'Escape' });
+    });
+    expect(screen.getByRole('heading', { name: "Today's coverage", level: 1 })).toBeInTheDocument();
   });
 });
 

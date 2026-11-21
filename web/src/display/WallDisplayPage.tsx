@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 
 import { api, usingFixtures } from '../api/client';
+import { getSession, subscribeSession } from '../api/session';
 import type { Block, DisplayBlock, DisplayToday, DisplayUnit } from '../api/types';
+import { destinationFor } from '../shell/destinations';
 import { useRole } from '../shell/nav';
 import { BLOCK_WORDS, clockTime, currentBlock, dayWords, REFRESH_MS, STALE_AFTER_MS } from './displayTime';
 
@@ -315,6 +317,36 @@ export function WallDisplayPage() {
   const { data, updatedAt, error } = useDisplayToday();
   const now = useNow();
   const { role } = useRole();
+  const session = useSyncExternalStore(subscribeSession, getSession);
+  const navigate = useNavigate();
+  // The unit office TV is the one account with no way out by design: it is a
+  // screen, not a workstation. Every other role needs a visible exit and Esc,
+  // and the browser's own Back keeps working because leaving is a navigation
+  // (observation #7).
+  const canLeave = role.id !== 'DISPLAY';
+  const landing =
+    session.user !== null
+      ? destinationFor(session.user)
+      : role.id === 'AUDITOR'
+        ? '/reports/coverage'
+        : role.id === 'EMPLOYEE'
+          ? '/me/schedule'
+          : role.id === 'RULES_ADMIN' || role.id === 'RULES_APPROVER'
+            ? '/rules'
+            : '/planning';
+  const leave = () => navigate(landing, { replace: true });
+
+  useEffect(() => {
+    if (!canLeave) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        leave();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
   const block = currentBlock(now);
   const stale = error !== null || (updatedAt !== null && now - updatedAt > STALE_AFTER_MS);
   const live = !stale;
@@ -336,6 +368,36 @@ export function WallDisplayPage() {
         fontFamily: "'Source Sans 3', system-ui, sans-serif",
       }}
     >
+      {canLeave ? (
+        <Box
+          component="button"
+          type="button"
+          onClick={leave}
+          aria-label="Exit the wall display"
+          sx={{
+            position: 'fixed',
+            top: s(16, 12),
+            right: s(16, 12),
+            zIndex: 10,
+            minHeight: 44,
+            minWidth: 44,
+            px: s(20, 14),
+            py: s(10, 8),
+            border: `2px solid ${C.canola}`,
+            borderRadius: '6px',
+            backgroundColor: C.canola,
+            color: C.dark,
+            fontFamily: 'inherit',
+            fontSize: s(20, 14),
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.35)',
+          }}
+        >
+          Exit wall display
+        </Box>
+      ) : null}
+
       <Box component="header" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: s(32), flexWrap: 'wrap' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: s(20) }}>
           <svg width="56" height="56" viewBox="0 0 32 32" fill="none" aria-hidden="true">
