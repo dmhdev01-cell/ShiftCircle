@@ -20,7 +20,7 @@ test.describe('the demo reset datasets', () => {
     test.skip(process.env.E2E_MODE === 'fixtures' || (await isFixtures(page)), 'the reset needs the real api on the demo profile');
   });
 
-  test('resets to 120, then back to 100', async ({ page }) => {
+  test('@api resets to 120, then back to 100', async ({ page }) => {
     test.setTimeout(420000);
     await signIn(page, 'P. Planner');
     await navTo(page, 'About & version');

@@ -61,12 +61,29 @@ interface RuleResult {
   ruleCode: string;
 }
 
-/** The template a gap's block needs on the crew model. */
+/**
+ * The template a gap's block needs. A 12 h unit covers evenings with the night
+ * crew (N12 starts at 19:00, ESC has no E8 - dev-build's 120 gaps are exactly
+ * ESC evenings); an 8 h unit needs its own E8.
+ */
 const GAP_TEMPLATE: Record<Gap['block'], { code: string; start: string; label: string }> = {
   DAY: { code: 'D12', start: '07:00', label: 'D12 · Day 12 h' },
-  EVENING: { code: 'E8', start: '15:00', label: 'E8 · Evening 8 h' },
+  EVENING: { code: 'N12', start: '19:00', label: 'N12 · Night 12 h' },
   NIGHT: { code: 'N12', start: '19:00', label: 'N12 · Night 12 h' },
 };
+
+/** The same blocks in an 8 h unit. */
+const GAP_TEMPLATE_8H: Record<Gap['block'], { code: string; start: string; label: string }> = {
+  DAY: { code: 'D8', start: '07:00', label: 'D8 · Day 8 h' },
+  EVENING: { code: 'E8', start: '15:00', label: 'E8 · Evening 8 h' },
+  NIGHT: { code: 'N8', start: '23:00', label: 'N8 · Night 8 h' },
+};
+
+function gapTemplate(gap: Gap, units: Unit[]): { code: string; start: string; label: string } {
+  const unit = units.find((entry) => entry.id === gap.unitId);
+  const twelve = (unit as { allows_12h?: boolean } | undefined)?.allows_12h === true;
+  return (twelve ? GAP_TEMPLATE : GAP_TEMPLATE_8H)[gap.block];
+}
 
 function addDays(date: string, days: number): string {
   const value = new Date(`${date}T00:00:00Z`);
@@ -135,13 +152,14 @@ async function fillableOfficer(
   request: APIRequestContext,
   userId: string,
   gap: Gap,
+  units: Unit[],
 ): Promise<{ employeeId: string; name: string }> {
   const api = await apiAs(request, userId);
   const from = mondayOf(gap.date);
   const schedule = await api.get<{ officers: Officer[] }>(
     `/schedule?unitId=${gap.unitId}&from=${from}&to=${addDays(from, 6)}`,
   );
-  const template = GAP_TEMPLATE[gap.block];
+  const template = gapTemplate(gap, units);
   for (const officer of schedule.officers) {
     const cell = officer.cells.find((entry) => entry.date === gap.date);
     if (!cell || cell.items.length > 0) continue;
@@ -209,7 +227,7 @@ test.describe('dataset 120', () => {
     await resetTo(request, '100');
   });
 
-  test('shows the gaps, carries D12/N12, fills one, and refuses a fifth 12 h day', async ({
+  test('@api shows the gaps, carries D12/N12, fills one, and refuses a fifth 12 h day', async ({
     page,
     request,
   }) => {
@@ -288,14 +306,16 @@ test.describe('dataset 120', () => {
     }
     expect(chips, 'a D12 or N12 chip on the committed 2027 week').toBeGreaterThan(0);
 
-    const officer = await fillableOfficer(request, supervisor.id, gap);
+    const units = await apiAs(request, supervisor.id).then((api) => api.get<Unit[]>('/units'));
+    const officer = await fillableOfficer(request, supervisor.id, gap, units);
+    const template = gapTemplate(gap, units);
     await selectUnit(page, gap!.unitName);
     await goToWeek(page, current, mondayOf(gap!.date));
     const off = page.getByRole('button', {
       name: `Off - assign a shift to ${officer.name} on ${gap!.date}`,
     });
     await off.click();
-    await page.getByRole('button', { name: GAP_TEMPLATE[gap!.block].label }).click();
+    await page.getByRole('button', { name: template.label }).click();
     const panel = page.getByRole('region', { name: 'Rule check' });
     const save = panel.getByRole('button', { name: /^(Assign shift|Acknowledge and assign)$/ });
     await expect(save).toBeVisible({ timeout: 15_000 });
