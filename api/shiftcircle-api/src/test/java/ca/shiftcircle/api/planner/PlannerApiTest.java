@@ -89,8 +89,7 @@ class PlannerApiTest {
   void generatesAScorecardForTheQuarter() throws Exception {
     long started = System.nanoTime();
     HttpResponse<String> response =
-        send("POST", "/api/v1/planner/drafts", "{\"seed\":20261001,\"pattern8h\":\"ROTATING_5_2\"}",
-            tokens.get("p.planner"));
+        send("POST", "/api/v1/planner/drafts", "{\"seed\":20261001}", tokens.get("p.planner"));
     long elapsedMs = (System.nanoTime() - started) / 1_000_000;
     System.out.println("planner generate ms: " + elapsedMs);
 
@@ -98,13 +97,27 @@ class PlannerApiTest {
     Map<String, Object> body = json(response);
     draftId = UUID.fromString((String) body.get("id"));
 
-    assertThat(body.get("pattern8h")).isEqualTo("ROTATING_5_2");
+    assertThat(body.get("pattern8h")).isEqualTo("5_ON_2_OFF");
     @SuppressWarnings("unchecked")
     Map<String, Object> scorecard = (Map<String, Object>) body.get("scorecard");
     assertThat(scorecard).containsKeys(
         "coverage", "warnings", "preferences", "nights", "overtime", "weekends", "generatedMs");
     assertThat(assignmentCount()).isGreaterThan(3000);
     assertThat(((Map<?, ?>) scorecard.get("coverage")).get("shortBlockDays")).isNotNull();
+    System.out.println("scorecard warnings: " + scorecard.get("warnings"));
+    List<Map<String, Object>> groups =
+        mapper.readValue(
+            send("GET", "/api/v1/planner/drafts/" + draftId + "/warnings", null,
+                tokens.get("p.planner"))
+                .body(),
+            List.class);
+    for (Map<String, Object> group : groups) {
+      System.out.println(
+          "warn group "
+              + group.get("ruleName")
+              + " "
+              + ((List<?>) group.get("items")).stream().limit(3).toList());
+    }
     assertThat(elapsedMs).isLessThan(120_000);
   }
 
@@ -115,7 +128,7 @@ class PlannerApiTest {
 
     HttpResponse<String> regenerated =
         send("POST", "/api/v1/planner/drafts",
-            "{\"seed\":20261001,\"pattern8h\":\"ROTATING_5_2\"}", tokens.get("p.planner"));
+            "{\"seed\":20261001}", tokens.get("p.planner"));
     assertThat(regenerated.statusCode()).isEqualTo(201);
     draftId = UUID.fromString((String) json(regenerated).get("id"));
 
@@ -161,8 +174,19 @@ class PlannerApiTest {
         Timestamp.from(PlanGenerator.FROM.atStartOfDay(REGINA).toInstant()),
         Timestamp.from(LocalDate.of(2026, 11, 15).atStartOfDay(REGINA).toInstant()));
 
+    java.util.Set<UUID> eightHourOfficers = new java.util.HashSet<>();
+    planned.stream()
+        .collect(java.util.stream.Collectors.groupingBy(row -> (UUID) row.get("employee_id")))
+        .forEach(
+            (employeeId, rows) -> {
+              if (rows.stream()
+                  .allMatch(row -> nominalMinutes((String) row.get("template_code")) == 480)) {
+                eightHourOfficers.add(employeeId);
+              }
+            });
     List<String> blocks = new ArrayList<>();
     List<String> warnings = new ArrayList<>();
+    Map<UUID, List<ShiftFact>> draftOnly = new LinkedHashMap<>();
     for (Map<String, Object> row : planned) {
       UUID employeeId = (UUID) row.get("employee_id");
       ShiftFact proposed =
@@ -186,8 +210,21 @@ class PlannerApiTest {
           .filter(result -> "WARN".equals(result.outcome()))
           .forEach(result -> warnings.add(result.ruleCode() + ": " + result.message()));
       history.computeIfAbsent(employeeId, key -> new ArrayList<>()).add(proposed);
+      draftOnly.computeIfAbsent(employeeId, key -> new ArrayList<>()).add(proposed);
     }
     assertThat(blocks).as("Block results over the whole draft").isEmpty();
+    for (UUID employeeId : eightHourOfficers) {
+      List<String> planWarnings =
+          ruleCheck.evaluateFacts(draftOnly.getOrDefault(employeeId, List.of())).ruleResults()
+              .stream()
+              .filter(result -> "WARN".equals(result.outcome()))
+              .filter(result -> List.of("U-08", "U-12", "U-14").contains(result.ruleCode()))
+              .map(result -> employeeId + " " + result.ruleCode() + ": " + result.message())
+              .toList();
+      assertThat(planWarnings)
+          .as("8 h default-pattern officer %s has no U-08/U-12/U-14 warnings", employeeId)
+          .isEmpty();
+    }
 
     // The default pattern officers (8 h only) work exactly 80 h in every 14-day period.
     Map<UUID, List<Map<String, Object>>> byEmployee = new LinkedHashMap<>();
@@ -336,27 +373,39 @@ class PlannerApiTest {
     assertThat(generated.statusCode()).isEqualTo(201);
     UUID second = UUID.fromString((String) json(generated).get("id"));
 
-    UUID period = UUID.randomUUID();
-    jdbc.update(
-        "INSERT INTO pay_period (id, start_date, end_date, status) VALUES (?, DATE '2027-01-04',"
-            + " DATE '2027-01-17', 'LOCKED')",
-        period);
-    try {
-      Map<String, Object> preview =
-          json(send("GET", "/api/v1/planner/drafts/" + second + "/commit-preview", null,
-              tokens.get("p.planner")));
-      HttpResponse<String> refused =
-          sendWithHeaders(
-              "POST",
-              "/api/v1/planner/drafts/" + second + "/commit",
-              "{\"acceptedWarningCount\":" + preview.get("warningCount") + "}",
-              tokens.get("p.planner"),
-              Map.of("If-Match", "\"0\""));
-      assertThat(refused.statusCode()).isEqualTo(409);
-      assertThat(json(refused).get("reason")).isEqualTo("LOCKED_PERIOD");
-    } finally {
-      jdbc.update("DELETE FROM pay_period WHERE id = ?", period);
-    }
+    // The commit created the quarter's whole 14-day pay periods and every unit's schedule period.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM pay_period WHERE start_date >= DATE '2027-01-04'"
+                    + " AND end_date <= DATE '2027-04-11'",
+                Integer.class))
+        .isEqualTo(7);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM schedule_period WHERE start_date >= DATE '2027-01-04'"
+                    + " AND end_date <= DATE '2027-04-11'",
+                Integer.class))
+        .isEqualTo(42);
+    UUID period =
+        jdbc.queryForObject(
+            "SELECT id FROM pay_period WHERE start_date = DATE '2027-01-04'", UUID.class);
+    assertThat(
+            send("POST", "/api/v1/pay-periods/" + period + "/lock", null, tokens.get("m.ellis"))
+                .statusCode())
+        .isEqualTo(200);
+
+    Map<String, Object> preview =
+        json(send("GET", "/api/v1/planner/drafts/" + second + "/commit-preview", null,
+            tokens.get("p.planner")));
+    HttpResponse<String> refused =
+        sendWithHeaders(
+            "POST",
+            "/api/v1/planner/drafts/" + second + "/commit",
+            "{\"acceptedWarningCount\":" + preview.get("warningCount") + "}",
+            tokens.get("p.planner"),
+            Map.of("If-Match", "\"0\""));
+    assertThat(refused.statusCode()).isEqualTo(409);
+    assertThat(json(refused).get("reason")).isEqualTo("LOCKED_PERIOD");
   }
 
   @Test
@@ -402,6 +451,117 @@ class PlannerApiTest {
                     tokens.get("t.nakamura"))
                 .statusCode())
         .isEqualTo(403);
+  }
+
+  @Test
+  @Order(10)
+  @SuppressWarnings("unchecked")
+  void draftScheduleAndCoverageUseTheBoardShape() throws Exception {
+    UUID unitId = jdbc.queryForObject("SELECT id FROM unit WHERE code = 'A'", UUID.class);
+    Map<String, Object> schedule =
+        json(
+            send(
+                "GET",
+                "/api/v1/planner/drafts/" + draftId + "/schedule?unitId=" + unitId
+                    + "&from=2027-01-04&to=2027-01-10",
+                null,
+                tokens.get("p.planner")));
+    assertThat(schedule).containsKeys(
+        "unit", "from", "to", "days", "asOf", "coverage", "officers", "warnings",
+        "overridesThisPeriod", "publishedState", "period");
+    assertThat((List<?>) schedule.get("days")).hasSize(7);
+    assertThat((List<?>) schedule.get("coverage")).hasSize(21);
+    List<Map<String, Object>> officers = (List<Map<String, Object>>) schedule.get("officers");
+    assertThat(officers).isNotEmpty();
+    assertThat(officers.get(0).get("rotation").toString()).contains("on");
+    assertThat((List<?>) officers.get(0).get("cells")).hasSize(7);
+    List<Map<String, Object>> covered = (List<Map<String, Object>>) schedule.get("coverage");
+    assertThat(covered.get(0).get("block")).isIn(List.of("DAY", "EVENING", "NIGHT"));
+
+    List<Map<String, Object>> units =
+        mapper.readValue(
+            send(
+                    "GET",
+                    "/api/v1/planner/drafts/" + draftId + "/coverage?from=2027-01-04&to=2027-01-10",
+                    null,
+                    tokens.get("p.planner"))
+                .body(),
+            List.class);
+    assertThat(units).hasSize(6);
+    assertThat(units.get(0)).containsKeys("unitId", "unitName", "coverage");
+    assertThat((List<?>) units.get(0).get("coverage")).hasSize(21);
+
+    assertThat(
+            send(
+                    "GET",
+                    "/api/v1/planner/drafts/" + draftId + "/schedule?unitId=" + unitId
+                        + "&from=2027-01-04&to=2027-01-10",
+                    null,
+                    tokens.get("m.ellis"))
+                .statusCode())
+        .isEqualTo(403);
+    assertThat(
+            send(
+                    "GET",
+                    "/api/v1/planner/drafts/" + draftId + "/coverage?from=2027-01-04&to=2027-01-10",
+                    null,
+                    null)
+                .statusCode())
+        .isEqualTo(401);
+  }
+
+  @Test
+  @Order(11)
+  void aSeededLateShiftBlocksTheFirstProposalInsteadOfBeingIgnored() throws Exception {
+    Map<String, Object> first =
+        jdbc.queryForMap(
+            "SELECT employee_id, unit_id, shift_template_id, start_at FROM shift_assignment"
+                + " WHERE plan_draft_id = ? AND work_date = DATE '2027-01-04'"
+                + " AND EXTRACT(HOUR FROM start_at AT TIME ZONE 'America/Regina') = 7"
+                + " ORDER BY employee_id LIMIT 1",
+            draftId);
+    UUID employeeId = (UUID) first.get("employee_id");
+    UUID unitId = (UUID) first.get("unit_id");
+    UUID templateId = (UUID) first.get("shift_template_id");
+    Timestamp firstStart = (Timestamp) first.get("start_at");
+    Timestamp blockedEnd = Timestamp.from(firstStart.toInstant().minus(Duration.ofHours(4)));
+    Timestamp blockedStart = Timestamp.from(blockedEnd.toInstant().minus(Duration.ofHours(8)));
+    UUID seeded = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO shift_assignment (id, employee_id, unit_id, shift_template_id, start_at,"
+            + " end_at, work_date, kind, source) VALUES (?, ?, ?, ?, ?, ?, DATE '2027-01-03',"
+            + " 'ROSTERED', 'MANUAL')",
+        seeded,
+        employeeId,
+        unitId,
+        templateId,
+        blockedStart,
+        blockedEnd);
+
+    try {
+      HttpResponse<String> regenerated =
+          send("POST", "/api/v1/planner/drafts", "{\"seed\":20261001}", tokens.get("p.planner"));
+      assertThat(regenerated.statusCode()).isEqualTo(201);
+      UUID second = UUID.fromString((String) json(regenerated).get("id"));
+      Integer tooSoon =
+          jdbc.queryForObject(
+              "SELECT count(*) FROM plan_draft_assignment WHERE draft_id = ? AND employee_id = ?"
+                  + " AND work_date = DATE '2027-01-04' AND start_at < ?",
+              Integer.class,
+              second,
+              employeeId,
+              Timestamp.from(blockedEnd.toInstant().plus(Duration.ofHours(8))));
+      assertThat(tooSoon)
+          .as("the draft must not place the officer within 8 h of the seeded shift")
+          .isZero();
+      assertThat(
+              send("POST", "/api/v1/planner/drafts/" + second + "/discard", null,
+                  tokens.get("p.planner"))
+                  .statusCode())
+          .isEqualTo(200);
+    } finally {
+      jdbc.update("DELETE FROM shift_assignment WHERE id = ?", seeded);
+    }
   }
 
   // ---------------------------------------------------------------------------------------------

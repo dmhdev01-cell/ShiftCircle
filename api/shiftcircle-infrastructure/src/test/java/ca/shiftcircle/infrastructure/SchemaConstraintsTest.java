@@ -73,8 +73,9 @@ class SchemaConstraintsTest {
     assertThat(queryInt("SELECT count(*) FROM shift_template")).isEqualTo(6);
     assertThat(queryInt("SELECT count(*) FROM unit")).isEqualTo(6);
     assertThat(queryInt("SELECT count(*) FROM unit_requirement")).isEqualTo(18);
-    assertThat(queryInt("SELECT count(*) FROM app_user")).isEqualTo(7);
-    assertThat(queryInt("SELECT count(*) FROM app_user_role")).isEqualTo(9);
+    // V5 adds the PLANNER account and role.
+    assertThat(queryInt("SELECT count(*) FROM app_user")).isEqualTo(8);
+    assertThat(queryInt("SELECT count(*) FROM app_user_role")).isEqualTo(10);
     assertThat(queryString("SELECT status FROM rule_set_version WHERE version = 1"))
         .isEqualTo("PUBLISHED");
     assertThat(queryString("SELECT start_time::text FROM shift_template WHERE code = 'A12'"))

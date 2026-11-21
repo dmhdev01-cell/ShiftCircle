@@ -124,7 +124,7 @@ public final class PlanGenerator {
     Map<UUID, List<Employee>> staff = new HashMap<>();
     employees.forEach(employee -> staff.computeIfAbsent(employee.unitId(), k -> new ArrayList<>()).add(employee));
     staff.values().forEach(list -> list.sort(Comparator.comparing(Employee::seniority)));
-    Map<UUID, Set<UUID>> nightStaff = nightStaff(units, staff);
+    Map<UUID, String> blockOf = assignBlocks(units, staff);
 
     for (LocalDate date = FROM; !date.isAfter(TO); date = date.plusDays(1)) {
       for (Unit unit : units) {
@@ -140,8 +140,7 @@ public final class PlanGenerator {
             Template template = null;
             Employee chosen = null;
             Check chosenCheck = null;
-            Set<UUID> nights = nightStaff.getOrDefault(unit.id(), Set.of());
-            for (Employee candidate : orderedCandidates(staff.getOrDefault(unit.id(), List.of()), unit, block, date, assignedToday, pattern8h, nights)) {
+            for (Employee candidate : orderedCandidates(staff.getOrDefault(unit.id(), List.of()), unit, block, date, assignedToday, pattern8h, blockOf)) {
               Template candidateTemplate = templateFor(candidate, unit, block, templates);
               if (candidateTemplate == null || !covers(candidateTemplate, block)) {
                 continue;
@@ -211,8 +210,8 @@ public final class PlanGenerator {
             continue;
           }
           String preferredBlock =
-              nightStaff.getOrDefault(unit.id(), Set.of()).contains(employee.id())
-                  ? "NIGHT"
+              effectiveLength(employee) == 8
+                  ? blockOf.getOrDefault(employee.id(), "DAY")
                   : preferenceBlock(employee.pref());
           Template template = templateFor(employee, unit, preferredBlock, templates);
           if (template == null || !covers(template, preferredBlock)) {
@@ -293,18 +292,21 @@ public final class PlanGenerator {
    * the unit's night requirement, scaled for a 5/2 week, is covered. The group keeps nights all
    * quarter, so a night shift never destroys the next day's pattern and the 80 h property holds.
    */
-  private static Map<UUID, Set<UUID>> nightStaff(
+  /**
+   * One block per 8 h officer for the quarter. Nights are volunteers senior-first, then newest-first,
+   * at the size the unit needs; the rest fill day and evening by preference, then need. Keeping the
+   * block fixed is what keeps the next day's rest at 16 h: the amendment allows a kind change only
+   * across off days, and the deficit fill no longer switches it.
+   */
+  private static Map<UUID, String> assignBlocks(
       List<Unit> units, Map<UUID, List<Employee>> staff) {
-    Map<UUID, Set<UUID>> designated = new HashMap<>();
+    Map<UUID, String> blocks = new HashMap<>();
     for (Unit unit : units) {
-      int required = unit.required().getOrDefault("NIGHT", 0);
-      if (required <= 0) {
-        continue;
-      }
-      int need = (int) Math.ceil(required * 7.0 / 5.0);
       List<Employee> candidates = new ArrayList<>(staff.getOrDefault(unit.id(), List.of()));
       candidates.removeIf(employee -> effectiveLength(employee) != 8);
-      candidates.sort(
+      int nightNeed = (int) Math.ceil(unit.required().getOrDefault("NIGHT", 0) * 7.0 / 5.0);
+      List<Employee> byNight = new ArrayList<>(candidates);
+      byNight.sort(
           (a, b) -> {
             boolean volunteerA = "NIGHT".equals(a.pref().timeOfDay());
             boolean volunteerB = "NIGHT".equals(b.pref().timeOfDay());
@@ -315,16 +317,35 @@ public final class PlanGenerator {
                 ? a.seniority().compareTo(b.seniority())
                 : b.seniority().compareTo(a.seniority());
           });
-      Set<UUID> chosen = new LinkedHashSet<>();
-      for (Employee employee : candidates) {
-        if (chosen.size() >= need) {
+      Set<UUID> nights = new LinkedHashSet<>();
+      for (Employee employee : byNight) {
+        if (nights.size() >= nightNeed) {
           break;
         }
-        chosen.add(employee.id());
+        nights.add(employee.id());
+        blocks.put(employee.id(), "NIGHT");
       }
-      designated.put(unit.id(), chosen);
+      List<Employee> rest = new ArrayList<>();
+      candidates.stream().filter(employee -> !nights.contains(employee.id())).forEach(rest::add);
+      int dayNeed = (int) Math.ceil(unit.required().getOrDefault("DAY", 0) * 7.0 / 5.0);
+      int dayCount = 0;
+      // Preference first: DAY then EVENING; seniority breaks the tie.
+      rest.sort(
+          (a, b) -> {
+            int rankA = "DAY".equals(a.pref().timeOfDay()) ? 0 : "EVENING".equals(a.pref().timeOfDay()) ? 1 : 2;
+            int rankB = "DAY".equals(b.pref().timeOfDay()) ? 0 : "EVENING".equals(b.pref().timeOfDay()) ? 1 : 2;
+            return rankA != rankB ? Integer.compare(rankA, rankB) : a.seniority().compareTo(b.seniority());
+          });
+      for (Employee employee : rest) {
+        if (dayCount < dayNeed) {
+          blocks.put(employee.id(), "DAY");
+          dayCount++;
+        } else {
+          blocks.put(employee.id(), "EVENING");
+        }
+      }
     }
-    return designated;
+    return blocks;
   }
 
   private static List<Employee> orderedCandidates(
@@ -334,14 +355,14 @@ public final class PlanGenerator {
       LocalDate date,
       Set<UUID> assignedToday,
       String pattern8h,
-      Set<UUID> nightStaff) {
+      Map<UUID, String> blockOf) {
     List<Employee> candidates = new ArrayList<>();
     for (Employee employee : employees) {
       if (assignedToday.contains(employee.id()) || !works(employee, date, pattern8h)) {
         continue;
       }
-      boolean night = nightStaff.contains(employee.id());
-      if ("NIGHT".equals(block) != night) {
+      if (effectiveLength(employee) == 8
+          && !block.equals(blockOf.getOrDefault(employee.id(), "DAY"))) {
         continue;
       }
       candidates.add(employee);

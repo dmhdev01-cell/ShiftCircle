@@ -73,12 +73,13 @@ class AuthApiTest {
   }
 
   @Test
-  void listsTheSevenDemoUsers() throws Exception {
+  void listsTheDemoUsersIncludingThePlanner() throws Exception {
     HttpResponse<String> response = get("/api/v1/auth/demo-users", null);
 
     assertThat(response.statusCode()).isEqualTo(200);
     var users = mapper.readValue(response.body(), java.util.List.class);
-    assertThat(users).hasSize(7);
+    assertThat(users).hasSize(8);
+    assertThat(users.toString()).contains("p.planner");
   }
 
   @Test

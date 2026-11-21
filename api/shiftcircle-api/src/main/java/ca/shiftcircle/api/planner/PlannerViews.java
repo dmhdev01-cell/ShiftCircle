@@ -97,6 +97,10 @@ public final class PlannerViews {
 
   public record Conflict(String reason, Object detail) {}
 
+  public record UnitCoverage(
+      UUID unitId, String unitName,
+      List<ca.shiftcircle.api.schedule.ScheduleQuery.BlockCoverage> coverage) {}
+
   /** ISO timestamp helper shared by the service. */
   public static String iso(LocalDateTime value) {
     return value == null ? null : value.toString();
