@@ -112,4 +112,10 @@ describe('the audit summary', () => {
       'Dataset 120 · seed 20261001',
     );
   });
+
+  it('reads a pattern change in words, not raw codes', () => {
+    expect(
+      summaryOf(event('set_officer_pattern', { from: 'ROTATING_5_2', to: '7_ON_3_OFF' })),
+    ).toBe('From rotating 5 on, 2 off to 7 on, 3 off.');
+  });
 });
