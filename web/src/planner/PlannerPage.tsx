@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -81,7 +81,17 @@ export function PlannerPage() {
   const [plan, setPlan] = useState<PlannerPlan | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [message, setMessage] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>('scorecard');
+  const [searchParams, setSearchParams] = useSearchParams();
+  // The tab lives in the address (docs/ui/planner.md §1), so a gap's "Show
+  // week" link and the browser's Back land on the tab that was open.
+  const tabParam = searchParams.get('tab');
+  const tab: Tab =
+    tabParam === 'gaps' || tabParam === 'roster' || tabParam === 'compare' ? tabParam : 'scorecard';
+  const setTab = (next: Tab) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('tab', next);
+    setSearchParams(params, { replace: true });
+  };
   const [seed, setSeed] = useState('');
   const [pattern, setPattern] = useState('ROTATING_5_2');
   const [busy, setBusy] = useState<null | 'generate' | 'commit' | 'discard'>(null);

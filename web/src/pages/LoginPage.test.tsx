@@ -29,7 +29,8 @@ describe('the mock sign-in', () => {
 
     await screen.findByRole('button', { name: /M. Ellis/ });
     const users = screen.getAllByRole('button');
-    expect(users.length).toBe(7);
+    // Seven demo users plus the planner account the quarter plan needs.
+    expect(users.length).toBe(8);
     expect(within(users[0]).getByText('M. Ellis')).toBeInTheDocument();
     expect(within(users[0]).getByText('Supervisor · Employee')).toBeInTheDocument();
     expect(within(users[0]).getByText('Units A, B')).toBeInTheDocument();

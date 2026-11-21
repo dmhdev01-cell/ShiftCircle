@@ -1,19 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
-function renderPlanner() {
+function SearchProbe() {
+  const location = useLocation();
+  return <div data-testid="search">{location.search}</div>;
+}
+
+function renderPlanner(path = '/planner') {
   return render(
     <ThemeProvider theme={theme}>
       <RoleProvider>
-        <MemoryRouter initialEntries={['/planner']}>
+        <MemoryRouter initialEntries={[path]}>
           <AppShellRoutes />
+          <SearchProbe />
         </MemoryRouter>
       </RoleProvider>
     </ThemeProvider>,
@@ -55,6 +61,20 @@ describe('the quarter plan', () => {
     expect(screen.getByRole('heading', { name: 'Preferences by kind' })).toBeInTheDocument();
     // A draft is not a roster: the tab says so rather than showing an empty grid.
     expect(screen.getByRole('tab', { name: /Gaps/ })).toBeInTheDocument();
+  });
+
+  it('keeps the tab in the address, so a link and Back land on it', async () => {
+    const user = userEvent.setup();
+    const first = renderPlanner();
+    await asPlanner(user);
+    await user.click(await screen.findByRole('button', { name: 'Generate draft' }));
+    await user.click(await screen.findByRole('tab', { name: /Gaps/ }));
+    expect(screen.getByTestId('search').textContent).toContain('tab=gaps');
+
+    // A fresh load of that address opens on Gaps (the fixture draft survives).
+    first.unmount();
+    renderPlanner('/planner?tab=gaps');
+    expect(await screen.findByRole('tab', { name: /Gaps/ })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('lists the gaps and can show a gap week', async () => {
