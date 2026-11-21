@@ -15,6 +15,11 @@ import type {
   DemoResetStatus,
   MyPreferencesInput,
   PlannerPreferenceRow,
+  PlannerUnit,
+  UnitClosure,
+  FlaggedShift,
+  StaffingReport,
+  StaffingUnitRow,
   PlannerUnitCoverage,
   PlannerCommitResult,
   PlannerDraft,
@@ -276,6 +281,60 @@ export function createHttpApi(): ShiftCircleApi {
     },
     deleteMyPreferences(): Promise<void> {
       return request<void>('/me/preferences', { method: 'DELETE' });
+    },
+    getPlannerUnits(): Promise<PlannerUnit[]> {
+      return request<PlannerUnit[]>('/planner/units');
+    },
+    addUnitClosure(
+      unitId: string,
+      input: { closedFrom: string; reopensOn?: string | null; reason: string },
+    ): Promise<UnitClosure> {
+      return request<UnitClosure>(`/planner/units/${unitId}/closures`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      });
+    },
+    updateUnitClosure(
+      unitId: string,
+      closureId: string,
+      input: { closedFrom?: string; reopensOn?: string | null; reason: string },
+    ): Promise<UnitClosure> {
+      return request<UnitClosure>(`/planner/units/${unitId}/closures/${closureId}`, {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      });
+    },
+    removeUnitClosure(unitId: string, closureId: string): Promise<void> {
+      return request<void>(`/planner/units/${unitId}/closures/${closureId}`, {
+        method: 'DELETE',
+      });
+    },
+    previewUnitClosure(
+      unitId: string,
+      input: { closedFrom: string; reopensOn?: string | null },
+    ): Promise<{ officersHomed: number; publishedShiftsAffected: number }> {
+      return request<{ officersHomed: number; publishedShiftsAffected: number }>(
+        `/planner/units/${unitId}/closures/preview`,
+        { method: 'POST', body: JSON.stringify(input) },
+      );
+    },
+    getFlaggedShifts(): Promise<FlaggedShift[]> {
+      return request<FlaggedShift[]>('/planner/flagged-shifts');
+    },
+    getStaffing(): Promise<StaffingReport> {
+      return request<StaffingReport>('/planner/staffing');
+    },
+    setUnitAllocation(unitId: string, allocated: number, reason: string): Promise<StaffingUnitRow> {
+      return request<StaffingUnitRow>(`/planner/units/${unitId}/staffing`, {
+        method: 'PUT',
+        body: JSON.stringify({ allocated, reason }),
+      });
+    },
+    setLeaveAllowance(percent: number, reason: string): Promise<{ leaveAllowance: number }> {
+      return request<{ leaveAllowance: number }>('/planner/settings/leave-allowance', {
+        method: 'PUT',
+        body: JSON.stringify({ percent, reason }),
+      });
     },
     setPlannerOfficerPattern(employeeId: string, pattern: string): Promise<PlannerPreferenceRow> {
       return request<PlannerPreferenceRow>(`/planner/preferences/${employeeId}/pattern`, {
