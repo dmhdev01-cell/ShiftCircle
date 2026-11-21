@@ -855,7 +855,7 @@ public final class PlanGenerator {
             "shortBlockDays", gaps.size(),
             "totalBlockDays", totalBlockDays));
     scorecard.put("warnings", warningsCard(warnings));
-    scorecard.put("preferences", preferencesCard(employees, byEmployee));
+    scorecard.put("preferences", preferencesCard(employees, byEmployee, templates));
     scorecard.put(
         "preferencesNote",
         "The planner rosters 8- and 12-hour shifts only; a 16 h preference is shown unmet. Only"
@@ -972,7 +972,9 @@ public final class PlanGenerator {
   }
 
   private static Map<String, Object> preferencesCard(
-      List<Employee> employees, Map<UUID, List<Assignment>> byEmployee) {
+      List<Employee> employees,
+      Map<UUID, List<Assignment>> byEmployee,
+      Map<String, Template> templates) {
     int lengthAsked = 0;
     int lengthMet = 0;
     int timeAsked = 0;
@@ -985,14 +987,26 @@ public final class PlanGenerator {
       if (pref.shiftLength() != null) {
         lengthAsked++;
         if (!shifts.isEmpty()
-            && shifts.stream().allMatch(shift -> nominalMinutes(shift.templateCode()) == pref.shiftLength() * 60)) {
+            && shifts.stream()
+                .allMatch(
+                    shift -> {
+                      Template template = templates.get(shift.templateCode());
+                      return template != null
+                          && ShiftKinds.lengthHours(template.minutes()) == pref.shiftLength();
+                    })) {
           lengthMet++;
         }
       }
       if (pref.timeOfDay() != null && !"NONE".equals(pref.timeOfDay())) {
         timeAsked++;
         if (!shifts.isEmpty()
-            && shifts.stream().allMatch(shift -> pref.timeOfDay().equals(preferenceOf(shift.templateCode())))) {
+            && shifts.stream()
+                .allMatch(
+                    shift -> {
+                      Template template = templates.get(shift.templateCode());
+                      return template != null
+                          && pref.timeOfDay().equals(ShiftKinds.timeOfDay(template.start()));
+                    })) {
           timeMet++;
         }
       }
@@ -1040,7 +1054,7 @@ public final class PlanGenerator {
     int third = Math.max(1, sorted.size() / 3);
     List<Map<String, Object>> bands = new ArrayList<>();
     long totalNights =
-        assignments.stream().filter(shift -> isNight(shift.templateCode())).count();
+        assignments.stream().filter(shift -> ShiftKinds.isNight(templates.get(shift.templateCode()))).count();
     for (int band = 0; band < 3; band++) {
       int from = band * third;
       int to = band == 2 ? sorted.size() : Math.min(sorted.size(), (band + 1) * third);
@@ -1048,7 +1062,7 @@ public final class PlanGenerator {
       long nights =
           members.stream()
               .flatMap(member -> byEmployee.getOrDefault(member.id(), List.of()).stream())
-              .filter(shift -> isNight(shift.templateCode()))
+              .filter(shift -> ShiftKinds.isNight(templates.get(shift.templateCode())))
               .count();
       int avoidAsked = 0;
       int avoidGiven = 0;
@@ -1060,7 +1074,7 @@ public final class PlanGenerator {
         }
         avoidAsked++;
         List<Assignment> shifts = byEmployee.getOrDefault(member.id(), List.of());
-        long given = shifts.stream().filter(shift -> isNight(shift.templateCode())).count();
+        long given = shifts.stream().filter(shift -> ShiftKinds.isNight(templates.get(shift.templateCode()))).count();
         if (given > 0) {
           avoidGiven++;
           againstWish += given;
@@ -1111,7 +1125,7 @@ public final class PlanGenerator {
                   // The generator chooses a night GROUP newest-first, not a person per day; a
                   // newer officer who also works nights is not being passed over.
                   .filter(other -> byEmployee.getOrDefault(other.id(), List.of()).stream()
-                      .noneMatch(shift -> isNight(shift.templateCode())))
+                      .noneMatch(shift -> ShiftKinds.isNight(templates.get(shift.templateCode()))))
                   .filter(other -> effectiveLength(other) == 8)
                   .filter(
                       other ->
@@ -1225,31 +1239,6 @@ public final class PlanGenerator {
     int max = counts.stream().mapToInt(Integer::intValue).max().orElse(0);
     double average = counts.stream().mapToInt(Integer::intValue).average().orElse(0);
     return Map.of("min", min, "avg", round1(average), "max", max);
-  }
-
-  private static int nominalMinutes(String templateCode) {
-    return switch (templateCode) {
-      case "D8", "E8", "N8" -> 480;
-      case "A12", "P12" -> 720;
-      case "L16" -> 960;
-      default -> 480;
-    };
-  }
-
-  private static String preferenceOf(String templateCode) {
-    return switch (templateCode) {
-      case "D8" -> "DAY";
-      case "E8", "P12" -> "EVENING";
-      case "N8", "A12", "L16" -> "NIGHT";
-      default -> "DAY";
-    };
-  }
-
-  private static boolean isNight(String templateCode) {
-    return "N8".equals(templateCode)
-        || "A12".equals(templateCode)
-        || "N12".equals(templateCode)
-        || "L16".equals(templateCode);
   }
 
   private static double round1(double value) {

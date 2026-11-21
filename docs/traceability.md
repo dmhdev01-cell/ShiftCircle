@@ -264,3 +264,4 @@ no assertion was weakened.
 | The compare preference count uses the scorecard's definition | `PlannerApiTest#theCompareUsesTheRealBoardAndTheSameCoverageForBothSides` (`preferencesMet.draft == scorecard.preferences.met`; board == draft on the committed plan) | PASS |
 | Preferences after a commit evaluate the committed plan | `PlannerApiTest#theCommittedPlanStaysReadableAndComparesWithTheCurrentBoard` (100 rows, none `NO_DRAFT`, at least one MET/PARTLY/NOT_MET) | PASS |
 | All 120 gaps are the known ESC evening trade-off | `Demo120ResetApiTest#resetsToTheCrewDatasetTwiceThenBackTo100` (GAPS120 is exactly `{ESC, EVENING, 38}`; docs/ADR/spec state it) | PASS |
+| D12/N12 preferences use the template row, not a code list | `PlannerPreferenceKindsTest#twelveHourCrewsScoreAsTheirTemplateSays` (120: scorecard preferences.met == compare preferencesMet; N12 12/NIGHT MET; D12 asked 8h evenings NOT_MET with plain reasons; nights bands/n12 count still valid) | PASS |
