@@ -167,3 +167,5 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 - **Data:** TanStack Query per endpoint in `docs/07-api-spec.md` §5; the preview → save → 422 → acknowledge/override flow should be one reusable hook (`useRuleCheckedMutation`).
 - **Copy:** keep the plain, specific wording from the mockups (e.g. "Only 7 hours' rest after the 12 h shift ending Fri 24:00"). Messages come from the API's rule results, not hard-coded in the UI.
 - **Accessibility:** real buttons, links and labelled inputs; status never shown by colour alone; focus visible; tables have header cells; target WCAG 2.1 AA. Run axe in tests (see `docs/10-testing.md`).
+
+- **Release 3 notes:** a unit can be closed from a date (Units, planner only). The board and the planner roster show a plain note for a closed unit and read `Closed` on its closed days; Reports → Coverage lists the closure under the chart; the wall display says `<unit> is closed today` with the api's reopening line; the Quarter plan shows Shifts in closed units and a Staffing tile/panel. No shift or history is deleted by a closure.

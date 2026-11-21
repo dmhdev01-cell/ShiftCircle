@@ -14,7 +14,7 @@ Everything here uses the shared layout (README §4), the Saskatchewan tokens (RE
 
 | Item | Value |
 |---|---|
-| Role | New `PLANNER`: facility-wide, all six units. Supervisors stay unit-scoped. |
+| Role | New `PLANNER`: facility-wide, all six units. Supervisors stay unit-scoped. The planner's nav is Quarter plan, Preferences, Units, Planning board, Reports. |
 | Nav (PLANNER) | **Quarter plan** (`/planner`) · **Preferences** (`/planner/preferences`) · **Planning board** (`/planning`, read-only, §11 Q1) · **Reports** (`/reports/coverage`) · About & version |
 | Nav (EMPLOYEE, and supervisors' Employee view) | no new item: preferences are a card on **My schedule** (§8) |
 | Sign-in landing | PLANNER → `/planner` (add to the build-notes §2.1 list) |
@@ -401,3 +401,11 @@ Scorecard tiles, explanations and panels as §2 · one yellow per screen in ever
 
 - Preferences (planner): the **Pattern** column is a picker for 8-hour officers (Rotating 5 on 2 off / Fixed 5 on 2 off / 7 on 3 off) and read-only words for 12-hour officers ('4 on, 4 off'). A change applies to the next generate.
 - Scorecard **Shift patterns**: the note plus a scrollable table of every officer's pattern in words (officer, unit, pattern).
+
+## 14. Units and staffing (release 3, observation 34)
+
+- **Units** (`/planner/units`, PLANNER only): a table of the units with today's status (Open / Closed + note / Switched off), each dated closure (closed from, reopens or no reopening date, reason, who and when), Change…/Remove… for a future closure and Set/Change reopening date… for a current one, the allocated headcount with Edit, and the on-staff count. Close from a date… opens the close dialog; every dialog asks for a reason of at least 5 characters. A defect: a unit that is open-ended closed cannot get another closure (and cannot be reopened in this release if no update path were available).
+- **Staffing**: the 7th scorecard tile (`Short N` warn / `Enough` pass, "N needed · N on staff") and the full-width **Staffing by unit** panel - the api's periods with Needed/Short per period, a closed unit reading `0 closed`, totals as row sums, the leave allowance line and dialog, the per-unit **How** lines from the api breakdown, and the five formula sentences. The panel also shows before a draft. The web computes no staffing number.
+- **Shifts in closed units**: a card on `/planner` in every state, listing published shifts on or after a closure with a Show on board link; nothing is deleted silently; a supervisor moves or cancels each shift.
+- **Closed-from notes** on the planner roster (picker option, note above the grid, `Closed` cells in the all-units strip), the planning board (same note; `Closed` cells), Reports → Coverage (closure notes under the chart) and the wall display (`Unit C is closed today` + the api's note).
+- **Demo** (docs/demo-script.md): reset 120, commit, Units → Unit C → Close from a date… 15 Feb 2027, reason "Renovation (demo)"; the Quarter plan lists C's published shifts, a new draft plans without C and the staffing panel splits; Set reopening date… or Remove… puts the demo back.
