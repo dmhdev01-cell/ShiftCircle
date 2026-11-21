@@ -111,7 +111,13 @@ public final class PlannerViews {
   public record Conflict(String reason, Object detail) {}
 
   public record UnitCoverage(
-      UUID unitId, String unitName,
+      UUID unitId,
+      String unitName,
+      LocalDate closedFrom,
+      LocalDate closedTo,
+      String closedLabel,
+      String closedReason,
+      List<LocalDate> closedDates,
       List<ca.shiftcircle.api.schedule.ScheduleQuery.BlockCoverage> coverage) {}
 
   /** ISO timestamp helper shared by the service. */

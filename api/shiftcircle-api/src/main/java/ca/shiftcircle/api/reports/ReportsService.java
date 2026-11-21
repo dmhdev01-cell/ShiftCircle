@@ -56,15 +56,20 @@ public class ReportsService {
 
   private final JdbcTemplate jdbc;
   private final ScopeGuard scopeGuard;
+  private final ca.shiftcircle.api.units.ActiveUnits activeUnits;
   private final PayClassifier classifier = new PayClassifier();
   private final PayPolicy policy = classifier.policyFrom(RuleRowsV1.ruleSet());
   private final LocalDate asOf;
   private final Instant asOfInstant;
 
   public ReportsService(
-      JdbcTemplate jdbc, ScopeGuard scopeGuard, @Value("${sc.demo.today:2026-11-19}") String today) {
+      JdbcTemplate jdbc,
+      ScopeGuard scopeGuard,
+      ca.shiftcircle.api.units.ActiveUnits activeUnits,
+      @Value("${sc.demo.today:2026-11-19}") String today) {
     this.jdbc = jdbc;
     this.scopeGuard = scopeGuard;
+    this.activeUnits = activeUnits;
     this.asOf = LocalDate.parse(today);
     this.asOfInstant = asOf.atTime(LocalTime.NOON).atZone(REGINA).toInstant();
   }
@@ -100,12 +105,17 @@ public class ReportsService {
     int[] scheduled = new int[(int) slotCount];
     int[] actual = new int[(int) slotCount];
     int[] extra = new int[(int) slotCount];
+    Map<LocalDate, Set<UUID>> activeByDate = new LinkedHashMap<>();
+    for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
+      activeByDate.put(day, new LinkedHashSet<>(activeUnits.activeOn(day)));
+    }
 
     // Count the intervals in Java rather than joining every hour slot to every shift in SQL: the
-    // 90-day report then reads the shifts once (NFR-05).
+    // 90-day report then reads the shifts once (NFR-05). A closed unit contributes no hours on the
+    // days it is closed, so its required/scheduled ratio says nothing about closed days.
     List<Map<String, Object>> assignments =
         jdbc.queryForList(
-            "SELECT start_at, end_at, kind, source FROM shift_assignment s"
+            "SELECT unit_id, start_at, end_at, kind, source FROM shift_assignment s"
                 + " WHERE s.status <> 'CANCELLED'"
                 + " AND s.unit_id IN (" + placeholders(scope.unitIds().size()) + ")"
                 + " AND s.start_at < ? AND s.end_at > ?",
@@ -115,18 +125,19 @@ public class ReportsService {
     for (Map<String, Object> assignment : assignments) {
       Instant assignmentStart = ((Timestamp) assignment.get("start_at")).toInstant();
       Instant assignmentEnd = ((Timestamp) assignment.get("end_at")).toInstant();
-      mark(scheduled, start, slotCount, assignmentStart, assignmentEnd);
+      UUID assignmentUnit = (UUID) assignment.get("unit_id");
+      mark(scheduled, start, slotCount, assignmentStart, assignmentEnd, assignmentUnit, activeByDate);
       boolean overtime =
           "EXTRA".equals(String.valueOf(assignment.get("kind")))
               || "OVERTIME_OFFER".equals(String.valueOf(assignment.get("source")));
       if (overtime) {
-        mark(extra, start, slotCount, assignmentStart, assignmentEnd);
+        mark(extra, start, slotCount, assignmentStart, assignmentEnd, assignmentUnit, activeByDate);
       }
     }
 
     List<Map<String, Object>> entries =
         jdbc.queryForList(
-            "SELECT te.start_at, te.end_at FROM time_entry te"
+            "SELECT a.unit_id, te.start_at, te.end_at FROM time_entry te"
                 + " JOIN shift_assignment a ON a.id = te.shift_assignment_id"
                 + " WHERE te.absence_type IS NULL AND a.unit_id IN ("
                 + placeholders(scope.unitIds().size()) + ")"
@@ -135,9 +146,14 @@ public class ReportsService {
                 scope.unitIds(),
                 List.of(Timestamp.from(end), Timestamp.from(start))));
     for (Map<String, Object> entry : entries) {
-      mark(actual, start, slotCount,
+      mark(
+          actual,
+          start,
+          slotCount,
           ((Timestamp) entry.get("start_at")).toInstant(),
-          ((Timestamp) entry.get("end_at")).toInstant());
+          ((Timestamp) entry.get("end_at")).toInstant(),
+          (UUID) entry.get("unit_id"),
+          activeByDate);
     }
 
     Map<LocalDate, double[]> totals = new LinkedHashMap<>();
@@ -152,8 +168,11 @@ public class ReportsService {
 
       int required = 0;
       int block = blockOf(local.getHour());
-      for (Map<String, Integer> blocks : scope.requirements().values()) {
-        required += blocks.getOrDefault(blockName(block), 0);
+      Set<UUID> activeToday = activeByDate.getOrDefault(date, Set.of());
+      for (Map.Entry<UUID, Map<String, Integer>> requirement : scope.requirements().entrySet()) {
+        if (activeToday.contains(requirement.getKey())) {
+          required += requirement.getValue().getOrDefault(blockName(block), 0);
+        }
       }
 
       double[] bucketTotals = totals.computeIfAbsent(bucket, key -> new double[5]);
@@ -226,6 +245,24 @@ public class ReportsService {
     }
 
     Double actualHours = from.isAfter(asOf) ? null : round2(actualTotal);
+    List<ReportsViews.ClosureNote> closureNotes = new ArrayList<>();
+    for (Map<String, Object> unit :
+        jdbc.queryForList(
+            "SELECT id, name FROM unit WHERE id IN (" + placeholders(scope.unitIds().size()) + ")"
+                + " ORDER BY code",
+            scope.unitIds().toArray())) {
+      UUID closedUnitId = (UUID) unit.get("id");
+      for (ca.shiftcircle.api.units.ActiveUnits.Closure closure :
+          activeUnits.closuresIn(closedUnitId, from, to)) {
+        closureNotes.add(
+            new ReportsViews.ClosureNote(
+                closedUnitId,
+                (String) unit.get("name"),
+                closure.closedFrom(),
+                closure.reopensOn() == null ? null : closure.reopensOn().minusDays(1),
+                closure.reason()));
+      }
+    }
     return new ReportsViews.CoverageReport(
         weeks,
         axisFrom,
@@ -233,16 +270,24 @@ public class ReportsService {
         round2(requiredTotal),
         round2(scheduledTotal),
         actualHours,
-        round2(extraTotal));
+        round2(extraTotal),
+        closureNotes);
   }
 
   private ReportsViews.CoverageReport emptyCoverage(LocalDate from, LocalDate to) {
     return new ReportsViews.CoverageReport(
-        List.of(), 98, 102, 0, 0, from.isAfter(asOf) ? null : 0.0, 0);
+        List.of(), 98, 102, 0, 0, from.isAfter(asOf) ? null : 0.0, 0, List.of());
   }
 
-  /** Adds one to each hour slot the interval covers, clipped to the report window. */
-  private static void mark(int[] slots, Instant rangeStart, long slotCount, Instant from, Instant to) {
+  /** Adds one to each hour slot the interval covers, clipped to the open days of that unit. */
+  private static void mark(
+      int[] slots,
+      Instant rangeStart,
+      long slotCount,
+      Instant from,
+      Instant to,
+      UUID unitId,
+      Map<LocalDate, Set<UUID>> activeByDate) {
     if (!to.isAfter(rangeStart) || !from.isBefore(rangeStart.plusSeconds(slotCount * 3600))) {
       return;
     }
@@ -252,7 +297,10 @@ public class ReportsService {
             slotCount - 1,
             (java.time.Duration.between(rangeStart, to).toSeconds() - 1) / 3600);
     for (long slot = first; slot <= last; slot++) {
-      slots[(int) slot]++;
+      LocalDate day = rangeStart.plusSeconds(slot * 3600).atZone(REGINA).toLocalDate();
+      if (activeByDate.getOrDefault(day, Set.of()).contains(unitId)) {
+        slots[(int) slot]++;
+      }
     }
   }
 

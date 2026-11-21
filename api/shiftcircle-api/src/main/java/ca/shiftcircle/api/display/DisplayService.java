@@ -34,18 +34,24 @@ public class DisplayService {
       CoverageCalculator.HourlyCoverage actual, boolean covered) {}
 
   public record UnitDisplay(
-      UnitRef unit, List<DisplayBlock> coverage, int openShifts, int officersInOvertime) {}
+      UnitRef unit, List<DisplayBlock> coverage, int openShifts, int officersInOvertime,
+      boolean closedToday, String closedNote) {}
 
   public record DisplayPayload(
       String asOf, String generatedAt, List<UnitDisplay> units, int totalOpenShifts,
       int totalOfficersInOvertime) {}
 
   private final JdbcTemplate jdbc;
+  private final ca.shiftcircle.api.units.ActiveUnits activeUnits;
   private final CoverageCalculator coverage = new CoverageCalculator();
   private final LocalDate asOf;
 
-  public DisplayService(JdbcTemplate jdbc, @Value("${sc.demo.today:2026-11-19}") String today) {
+  public DisplayService(
+      JdbcTemplate jdbc,
+      ca.shiftcircle.api.units.ActiveUnits activeUnits,
+      @Value("${sc.demo.today:2026-11-19}") String today) {
     this.jdbc = jdbc;
+    this.activeUnits = activeUnits;
     this.asOf = LocalDate.parse(today);
   }
 
@@ -66,16 +72,16 @@ public class DisplayService {
         continue;
       }
       UUID unitId = (UUID) unit.get("id");
-      Map<String, Integer> required = required(unitId);
+      boolean closed = !activeUnits.active(unitId, asOf);
+      Map<String, Integer> required = closed ? Map.of() : required(unitId);
       List<BlockCoverage> blocks =
-          coverage.forDay(
-              asOf,
-              required,
-              scheduled.getOrDefault(unitId, List.of()));
+          closed
+              ? List.of()
+              : coverage.forDay(asOf, required, scheduled.getOrDefault(unitId, List.of()));
 
       // Actuals only when the day has recorded entries; a table of false zeros would mislead.
       List<BlockCoverage> actualBlocks = null;
-      if (!actual.getOrDefault(unitId, List.of()).isEmpty()) {
+      if (!closed && !actual.getOrDefault(unitId, List.of()).isEmpty()) {
         actualBlocks =
             coverage.forDay(asOf, required, actual.getOrDefault(unitId, List.of()));
       }
@@ -93,13 +99,27 @@ public class DisplayService {
                 scheduledBlock.covered()));
       }
 
-      int open = openShifts.getOrDefault(unitId, 0);
-      int inOvertime = overtime.getOrDefault(unitId, 0);
+      int open = closed ? 0 : openShifts.getOrDefault(unitId, 0);
+      int inOvertime = closed ? 0 : overtime.getOrDefault(unitId, 0);
       totalOpen += open;
       totalOvertime += inOvertime;
+      String todayNote = closed ? activeUnits.todayNote(unitId) : null;
+      String closedNote =
+          !closed
+              ? null
+              : todayNote == null
+                  ? "No reopening date is set."
+                  : todayNote.startsWith("reopens")
+                      ? "It " + todayNote + "."
+                      : "No reopening date is set.";
       displays.add(
           new UnitDisplay(
-              new UnitRef(unitId, (String) unit.get("name")), merged, open, inOvertime));
+              new UnitRef(unitId, (String) unit.get("name")),
+              merged,
+              open,
+              inOvertime,
+              closed,
+              closedNote));
     }
 
     return new DisplayPayload(

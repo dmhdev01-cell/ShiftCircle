@@ -47,6 +47,11 @@ export const API_AUDIT_ACTIONS = [
   'commit_plan',
   'discard_plan',
   'demo_reset',
+  'unit_closure_added',
+  'unit_closure_changed',
+  'unit_closure_removed',
+  'unit_staffing_changed',
+  'leave_allowance_changed',
 ] as const;
 
 /** Every entity type the api writes to audit_event.entity_type. */
@@ -65,6 +70,9 @@ export const API_AUDIT_ENTITIES = [
   'schedule_period',
   'demo',
   'plan_draft',
+  'unit_availability',
+  'unit_staffing',
+  'staffing_setting',
 ] as const;
 
 /** Plain words for each action code. */
@@ -104,6 +112,11 @@ export const ACTION_LABELS: Record<string, string> = {
   rule_set_publish: 'Rule set published',
   publish_schedule_period: 'Period published',
   generate_demo_dataset: 'Demo data generated',
+  unit_closure_added: 'Unit closed from a date',
+  unit_closure_changed: 'Unit closure changed',
+  unit_closure_removed: 'Unit closure removed',
+  unit_staffing_changed: 'Allocated headcount changed',
+  leave_allowance_changed: 'Leave allowance changed',
 };
 
 /** Plain words for each entity type. */
@@ -122,6 +135,9 @@ export const ENTITY_LABELS: Record<string, string> = {
   schedule_period: 'Schedule period',
   demo: 'Demo',
   plan_draft: 'Quarter plan draft',
+  unit_availability: 'Unit closure',
+  unit_staffing: 'Unit staffing',
+  staffing_setting: 'Staffing setting',
 };
 
 /** One filter choice per entity type, so the filter cannot fall out of step. */
