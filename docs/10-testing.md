@@ -60,6 +60,16 @@ parameterised tests. The 100 dataset checksum is
 api** in both orders; dev-qa verification is pending. The last independently verified tip is still
 `5d0f810` at 422.
 
+**Phase 3 preference/pattern (`p3-pref`, merged tip `78fb935`; dev-qa gate pending).** The branch
+adds **19 api tests** over `p3-sec`'s 425: preference multi-select (V9, legacy value, validation),
+the V9 backfill, coverage `extraPercent` and the axis floor, the ACKNOWLEDGE-Block sentence, the V10
+default/backfill, the pattern API and validation, mixed-cohort generation, and the two plan
+fingerprints. Author run from a clean worktree at the code tip `761f763` (Java identical to
+`78fb935`): **444 = 123 rules + 27 infrastructure + 294 api**, 0 failures/errors/skipped, default
+order and random seed 20261121; web **290** at the merged tip. The 120 draft is 5,103 assignment rows
+and the 100 draft 6,586, each sha256-identical to `c9ac073`; the 100/120 checksums and the payroll
+golden are unchanged. dev-qa's full gate is pending.
+
 ## 3. Rule boundary matrix
 
 Each line is at least three tests: just under, exactly at, just over. Times are local (America/Regina).

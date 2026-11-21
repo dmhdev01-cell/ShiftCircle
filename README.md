@@ -188,7 +188,10 @@ static counts in this tree agree (123 + 27 + 272 `@Test` methods, one per line, 
 tests). The dataset checksums, the earlier runs and each round are in `docs/review-rounds.md`
 (R61 is the final independent one) and `BUILD_RECORD.md`. review-r3's security fixes on `p3-sec`
 add three api tests: an author run at `74a58c0` is **425 = 123 + 27 + 275** in both orders; dev-qa
-verification is pending.
+verification is pending. The phase 3 preference/pattern branch (`p3-pref`, merged tip `78fb935`)
+adds 19 api tests: an author run is **444 = 123 + 27 + 294** in both orders, web **290**; dev-qa's
+gate is pending. The 120 and 100 drafts are shift-for-shift sha256-identical to `c9ac073`, and the
+checksums and payroll golden are unchanged.
 
 **One viewport per fresh stack.** The real-api specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop`, then `docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait`, then `--project tablet`.
 

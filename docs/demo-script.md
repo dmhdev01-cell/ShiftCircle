@@ -91,7 +91,7 @@ This is a separate segment after the 5-minute script, or it replaces segments 3�
 
 **What the audience should take away:** a planner builds the whole next quarter in seconds. Every shift in it went through the same rules engine as the planning board. Where the rules and the staffing don't allow a shift, the plan leaves an honest gap rather than bending a rule. Supervisors then fill those gaps with the normal live rule check.
 
-**Data:** dataset **120**. That is 100 full-time crew officers plus 20 part-time casuals as a relief pool. Only 12 h crews work nights: D12 is 07:00–19:00 and N12 is 19:00–07:00, 4 on / 4 off. 8 h officers work D8 or E8 only. The window is Mon 4 Jan – Sun 11 Apr 2027, seven 14-day pay periods. "Today" stays Thu 19 Nov 2026. The 8 h default pattern is **Rotating 5 on, 2 off (weekends rotate)** (ADR-026, chosen by the person).
+**Data:** dataset **120**. That is 100 full-time crew officers plus 20 part-time casuals as a relief pool. Only 12 h crews work nights: D12 is 07:00–19:00 and N12 is 19:00–07:00, 4 on / 4 off. 8 h officers work D8 or E8 only. The window is Mon 4 Jan – Sun 11 Apr 2027, seven 14-day pay periods. "Today" stays Thu 19 Nov 2026. Every 8 h officer starts on **Rotating 5 on, 2 off (weekends rotate)** (ADR-026, chosen by the person); the pattern is per officer and changed on **Preferences**.
 
 | # | Do | The audience should see / Say (outline) | Status (p3-cand2 `c2c8dba`) |
 |---|---|---|---|

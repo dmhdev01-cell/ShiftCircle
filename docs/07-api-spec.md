@@ -373,7 +373,7 @@ same validation as the grid (R24/R28: rule values are code input).
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
 | GET | `/planner/plan` | Window (4 Jan – 11 Apr 2027, 7 periods), default seed, the 8 h patterns, current draft and last committed plan | PLANNER |
-| POST | `/planner/drafts` | `{seed, pattern8h?}` → generate a draft over the whole quarter; replaces the open draft. If the window already has a committed plan, `409` problem+json with `reason: ALREADY_COMMITTED_WINDOW` and a plain sentence naming the commit date/author and pointing at Reset the demo data | PLANNER |
+| POST | `/planner/drafts` | `{seed, pattern8h?}` → generate a draft over the whole quarter; replaces the open draft. With no `pattern8h`, every 8 h officer uses their own `employee.shift_pattern` (the normal call); a sent `pattern8h` is the one-release facility override and the draft summary keeps that code. If the window already has a committed plan, `409` problem+json with `reason: ALREADY_COMMITTED_WINDOW` and a plain sentence naming the commit date/author and pointing at Reset the demo data | PLANNER |
 | GET | `/planner/drafts/{id}` | Draft summary and scorecard | PLANNER |
 | GET | `/planner/drafts/{id}/schedule?unitId&from&to` | The Roster tab: the draft's shifts in the same `SchedulePayload` shape as the planning board (`rotation` says the pattern in words; `publishedState` is false; `period` null) | PLANNER |
 | GET | `/planner/drafts/{id}/coverage?from&to` | One entry per unit with its `BlockCoverage[]` (same hourly shape as the board) | PLANNER |
@@ -384,7 +384,8 @@ same validation as the grid (R24/R28: rule values are code input).
 | POST | `/planner/drafts/{id}/discard` | Discard an open draft; 409 if it is no longer a draft (a commit or another discard already won, including a discard that raced a running commit) | PLANNER |
 | GET | `/planner/drafts/{id}/compare` | Draft vs the board. Rows cover coverage gaps, unfilled gap hours, shifts, officers scheduled, planned hours, plan-added warnings, preferences met (the same per-criterion count as the scorecard's `preferences.met`), and weekends min/avg/max, each with `board`, `draft`, `unit` and `direction` (`LOWER_IS_BETTER`/`HIGHER_IS_BETTER`/`NEUTRAL`), plus one coverage-gap row per unit. Board measures come from the committed shifts through the board's own coverage code; draft measures from the plan tables | PLANNER |
 | POST | `/planner/absences` | `{employeeId, date, type}` → mark a future absence (SICK/VACATION/OTHER) inside the quarter; the next draft skips that officer on that date. Idempotent for the same officer/date/type (200 with the existing row); a different type on that date is 409. Read-only input, not leave management; PLANNER only | PLANNER |
-| GET | `/planner/preferences?unitId=` | Every officer's preferences with how the open draft met them; after a commit it evaluates the committed plan (MET/PARTLY/NOT_MET, with unmet reasons), not "No draft" | PLANNER |
+| GET | `/planner/preferences?unitId=` | Every officer's preferences with how the open draft met them; after a commit it evaluates the committed plan (MET/PARTLY/NOT_MET, with unmet reasons), not "No draft". Each row also carries the officer's `pattern` (`ROTATING_5_2`/`5_ON_2_OFF`/`7_ON_3_OFF`, or `4_ON_4_OFF` for a 12 h officer), `patternWords` in plain words and `patternEditable` (true only for an 8 h officer) | PLANNER |
+| PUT | `/planner/preferences/{employeeId}/pattern` | `{pattern}` → set an 8 h officer's pattern and return the updated row. 400 in plain words for a 12 h officer ("A 12-hour officer keeps the crew's 4 on, 4 off pattern"), a 12 h code on an 8 h officer, or an unknown code; 404 for an unknown officer. The next generate uses it; a pattern change does not touch an existing draft, exactly like a preference change | PLANNER |
 | GET · PUT · DELETE | `/me/preferences` | The signed-in officer's own preferences (`shiftLength`, `timesOfDay`, up to 2 `daysOff`). `timesOfDay` is an array of DAY/EVENING/NIGHT without duplicates; empty = no preference; responses carry `timesOfDay` only. The old single `timeOfDay` is accepted on input for one release and mapped to a one-element set (NONE/null to empty); if both are sent, `timesOfDay` wins | any account linked to an officer |
 
 **After a commit the plan is still readable.** `GET /planner/plan` answers `state: COMMITTED`, `draft: null`,
@@ -411,19 +412,22 @@ work nights; an 8 h night preference is shown unmet with that reason), `absences
 `days`, `coveredByRelief`, `uncovered` and one plain line such as "3 officers on leave were
 skipped: relief officers covered 22 of the shifts"), `n12Officers`/
 `n12NightShifts` and a fixed-crew note when the dataset has N12 crews, officers and hours over 80,
-generation time, weekends worked per officer (min/avg/max), and `fteBands` (full-time / 0.7-0.9 /
+generation time, weekends worked per officer (min/avg/max), `fteBands` (full-time / 0.7-0.9 /
 under 0.7: officers, target hours, planned min/avg/max) with the plain note that part-time and
-casual officers are not guaranteed hours. The default 8 h pattern is `ROTATING_5_2` (chosen by the
-person on 2026-11-21): the days-off pair retreats one weekday per pay period and the wrap takes a
-3-day break, so weekends rotate; the changeover period is 72 h, an officer has one U-12 and one
-U-14 warning there (where a seventh consecutive day would otherwise block, a second 72 h period is
-used), and hours are balanced over the quarter (the scorecard says so and reports `quarterHours`
-min/avg/max as a report-only U-13 figure). `5_ON_2_OFF` (fixed pairs, 80 h, no warnings) and
-`7_ON_3_OFF` are selectable. The 100 seed's 12 h officers use A12/P12 4-on/4-off; the 120 dataset
-uses the V6 D12 07-19 / N12 19-07 crews with paired phases. The planner never rosters 16 h (a 16 h
-preference is stored and shown unmet; in practice a "16 h shift" is a 12 h shift plus ~4 h overtime
-extension recorded after the fact). A committed quarter creates its seven 14-day pay periods and
-each unit's schedule periods, so it can be locked and paid.
+casual officers are not guaranteed hours, and `patterns` (`officers: [{employeeNo, name, unitCode,
+pattern, words}]` plus a plain note) so every officer's pattern is visible in words, never a raw
+code. **The shift pattern is per officer (Option C):** every 8 h officer carries `ROTATING_5_2`
+(default; the days-off pair retreats one weekday per pay period and the wrap takes a 3-day break, so
+weekends rotate and the changeover period is 72 h with one U-12 and one U-14 warning), or the
+planner's `5_ON_2_OFF` (fixed pairs, 80 h, no warnings) or `7_ON_3_OFF`. A 12 h officer's 4-on/4-off
+cycle comes from the crew and is read-only. The generator resolves each officer's days and staggers
+phases per pattern cohort, so mixed cohorts sit side by side and every proposal still goes through
+the rule engine; with every 8 h officer on the default the 100 and 120 drafts are shift-for-shift
+unchanged (the reset test pins both assignment fingerprints). The 100 seed's 12 h officers use
+A12/P12 4-on/4-off; the 120 dataset uses the V6 D12 07-19 / N12 19-07 crews with paired phases. The
+planner never rosters 16 h (a 16 h preference is stored and shown unmet; in practice a "16 h shift"
+is a 12 h shift plus ~4 h overtime extension recorded after the fact). A committed quarter creates
+its seven 14-day pay periods and each unit's schedule periods, so it can be locked and paid.
 
 ### 4.10 Demo reset (demo profile only)
 
