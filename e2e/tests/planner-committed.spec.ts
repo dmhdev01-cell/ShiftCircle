@@ -25,7 +25,7 @@ test.describe('the committed quarter plan', () => {
     test.skip(process.env.E2E_MODE === 'fixtures' || (await isFixtures(page)), 'the planner needs the real api');
   });
 
-  test('keeps its tabs after a reload, with the FTE bands', async ({ page, request }) => {
+  test('@api keeps its tabs after a reload, with the FTE bands', async ({ page, request }) => {
     test.setTimeout(180000);
     const api = await apiAs(request, 'p.planner');
     let plan = await api.get<PlanState>('/planner/plan');

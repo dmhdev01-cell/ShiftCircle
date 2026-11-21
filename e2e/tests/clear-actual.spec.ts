@@ -36,7 +36,7 @@ test.describe('clearing a record', () => {
     test.skip(process.env.E2E_MODE === 'fixtures' || (await isFixtures(page)), 'the time entries come from the real api');
   });
 
-  test('back to needs actual from the drawer', async ({ page, request }) => {
+  test('@api back to needs actual from the drawer', async ({ page, request }) => {
     test.setTimeout(90000);
     const entry = await aWorkedEntry(request);
 

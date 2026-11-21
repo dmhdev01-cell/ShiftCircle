@@ -54,7 +54,7 @@ test.describe('planned absences', () => {
     test.skip(process.env.E2E_MODE === 'fixtures' || (await isFixtures(page)), 'planned absences are a real-api input');
   });
 
-  test('skip the officer and are counted on the scorecard', async ({ request }) => {
+  test('@api skip the officer and are counted on the scorecard', async ({ request }) => {
     test.setTimeout(240_000);
     const api = await apiAs(request, 'p.planner');
     const plan = await api.get<PlanState>('/planner/plan');
