@@ -47,7 +47,11 @@ export function TimeAttendancePage() {
     periods.find((entry) => entry.status === 'OPEN') ??
     periods[0];
   const activePeriodId = periodId ?? defaultPeriod?.id ?? null;
-  const { state: entriesState, reload: reloadEntries } = useTimeEntries(activePeriodId);
+  const {
+    state: entriesState,
+    refreshing: entriesRefreshing,
+    reload: reloadEntries,
+  } = useTimeEntries(activePeriodId);
   const [unitId, setUnitId] = useState<string>('');
   const [picked, setPicked] = useState<TimeEntry | null>(null);
   const [saved, setSaved] = useState<{
@@ -486,7 +490,14 @@ export function TimeAttendancePage() {
         <Typography sx={{ fontSize: 14, color: colour.text.secondary }} role="status">
           Loading the time entries…
         </Typography>
-      ) : (
+      ) : entriesRefreshing ? (
+        // The rows stay on screen while a refresh runs (observation #9).
+        <Typography sx={{ fontSize: 13, color: colour.text.secondary }} role="status">
+          Updating the entries…
+        </Typography>
+      ) : null}
+
+      {entriesState.kind === 'ready' ? (
         <TimeGrid
           rows={rows}
           days={days}
@@ -496,7 +507,7 @@ export function TimeAttendancePage() {
             setSaved(null);
           }}
         />
-      )}
+      ) : null}
 
       <Drawer
         anchor="right"
