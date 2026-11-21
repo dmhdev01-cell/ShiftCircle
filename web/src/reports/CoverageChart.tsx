@@ -4,10 +4,13 @@ import Typography from '@mui/material/Typography';
 import type { CoverageReport } from '../api/types';
 import { colour } from '../theme/tokens';
 import { axisTicks } from './coverageAxis';
+import { barSegments, coverageSummary } from './coverageSummary';
 
 interface CoverageChartProps {
   report: CoverageReport;
 }
+
+const HATCH = 'repeating-linear-gradient(135deg, #C40000 0 3px, #FFFFFF 3px 5px)';
 
 export function CoverageChart({ report }: CoverageChartProps) {
   const { weeks, axisFrom, axisTo } = report;
@@ -18,10 +21,11 @@ export function CoverageChart({ report }: CoverageChartProps) {
     .map((week) => week.actualPercent)
     .filter((value): value is number => value !== undefined && value !== null);
 
-  const summary =
+  const chartWords =
     actuals.length > 0
       ? `Weekly coverage, scheduled and actual as a percentage of required. Actual ranges from ${Math.min(...actuals).toFixed(1)}% to ${Math.max(...actuals).toFixed(1)}%.`
       : 'Weekly coverage, scheduled as a percentage of required. No week has been worked yet.';
+  const summary = coverageSummary(weeks);
 
   return (
     <Box
@@ -50,7 +54,13 @@ export function CoverageChart({ report }: CoverageChartProps) {
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, fontSize: 12 }}>
           <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
             <Box sx={{ width: 12, height: 12, borderRadius: '3px', backgroundColor: colour.support.flax }} />
-            Scheduled
+            Regular shifts
+          </Box>
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+            <Box
+              sx={{ width: 12, height: 12, borderRadius: '3px', background: HATCH, backgroundColor: colour.status.block.border }}
+            />
+            Extra shifts (overtime)
           </Box>
           <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
             <Box sx={{ width: 12, height: 12, borderRadius: '3px', backgroundColor: colour.brand.link }} />
@@ -90,7 +100,7 @@ export function CoverageChart({ report }: CoverageChartProps) {
 
         <Box
           role="img"
-          aria-label={summary}
+          aria-label={`${chartWords} ${summary}`}
           sx={{
             position: 'relative',
             flex: 1,
@@ -119,30 +129,63 @@ export function CoverageChart({ report }: CoverageChartProps) {
               p: '0 8px',
             }}
           >
-            {weeks.map((week) => (
-              <Box key={week.label} sx={{ display: 'flex', alignItems: 'flex-end', gap: 0.5, height: '100%' }}>
-                <Box
-                  title={`Scheduled ${week.scheduledPercent}%`}
-                  sx={{
-                    width: 16,
-                    height: height(week.scheduledPercent),
-                    backgroundColor: colour.support.flax,
-                    borderRadius: '3px 3px 0 0',
-                  }}
-                />
-                {week.actualPercent !== undefined && week.actualPercent !== null ? (
+            {weeks.map((week) => {
+              const segments = barSegments(week, axisFrom, axisTo);
+              const extraPercent = week.extraPercent ?? 0;
+              const regularPercent = week.scheduledPercent - extraPercent;
+              return (
+                <Box key={week.label} sx={{ display: 'flex', alignItems: 'flex-end', gap: 0.5, height: '100%' }}>
                   <Box
-                    title={`Actual ${week.actualPercent}%`}
+                    title={`Scheduled ${week.scheduledPercent.toFixed(1)}% · regular ${regularPercent.toFixed(
+                      1,
+                    )}% · extra shifts ${extraPercent.toFixed(1)}%`}
                     sx={{
                       width: 16,
-                      height: height(week.actualPercent),
-                      backgroundColor: colour.brand.link,
-                      borderRadius: '3px 3px 0 0',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'flex-end',
                     }}
-                  />
-                ) : null}
-              </Box>
-            ))}
+                  >
+                    {segments.extra > 0 ? (
+                      <Box
+                        data-testid="coverage-extra"
+                        title={`extra shifts ${extraPercent.toFixed(1)}% · regular ${regularPercent.toFixed(1)}%`}
+                        sx={{
+                          height: `${segments.extra}%`,
+                          width: '100%',
+                          background: HATCH,
+                          backgroundColor: colour.status.block.border,
+                          borderRadius: '3px 3px 0 0',
+                        }}
+                      />
+                    ) : null}
+                    <Box
+                      data-testid="coverage-regular"
+                      sx={{
+                        // A 1 px white gap keeps the two segments readable.
+                        borderTop: segments.extra > 0 ? `1px solid ${colour.bg.surface}` : 0,
+                        height: `${segments.regular}%`,
+                        width: '100%',
+                        backgroundColor: colour.support.flax,
+                        borderRadius: segments.extra > 0 ? 0 : '3px 3px 0 0',
+                      }}
+                    />
+                  </Box>
+                  {week.actualPercent !== undefined && week.actualPercent !== null ? (
+                    <Box
+                      title={`Actual ${week.actualPercent}%`}
+                      sx={{
+                        width: 16,
+                        height: height(week.actualPercent),
+                        backgroundColor: colour.brand.link,
+                        borderRadius: '3px 3px 0 0',
+                      }}
+                    />
+                  ) : null}
+                </Box>
+              );
+            })}
           </Box>
         </Box>
       </Box>
@@ -156,20 +199,11 @@ export function CoverageChart({ report }: CoverageChartProps) {
         ))}
       </Box>
 
-      {/* 'Of which overtime or extra': the api separates the scheduled hours
-          that came from EXTRA shifts, so a covered block that leans on overtime
-          is visible rather than hidden inside a percentage. */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', fontSize: 12, color: colour.text.secondary }}>
-        {weeks.map((week) => (
-          <span key={week.label} className="num">
-            {week.label}: of which overtime or extra{' '}
-            {week.extraHours !== undefined ? `${week.extraHours.toFixed(1)} h` : '—'}
-            {week.extraHoursByBlock
-              ? ` (Days ${(week.extraHoursByBlock.DAY ?? 0).toFixed(1)} · Evenings ${(week.extraHoursByBlock.EVENING ?? 0).toFixed(1)} · Nights ${(week.extraHoursByBlock.NIGHT ?? 0).toFixed(1)})`
-              : ''}
-          </span>
-        ))}
-      </Box>
+      <Typography sx={{ fontSize: 13, color: colour.text.primary }}>{summary}</Typography>
+      <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
+        Extra shifts are shifts added on top of the roster, including accepted overtime offers. Payroll
+        overtime (hours over the pay-period threshold) is on the Overtime tab and is counted differently.
+      </Typography>
 
       <Typography component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
         The axis starts at {axisFrom}% so small gaps are visible. The{' '}
@@ -180,7 +214,7 @@ export function CoverageChart({ report }: CoverageChartProps) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr>
-              {['Week', 'Scheduled', 'Actual', 'Planned'].map((heading) => (
+              {['Week', 'Scheduled', 'of which extra shifts', 'Actual', 'Planned'].map((heading) => (
                 <th
                   key={heading}
                   style={{
@@ -199,28 +233,45 @@ export function CoverageChart({ report }: CoverageChartProps) {
             </tr>
           </thead>
           <tbody>
-            {weeks.map((week) => (
-              <tr key={week.label}>
-                <td style={{ padding: '6px 8px', borderBottom: `1px solid ${colour.border.default}` }}>
-                  {week.label}
-                </td>
-                <td
-                  className="num"
-                  style={{ padding: '6px 8px', borderBottom: `1px solid ${colour.border.default}` }}
-                >
-                  {week.scheduledPercent.toFixed(1)}%
-                </td>
-                <td
-                  className="num"
-                  style={{ padding: '6px 8px', borderBottom: `1px solid ${colour.border.default}` }}
-                >
-                  {week.actualPercent !== undefined && week.actualPercent !== null ? `${week.actualPercent.toFixed(1)}%` : '—'}
-                </td>
-                <td style={{ padding: '6px 8px', borderBottom: `1px solid ${colour.border.default}` }}>
-                  {week.planned ? 'Planned only' : 'Actual'}
-                </td>
-              </tr>
-            ))}
+            {weeks.map((week) => {
+              const extraPercent = week.extraPercent ?? 0;
+              const blocks = week.extraHoursByBlock;
+              return (
+                <tr key={week.label}>
+                  <td style={{ padding: '6px 8px', borderBottom: `1px solid ${colour.border.default}` }}>
+                    {week.label}
+                  </td>
+                  <td
+                    className="num"
+                    style={{ padding: '6px 8px', borderBottom: `1px solid ${colour.border.default}` }}
+                  >
+                    {week.scheduledPercent.toFixed(1)}%
+                  </td>
+                  <td
+                    className="num"
+                    title={
+                      blocks
+                        ? `Days ${(blocks.DAY ?? 0).toFixed(1)} h · Evenings ${(blocks.EVENING ?? 0).toFixed(
+                            1,
+                          )} h · Nights ${(blocks.NIGHT ?? 0).toFixed(1)} h`
+                        : undefined
+                    }
+                    style={{ padding: '6px 8px', borderBottom: `1px solid ${colour.border.default}` }}
+                  >
+                    {extraPercent.toFixed(1)}% · {(week.extraHours ?? 0).toFixed(1)} h
+                  </td>
+                  <td
+                    className="num"
+                    style={{ padding: '6px 8px', borderBottom: `1px solid ${colour.border.default}` }}
+                  >
+                    {week.actualPercent !== undefined && week.actualPercent !== null ? `${week.actualPercent.toFixed(1)}%` : '—'}
+                  </td>
+                  <td style={{ padding: '6px 8px', borderBottom: `1px solid ${colour.border.default}` }}>
+                    {week.planned ? 'Planned only' : 'Actual'}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </Box>

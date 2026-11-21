@@ -440,6 +440,10 @@ export interface CoverageWeek {
   actualPercent?: number | null;
   /** True for a week that has not happened yet. */
   planned: boolean;
+  /** The hours the week needed, the basis of every percentage. */
+  requiredHours?: number;
+  /** Scheduled-percent points that came only from extra shifts (2 dp). */
+  extraPercent?: number;
   /** Hours of the scheduled hours that came from overtime/extra shifts. */
   extraHours?: number;
   /** The same, per block (DAY, EVENING, NIGHT). */

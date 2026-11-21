@@ -258,13 +258,8 @@ export function ReportsPage() {
       ) : null}
 
       {tab === 'coverage' && !failed ? (
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'stretch' }}>
-          <Box sx={{ flex: '3 1 520px', minWidth: 0 }}>
-            {coverage ? <CoverageChart report={coverage} /> : null}
-          </Box>
-          <Box sx={{ flex: '2 1 340px', minWidth: 0 }}>
-            {overtime ? <OvertimeBars report={overtime} /> : null}
-          </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+          {coverage ? <CoverageChart report={coverage} /> : null}
         </Box>
       ) : null}
 

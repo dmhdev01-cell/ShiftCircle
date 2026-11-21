@@ -392,3 +392,5 @@ Figures are examples; use the measured ones from the verified tip.
 ## 13. What I'll check when reviewing the built screens
 
 Scorecard tiles, explanations and panels as §2 · one yellow per screen in every state · status in words, not colour · tabs in the URL · "Show week" lands on the right unit and week with focus · Roster read-only with the "not on the planning board yet" note and pattern words · Compare uses the api's direction · commit dialog lists every warning and needs the one checkbox · stale (412), blocked (422) and locked (409) refusals say "Nothing was written" and keep the draft · success links open the board on the right unit and week · preferences save and clear with confirmation, disabled lengths explained · no rule codes anywhere · states as §9.1 · keyboard path §9.2 end to end · axe clean at 1440 and 768 px · footer line, no logo.
+
+- The Roster tab's unit picker shows each unit's gap count for the visible week (`no gaps`, `1 gap`, `2 gaps`) and the selected unit's name heads its grid; the All-units strip stays clickable.

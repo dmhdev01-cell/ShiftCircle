@@ -176,9 +176,19 @@ describe('the quarter plan', () => {
     ).toBeInTheDocument();
     // The grid is the board's own, read-only here.
     expect(await screen.findByRole('region', { name: 'Roster, scrolls sideways' })).toBeTruthy();
+    // Observation 32: the unit's name heads the grid. The fixtures' own unit
+    // list has one unit; the exact per-unit counts are tested on the tab itself.
+    expect(await screen.findByRole('heading', { name: /Unit B/ })).toBeInTheDocument();
+    const options = () =>
+      within(screen.getByLabelText('Unit'))
+        .getAllByRole('option')
+        .map((option) => option.textContent ?? '');
+    expect(options().every((text) => / · (no gaps|1 gap|\d+ gaps)$/.test(text))).toBe(true);
+
     const week = screen.getByRole('group', { name: 'Week' });
     expect(week).toHaveTextContent('4 – 10 Jan 2027');
     expect(within(week).getByRole('button', { name: 'Previous week' })).toBeDisabled();
+
   });
 
   it('asks for the warnings to be accepted before committing, then commits', async () => {
