@@ -205,6 +205,7 @@ export function PlannerPage() {
 
   const draft: PlannerDraft | null = plan?.draft ?? null;
   const scorecard: PlannerScorecard | null = draft?.scorecard ?? null;
+  const planCommitted = plan?.state === 'COMMITTED';
 
   if (role.id !== 'PLANNER') {
     return (
@@ -375,7 +376,13 @@ export function PlannerPage() {
         text: 'Committed',
         line: `Committed ${whenWords(committed.committedAt)} by P. Planner · ${committed.shiftsWritten.toLocaleString('en-CA')} shifts written`,
       }
-    : draft
+    : planCommitted && plan?.lastCommitted
+      ? {
+          pill: 'pass' as const,
+          text: 'Committed',
+          line: `Committed ${whenWords(plan.lastCommitted.at)} by ${plan.lastCommitted.by} · ${plan.lastCommitted.shiftsWritten.toLocaleString('en-CA')} shifts written`,
+        }
+      : draft
       ? {
           pill: 'warn' as const,
           text: 'Draft',
@@ -566,7 +573,27 @@ export function PlannerPage() {
         </Card>
       ) : null}
 
-      {!draft && !committed ? (
+      {/* TODO(committedDraft): when GET /planner/plan sends committedDraft
+          (DraftSummary | null) and gaps/warnings/compare answer for a committed
+          draft id, this card becomes the read-only tabs of the committed plan.
+          Until then the banner and the commit figures are all the api offers. */}
+      {!draft && !committed && planCommitted && plan?.lastCommitted ? (
+        <Card sx={{ borderLeft: `4px solid ${colour.status.pass.text}` }}>
+          <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Typography component="h2" sx={{ m: 0, fontSize: 17, fontWeight: 700 }}>
+              Plan committed
+            </Typography>
+            <Typography sx={{ fontSize: 14 }}>
+              {plan.lastCommitted.shiftsWritten.toLocaleString('en-CA')} shifts were written by{' '}
+              {plan.lastCommitted.by}. Supervisors can change them on the planning board; the
+              scorecard, gaps and warnings of the committed plan open here once the api sends its
+              summary.
+            </Typography>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {!draft && !committed && !planCommitted ? (
         <Card sx={{ maxWidth: 640 }}>
           <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Typography sx={{ fontWeight: 700, fontSize: 16 }}>No plan for this quarter yet.</Typography>
