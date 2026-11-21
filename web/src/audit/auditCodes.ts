@@ -47,7 +47,6 @@ export const API_AUDIT_ACTIONS = [
 export const API_AUDIT_ENTITIES = [
   'shift_assignment',
   'time_entry',
-  // A planned absence (P3 amendment 20.2): the planner's read-only leave input.
   'absence',
   'pay_period',
   'open_shift',
