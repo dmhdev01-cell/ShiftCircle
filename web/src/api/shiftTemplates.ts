@@ -68,6 +68,7 @@ export const ruleNames: Record<string, string> = {
   'U-12': 'Days off',
   'U-14': 'Weekly ceiling',
   'U-15': 'Overtime threshold',
+  'P-01': 'Overtime threshold',
 };
 
 export function ruleNameFor(code: string): string | undefined {

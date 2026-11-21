@@ -74,21 +74,29 @@ describe('the coverage chart overtime share', () => {
       week({ label: '9 – 15 Nov', scheduledPercent: 101, extraPercent: 0.6 }),
     ];
     expect(coverageSummary(one)).toBe(
-      'In 2 of 2 weeks, part of the coverage came from extra shifts (overtime), up to 0.6% of the required hours in the week of 9 – 15 Nov. Without them, 1 week would have been under 100%.',
+      'In 2 of 2 weeks, part of the coverage came from extra shifts (overtime), up to 0.6% of the required hours in the week of 9 – 15 Nov. 1 week reached 100% only because of them.',
     );
 
     const several = [
-      week({ label: '2 – 8 Nov', scheduledPercent: 99, extraPercent: 1 }),
-      week({ label: '9 – 15 Nov', scheduledPercent: 98, extraPercent: 2 }),
-      week({ label: '16 – 22 Nov', scheduledPercent: 102, extraPercent: 0.5 }),
+      week({ label: '2 – 8 Nov', scheduledPercent: 100.5, extraPercent: 1 }),
+      week({ label: '9 – 15 Nov', scheduledPercent: 101, extraPercent: 2 }),
+      week({ label: '16 – 22 Nov', scheduledPercent: 99, extraPercent: 1 }),
+      week({ label: '23 – 29 Nov', scheduledPercent: 102, extraPercent: 0.5 }),
     ];
     expect(coverageSummary(several)).toBe(
-      'In 3 of 3 weeks, part of the coverage came from extra shifts (overtime), up to 2.0% of the required hours in the week of 9 – 15 Nov. Without them, 2 weeks would have been under 100%.',
+      'In 4 of 4 weeks, part of the coverage came from extra shifts (overtime), up to 2.0% of the required hours in the week of 9 – 15 Nov. 2 weeks reached 100% only because of them.',
+    );
+
+    // Weeks that did not reach 100% are not weeks the extra shifts saved, so
+    // the second sentence is left out entirely.
+    const neverReached = [week({ label: '2 – 8 Nov', scheduledPercent: 98.6, extraPercent: 0.6 })];
+    expect(coverageSummary(neverReached)).toBe(
+      'In 1 of 1 weeks, part of the coverage came from extra shifts (overtime), up to 0.6% of the required hours in the week of 2 – 8 Nov.',
     );
 
     const covered = [week({ label: '2 – 8 Nov', scheduledPercent: 103, extraPercent: 1 })];
     expect(coverageSummary(covered)).toBe(
-      "In 1 of 1 weeks, part of the coverage came from extra shifts (overtime), up to 1.0% of the required hours in the week of 2 – 8 Nov. Without them, every week would still have met 100%.",
+      'In 1 of 1 weeks, part of the coverage came from extra shifts (overtime), up to 1.0% of the required hours in the week of 2 – 8 Nov. Every week that reached 100% would have reached it without them.',
     );
   });
 

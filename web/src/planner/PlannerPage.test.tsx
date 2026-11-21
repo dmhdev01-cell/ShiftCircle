@@ -95,11 +95,12 @@ describe('the quarter plan', () => {
     expect(screen.getByText(/fixed separate crews/)).toBeInTheDocument();
     expect(screen.getByText(/one rest-day warning and one weekly-hours warning/)).toBeInTheDocument();
 
-    // The pattern picker speaks plainly, with the rotating default first.
-    const pattern = screen.getByLabelText('8-hour pattern');
-    expect(within(pattern).getAllByRole('option')[0]).toHaveTextContent(
-      'Rotating 5 on, 2 off (weekends rotate)',
-    );
+    // Option C: the facility pattern picker is gone, and the scorecard names
+    // each officer's own pattern in words (never a raw code).
+    expect(screen.queryByLabelText('8-hour pattern')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Shift patterns' })).toBeInTheDocument();
+    expect(screen.getByText('Rotating 5 on, 2 off (weekends rotate)')).toBeInTheDocument();
+    expect(screen.queryByText('ROTATING_5_2')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Preferences by kind' })).toBeInTheDocument();
     // A draft is not a roster: the tab says so rather than showing an empty grid.
     expect(screen.getByRole('tab', { name: /Gaps/ })).toBeInTheDocument();
@@ -132,18 +133,17 @@ describe('the quarter plan', () => {
     expect(within(table).getAllByRole('button', { name: /Show week of/ }).length).toBeGreaterThan(0);
   });
 
-  it('sends the chosen 8-hour pattern with the draft', async () => {
+  it('generates without a facility pattern: each officer keeps their own', async () => {
     const user = userEvent.setup();
     const create = vi.spyOn(api, 'createPlannerDraft');
     renderPlanner();
     await asPlanner(user);
 
-    const pattern = await screen.findByLabelText('8-hour pattern');
-    await user.selectOptions(pattern, '7_ON_3_OFF');
     await user.click(screen.getByRole('button', { name: 'Generate draft' }));
 
     await screen.findByText('Coverage gaps');
-    expect(create).toHaveBeenCalledWith(expect.objectContaining({ pattern8h: '7_ON_3_OFF' }));
+    expect(create).toHaveBeenCalledWith({ seed: 20261001 });
+    expect(create.mock.calls[0][0]).not.toHaveProperty('pattern8h');
     vi.restoreAllMocks();
   });
 

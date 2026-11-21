@@ -31,17 +31,23 @@ export function coverageSummary(weeks: CoverageWeek[]): string {
   const top = extra.reduce((best, week) =>
     (week.extraPercent ?? 0) > (best.extraPercent ?? 0) ? week : best,
   );
-  const under = extra.filter(
-    (week) => week.scheduledPercent - (week.extraPercent ?? 0) < 100,
-  ).length;
-
   const head = `In ${extra.length} of ${weeks.length} weeks, part of the coverage came from extra shifts (overtime), up to ${(top.extraPercent ?? 0).toFixed(
     1,
   )}% of the required hours in the week of ${top.label}.`;
+
+  // Only weeks that reached 100% can have reached it because of extra shifts;
+  // a week already under 100% is not one they saved.
+  const reached = extra.filter((week) => week.scheduledPercent >= 100);
+  if (reached.length === 0) return head;
+  const onlyBecause = reached.filter(
+    (week) => week.scheduledPercent - (week.extraPercent ?? 0) < 100,
+  ).length;
   const tail =
-    under === 0
-      ? ' Without them, every week would still have met 100%.'
-      : ` Without them, ${under} week${under === 1 ? '' : 's'} would have been under 100%.`;
+    onlyBecause === 0
+      ? ' Every week that reached 100% would have reached it without them.'
+      : onlyBecause === 1
+        ? ' 1 week reached 100% only because of them.'
+        : ` ${onlyBecause} weeks reached 100% only because of them.`;
   return head + tail;
 }
 

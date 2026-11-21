@@ -727,6 +727,11 @@ export interface PlannerScorecard {
     /** The api's plain sentence about the fixed day/night crews. */
     crewNote?: string;
   };
+  /** Each officer's own shift pattern, in words (option C). */
+  patterns?: {
+    officers: { employeeNo: string; name: string; unitCode: string; pattern: string; words: string }[];
+    note: string;
+  };
   /** Hours against target by FTE band (V6). */
   fteBands?: {
     bands: {
@@ -800,6 +805,13 @@ export interface PlannerWarningGroup {
 export type PreferenceShiftLength = 8 | 12 | 16;
 export type PreferenceTimeOfDay = 'DAY' | 'EVENING' | 'NIGHT';
 
+/** The shift patterns an officer can be configured with (option C). */
+export type OfficerPattern =
+  | 'ROTATING_5_2'
+  | '5_ON_2_OFF'
+  | '7_ON_3_OFF'
+  | '4_ON_4_OFF';
+
 /**
  * The parts of the day an officer asked for (P3 preference multi-select): any
  * mix, no duplicates, empty = no preference. Responses carry this field; the
@@ -832,6 +844,11 @@ export interface PlannerPreferenceRow {
   timesOfDay: PreferenceTimesOfDay;
   daysOff: string[];
   maxDaysOff: number;
+  /** The officer's own pattern (option C), the code and its plain words. */
+  pattern: OfficerPattern;
+  patternWords: string;
+  /** True only for 8 h officers: a 12 h officer keeps the crew pattern. */
+  patternEditable: boolean;
   inDraft: 'MET' | 'PARTLY' | 'NOT_MET' | 'NO_DRAFT' | 'NONE';
   unmet: string[];
   updatedAt: string | null;
@@ -921,6 +938,8 @@ export interface ShiftCircleApi {
   /** Quarter planner (PLANNER role): plan, drafts, gaps, warnings, commit. */
   getPlannerPlan(): Promise<PlannerPlan>;
   createPlannerDraft(body: { seed: number; pattern8h?: string }): Promise<PlannerDraft>;
+  /** PUT /planner/preferences/{employeeId}/pattern: the planner sets an 8 h officer's pattern. */
+  setPlannerOfficerPattern(employeeId: string, pattern: string): Promise<PlannerPreferenceRow>;
   getPlannerDraft(draftId: string): Promise<PlannerDraft>;
   getPlannerGaps(draftId: string): Promise<PlannerGap[]>;
   getPlannerWarnings(draftId: string): Promise<PlannerWarningGroup[]>;
