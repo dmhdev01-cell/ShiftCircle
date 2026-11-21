@@ -20,7 +20,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Boundary matrix for hours ceilings (U-05, U-14, U-15), consecutive work (U-08 to U-10), 16-hour
- * shift counts (U-11) and days off (U-12) — docs/10-testing.md §3.
+ * shift counts (U-11) and days off (U-12) — docs/10-testing.md §3. The D12/N12 cases prove the real
+ * day/night 12 h crews are classified as 12 h and that N12 counts as an overnight across midnight.
  */
 class HoursAndRunsRulesTest {
 
@@ -405,5 +406,122 @@ class HoursAndRunsRulesTest {
     assertThat(DaysOffFactBuilder.countedDaysOff(24.02)).isEqualTo(1);
     assertThat(DaysOffFactBuilder.countedDaysOff(47.98)).isEqualTo(1);
     assertThat(DaysOffFactBuilder.countedDaysOff(48.0)).isEqualTo(2);
+  }
+
+  // D12/N12: real day/night 12 h crews ---------------------------------------------------------
+
+  @Test
+  void d12AndN12AreTwelveHourKindsWithNominalSevenTwenty() {
+    ShiftFact day = shift("officer", "D12", "2026-11-16", "07:00", 720);
+    ShiftFact night = shift("officer", "N12", "2026-11-16", "19:00", 720);
+
+    assertThat(day.isTwelveHour()).isTrue();
+    assertThat(night.isTwelveHour()).isTrue();
+    assertThat(day.nominalMinutes()).isEqualTo(720);
+    assertThat(night.nominalMinutes()).isEqualTo(720);
+    assertThat(day.isSixteenHour()).isFalse();
+    assertThat(night.isSixteenHour()).isFalse();
+  }
+
+  @Test
+  void u02WarnsAfterAnN12ThatEndsWhenTheD8Starts() {
+    ShiftFact night = shift("officer", "N12", "2026-11-16", "19:00", 720);
+    ShiftFact day = shift("officer", "D12", "2026-11-17", "07:00", 720);
+
+    assertThat(results("U-02", cast(new ca.shiftcircle.rules.build.RestFactBuilder()
+        .build(schedule(night, day)))))
+        .singleElement()
+        .satisfies(
+            result -> {
+              assertThat(result.outcome()).isEqualTo(RuleOutcome.WARN);
+              assertThat(result.evidence()).contains("N12").contains("D12");
+            });
+  }
+
+  @Test
+  void u09FourD12PassAndFiveBlock() {
+    List<ShiftFact> four = new ArrayList<>();
+    List<ShiftFact> five = new ArrayList<>();
+    for (int i = 0; i < 5; i++) {
+      ShiftFact shift =
+          shift("officer", "D12", LocalDate.parse("2026-11-16").plusDays(i).toString(), "07:00", 720);
+      five.add(shift);
+      if (i < 4) {
+        four.add(shift);
+      }
+    }
+
+    assertThat(results("U-09", cast(new ConsecutiveRunFactBuilder().build(four)))).isEmpty();
+    assertThat(results("U-09", cast(new ConsecutiveRunFactBuilder().build(five))))
+        .singleElement()
+        .satisfies(result -> assertThat(result.outcome()).isEqualTo(RuleOutcome.BLOCK));
+  }
+
+  @Test
+  void u10FourN12PassAndFiveWarn() {
+    List<ShiftFact> four = new ArrayList<>();
+    List<ShiftFact> five = new ArrayList<>();
+    for (int i = 0; i < 5; i++) {
+      ShiftFact night =
+          shift("officer", "N12", LocalDate.parse("2026-11-16").plusDays(i).toString(), "19:00", 720);
+      five.add(night);
+      if (i < 4) {
+        four.add(night);
+      }
+    }
+
+    assertThat(results("U-10", cast(new ConsecutiveRunFactBuilder().build(four)))).isEmpty();
+    assertThat(results("U-10", cast(new ConsecutiveRunFactBuilder().build(five))))
+        .singleElement()
+        .satisfies(
+            result -> {
+              assertThat(result.outcome()).isEqualTo(RuleOutcome.WARN);
+              assertThat(result.actual()).isEqualTo(5.0);
+            });
+  }
+
+  @Test
+  void u14CountsN12AcrossMidnightAndBlocksAboveSixtyHours() {
+    List<ShiftFact> fourNights = new ArrayList<>();
+    List<ShiftFact> fiveNights = new ArrayList<>();
+    for (int i = 0; i < 5; i++) {
+      ShiftFact night =
+          shift("officer", "N12", LocalDate.parse("2026-11-16").plusDays(i).toString(), "19:00", 720);
+      fiveNights.add(night);
+      if (i < 4) {
+        fourNights.add(night);
+      }
+    }
+    // Four N12 = 48 h exactly: the warning level passes. Five = 60 h exactly: WARN, not yet Block.
+    assertThat(results("U-14", cast(new RollingHoursFactBuilder().build(fourNights, 168)))).isEmpty();
+    assertThat(results("U-14", cast(new RollingHoursFactBuilder().build(fiveNights, 168))))
+        .singleElement()
+        .satisfies(
+            result -> {
+              assertThat(result.outcome()).isEqualTo(RuleOutcome.WARN);
+              assertThat(result.actual()).isEqualTo(60.0);
+            });
+
+    fiveNights.add(shift("officer", "D8", "2026-11-21", "07:00", 480));
+    assertThat(results("U-14", cast(new RollingHoursFactBuilder().build(fiveNights, 168))))
+        .singleElement()
+        .satisfies(result -> assertThat(result.outcome()).isEqualTo(RuleOutcome.BLOCK));
+  }
+
+  @Test
+  void u05PassesAtSixteenHoursForAD12ExtensionAndBlocksFifteenMinutesOver() {
+    List<ShiftFact> sixteen =
+        schedule(shift("officer", "D12", "2026-11-16", "07:00", 960));
+    List<ShiftFact> over =
+        schedule(shift("officer", "D12", "2026-11-16", "07:00", 975));
+
+    assertThat(results("U-05", cast(new RollingHoursFactBuilder().build(sixteen, 24)))).isEmpty();
+    assertThat(results("U-05", cast(new RollingHoursFactBuilder().build(over, 24))))
+        .singleElement()
+        .satisfies(
+            result -> {
+              assertThat(result.outcome()).isEqualTo(RuleOutcome.BLOCK);
+              assertThat(result.actual()).isEqualTo(16.25);
+            });
   }
 }

@@ -98,7 +98,10 @@ public final class ConsecutiveRunFactBuilder {
 
     for (ShiftFact shift : shifts) {
       boolean matches =
-          shift.isTwelveHour() && (!nightOnly || "A12".equals(shift.templateCode()));
+          shift.isTwelveHour()
+              && (!nightOnly
+                  || "A12".equals(shift.templateCode())
+                  || "N12".equals(shift.templateCode()));
       if (!matches) {
         current = 0;
         previousDate = null;

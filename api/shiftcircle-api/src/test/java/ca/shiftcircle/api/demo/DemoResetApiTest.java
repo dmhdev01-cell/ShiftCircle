@@ -86,6 +86,20 @@ class DemoResetApiTest {
       System.out.println("RESET elapsedMs=" + done.get("elapsedMs") + " checksum=" + done.get("checksum"));
       assertThat(done.get("state")).isEqualTo("DONE");
       assertThat(done.get("checksum")).isEqualTo(CHECKSUM);
+      // V6 adds D12/N12 templates, but the 100 seed keeps its A12/P12/L16 roster and unit
+      // agreements: the checksum above is the proof, these pin the isolation directly.
+      assertThat(jdbc.queryForObject(
+              "SELECT count(*) FROM shift_template WHERE code IN ('D12','N12')", Integer.class))
+          .isEqualTo(2);
+      assertThat(jdbc.queryForObject(
+              "SELECT count(*) FROM shift_assignment s JOIN shift_template t"
+                  + " ON t.id = s.shift_template_id WHERE t.code IN ('D12','N12')",
+              Integer.class))
+          .isZero();
+      assertThat(jdbc.queryForObject(
+              "SELECT count(*) FROM unit WHERE code IN ('ADM','ESC') AND allows_12h",
+              Integer.class))
+          .isZero();
 
       assertThat(jdbc.queryForObject("SELECT count(*) FROM employee", Integer.class))
           .isEqualTo(100);
