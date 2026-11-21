@@ -740,6 +740,8 @@ export interface PlannerPlan {
   state: 'NONE' | 'DRAFT' | 'COMMITTED';
   draft: PlannerDraft | null;
   lastCommitted: { draftId: string; at: string; by: string; shiftsWritten: number } | null;
+  /** The committed plan's summary, so its tabs can be read after a commit. */
+  committedDraft?: PlannerDraft | null;
 }
 
 export interface PlannerGap {
@@ -838,6 +840,9 @@ export interface PlannerCompare {
   draftShifts: number;
   draftGaps: number;
   committedShifts: number;
+  draftStatus?: string;
+  /** The api's sentence saying what the comparison is against. */
+  basis?: string;
   rows: PlannerCompareRow[];
 }
 

@@ -30,6 +30,7 @@ export const PLANNER_PATTERNS = ['ROTATING_5_2', '5_ON_2_OFF', '7_ON_3_OFF'];
 
 let draft: PlannerDraft | null = null;
 let committed: PlannerPlan['lastCommitted'] = null;
+let committedDraft: PlannerDraft | null = null;
 
 function scorecard(seed: number) {
   // The seed changes the figures a little, so "same seed, same plan" is visible
@@ -105,6 +106,7 @@ export function plannerPlan(): PlannerPlan {
     state: draft ? 'DRAFT' : committed ? 'COMMITTED' : 'NONE',
     draft,
     lastCommitted: committed,
+    committedDraft,
   };
 }
 
@@ -285,10 +287,14 @@ export function plannerCoverage(range: { from: string; to: string }): PlannerUni
 }
 
 export function plannerCompare(): PlannerCompare {
-  const current = plannerDraft();
+  // After a commit the open draft is gone and the committed summary answers.
+  const current = draft ?? committedDraft;
+  if (!current) throw new Error('no fixture draft');
   return {
     draftShifts: 4212,
     draftGaps: current.scorecard.coverage.shortBlockDays,
+    draftStatus: 'DRAFT',
+    basis: 'The draft is compared with the plan already on the board.',
     committedShifts: committed?.shiftsWritten ?? 0,
     rows: [
       { key: 'shifts', label: 'Shifts', board: committed?.shiftsWritten ?? 0, draft: 4212, unit: 'count', direction: 'NEUTRAL' },
@@ -314,6 +320,7 @@ export function plannerCommitPreview(): PlannerCommitPreview {
 
 export function commitPlannerDraft(): PlannerCommitResult {
   const current = plannerDraft();
+  committedDraft = { ...current, status: 'COMMITTED' };
   committed = {
     draftId: current.id,
     at: '2026-11-21T09:40:00-06:00',
@@ -338,6 +345,7 @@ export function discardPlannerDraft(): void {
 export function resetPlannerFixtures(): void {
   draft = null;
   committed = null;
+  committedDraft = null;
   myPreferences = {
     shiftLength: null,
     timeOfDay: null,
