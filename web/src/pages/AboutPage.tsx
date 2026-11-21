@@ -134,7 +134,7 @@ export function AboutPage() {
         </CardContent>
       </Card>
 
-      {canReset ? <ResetDemoCard /> : null}
+      {canReset ? <ResetDemoCard datasets={state.info.datasets} /> : null}
     </>
   );
 }

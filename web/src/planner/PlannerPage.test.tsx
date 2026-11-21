@@ -72,6 +72,20 @@ describe('the quarter plan', () => {
     await user.click(explained[0]);
     expect(screen.queryByRole('region', { name: 'What Coverage gaps means' })).not.toBeInTheDocument();
 
+    // The FTE band table: officers, target, planned min/avg/max, the api's note.
+    expect(
+      screen.getByRole('heading', { name: 'Hours against target by FTE band' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Full-time')).toBeInTheDocument();
+    expect(screen.getByText('Part-time (0.7–0.9)')).toBeInTheDocument();
+    expect(screen.getByText(/not guaranteed hours/)).toBeInTheDocument();
+
+    // The N12 crew figures and the api's crew sentence, and the 5/2 changeover
+    // note, are the api's words, shown as sent.
+    expect(screen.getByText(/N12 night crew: 38 officers/)).toBeInTheDocument();
+    expect(screen.getByText(/fixed separate crews/)).toBeInTheDocument();
+    expect(screen.getByText(/one rest-day warning and one weekly-hours warning/)).toBeInTheDocument();
+
     // The pattern picker speaks plainly, with the rotating default first.
     const pattern = screen.getByLabelText('8-hour pattern');
     expect(within(pattern).getAllByRole('option')[0]).toHaveTextContent(

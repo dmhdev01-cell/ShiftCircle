@@ -50,11 +50,17 @@ const TILE_HELP: Record<string, string> = {
   'Preferences met':
     'Officers can ask for a shift length, a time of day and days off. These are wishes, not guarantees: the planner meets them where staffing and the rules allow.',
   'Night fairness':
-    'Night shifts are 8 h nights, 12 h 00–12 shifts and 16 h shifts. In each unit, officers who asked for nights get them first, most senior first. The rest go to the newest officers first. A senior officer works nights they did not ask for only when no newer officer in the unit can take the shift.',
+    'Only the 12-hour night crews work nights (D12 is days, N12 is 19:00–07:00). Officers who asked for nights get them first, most senior first; the rest of the night crew is seeded from the newest officers, so a senior officer works nights they did not ask for only when no newer officer can take the shift.',
   'Overtime built in':
     'Hours over 80 in a two-week pay period are paid as overtime. 8-hour officers work 5 on, 2 off: exactly 80 hours. 12-hour patterns give 72 to 96 hours a pay period and 16-hour patterns 64 to 80, so some overtime is built in before anyone picks up an extra shift.',
   'Generated in':
     "The planner follows fixed steps; it isn't AI. The same seed and the same data always give the same plan, so a plan can be checked and repeated.",
+};
+
+const FTE_WORDS: Record<string, string> = {
+  FULL_TIME: 'Full-time',
+  PART_TIME: 'Part-time (0.7–0.9)',
+  CASUAL: 'Casual (under 0.7)',
 };
 
 const KIND_WORDS: Record<string, string> = {
@@ -726,6 +732,62 @@ export function PlannerPage() {
                 </Typography>
               ) : null}
 
+              {scorecard.fteBands && scorecard.fteBands.bands.length > 0 ? (
+                <Card>
+                  <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
+                      Hours against target by FTE band
+                    </Typography>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr>
+                          {['Band', 'Officers', 'Target h', 'Planned min', 'Planned avg', 'Planned max'].map(
+                            (heading) => (
+                              <th
+                                key={heading}
+                                style={{
+                                  textAlign: 'left',
+                                  padding: '6px 8px',
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  color: colour.text.secondary,
+                                  borderBottom: `1px solid ${colour.border.default}`,
+                                }}
+                              >
+                                {heading}
+                              </th>
+                            ),
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {scorecard.fteBands.bands.map((band) => (
+                          <tr key={band.band}>
+                            <td style={{ padding: '6px 8px', fontWeight: 600 }}>
+                              {FTE_WORDS[band.band] ?? band.band}
+                            </td>
+                            <td className="num" style={{ padding: '6px 8px' }}>{band.officers}</td>
+                            <td className="num" style={{ padding: '6px 8px' }}>{band.targetHours}</td>
+                            <td className="num" style={{ padding: '6px 8px' }}>{band.plannedMin}</td>
+                            <td className="num" style={{ padding: '6px 8px' }}>{band.plannedAvg}</td>
+                            <td className="num" style={{ padding: '6px 8px' }}>{band.plannedMax}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
+                      {scorecard.fteBands.note}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              ) : null}
+
+              {scorecard.warningNote ? (
+                <Typography sx={{ fontSize: 13, color: colour.text.secondary }}>
+                  {scorecard.warningNote}
+                </Typography>
+              ) : null}
+
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'flex-start' }}>
                 <Card sx={{ flex: '1 1 420px' }}>
                   <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -764,6 +826,17 @@ export function PlannerPage() {
                       </StatusPill>
                       <Typography sx={{ fontSize: 13 }}>{scorecard.nights.check}</Typography>
                     </Box>
+                    {scorecard.nights.n12NightShifts !== undefined ? (
+                      <Typography sx={{ fontSize: 13 }}>
+                        N12 night crew: {scorecard.nights.n12Officers ?? 0} officers ·{' '}
+                        {scorecard.nights.n12NightShifts} N12 night shifts in the quarter.
+                      </Typography>
+                    ) : null}
+                    {scorecard.nights.crewNote ? (
+                      <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
+                        {scorecard.nights.crewNote}
+                      </Typography>
+                    ) : null}
                   </CardContent>
                 </Card>
 

@@ -25,8 +25,13 @@ const STEP_WORDS: Record<string, string> = {
  * the synthetic dataset. Plain words say what it erases and how long it takes,
  * the button needs the word RESET typed, and the progress line names each step.
  */
-export function ResetDemoCard() {
+export function ResetDemoCard({
+  datasets = [],
+}: {
+  datasets?: { id: string; name: string }[];
+}) {
   const [confirm, setConfirm] = useState('');
+  const [dataset, setDataset] = useState(datasets[0]?.id ?? '100');
   const [status, setStatus] = useState<DemoResetStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -66,7 +71,7 @@ export function ResetDemoCard() {
     setError(null);
     setStatus(null);
     try {
-      const started = await api.resetDemo(confirm, '100');
+      const started = await api.resetDemo(confirm, dataset);
       setStatus(started);
       stopPolling();
       timer.current = window.setInterval(() => {
@@ -95,6 +100,39 @@ export function ResetDemoCard() {
         </Typography>
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 2 }}>
+          {datasets.length > 1 ? (
+            <Box
+              component="label"
+              sx={{ display: 'flex', flexDirection: 'column', gap: 1, fontSize: 12, fontWeight: 600, color: colour.text.secondary }}
+            >
+              Dataset
+              <Box
+                component="select"
+                aria-label="Dataset"
+                value={dataset}
+                disabled={running}
+                onChange={(event: { target: { value: string } }) => setDataset(event.target.value)}
+                sx={{
+                  minHeight: 44,
+                  px: 3,
+                  border: `1px solid ${colour.border.input}`,
+                  borderRadius: '2px',
+                  fontFamily: 'inherit',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: colour.text.primary,
+                  backgroundColor: colour.bg.surface,
+                  width: 260,
+                }}
+              >
+                {datasets.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.name}
+                  </option>
+                ))}
+              </Box>
+            </Box>
+          ) : null}
           <TextField
             label="Type RESET to confirm"
             size="small"
