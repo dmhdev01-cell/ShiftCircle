@@ -864,6 +864,10 @@ export function PlannerPage() {
                         Shift patterns
                       </Typography>
                       <Box
+                        // A scrollable region needs keyboard access (axe).
+                        role="group"
+                        aria-label="Shift patterns by officer"
+                        tabIndex={0}
                         sx={{
                           maxHeight: 240,
                           overflowY: 'auto',

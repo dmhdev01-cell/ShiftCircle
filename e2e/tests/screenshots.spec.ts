@@ -35,7 +35,7 @@ async function reportLoaded(page: Page, tab: 'Coverage' | 'Hours' | 'Overtime' |
   if (tab === 'Coverage') {
     await expect(main.getByText('Coverage: share of required staff-hours')).toBeVisible();
     await expect(main.getByRole('row').nth(1)).toBeVisible();
-    await expect(main.getByText(/Overtime this quarter/).first()).toBeVisible();
+    await expect(main.getByText('Extra shifts (overtime)').first()).toBeVisible();
   } else if (tab === 'Hours') {
     await expect(main.getByRole('heading', { name: /Hours by officer · pay period \d/ })).toBeVisible();
     await expect(main.getByRole('row').nth(1)).toBeVisible();
