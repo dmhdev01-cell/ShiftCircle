@@ -291,7 +291,7 @@ export function PlannerPage() {
     ? {
         pill: 'pass' as const,
         text: 'Committed',
-        line: `Committed ${committed.committedAt.slice(0, 16).replace('T', ' ')} by R. Planner · ${committed.shiftsWritten.toLocaleString('en-CA')} shifts written`,
+        line: `Committed ${committed.committedAt.slice(0, 16).replace('T', ' ')} by P. Planner · ${committed.shiftsWritten.toLocaleString('en-CA')} shifts written`,
       }
     : draft
       ? {

@@ -107,7 +107,7 @@ export function generatePlannerDraft(seed: number, pattern8h?: string): PlannerD
     pattern8h: pattern8h ?? 'ROTATING_5_2',
     status: 'DRAFT',
     createdAt: '2026-11-21T09:14:00-06:00',
-    createdBy: 'R. Planner',
+    createdBy: 'P. Planner',
     generatedMs: 2400,
     scorecard: scorecard(seed),
   };
@@ -195,7 +195,7 @@ export function commitPlannerDraft(): PlannerCommitResult {
   committed = {
     draftId: current.id,
     at: '2026-11-21T09:40:00-06:00',
-    by: 'R. Planner',
+    by: 'P. Planner',
     shiftsWritten: 4212,
   };
   draft = null;

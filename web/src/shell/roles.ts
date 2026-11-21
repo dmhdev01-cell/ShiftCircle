@@ -51,7 +51,7 @@ export const DEMO_USER_FOR_ROLE: Record<Role, string> = {
   RULES_APPROVER: 'P. Singh',
   AUDITOR: 'A. Reviewer',
   DISPLAY: 'Unit office TV',
-  PLANNER: 'R. Planner',
+  PLANNER: 'P. Planner',
 };
 
 export const roles: RoleDescriptor[] = [
@@ -117,7 +117,7 @@ export const roles: RoleDescriptor[] = [
     // is read-only for them (docs/ui/planner.md §1, §11 Q1).
     id: 'PLANNER',
     label: 'Planner',
-    user: 'R. Planner',
+    user: 'P. Planner',
     nav: [
       { label: 'Quarter plan', to: '/planner' },
       { label: 'Preferences', to: '/planner/preferences' },
