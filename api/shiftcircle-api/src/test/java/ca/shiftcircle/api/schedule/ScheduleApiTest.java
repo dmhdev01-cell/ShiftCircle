@@ -123,6 +123,153 @@ class ScheduleApiTest {
         hours);
   }
 
+  private static final UUID PLANNED_EMPLOYEE =
+      UUID.fromString("33333333-3333-3333-3333-000000000099");
+  private static final java.time.LocalDate PLAN_MONDAY = java.time.LocalDate.of(2027, 3, 1);
+
+  /** Its own officer and 2027 periods, so the shared fixture stays untouched. */
+  private void plannedFixture() {
+    jdbc.update("DELETE FROM time_entry WHERE employee_id = ?", PLANNED_EMPLOYEE);
+    jdbc.update("DELETE FROM shift_assignment WHERE employee_id = ?", PLANNED_EMPLOYEE);
+    jdbc.update(
+        "INSERT INTO employee (id, employee_no, first_name, last_name, home_unit_id, seniority_date)"
+            + " VALUES (?, 'E-T2', 'Planned', 'Officer', ?, DATE '2020-01-01') ON CONFLICT DO NOTHING",
+        PLANNED_EMPLOYEE,
+        UNIT);
+    for (int index = 0; index < 2; index += 1) {
+      java.time.LocalDate start = PLAN_MONDAY.plusDays(14L * index);
+      jdbc.update(
+          "INSERT INTO pay_period (id, start_date, end_date, status) VALUES (?, ?, ?, 'OPEN')"
+              + " ON CONFLICT DO NOTHING",
+          UUID.fromString("44444444-4444-4444-4444-00000000010" + index),
+          start,
+          start.plusDays(13));
+    }
+  }
+
+  private void cleanPlannedFixture() {
+    jdbc.update("DELETE FROM time_entry WHERE employee_id = ?", PLANNED_EMPLOYEE);
+    jdbc.update("DELETE FROM shift_assignment WHERE employee_id = ?", PLANNED_EMPLOYEE);
+    jdbc.update("DELETE FROM pay_period WHERE id IN (?, ?)",
+        UUID.fromString("44444444-4444-4444-4444-000000000100"),
+        UUID.fromString("44444444-4444-4444-4444-000000000101"));
+  }
+
+  private void plannedShift(String id, java.time.LocalDate date) {
+    jdbc.update(
+        "INSERT INTO shift_assignment (id, employee_id, unit_id, shift_template_id, start_at,"
+            + " end_at, work_date, kind, source) SELECT"
+            + " ?, ?, ?, t.id, ?::timestamptz, ?::timestamptz, ?, 'ROSTERED', 'ROTATION'"
+            + " FROM shift_template t WHERE t.code = 'D8'",
+        UUID.fromString(id),
+        PLANNED_EMPLOYEE,
+        UNIT,
+        date + " 07:00:00-06",
+        date + " 15:00:00-06",
+        date);
+  }
+
+  private java.util.List<Map<?, ?>> officersFor(java.time.LocalDate from, java.time.LocalDate to)
+      throws Exception {
+    HttpResponse<String> response = get(schedulePath(from, to), login("m.ellis"));
+    assertThat(response.statusCode()).isEqualTo(200);
+    return (java.util.List<Map<?, ?>>)
+        (java.util.List<?>) mapper.readValue(response.body(), Map.class).get("officers");
+  }
+
+  private double plannedPayPeriodHours(java.time.LocalDate from, java.time.LocalDate to)
+      throws Exception {
+    return officersFor(from, to).stream()
+        .filter((row) -> PLANNED_EMPLOYEE.toString().equals(String.valueOf(row.get("employeeId"))))
+        .mapToDouble((row) -> ((Number) row.get("payPeriodHours")).doubleValue())
+        .findFirst()
+        .orElseThrow();
+  }
+
+  /**
+   * M3: a committed future quarter is all planned hours. The board used to read
+   * time entries only, so every officer in a 2027 week showed 0 h and "Under".
+   */
+  @Test
+  void plannedHoursCountForACommittedFuturePeriod() throws Exception {
+    plannedFixture();
+    try {
+      plannedShift("55555555-5555-5555-5555-000000000100", PLAN_MONDAY);
+      plannedShift("55555555-5555-5555-5555-000000000101", PLAN_MONDAY.plusDays(1));
+
+      assertThat(plannedPayPeriodHours(PLAN_MONDAY, PLAN_MONDAY.plusDays(6)))
+          .as("two planned D8 shifts")
+          .isEqualTo(16.0);
+      Map<?, ?> row =
+          officersFor(PLAN_MONDAY, PLAN_MONDAY.plusDays(6)).stream()
+              .filter((entry) -> PLANNED_EMPLOYEE.toString().equals(String.valueOf(entry.get("employeeId"))))
+              .findFirst()
+              .orElseThrow();
+      assertThat(row.get("overtimeStatus")).isEqualTo("UNDER");
+    } finally {
+      cleanPlannedFixture();
+    }
+  }
+
+  /** A finished period keeps its own meaning: no entry, no hours. */
+  @Test
+  void aPastShiftWithoutAnEntryAddsNoHours() throws Exception {
+    plannedFixture();
+    try {
+      try {
+        jdbc.update(
+            "INSERT INTO pay_period (id, start_date, end_date, status) VALUES"
+                + " ('44444444-4444-4444-4444-000000000001', DATE '2026-11-16', DATE '2026-11-29', 'OPEN')"
+                + " ON CONFLICT DO NOTHING");
+      } catch (org.springframework.dao.DataIntegrityViolationException alreadyThere) {
+        // The shared fixture's own period; fine.
+      }
+      plannedShift("55555555-5555-5555-5555-000000000102", DAY);
+
+      // The board still lists the shift; its hours are not "worked" because the
+      // day has no entry and lies before the board's today.
+      assertThat(plannedPayPeriodHours(DAY, DAY)).as("planned only, before today").isEqualTo(0.0);
+    } finally {
+      cleanPlannedFixture();
+    }
+  }
+
+  /** A half-recorded period mixes the two: actual where recorded, planned after. */
+  @Test
+  void aHalfRecordedPeriodCountsPlannedHoursFromTheDemoDayOn() throws Exception {
+    plannedFixture();
+    try {
+      UUID period = UUID.fromString("44444444-4444-4444-4444-000000000001");
+      try {
+        jdbc.update(
+            "INSERT INTO pay_period (id, start_date, end_date, status) VALUES"
+                + " ('44444444-4444-4444-4444-000000000001', DATE '2026-11-16', DATE '2026-11-29', 'OPEN')"
+                + " ON CONFLICT DO NOTHING");
+      } catch (org.springframework.dao.DataIntegrityViolationException alreadyThere) {
+        // The shared fixture's own period; fine.
+      }
+      // One recorded day (8 h) and one unrecorded day after the board's today.
+      plannedShift("55555555-5555-5555-5555-000000000103", DAY);
+      plannedShift("55555555-5555-5555-5555-000000000104", DAY.plusDays(5));
+      jdbc.update(
+          "INSERT INTO time_entry (id, employee_id, pay_period_id, shift_assignment_id, work_date,"
+              + " start_at, end_at, hours, entry_type, pay_code, rule_set_version_id) VALUES"
+              + " (?, ?, ?, ?, ?, TIMESTAMPTZ '2026-11-18 07:00:00-06',"
+              + " TIMESTAMPTZ '2026-11-18 15:00:00-06', 8, 'ACTUAL', 'REG',"
+              + " (SELECT id FROM rule_set_version WHERE status = 'PUBLISHED' LIMIT 1))",
+          UUID.randomUUID(),
+          PLANNED_EMPLOYEE,
+          period,
+          UUID.fromString("55555555-5555-5555-5555-000000000103"),
+          DAY);
+
+      // DAY is 18 Nov (before today), DAY+5 is 23 Nov: 8 recorded + 8 planned.
+      assertThat(plannedPayPeriodHours(DAY, DAY.plusDays(6))).as("8 actual + 8 planned").isEqualTo(16.0);
+    } finally {
+      cleanPlannedFixture();
+    }
+  }
+
   @Test
   void overtimeStatusChangesAtThePayPeriodThresholdBoundaries() throws Exception {
     UUID period = UUID.fromString("44444444-4444-4444-4444-000000000001");

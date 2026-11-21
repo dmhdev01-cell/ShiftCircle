@@ -276,24 +276,73 @@ public class ScheduleQuery {
         publishedAt);
   }
 
+  /**
+   * The officer's hours in the pay period the board is showing.
+   *
+   * Recorded actuals are the truth where they exist. A shift the period has not
+   * reached yet has no entry - a committed roster for a future quarter is all
+   * planned hours - so those shifts count from the roster instead, and a
+   * half-recorded period mixes the two: actual for the shifts with an entry,
+   * planned for the rest from the demo day on. Past shifts without an entry
+   * count nothing, exactly as before (they are the missing actuals the time
+   * screen flags). Payroll and time and attendance still read entries only.
+   */
+  /** The day planned hours start counting from: the board's own "today". */
+  private LocalDate planningFrom() {
+    try {
+      return LocalDate.parse(asOf);
+    } catch (RuntimeException unset) {
+      return LocalDate.now(REGINA);
+    }
+  }
+
+  /**
+   * The officer's hours in the pay period the board is showing.
+   *
+   * Recorded actuals are the truth where they exist. A shift the period has not
+   * reached yet has no entry - a committed roster for a future quarter is all
+   * planned hours - so days without an entry count from the roster instead,
+   * from the board's today on. A half-recorded period therefore reads actual
+   * for the days that have entries and planned for the rest, and a past day
+   * without an entry counts nothing, exactly as before (those are the missing
+   * actuals the time screen flags). Entries are matched to a shift by officer
+   * and day, because a recorded entry need not name the assignment it belongs
+   * to. Payroll and time and attendance still read entries only.
+   */
   private Map<UUID, Double> periodHours(LocalDate from) {
     Map<UUID, Double> hours = new LinkedHashMap<>();
-    List<LocalDate> periodStarts =
+    List<Map<String, Object>> periods =
         jdbc.queryForList(
-            "SELECT start_date FROM pay_period WHERE ? BETWEEN start_date AND end_date",
-            LocalDate.class,
+            "SELECT id, start_date, end_date FROM pay_period WHERE ? BETWEEN start_date AND end_date",
             from);
-    if (periodStarts.isEmpty()) {
+    if (periods.isEmpty()) {
       return hours;
     }
+    Map<String, Object> period = periods.get(0);
+    Object periodId = period.get("id");
+    LocalDate fromDate = ((java.sql.Date) period.get("start_date")).toLocalDate();
+    LocalDate toDate = ((java.sql.Date) period.get("end_date")).toLocalDate();
+
     jdbc.query(
-        "SELECT employee_id, coalesce(sum(hours), 0) AS h FROM time_entry"
-            + " WHERE pay_period_id = (SELECT id FROM pay_period WHERE start_date = ?)"
-            + " AND absence_type IS NULL GROUP BY employee_id",
+        "WITH recorded AS ("
+            + "  SELECT employee_id, work_date, sum(hours) AS actual FROM time_entry"
+            + "  WHERE pay_period_id = ? AND absence_type IS NULL GROUP BY employee_id, work_date)"
+            + " SELECT a.employee_id, coalesce(sum(coalesce(r.actual,"
+            + "   CASE WHEN a.work_date >= ?"
+            + "     THEN extract(epoch from (a.end_at - a.start_at)) / 3600.0 ELSE 0 END)), 0) AS h"
+            + " FROM shift_assignment a"
+            + " LEFT JOIN recorded r ON r.employee_id = a.employee_id AND r.work_date = a.work_date"
+            + " WHERE a.status <> 'CANCELLED' AND a.work_date BETWEEN ? AND ?"
+            + " GROUP BY a.employee_id",
         (org.springframework.jdbc.core.RowCallbackHandler)
             resultSet ->
-                hours.put((UUID) resultSet.getObject("employee_id"), resultSet.getDouble("h")),
-        periodStarts.get(0));
+                hours.put(
+                    (UUID) resultSet.getObject("employee_id"),
+                    Math.round(resultSet.getDouble("h") * 100.0) / 100.0),
+        periodId,
+        planningFrom(),
+        fromDate,
+        toDate);
     return hours;
   }
 
