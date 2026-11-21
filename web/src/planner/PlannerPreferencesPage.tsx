@@ -167,7 +167,7 @@ export function PlannerPreferencesPage() {
             </thead>
             <tbody>
               {shown.map((row) => {
-                const entry = IN_DRAFT[row.inDraft];
+                const entry = IN_DRAFT[row.inDraft] ?? { words: '—', tone: 'info' as const };
                 return (
                   <tr key={row.employeeId}>
                     <td style={{ padding: '6px 8px', fontWeight: 600 }}>{row.name}</td>

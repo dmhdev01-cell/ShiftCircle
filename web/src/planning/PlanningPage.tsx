@@ -526,6 +526,13 @@ export function PlanningPage() {
         </Typography>
       ) : null}
 
+      {payload.officers.every((officer) => officer.cells.every((cell) => cell.items.length === 0)) ? (
+        <Typography role="note" sx={{ fontSize: 13, color: colour.text.secondary }}>
+          No shifts on this week yet.
+          {canPublish ? ' Assign a shift from an empty cell, or commit a quarter plan for this week.' : ''}
+        </Typography>
+      ) : null}
+
       <Box
         component="section"
         id="roster"
