@@ -202,6 +202,11 @@ function sentenceFor(action: string, after: Record<string, unknown>): string {
         .filter(Boolean)
         .join(' · ');
     }
+    case 'set_officer_pattern': {
+      const from = PATTERN_WORDS[String(after.from)] ?? text(after.from);
+      const to = PATTERN_WORDS[String(after.to)] ?? text(after.to);
+      return `From ${from} to ${to}.`;
+    }
     case 'commit_plan': {
       const shifts = count(after.assignments);
       const units = Array.isArray(after.units) ? after.units.length : 0;

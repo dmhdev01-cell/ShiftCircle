@@ -29,6 +29,14 @@ describe('the audit codes', () => {
     }
   });
 
+  it('names the officer-pattern change and its target', () => {
+    // The option C planner writes this action against an employee.
+    expect(API_AUDIT_ACTIONS).toContain('set_officer_pattern');
+    expect(ACTION_LABELS.set_officer_pattern).toBe('Shift pattern changed');
+    expect(API_AUDIT_ENTITIES).toContain('employee');
+    expect(ENTITY_LABELS.employee).toBe('Officer');
+  });
+
   it('has a label for every entity type the api writes', () => {
     for (const entityType of API_AUDIT_ENTITIES) {
       expect(ENTITY_LABELS[entityType], `a label for ${entityType}`).toBeTruthy();
