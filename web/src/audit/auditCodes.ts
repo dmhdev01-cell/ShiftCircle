@@ -36,6 +36,11 @@ export const API_AUDIT_ACTIONS = [
   'rule_set_publish',
   'publish_schedule_period',
   'generate_demo_dataset',
+  'clear_actual',
+  'generate_plan',
+  'commit_plan',
+  'discard_plan',
+  'demo_reset',
 ] as const;
 
 /** Every entity type the api writes to audit_event.entity_type. */
@@ -48,6 +53,7 @@ export const API_AUDIT_ENTITIES = [
   'rule_set_version',
   'schedule_period',
   'demo',
+  'plan_draft',
 ] as const;
 
 /** Plain words for each action code. */
@@ -59,9 +65,14 @@ export const ACTION_LABELS: Record<string, string> = {
   record_actual: 'Actual recorded',
   record_absence: 'Absence recorded',
   lock_pay_period: 'Pay period locked',
+  demo_reset: 'Demo data reset',
   unlock_pay_period: 'Pay period unlocked',
   payroll_export: 'Payroll export',
   create_open_shift: 'Open shift created',
+  clear_actual: 'Actual or absence cleared',
+  generate_plan: 'Quarter plan generated',
+  commit_plan: 'Quarter plan committed',
+  discard_plan: 'Draft quarter plan discarded',
   offer_overtime: 'Overtime offered',
   accept_overtime_offer: 'Overtime accepted',
   decline_overtime_offer: 'Overtime declined',
@@ -88,6 +99,7 @@ export const ENTITY_LABELS: Record<string, string> = {
   rule_set_version: 'Rule version',
   schedule_period: 'Schedule period',
   demo: 'Demo',
+  plan_draft: 'Quarter plan draft',
 };
 
 /** One filter choice per entity type, so the filter cannot fall out of step. */
