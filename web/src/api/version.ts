@@ -24,6 +24,8 @@ export interface VersionInfo {
   profiles?: string;
   /** The server's "today" (`SC_DEMO_TODAY` on the demo profile). */
   asOf?: string;
+  /** True only on the demo profile: the reset control may be offered. */
+  demoMode?: boolean;
   /** The raw response body, kept so unexpected shapes can be shown as-is. */
   raw: unknown;
 }
@@ -51,6 +53,7 @@ export function normaliseVersion(raw: unknown): VersionInfo {
     ruleSetVersion: asString(source.ruleSetVersion),
     profiles: asString(source.profiles),
     asOf: asString(source.asOf),
+    demoMode: source.demoMode === true,
     raw,
   };
 }

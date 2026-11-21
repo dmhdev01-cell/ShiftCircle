@@ -800,6 +800,18 @@ export interface PlannerPreferenceRow {
   updatedAt: string | null;
 }
 
+export type DemoResetState = 'IDLE' | 'RUNNING' | 'DONE' | 'FAILED';
+
+export interface DemoResetStatus {
+  state: DemoResetState;
+  step: 'clean' | 'audit' | 'generating' | 'rules' | 'checksum' | 'done' | null;
+  startedAt: string | null;
+  elapsedMs: number;
+  checksum: string | null;
+  dataset: string;
+  error: string | null;
+}
+
 /** `GET /audit-events/actors`: the actors the caller may filter by. */
 export interface AuditActorChoice {
   username: string;
@@ -881,6 +893,10 @@ export interface ShiftCircleApi {
     range: { from: string; to: string },
   ): Promise<PlannerUnitCoverage[]>;
   getAuditActors(): Promise<AuditActorChoice[]>;
+
+  /** The demo reset (PLANNER only, demo profile only): start it, poll it. */
+  resetDemo(confirm: string, dataset: string): Promise<DemoResetStatus>;
+  getDemoResetStatus(): Promise<DemoResetStatus>;
   getPlannerCompare(draftId: string): Promise<PlannerCompare>;
 
   /** Preferences: the officer's own, and the planner's read of everyone's. */

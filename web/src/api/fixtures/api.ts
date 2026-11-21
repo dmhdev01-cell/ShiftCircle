@@ -18,6 +18,7 @@ import type {
   DemoUser,
   MockLoginResult,
   MyPreferencesInput,
+  DemoResetStatus,
   HoursReport,
   MyOffer,
   MySchedulePayload,
@@ -293,8 +294,19 @@ let assignmentCounter = 0;
 /**
  * Put the fixtures back, so one test cannot change what the next one sees.
  */
+let resetStatus: DemoResetStatus = {
+  state: 'IDLE',
+  step: null,
+  startedAt: null,
+  elapsedMs: 0,
+  checksum: null,
+  dataset: '100',
+  error: null,
+};
+
 export function resetFixtures(): void {
   assignmentCounter = 0;
+  resetStatus = { state: 'IDLE', step: null, startedAt: null, elapsedMs: 0, checksum: null, dataset: '100', error: null };
   resetOfferHistory();
   resetMyOffers();
   resetPlannerFixtures();
@@ -482,6 +494,25 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
     async getPlannerCoverage(_draftId: string, range: { from: string; to: string }) {
       await pause();
       return plannerCoverage(range);
+    },
+
+    async resetDemo(_confirm: string, dataset: string) {
+      await pause();
+      resetStatus = {
+        state: 'DONE',
+        step: 'done',
+        startedAt: '2026-11-21T10:00:00-06:00',
+        elapsedMs: 19800,
+        checksum: '3390148255db715844c4df90f553ae342530417621539b23499f638c5b126539',
+        dataset,
+        error: null,
+      };
+      return resetStatus;
+    },
+
+    async getDemoResetStatus() {
+      await pause();
+      return resetStatus;
     },
 
     async getAuditActors() {

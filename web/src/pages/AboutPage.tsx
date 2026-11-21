@@ -8,7 +8,9 @@ import Typography from '@mui/material/Typography';
 
 import { isKnownVersionShape } from '../api/version';
 import { useVersion } from '../api/useVersion';
+import { useRole } from '../shell/nav';
 import { colour } from '../theme/tokens';
+import { ResetDemoCard } from './ResetDemoCard';
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -37,6 +39,10 @@ function Row({ label, value }: { label: string; value: string }) {
  */
 export function AboutPage() {
   const { state, refresh } = useVersion();
+  const { role } = useRole();
+  // The reset exists on the demo profile alone, and it is the planner's job.
+  const canReset =
+    state.status === 'ready' && state.info.demoMode === true && role.id === 'PLANNER';
 
   return (
     <>
@@ -127,6 +133,8 @@ export function AboutPage() {
           </Typography>
         </CardContent>
       </Card>
+
+      {canReset ? <ResetDemoCard /> : null}
     </>
   );
 }
