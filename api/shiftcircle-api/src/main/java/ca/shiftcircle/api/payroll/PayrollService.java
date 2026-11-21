@@ -401,17 +401,17 @@ public class PayrollService {
     List<UUID> entries =
         jdbc.queryForList(
             "SELECT id FROM time_entry WHERE shift_assignment_id = ?", UUID.class, assignmentId);
-    UUID entityId = entries.isEmpty() ? assignmentId : entries.get(0);
-    String entityType = entries.isEmpty() ? "shift_assignment" : "time_entry";
+    // Audit against the assignment, not the entry that is about to be deleted: a supervisor's
+    // scope resolves time_entry events through the row that is gone (finding 2026-11-21).
+    Map<String, Object> after = new LinkedHashMap<>();
+    after.put("assignmentId", assignmentId.toString());
+    if (!entries.isEmpty()) {
+      after.put("clearedEntryId", entries.get(0).toString());
+    }
     jdbc.update("DELETE FROM time_entry WHERE shift_assignment_id = ?", assignmentId);
     jdbc.update("DELETE FROM absence WHERE shift_assignment_id = ?", assignmentId);
     recalculate(period.id());
-    audit(
-        principal,
-        "clear_actual",
-        entityType,
-        entityId,
-        Map.of("assignmentId", assignmentId.toString()));
+    audit(principal, "clear_actual", "shift_assignment", assignmentId, after);
     return result(assignmentId, assignment.employeeId(), period.id(), principal);
   }
 

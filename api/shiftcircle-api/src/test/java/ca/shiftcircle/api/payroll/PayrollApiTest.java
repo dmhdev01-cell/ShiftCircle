@@ -714,10 +714,53 @@ class PayrollApiTest {
     assertThat(cleared.get("needsActual")).isEqualTo(true);
     assertThat(
             jdbc.queryForObject(
-                "SELECT count(*) FROM audit_event WHERE action = 'clear_actual' AND entity_id = ?",
+                "SELECT count(*) FROM audit_event WHERE action = 'clear_actual'"
+                    + " AND entity_type = 'shift_assignment' AND entity_id = ?",
                 Integer.class,
-                entryId))
+                MISSING_ASSIGNMENTS[2]))
         .isEqualTo(1);
+
+    // The supervisor who cleared it can see the event: a dangling time_entry id made it invisible.
+    Map<String, Object> visible =
+        json(
+            send(
+                "GET",
+                "/api/v1/audit-events?action=clear_actual&entityId=" + MISSING_ASSIGNMENTS[2],
+                null,
+                tokens.get("m.ellis")));
+    assertThat((List<?>) visible.get("items")).hasSize(1);
+    assertThat(
+            mapper.readValue(
+                send("GET", "/api/v1/audit-events/actors", null, tokens.get("m.ellis")).body(),
+                List.class))
+        .extracting(actor -> ((Map<?, ?>) actor).get("username"))
+        .contains("m.ellis");
+
+    // Clearing an absence follows the same path and must be visible too.
+    assertThat(
+            send(
+                    "POST",
+                    "/api/v1/absences",
+                    "{\"assignmentId\":\"" + MISSING_ASSIGNMENTS[0] + "\",\"type\":\"SICK\"}",
+                    tokens.get("m.ellis"))
+                .statusCode())
+        .isEqualTo(201);
+    assertThat(
+            send(
+                    "DELETE",
+                    "/api/v1/time-entries/" + MISSING_ASSIGNMENTS[0],
+                    null,
+                    tokens.get("m.ellis"))
+                .statusCode())
+        .isEqualTo(200);
+    Map<String, Object> absenceClear =
+        json(
+            send(
+                "GET",
+                "/api/v1/audit-events?action=clear_actual&entityId=" + MISSING_ASSIGNMENTS[0],
+                null,
+                tokens.get("m.ellis")));
+    assertThat((List<?>) absenceClear.get("items")).hasSize(1);
   }
 
   @Test
