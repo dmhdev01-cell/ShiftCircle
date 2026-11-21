@@ -95,3 +95,8 @@ export const ENTITY_FILTER_CHOICES = API_AUDIT_ENTITIES.map((entityType) => ({
   value: entityType,
   label: ENTITY_LABELS[entityType],
 }));
+
+/** Every action the screen can filter by, in plain words, for the picker. */
+export const ACTION_CHOICES: { value: string; label: string }[] = Object.entries(ACTION_LABELS)
+  .map(([value, label]) => ({ value, label }))
+  .sort((left, right) => left.label.localeCompare(right.label));

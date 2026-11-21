@@ -11,6 +11,7 @@ import type {
   PlannerCommitPreview,
   PlannerCompare,
   MyPreferences,
+  AuditActorChoice,
   MyPreferencesInput,
   PlannerPreferenceRow,
   PlannerCommitResult,
@@ -231,6 +232,9 @@ export function createHttpApi(): ShiftCircleApi {
     },
     getPlannerWarnings(draftId: string): Promise<PlannerWarningGroup[]> {
       return request<PlannerWarningGroup[]>(`/planner/drafts/${draftId}/warnings`);
+    },
+    getAuditActors(): Promise<AuditActorChoice[]> {
+      return request<AuditActorChoice[]>('/audit-events/actors');
     },
     getMyPreferences(): Promise<MyPreferences> {
       return request<MyPreferences>('/me/preferences');

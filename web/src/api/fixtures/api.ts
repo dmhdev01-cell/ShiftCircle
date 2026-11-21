@@ -472,6 +472,15 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
       return plannerWarnings();
     },
 
+    async getAuditActors() {
+      await pause();
+      return [
+        { username: 'm.ellis', displayName: 'M. Ellis' },
+        { username: 'p.singh', displayName: 'P. Singh' },
+        { username: 'a.reviewer', displayName: 'A. Reviewer' },
+      ];
+    },
+
     async getMyPreferences() {
       await pause();
       return fixtureMyPreferences();

@@ -793,6 +793,12 @@ export interface PlannerPreferenceRow {
   updatedAt: string | null;
 }
 
+/** `GET /audit-events/actors`: the actors the caller may filter by. */
+export interface AuditActorChoice {
+  username: string;
+  displayName: string;
+}
+
 export interface PlannerCompareRow {
   key: string;
   label: string;
@@ -852,6 +858,7 @@ export interface ShiftCircleApi {
   getPlannerDraft(draftId: string): Promise<PlannerDraft>;
   getPlannerGaps(draftId: string): Promise<PlannerGap[]>;
   getPlannerWarnings(draftId: string): Promise<PlannerWarningGroup[]>;
+  getAuditActors(): Promise<AuditActorChoice[]>;
   getPlannerCompare(draftId: string): Promise<PlannerCompare>;
 
   /** Preferences: the officer's own, and the planner's read of everyone's. */
