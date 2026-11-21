@@ -2,7 +2,7 @@
 
 **Derived from the test sources, not from the prose.** Checked on 2026-11-20 against `main` at
 `72ebd24` by grepping `@Test`, Playwright `test(...)` titles and the Flyway migrations. The
-sources hold **106 rules + 27 infrastructure + 244 api = 377 tests**, counted as `@Test` methods
+sources hold **106 rules + 27 infrastructure + 248 api = 381 tests**, counted as `@Test` methods
 on their own line (no parameterised tests). The latest independent runs are dev-qa's: API at
 `f4496c6` is **356, 0 failures/errors/skipped**, in the default order (the random-seed run at that
 tip is this author's); web unit tests at `72ebd24` are **239 in 29 files**, 0 failed; Playwright
@@ -10,7 +10,7 @@ against the real api, whole suite, gives desktop 86 and tablet 85 + 1 skipped, a
 22 (+56 skipped by design) and 21 (+57). Earlier, as history: this author's full API runs were 356
 at `8a2257a` (default and seed 20261121), 352 at `c8c05cd`, 351 at `dc6890e`; dev-qa's independent
 run at `c0dcaf3` was 348. Phase 3 at `d25414f` adds 1 rules test (the all-phase weekend probe), 2
-planner tests and 2 slice-1 tests; this author's full clean-worktree runs there are **377, 0
+planner tests and 2 slice-1 tests; this author's full clean-worktree runs there are **381, 0
 failures/errors/skipped**, default order and random seed 20261121 (one Testcontainers SSL flake on
 the first random attempt, green on rerun); dev-qa's independent run at that tip is pending. A proof
 below names the test class and method that makes the claim, not the document that hopes it exists.
@@ -232,3 +232,7 @@ no assertion was weakened.
 | A draft that touches a locked period is refused at commit | `PlannerApiTest#aDraftThatTouchesALockedPeriodIsRefusedAtCommit` | PASS |
 | PLANNER reads the board but other roles cannot; discard leaves no open draft | `PlannerApiTest#plannerReadsTheBoardButCannotPublishOrSave`, `#discardLeavesNoOpenDraftAndTheRolesAreEnforced` | PASS |
 | The weekend pattern default is chosen from engine evidence | `WeekendRotationProbeTest#aFixedDaysOffPairIsClean` (fixed pairs clean), `#everyPhaseOfARotatingSevenPeriodQuarterWarnsAtTheWrap` (each rotating phase hits Sun-Mon and warns U-12 inside 7 periods), `#advancingThePairCreatesRestDayWarnings`, `#aPairMovingEarlierOncePerPayPeriodIsCleanAtEightyHours`, `#movingThePairEarlierEveryWeekWarns` | PASS |
+
+| Demo reset empties and reloads the exact seed; twice, same checksum and golden | `DemoResetApiTest#resetsTwiceToTheSameSeededStateAndAuditsIt` (100 employees, 8 users, no planner drafts/2027 periods, checksum 3390148255..., d502... golden, `demo_reset` first audit row), `#guardsTheReset` (400/401/403, status PLANNER-only, `demoMode`); `DemoResetProfileTest#resetDoesNotExistOutsideTheDemoProfile` | PASS |
+| Full-time officers keep the pattern; FTE<1 casuals fill gaps without exceeding target | `PlanGeneratorFteTest#casualsFillGapsWithoutExceedingTheirTarget` (100 FT + 50 casuals, gaps 617 -> 223, every casual at/under FTE x 80 per period, fteBands present) | PASS |
+| The planner rosters no 16 h shifts; that preference is shown unmet | `PlannerApiTest#noDraftAssignmentViolatesABlockRuleAndDefaultPatternsStayAtEightyHours` (no L16 in the draft), `#preferencesAreEditableAndPlannerCanReadThem` (16 h unmet reason) | PASS |

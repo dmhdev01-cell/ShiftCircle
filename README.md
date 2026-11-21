@@ -155,11 +155,11 @@ run at that tip is this author's). Web unit tests at `72ebd24`: **239 passed in 
 against the real api, whole suite: desktop **86 passed**, tablet **85 passed + 1 skipped** (the
 TV-size check is desktop-only); fixtures: desktop 22 passed (+56 skipped by design as `@api`),
 tablet 21 (+57). The static counts in this tree agree (101 + 27 + 228 `@Test` methods, one per line,
-no parameterised tests). Phase 3 at `d25414f` adds the planner and trial fixes: **377 = 106 rules +
-27 infrastructure + 244 api**; this author's full clean-worktree runs there are 377, 0
-failures/errors/skipped, in the default order and with random seed 20261121 (the first random
-attempt hit a Testcontainers Postgres SSL handshake flake during context loading; the rerun was
-green). dev-qa's independent run at that tip is pending. Earlier, as history: this author's full API
+no parameterised tests). Phase 3 at `eaf4df6` adds the planner, reset, 16 h policy, block rephasing and the FTE pool:
+**381 = 106 rules + 27 infrastructure + 248 api**; this author's full clean-worktree runs there are
+381, 0 failures/errors/skipped, in the default order and with random seed 20261121 (an earlier
+random attempt hit a Testcontainers Postgres SSL handshake flake during context loading; the rerun
+was green). dev-qa's independent run at this tip is pending. Earlier, as history: this author's full API
 runs were 356 at `8a2257a`,
 352 at `c8c05cd`, 351 at `dc6890e` and 348 at `c0dcaf3` (the last also dev-qa's independent run),
 301 = 91 + 27 + 183 at `5e7765f`, 296 = 91 + 22 + 183 at `dcee43b`, and default/random at
