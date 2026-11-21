@@ -415,7 +415,7 @@ person on 2026-11-21): the days-off pair retreats one weekday per pay period and
 U-14 warning there (where a seventh consecutive day would otherwise block, a second 72 h period is
 used), and hours are balanced over the quarter (the scorecard says so and reports `quarterHours`
 min/avg/max as a report-only U-13 figure). `5_ON_2_OFF` (fixed pairs, 80 h, no warnings) and
-`7_ON_3_OFF` are selectable. The 100 seed's 12 h officers use A12/P12 4-on/4-off; the 150 dataset
+`7_ON_3_OFF` are selectable. The 100 seed's 12 h officers use A12/P12 4-on/4-off; the 120 dataset
 uses the V6 D12 07-19 / N12 19-07 crews with paired phases. The planner never rosters 16 h (a 16 h
 preference is stored and shown unmet; in practice a "16 h shift" is a 12 h shift plus ~4 h overtime
 extension recorded after the fact). A committed quarter creates its seven 14-day pay periods and
@@ -425,11 +425,11 @@ each unit's schedule periods, so it can be locked and paid.
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
-| POST | `/demo/reset` | `{ "confirm": "RESET", "dataset": "100" }` → start emptying and reloading the seeded demo dataset; 400 on a bad confirmation or dataset, 409 while a reset or a planner generate/commit is in flight | PLANNER |
-| GET | `/demo/reset/status` | `{ state: IDLE\|RUNNING\|DONE\|FAILED, step, startedAt, elapsedMs, checksum, dataset, error }` | PLANNER |
+| POST | `/demo/reset` | `{ "confirm": "RESET", "dataset": "100" }` → start emptying and reloading the selected demo dataset. `dataset` defaults to `100`; `120` is the 100 full-time crews + 20 casual relief pool; an unknown value is 400 listing the available datasets; 409 while a reset or a planner generate/commit is in flight | PLANNER |
+| GET | `/demo/reset/status` | `{ state: IDLE\|RUNNING\|DONE\|FAILED, step, startedAt, elapsedMs, checksum, dataset, error }`; `dataset` is the one that ran | PLANNER |
 
-The endpoints exist only on the **demo** profile (`/version` carries `demoMode` so the web shows the
-About-screen control there). The reset is asynchronous: it clean-migrates the schema, re-runs the
+The endpoints exist only on the **demo** profile (`/version` carries `demoMode` and the
+`datasets` list `["100","120"]` so the web shows the selector there). The reset is asynchronous: it clean-migrates the schema, re-runs the
 same deterministic `DemoDataGenerator`, reloads the live rule base, and returns the dataset checksum.
 While it runs, every other API call answers `409` (status and version stay reachable), and the first
 audit event afterwards is `demo_reset`, so it is visible that the previous history was erased. User
