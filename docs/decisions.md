@@ -175,7 +175,7 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 
 
 ## ADR-026: Quarter planner — deterministic heuristic, rule-verified draft, confirmed pattern defaults
-**Status:** Accepted (2026-11-21). **Confirmed by the person on 2026-11-21** (via operator-agent): the 8 h default stays 5 on / 2 off, nights are N8/A12/L16, and the plan starts Mon 4 Jan 2027.
+**Status:** Accepted (2026-11-21). **Confirmed by the person on 2026-11-21** (via operator-agent), with the later refinements recorded here: the plan starts Mon 4 Jan 2027 (00:28Z); weekends rotate (00:29Z); the 8 h default is the rotating 5 on / 2 off pattern (option F, 01:56Z); only 12 h officers work nights (02:24Z); the real 12 h shifts are D12 07:00–19:00 and N12 19:00–07:00, run by separate day and night crews (02:26Z); a "16 h shift" is a 12 h shift plus about 4 h worked as an extension (02:29Z); actual times feed the rule checks where a time entry exists (02:35Z); dataset 120 is 100 full-time crew officers plus 20 casual relief officers (04:19Z); planned absences are a read-only planner input (05:21Z).
 **Context:** the person wants a facility-level planner to build a whole-quarter draft from preferences and seniority, then supervisors adjust it. The rules engine is the product's safety boundary; a solver would put a second copy of the rules beside it, and a time-boxed solver would not be deterministic. The deadline leaves one day for verification.
 **Decision:**
 - **Heuristic, not a solver.** Deterministic constructive placement with a fixed seed and stable ordering; a bounded local search is a Should and was not built. The same seed and data produce the same plan (pinned by `PlannerApiTest#theSameSeedAndDataProduceTheSamePlan`).
@@ -200,13 +200,29 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
   engine-verified and never above FTE × 80 hours in a pay period. The scorecard reports hours
   against target by FTE band and says plainly that part-time/casual officers fill what is left;
   unfilled gaps stay gaps.
+- **Actual times in rule checks (person, 2026-11-21 02:35Z, amendments item 17).** Where a time
+  entry exists, the fact builders use the **actual end** instead of the rostered end, so U-04,
+  U-05 and the next shift's U-01/U-02 rest see a recorded extension; the next day's proposal is
+  checked against the actual, not the roster. The `PUT /time-entries` body that carried both
+  `workedAsScheduled` and actual times is now `400` and writes nothing. The 100 checksum and the
+  payroll golden are unchanged; 132 seeded entries legitimately differ from the roster, so some
+  seeded checks now cite actual times (e.g. Unit A N8 13 Nov: U-01/U-05/U-14 BLOCK with a
+  94-minute actual). Known limit: an actual recorded after later shifts already exist is not
+  re-checked (audited, post-freeze).
+- **Demo reset and dataset 120 (person, 2026-11-21 04:19Z, option B).** The reset card selects
+  `100` (the default seed, unchanged) or `120` = 100 full-time crew officers + 20 casual relief
+  officers (FTE 0.4–0.8). The reset is a Flyway clean+migrate seeded by the selected provider,
+  asynchronous, one at a time, PLANNER-only and audited; a reset back to 100 restores the 100
+  checksum and the V3 unit flags. The 120 provider is the crew dataset in
+  `DATASET120-SPEC.md` (38 N12 + 54 D12 + 3 E8 + 5 relief + 20 casuals); it is a separate provider,
+  not a change to the 100 seed.
 **ESC evening cover (known):** Escort & transport has only D12/N12 crews and no E8 officer; its 19-23 evening requirement is deliberately thin, and all 38 gaps in the 120 plan are ESC evening block-days (measured). Adding an E8 crew or more N12 posts would close them; the demo states this rather than hiding it.
 **Trade-offs (stated plainly):** the default rotates weekends but every officer still gets a fixed 5/2 rhythm within a period; the fixed pattern keeps some officers on weekends and says so; a constructive plan has more gaps than a solver might (gaps are visible and fillable, never hidden); a draft can become stale between preview and commit, which the ETag and the re-check catch. **Night capacity is now explicit:** with 14 effective 12 h officers for 19 night posts a day, every unit-night is short (588 short night block-days; 727 gaps of 1,764 in the default plan after the paired 12 h phases; DAY 109, EVENING 30), and 8 h casuals cannot fill nights. The 120 dataset must carry at least 38 N12-capable officers (4-on/4-off) plus the qualified mix before the night gaps can close.
 **Consequences:** `V5__planner.sql`, `PlanGenerator`, `PlannerService`, `PlannerController`, `PreferenceController`, `RuleCheckService.evaluate(ShiftFact, List<ShiftFact>)`; `PlannerApiTest`, `WeekendRotationProbeTest`; `07-api-spec.md` §4.9, `09-access-control.md` §2, `06-data-model.md` §6.
 
 ## ADR-027 — D12/N12 crews and rule-set v2 (additive)
 
-**Status:** Accepted (2026-11-21), after the person's amendments 13/14/18 and the GO on D12/N12.
+**Status:** Accepted (2026-11-21), after the person's amendments 13/14 (02:24Z and 02:26Z), the GO on D12/N12 at 02:27Z, and the option-B dataset 120 choice at 04:19Z.
 **Decision:** V6 adds the `D12` 07:00–19:00 and `N12` 19:00–07:00 templates (effective 2027-01-04)
 and publishes baseline rule-set version 2. U-02's `afterShiftKind` becomes
 `(D8|E8|N8|A12|P12|D12|N12)` — additive, existing kinds unchanged — and U-10's wording is
