@@ -9,10 +9,16 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -242,6 +248,79 @@ class PlannerAbsenceApiTest {
                     tokens.get("p.planner"))
                 .statusCode())
         .isEqualTo(400);
+  }
+
+  @Test
+  void concurrentAbsencesForOneOfficerDayLeaveOneRow() throws Exception {
+    UUID employee =
+        jdbc.queryForObject("SELECT id FROM employee ORDER BY employee_no LIMIT 1", UUID.class);
+    jdbc.update("DELETE FROM absence WHERE employee_id = ?", employee);
+    String date = "2027-02-05";
+    String[] types = {"SICK", "VACATION", "OTHER", "SICK", "VACATION", "OTHER"};
+
+    ExecutorService pool = Executors.newFixedThreadPool(types.length);
+    CountDownLatch start = new CountDownLatch(1);
+    List<Future<HttpResponse<String>>> futures = new ArrayList<>();
+    for (String type : types) {
+      futures.add(
+          pool.submit(
+              () -> {
+                start.await();
+                return send(
+                    "POST",
+                    "/api/v1/planner/absences",
+                    "{\"employeeId\":\""
+                        + employee
+                        + "\",\"date\":\""
+                        + date
+                        + "\",\"type\":\""
+                        + type
+                        + "\"}",
+                    tokens.get("p.planner"));
+              }));
+    }
+    start.countDown();
+    List<Integer> statuses = new ArrayList<>();
+    for (Future<HttpResponse<String>> future : futures) {
+      statuses.add(future.get(30, TimeUnit.SECONDS).statusCode());
+    }
+    pool.shutdownNow();
+
+    assertThat(statuses).allMatch(status -> status == 200 || status == 201 || status == 409);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM absence WHERE employee_id = ? AND start_at = ? AND end_at = ?"
+                    + " AND shift_assignment_id IS NULL",
+                Integer.class,
+                employee,
+                java.sql.Timestamp.from(
+                    LocalDate.parse(date)
+                        .atStartOfDay(java.time.ZoneId.of("America/Regina"))
+                        .toInstant()),
+                java.sql.Timestamp.from(
+                    LocalDate.parse(date)
+                        .plusDays(1)
+                        .atStartOfDay(java.time.ZoneId.of("America/Regina"))
+                        .toInstant())))
+        .as("one officer-day has one planned absence, whatever the race; statuses %s", statuses)
+        .isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(DISTINCT type) FROM absence WHERE employee_id = ? AND start_at = ?"
+                    + " AND end_at = ? AND shift_assignment_id IS NULL",
+                Integer.class,
+                employee,
+                java.sql.Timestamp.from(
+                    LocalDate.parse(date)
+                        .atStartOfDay(java.time.ZoneId.of("America/Regina"))
+                        .toInstant()),
+                java.sql.Timestamp.from(
+                    LocalDate.parse(date)
+                        .plusDays(1)
+                        .atStartOfDay(java.time.ZoneId.of("America/Regina"))
+                        .toInstant())))
+        .isEqualTo(1);
+    jdbc.update("DELETE FROM absence WHERE employee_id = ?", employee);
   }
 
   private void reset120() throws Exception {

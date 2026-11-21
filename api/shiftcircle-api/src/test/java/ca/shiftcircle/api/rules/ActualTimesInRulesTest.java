@@ -127,18 +127,27 @@ class ActualTimesInRulesTest {
 
   /** The rule results of a preview for the next day's D8. */
   private List<Map<String, Object>> checkNextDay() throws Exception {
-    String change =
-        "{\"change\":{\"type\":\"ASSIGN\",\"employeeId\":\""
-            + EMPLOYEE
-            + "\",\"unitId\":\""
-            + UNIT
-            + "\",\"shiftTemplate\":\"D8\",\"startAt\":\""
-            + DAY.plusDays(1)
-            + "T12:00:00-06:00\"}}";
-    HttpResponse<String> response = post("/api/v1/rule-checks", change);
+    return checkNextDayAt("12:00:00-06:00");
+  }
+
+  /** The rule results of a preview for the next day's D8 at a chosen local time. */
+  private List<Map<String, Object>> checkNextDayAt(String time) throws Exception {
+    HttpResponse<String> response = post("/api/v1/rule-checks", changeBodyAt(time));
     assertThat(response.statusCode()).isEqualTo(200);
     return (List<Map<String, Object>>)
         (List<?>) mapper.readValue(response.body(), Map.class).get("ruleResults");
+  }
+
+  private String changeBodyAt(String time) {
+    return "{\"change\":{\"type\":\"ASSIGN\",\"employeeId\":\""
+        + EMPLOYEE
+        + "\",\"unitId\":\""
+        + UNIT
+        + "\",\"shiftTemplate\":\"D8\",\"startAt\":\""
+        + DAY.plusDays(1)
+        + "T"
+        + time
+        + "\"}}";
   }
 
   private void extension(int hours) throws Exception {
@@ -193,24 +202,46 @@ class ActualTimesInRulesTest {
   }
 
   @Test
-  void aShorterActualAlsoMovesTheRestWindow() throws Exception {
-    // The other direction matters too: an officer who left early has more rest
-    // than the roster says, and the next shift is judged on the actual end.
-    HttpResponse<String> response =
+  void aShortActualCannotRelaxTheRestOrHoursBlock() throws Exception {
+    // P3-2: a 1-minute actual used to replace the rostered end, so the 8 h statutory
+    // rest Block became a warning and POST /assignments saved with acknowledgements.
+    // The rules now see the envelope (earliest start, latest end), so the short actual
+    // cannot shorten the P12 ending at 24:00.
+    List<Map<String, Object>> before = checkNextDayAt("07:30:00-06:00");
+    assertThat(outcomeOf(before, "U-01")).isEqualTo("BLOCK");
+    assertThat(outcomeOf(before, "U-05")).isEqualTo("BLOCK");
+
+    HttpResponse<String> shortActual =
         put(
             "/api/v1/time-entries/66666666-6666-6666-6666-000000000901",
             "{\"workedAsScheduled\":false,\"actualStart\":\""
                 + DAY
                 + "T12:00:00-06:00\",\"actualEnd\":\""
                 + DAY
-                + "T20:00:00-06:00\"}");
-    assertThat(response.statusCode()).isEqualTo(200);
+                + "T12:01:00-06:00\"}");
+    assertThat(shortActual.statusCode()).as(shortActual.body()).isEqualTo(200);
 
-    List<Map<String, Object>> results = checkNextDay();
+    List<Map<String, Object>> after = checkNextDayAt("07:30:00-06:00");
+    assertThat(outcomeOf(after, "U-01"))
+        .as("a short actual cannot shorten the rest the roster requires: %s", after)
+        .isEqualTo("BLOCK");
+    assertThat(outcomeOf(after, "U-05"))
+        .as("the 12 h rostered shift still counts in the 24 h window: %s", after)
+        .isEqualTo("BLOCK");
 
-    // 16 h of rest from 20:00 to 12:00 next day: no rest warning at 10 h.
-    assertThat(outcomeOf(results, "U-04")).withFailMessage(String.valueOf(results)).isEqualTo("NONE");
-    assertThat(outcomeOf(results, "U-01")).withFailMessage(String.valueOf(results)).isEqualTo("NONE");
+    String warnings =
+        mapper.writeValueAsString(
+            after.stream()
+                .filter(result -> "WARN".equals(result.get("outcome")))
+                .map(result -> result.get("ruleCode"))
+                .toList());
+    String body = changeBodyAt("07:30:00-06:00");
+    String acknowledged =
+        body.substring(0, body.length() - 1) + ",\"acknowledgeWarnings\":" + warnings + "}";
+    HttpResponse<String> saved = post("/api/v1/assignments", acknowledged);
+    assertThat(saved.statusCode()).as(saved.body()).isEqualTo(422);
+    assertThat((String) mapper.readValue(saved.body(), Map.class).get("type"))
+        .endsWith("/blocked-by-rules");
   }
 
   @Test
