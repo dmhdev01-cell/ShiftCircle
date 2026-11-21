@@ -4,6 +4,24 @@ Flows E1–E5 from `docs/10-testing.md` §5, on a desktop (1440 × 900) and a ta
 
 Specs find elements by role, label or text, never by CSS path. `BASE_URL` picks the web under test (default `http://localhost:8080`).
 
+## The commit guard (real-api runs)
+
+A real-api run must say which build it is testing and must not land on the
+person's trial stack by accident (one did, and changed their data):
+
+```sh
+EXPECT_COMMIT=<hash> BASE_URL=http://localhost:18081 npx playwright test --grep-invert @fixtures
+```
+
+`global-setup.ts` then refuses unless `BASE_URL/api/v1/version` reports a
+`gitCommit` starting with `EXPECT_COMMIT`. It also refuses port 18080 unless
+`ALLOW_PERSON_STACK=yes` is set (the person's trial stack is not a test
+target), and refuses when the version cannot be read at all. The rules are in
+`scripts/commit-guard.cjs` with their own `node --test scripts/commit-guard.test.cjs`.
+
+Fixtures-mode runs set `E2E_MODE=fixtures` and skip the guard: that build has
+no api behind it.
+
 **Chromium only.** Both projects are Desktop Chrome; the config refuses any other browser (Firefox and WebKit took the project lead's window server down). What the suite covers, screen by role by state, and the product defects it found are in [COVERAGE.md](COVERAGE.md).
 
 **Known defects** are tests that assert the correct behaviour and carry `test.fail(true, 'Dn: …')`: they count as passed while the defect is there and report "expected to fail, but passed" once it is fixed; then remove the marker.

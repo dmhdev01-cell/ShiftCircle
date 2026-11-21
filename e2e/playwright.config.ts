@@ -42,6 +42,9 @@ for (const project of projects) {
 
 export default defineConfig({
   testDir: './tests',
+  // Refuses the wrong commit, the person's stack (18080) and an unreachable
+  // stack; fixtures-mode runs set E2E_MODE=fixtures (see README).
+  globalSetup: './global-setup.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,

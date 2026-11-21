@@ -130,15 +130,18 @@ docker run --rm -v "$PWD/e2e":/app -w /app node:24-alpine \
 # the stack the suite drives
 docker compose up -d --build --wait
 
-# desktop viewport, real api (skip the fixtures-only specs)
+# desktop viewport, real api (skip the fixtures-only specs). The commit guard
+# requires EXPECT_COMMIT: the suite refuses to drive a stack running a build
+# other than the one you name, and refuses port 18080 (the person's trial stack)
+# unless ALLOW_PERSON_STACK=yes.
 docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
-  -e BASE_URL=http://host.docker.internal:8080 \
+  -e BASE_URL=http://host.docker.internal:8080 -e EXPECT_COMMIT=<the commit you built> \
   mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
 
 # tablet: the real-api specs change data, so a fresh stack per viewport
 docker compose down -v && docker compose up -d --wait
 docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
-  -e BASE_URL=http://host.docker.internal:8080 \
+  -e BASE_URL=http://host.docker.internal:8080 -e EXPECT_COMMIT=<the commit you built> \
   mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project tablet
 ```
 
