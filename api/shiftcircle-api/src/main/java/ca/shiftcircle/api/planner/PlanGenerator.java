@@ -119,12 +119,19 @@ public final class PlanGenerator {
     Map<UUID, List<Assignment>> byEmployee = new HashMap<>();
     List<Assignment> assignments = new ArrayList<>();
     List<Warning> warnings = new ArrayList<>();
+    Set<String> warningKeys = new LinkedHashSet<>();
     List<Gap> gaps = new ArrayList<>();
 
+    Map<UUID, List<Employee>> baseStaff = new HashMap<>();
+    employees.forEach(employee -> baseStaff.computeIfAbsent(employee.unitId(), k -> new ArrayList<>()).add(employee));
+    baseStaff.values().forEach(list -> list.sort(Comparator.comparing(Employee::seniority)));
+    Map<UUID, String> blockOf = assignBlocks(units, baseStaff);
+    // Allocation improvement: stagger phases inside each unit's block group, not across the whole
+    // unit, so a day group always works the same number of days on each weekday.
+    List<Employee> rephased = rephase(employees, blockOf);
     Map<UUID, List<Employee>> staff = new HashMap<>();
-    employees.forEach(employee -> staff.computeIfAbsent(employee.unitId(), k -> new ArrayList<>()).add(employee));
+    rephased.forEach(employee -> staff.computeIfAbsent(employee.unitId(), k -> new ArrayList<>()).add(employee));
     staff.values().forEach(list -> list.sort(Comparator.comparing(Employee::seniority)));
-    Map<UUID, String> blockOf = assignBlocks(units, staff);
 
     for (LocalDate date = FROM; !date.isAfter(TO); date = date.plusDays(1)) {
       for (Unit unit : units) {
@@ -190,15 +197,8 @@ public final class PlanGenerator {
                         true,
                         true));
             for (RuleWarning result : checkedWarnings) {
-              warnings.add(
-                  new Warning(
-                      result.ruleCode(),
-                      ruleName(result.ruleCode()),
-                      result.message(),
-                      unit.code(),
-                      chosen.name(),
-                      date,
-                      template.code()));
+              addWarning(warnings, warningKeys, chosen.id().toString(), result, unit.code(),
+                  chosen.name(), date, template.code());
             }
           }
         }
@@ -248,15 +248,8 @@ public final class PlanGenerator {
                       true,
                       true));
           for (RuleWarning warning : check.warnings()) {
-            warnings.add(
-                new Warning(
-                    warning.ruleCode(),
-                    ruleName(warning.ruleCode()),
-                    warning.message(),
-                    unit.code(),
-                    employee.name(),
-                    date,
-                    template.code()));
+            addWarning(warnings, warningKeys, employee.id().toString(), warning, unit.code(),
+                employee.name(), date, template.code());
           }
         }
         for (String block : BLOCKS) {
@@ -283,7 +276,7 @@ public final class PlanGenerator {
     Map<String, Object> scorecard =
         scorecard(
             employees, units, assignments, byEmployee, gaps, warnings, pattern8h, started, facts,
-            templates, verifier);
+            templates, verifier, blockOf);
     return new Result(assignments, gaps, warnings, scorecard);
   }
 
@@ -410,10 +403,20 @@ public final class PlanGenerator {
       return Math.floorMod(day + phase, 10) < 7;
     }
     int period = (int) (day / 14);
-    int pairStart =
-        "ROTATING_5_2".equals(pattern8h)
-            ? Math.floorMod(phase - period, 7)
-            : Math.floorMod(phase, 7);
+    int dayInPeriod = (int) (day % 14);
+    if ("ROTATING_5_2".equals(pattern8h)) {
+      int pair = Math.floorMod(phase - period, 7);
+      if (pair == 6) {
+        // The wrap takes a 3-day break (Mon-Wed) plus Mon-Tue in the second week, so the
+        // Sun-Mon state is never used: 9 work days, 72 h in this period, and no U-12/U-14 at
+        // the changeover. Hours are balanced over the quarter, not per period.
+        return dayInPeriod != 0 && dayInPeriod != 1 && dayInPeriod != 2
+            && dayInPeriod != 7 && dayInPeriod != 8;
+      }
+      int weekDay = date.getDayOfWeek().getValue() - 1;
+      return weekDay != pair && weekDay != (pair + 1) % 7;
+    }
+    int pairStart = Math.floorMod(phase, 7);
     int weekDay = date.getDayOfWeek().getValue() - 1;
     return weekDay != pairStart && weekDay != (pairStart + 1) % 7;
   }
@@ -484,6 +487,52 @@ public final class PlanGenerator {
         : pref.timeOfDay();
   }
 
+  /** One item per officer per rule: the changeover warning is one event, not one per later shift. */
+  private static void addWarning(
+      List<Warning> warnings,
+      Set<String> keys,
+      String employeeId,
+      RuleWarning rule,
+      String unitCode,
+      String employeeName,
+      LocalDate date,
+      String shift) {
+    if (keys.add(employeeId + "|" + rule.ruleCode())) {
+      warnings.add(
+          new Warning(
+              rule.ruleCode(),
+              ruleName(rule.ruleCode()),
+              rule.message(),
+              unitCode,
+              employeeName,
+              date,
+              shift));
+    }
+  }
+
+  private static List<Employee> rephase(
+      List<Employee> employees, Map<UUID, String> blockOf) {
+    Map<String, Integer> counters = new HashMap<>();
+    List<Employee> result = new ArrayList<>();
+    for (Employee employee : employees) {
+      int cycle = employee.effectiveLength() == 12 ? 8 : 7;
+      String key = employee.unitId() + "|" + blockOf.getOrDefault(employee.id(), "DAY");
+      int index = counters.merge(key, 1, Integer::sum) - 1;
+      result.add(
+          new Employee(
+              employee.id(),
+              employee.employeeNo(),
+              employee.name(),
+              employee.unitId(),
+              employee.unitCode(),
+              employee.seniority(),
+              employee.pref(),
+              employee.effectiveLength(),
+              index % cycle));
+    }
+    return result;
+  }
+
   private static Map<String, Object> scorecard(
       List<Employee> employees,
       List<Unit> units,
@@ -495,7 +544,8 @@ public final class PlanGenerator {
       long startedNanos,
       Map<UUID, List<ShiftFact>> facts,
       Map<String, Template> templates,
-      Verifier verifier) {
+      Verifier verifier,
+      Map<UUID, String> blockOf) {
     Map<String, Object> scorecard = new LinkedHashMap<>();
     long totalBlockDays = (long) units.size() * ChronoUnit.DAYS.between(FROM, TO.plusDays(1)) * 3;
     scorecard.put(
@@ -506,6 +556,10 @@ public final class PlanGenerator {
     scorecard.put("warnings", warningsCard(warnings));
     scorecard.put("preferences", preferencesCard(employees, byEmployee));
     scorecard.put(
+        "preferencesNote",
+        "The planner rosters 8- and 12-hour shifts only; a 16 h preference is shown unmet. Part-time"
+            + " and casual officers are not guaranteed hours.");
+    scorecard.put(
         "nights",
         nightsCard(
             employees,
@@ -515,9 +569,20 @@ public final class PlanGenerator {
             facts,
             templates,
             verifier,
-            pattern8h));
+            pattern8h,
+            blockOf));
     scorecard.put("overtime", overtimeCard(employees, byEmployee));
     scorecard.put("weekends", weekendsCard(employees, byEmployee));
+    scorecard.put("quarterHours", quarterHoursCard(employees, byEmployee));
+    if ("ROTATING_5_2".equals(pattern8h)) {
+      scorecard.put(
+          "warningNote",
+          "At the weekend-rotation changeover an officer has one ordinary rest-day warning"
+              + " (fewer than 2 days off in 7) and one weekly-hours warning (over 48 h in 7 days),"
+              + " and the changeover pay period is 72 hours; where the pattern would otherwise create"
+              + " a seventh consecutive work day, a second 72-hour period keeps every shift free of a"
+              + " Block rule. Hours are balanced over the quarter, not per period.");
+    }
     scorecard.put(
         "generatedMs", (System.nanoTime() - startedNanos) / 1_000_000);
     scorecard.put("pattern8h", pattern8h);
@@ -596,7 +661,8 @@ public final class PlanGenerator {
       Map<UUID, List<ShiftFact>> facts,
       Map<String, Template> templates,
       Verifier verifier,
-      String pattern8h) {
+      String pattern8h,
+      Map<UUID, String> blockOf) {
     List<Employee> sorted = new ArrayList<>(employees);
     sorted.sort(Comparator.comparing(Employee::seniority));
     int third = Math.max(1, sorted.size() / 3);
@@ -668,7 +734,12 @@ public final class PlanGenerator {
                   .filter(other -> other.seniority().isAfter(officer.seniority()))
                   .filter(other -> !working.contains(other.id()))
                   .filter(other -> works(other, checkDate, pattern8h))
+                  .filter(other -> "NIGHT".equals(blockOf.getOrDefault(other.id(), "DAY")))
                   .filter(other -> !"NIGHT".equals(other.pref().timeOfDay()))
+                  // The generator chooses a night GROUP newest-first, not a person per day; a
+                  // newer officer who also works nights is not being passed over.
+                  .filter(other -> byEmployee.getOrDefault(other.id(), List.of()).stream()
+                      .noneMatch(shift -> isNight(shift.templateCode())))
                   .filter(other -> effectiveLength(other) == 8)
                   .filter(
                       other ->
@@ -729,6 +800,23 @@ public final class PlanGenerator {
     }
     return Map.of(
         "officersOver", officersOver, "hoursOver", round1(hoursOver), "thresholdHours", 80);
+  }
+
+  /** U-13 report only: hours per officer averaged over the quarter, not a payroll input (P-01). */
+  private static Map<String, Object> quarterHoursCard(
+      List<Employee> employees, Map<UUID, List<Assignment>> byEmployee) {
+    List<Double> totals = new ArrayList<>();
+    for (Employee employee : employees) {
+      totals.add(
+          byEmployee.getOrDefault(employee.id(), List.of()).stream()
+              .mapToDouble(
+                  shift -> Duration.between(shift.start(), shift.end()).toMinutes() / 60.0)
+              .sum());
+    }
+    double min = totals.stream().mapToDouble(Double::doubleValue).min().orElse(0);
+    double max = totals.stream().mapToDouble(Double::doubleValue).max().orElse(0);
+    double avg = totals.stream().mapToDouble(Double::doubleValue).average().orElse(0);
+    return Map.of("min", round1(min), "avg", round1(avg), "max", round1(max));
   }
 
   private static Map<String, Object> weekendsCard(

@@ -11,6 +11,7 @@ package ca.shiftcircle.api.version;
  * @param ruleSetVersion published rule-set version the engine is running
  * @param profiles active Spring profiles, comma separated
  * @param asOf the demo "today" (ISO date) the UI clock should show
+ * @param demoMode true only on the demo profile, so the web shows the reset control there
  */
 public record VersionResponse(
     String name,
@@ -19,4 +20,5 @@ public record VersionResponse(
     String gitCommit,
     String ruleSetVersion,
     String profiles,
-    String asOf) {}
+    String asOf,
+    boolean demoMode) {}

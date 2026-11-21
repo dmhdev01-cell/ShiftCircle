@@ -117,7 +117,7 @@ Each step lists its "done when" check. If time runs short, cut from the bottom o
 ## 8. Open questions (ask the lead; some need a practitioner)
 
 1. Coverage model: is **by unit and block** right, or do centres staff by headcount or by named post?
-2. Shift times are the lead's best guess (ADR-015): confirm real start times. Common rotations: is 12 h "2 × 00–12, 2 × 12–24, 4 off" realistic? 8 h patterns? Which units use 16 h shifts, and on what rotation?
+2. Shift times are the lead's best guess (ADR-015): confirm real start times. Common rotations: is 12 h "2 × 00–12, 2 × 12–24, 4 off" realistic? 8 h patterns? Which units use 16 h shifts, and on what rotation? **Open (2026-11-21):** a "16 h shift" may really be a double 8 h shift worked as overtime; the person is confirming. The planner rosters 8/12 h only meanwhile and shows a 16 h preference unmet; the seeded L16 data and rules are unchanged.
 3. Is there required rest after a 16 h shift or after an extension?
 4. How is overtime offered (fewest hours, seniority, rotating list)? What happens to someone skipped for insufficient rest?
 5. Is overtime ever ordered (mandatory), and how often per person?

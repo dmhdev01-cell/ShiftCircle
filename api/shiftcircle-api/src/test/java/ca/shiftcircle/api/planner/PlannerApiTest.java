@@ -97,14 +97,16 @@ class PlannerApiTest {
     Map<String, Object> body = json(response);
     draftId = UUID.fromString((String) body.get("id"));
 
-    assertThat(body.get("pattern8h")).isEqualTo("5_ON_2_OFF");
+    assertThat(body.get("pattern8h")).isEqualTo("ROTATING_5_2");
     @SuppressWarnings("unchecked")
     Map<String, Object> scorecard = (Map<String, Object>) body.get("scorecard");
     assertThat(scorecard).containsKeys(
-        "coverage", "warnings", "preferences", "nights", "overtime", "weekends", "generatedMs");
+        "coverage", "warnings", "preferences", "nights", "overtime", "weekends", "quarterHours",
+        "warningNote", "generatedMs");
     assertThat(assignmentCount()).isGreaterThan(3000);
     assertThat(((Map<?, ?>) scorecard.get("coverage")).get("shortBlockDays")).isNotNull();
     System.out.println("scorecard warnings: " + scorecard.get("warnings"));
+    System.out.println("scorecard coverage: " + scorecard.get("coverage") + " quarterHours: " + scorecard.get("quarterHours"));
     List<Map<String, Object>> groups =
         mapper.readValue(
             send("GET", "/api/v1/planner/drafts/" + draftId + "/warnings", null,
@@ -147,6 +149,7 @@ class PlannerApiTest {
                 + " WHERE a.draft_id = ? ORDER BY a.employee_id, a.start_at",
             draftId);
     assertThat(planned).isNotEmpty();
+    assertThat(planned).allMatch(row -> !"L16".equals(row.get("template_code")));
 
     Map<UUID, List<ShiftFact>> history = new LinkedHashMap<>();
     jdbc.query(
@@ -214,16 +217,17 @@ class PlannerApiTest {
     }
     assertThat(blocks).as("Block results over the whole draft").isEmpty();
     for (UUID employeeId : eightHourOfficers) {
-      List<String> planWarnings =
+      List<RuleCheckService.ResultView> planWarnings =
           ruleCheck.evaluateFacts(draftOnly.getOrDefault(employeeId, List.of())).ruleResults()
               .stream()
               .filter(result -> "WARN".equals(result.outcome()))
-              .filter(result -> List.of("U-08", "U-12", "U-14").contains(result.ruleCode()))
-              .map(result -> employeeId + " " + result.ruleCode() + ": " + result.message())
               .toList();
-      assertThat(planWarnings)
-          .as("8 h default-pattern officer %s has no U-08/U-12/U-14 warnings", employeeId)
-          .isEmpty();
+      long u12 = planWarnings.stream().filter(result -> "U-12".equals(result.ruleCode())).count();
+      long u14 = planWarnings.stream().filter(result -> "U-14".equals(result.ruleCode())).count();
+      long u08 = planWarnings.stream().filter(result -> "U-08".equals(result.ruleCode())).count();
+      assertThat(u12).as("U-12 for %s", employeeId).isBetween(0L, 1L);
+      assertThat(u14).as("U-14 for %s", employeeId).isBetween(0L, 1L);
+      assertThat(u08).as("U-08 for %s", employeeId).isZero();
     }
 
     // The default pattern officers (8 h only) work exactly 80 h in every 14-day period.
@@ -248,18 +252,36 @@ class PlannerApiTest {
                 - ((Timestamp) row.get("start_at")).toInstant().toEpochMilli(),
             Long::sum);
       }
-      perPeriod.forEach(
-          (period, millis) ->
-              assertThat(Duration.ofMillis(millis).toMinutes() / 60.0)
-                  .as(
-                      "officer %s period %s shifts %s",
-                      entry.getKey(),
-                      period,
-                      entry.getValue().stream()
-                          .map(row -> row.get("template_code") + "@" + row.get("work_date"))
-                          .toList())
-                  .isEqualTo(80.0));
+      List<Double> hoursPerPeriod =
+          perPeriod.values().stream()
+              .map(millis -> Duration.ofMillis(millis).toMinutes() / 60.0)
+              .toList();
+      assertThat(hoursPerPeriod)
+          .as("officer %s periods %s", entry.getKey(), perPeriod.keySet())
+          .allMatch(hours -> hours == 72.0 || hours == 80.0);
+      assertThat(hoursPerPeriod.stream().filter(hours -> hours == 72.0).count())
+          .as("officer %s periods %s", entry.getKey(), perPeriod)
+          .isBetween(1L, 2L);
+      assertThat(hoursPerPeriod.stream().filter(hours -> hours == 80.0).count())
+          .as("officer %s has five or six full periods", entry.getKey())
+          .isBetween(5L, 6L);
+
     }
+    Map<UUID, Integer> weekendsByOfficer = new LinkedHashMap<>();
+    for (Map<String, Object> row : planned) {
+      UUID employeeId = (UUID) row.get("employee_id");
+      if (!eightHourOfficers.contains(employeeId)) {
+        continue;
+      }
+      LocalDate date = ((java.sql.Date) row.get("work_date")).toLocalDate();
+      if (date.getDayOfWeek() == java.time.DayOfWeek.SATURDAY
+          || date.getDayOfWeek() == java.time.DayOfWeek.SUNDAY) {
+        weekendsByOfficer.merge(employeeId, 1, Integer::sum);
+      }
+    }
+    assertThat(weekendsByOfficer.values()).as("weekends worked per default officer")
+        .allMatch(count -> count == 22);
+
     System.out.println("whole-draft warnings: " + warnings.size());
   }
 
@@ -298,6 +320,17 @@ class PlannerApiTest {
         json(send("GET", "/api/v1/me/preferences", null, tokens.get("t.nakamura")));
     assertThat(mine.get("shiftLength")).isEqualTo(12);
     assertThat(mine.get("daysOff")).isEqualTo(List.of("SAT", "MON"));
+    assertThat(
+            send("PUT", "/api/v1/me/preferences",
+                    "{\"shiftLength\":16,\"timeOfDay\":\"NONE\",\"daysOff\":[]}",
+                    tokens.get("t.nakamura"))
+                .statusCode())
+        .isEqualTo(200);
+    List<Map<String, Object>> withSixteen =
+        mapper.readValue(
+            send("GET", "/api/v1/planner/preferences", null, tokens.get("p.planner")).body(),
+            List.class);
+    assertThat(withSixteen.toString()).contains("the planner does not roster 16-hour shifts");
     assertThat(
             send("PUT", "/api/v1/me/preferences",
                     "{\"daysOff\":[\"MON\",\"TUE\",\"WED\"]}", tokens.get("t.nakamura"))

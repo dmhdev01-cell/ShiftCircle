@@ -1,5 +1,6 @@
 package ca.shiftcircle.api.planner;
 
+import ca.shiftcircle.api.demo.DemoOperationLock;
 import ca.shiftcircle.api.schedule.ScheduleQuery;
 import ca.shiftcircle.api.security.ScopeGuard;
 import java.time.LocalDate;
@@ -8,6 +9,7 @@ import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,10 +29,13 @@ public class PlannerController {
 
   private final PlannerService planner;
   private final ScopeGuard scopeGuard;
+  private final DemoOperationLock demoLock;
 
-  public PlannerController(PlannerService planner, ScopeGuard scopeGuard) {
+  public PlannerController(
+      PlannerService planner, ScopeGuard scopeGuard, DemoOperationLock demoLock) {
     this.planner = planner;
     this.scopeGuard = scopeGuard;
+    this.demoLock = demoLock;
   }
 
   @GetMapping("/plan")
@@ -42,9 +47,17 @@ public class PlannerController {
   @ResponseStatus(HttpStatus.CREATED)
   public PlannerViews.DraftSummary generate(
       @RequestBody(required = false) PlannerViews.DraftCreation creation) {
-    return planner.generate(
-        creation == null ? new PlannerViews.DraftCreation(0, null) : creation,
-        scopeGuard.principal());
+    if (!demoLock.tryAcquire()) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "A demo reset or another planner run is in progress");
+    }
+    try {
+      return planner.generate(
+          creation == null ? new PlannerViews.DraftCreation(0, null) : creation,
+          scopeGuard.principal());
+    } finally {
+      demoLock.release();
+    }
   }
 
   @GetMapping("/drafts/{id}")
@@ -91,9 +104,17 @@ public class PlannerController {
       @PathVariable UUID id,
       @RequestHeader(value = "If-Match", required = false) String ifMatch,
       @RequestBody(required = false) PlannerViews.CommitInput input) {
-    PlannerService.CommitAttempt attempt =
-        planner.commit(id, input, version(ifMatch), scopeGuard.principal());
-    return ResponseEntity.status(attempt.status()).body(attempt.body());
+    if (!demoLock.tryAcquire()) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "A demo reset or another planner run is in progress");
+    }
+    try {
+      PlannerService.CommitAttempt attempt =
+          planner.commit(id, input, version(ifMatch), scopeGuard.principal());
+      return ResponseEntity.status(attempt.status()).body(attempt.body());
+    } finally {
+      demoLock.release();
+    }
   }
 
   @PostMapping("/drafts/{id}/discard")
