@@ -50,8 +50,10 @@ export function UnitsPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [shownPast, setShownPast] = useState<Record<string, boolean>>({});
 
-  const load = useCallback(async () => {
-    setState('loading');
+  const load = useCallback(async (showLoading = false) => {
+    // The mount effect runs with the initial 'loading' state; a retry or a save
+    // asks for the loading line, and events may set state synchronously.
+    if (showLoading) setState('loading');
     try {
       setUnits(await api.getPlannerUnits());
       setState('ready');
@@ -61,8 +63,24 @@ export function UnitsPage() {
   }, []);
 
   useEffect(() => {
-    if (role.id === 'PLANNER') void load();
-  }, [load, role.id]);
+    if (role.id !== 'PLANNER') return;
+    // The first load lives in the effect (async answers only); load() is for
+    // retries and saves, where a synchronous loading state is fine.
+    let active = true;
+    void api
+      .getPlannerUnits()
+      .then((next) => {
+        if (!active) return;
+        setUnits(next);
+        setState('ready');
+      })
+      .catch(() => {
+        if (active) setState('error');
+      });
+    return () => {
+      active = false;
+    };
+  }, [role.id]);
 
   if (role.id !== 'PLANNER') {
     return (
@@ -127,7 +145,7 @@ export function UnitsPage() {
             The units could not be loaded. Try again, or reload the page.
           </Typography>
           <Box>
-            <Button variant="outlined" color="primary" onClick={() => void load()}>
+            <Button variant="outlined" color="primary" onClick={() => void load(true)}>
               Try again
             </Button>
           </Box>
@@ -289,21 +307,23 @@ export function UnitsPage() {
       ) : null}
 
       <ClosureDialog
+        key={dialog.kind === 'none' ? 'none' : `${dialog.kind}-${'closure' in dialog ? dialog.closure.id : dialog.unit.id}`}
         dialog={dialog}
         onClose={() => setDialog({ kind: 'none' })}
         onSaved={async (message) => {
           setDialog({ kind: 'none' });
           setStatus(message);
-          await load();
+          await load(true);
         }}
       />
       <AllocatedDialog
+        key={dialog.kind === 'allocated' ? `allocated-${dialog.unit.id}` : 'allocated-none'}
         dialog={dialog}
         onClose={() => setDialog({ kind: 'none' })}
         onSaved={async () => {
           setDialog({ kind: 'none' });
           setStatus('Allocated headcount saved.');
-          await load();
+          await load(true);
         }}
       />
     </Box>
@@ -322,41 +342,20 @@ function ClosureDialog({
   const unit = dialog.kind === 'close' || dialog.kind === 'change' || dialog.kind === 'reopen' || dialog.kind === 'remove' ? dialog.unit : null;
   const closure = dialog.kind === 'change' || dialog.kind === 'reopen' || dialog.kind === 'remove' ? dialog.closure : null;
   const open = unit !== null;
-  const [closedFrom, setClosedFrom] = useState('');
-  const [reopensOn, setReopensOn] = useState('');
-  const [reason, setReason] = useState('');
+  const [closedFrom, setClosedFrom] = useState(
+    dialog.kind === 'change' || dialog.kind === 'reopen' ? (closure?.closedFrom ?? '') : '',
+  );
+  const [reopensOn, setReopensOn] = useState(
+    dialog.kind === 'change' || dialog.kind === 'reopen' ? (closure?.reopensOn ?? '') : '',
+  );
+  const [reason, setReason] = useState(dialog.kind === 'change' ? (closure?.reason ?? '') : '');
   const [preview, setPreview] = useState<{ officersHomed: number; publishedShiftsAffected: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const request = useRef(0);
 
   useEffect(() => {
-    if (!open) return;
-    setError(null);
-    setBusy(false);
-    setReason('');
-    if (dialog.kind === 'close') {
-      setClosedFrom('');
-      setReopensOn('');
-    } else if (dialog.kind === 'change' && closure) {
-      setClosedFrom(closure.closedFrom);
-      setReopensOn(closure.reopensOn ?? '');
-      setReason(closure.reason);
-    } else if (dialog.kind === 'reopen' && closure) {
-      setClosedFrom(closure.closedFrom);
-      setReopensOn(closure.reopensOn ?? '');
-      setReason('');
-    } else {
-      setClosedFrom('');
-      setReopensOn('');
-    }
-  }, [dialog, open, closure]);
-
-  useEffect(() => {
-    if (!open || !unit || dialog.kind === 'remove' || !closedFrom) {
-      setPreview(null);
-      return;
-    }
+    if (!open || !unit || dialog.kind === 'remove' || !closedFrom) return;
     const ticket = ++request.current;
     void api
       .previewUnitClosure(unit.id, { closedFrom, reopensOn: reopensOn || null })
@@ -506,18 +505,10 @@ function AllocatedDialog({
   onSaved: () => Promise<void>;
 }) {
   const unit = dialog.kind === 'allocated' ? dialog.unit : null;
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState(unit ? String(unit.allocated) : '');
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (unit) {
-      setValue(String(unit.allocated));
-      setReason('');
-      setError(null);
-    }
-  }, [unit]);
 
   if (!unit) return null;
 
