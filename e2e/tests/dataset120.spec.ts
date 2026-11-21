@@ -241,24 +241,35 @@ test.describe('dataset 120', () => {
     await signOut(page, 'P. Planner');
 
     // A supervisor opens the committed plan: the 2027 week carries the 12 h
-    // crew chips, not raw codes.
+    // crew chips, not raw codes. Walk the supervisor's own units until one
+    // shows a day or night crew (the crews are not in every unit).
     await signIn(page, 'M. Ellis');
     await navTo(page, 'Planning board');
     const current = { monday: DEMO_MONDAY };
     await goToWeek(page, current, PLAN_FROM);
     await expect(page.getByRole('group', { name: 'Week' })).toContainText('4 – 10 Jan 2027');
-    await expect(page.getByRole('button', { name: /^(D12|N12) for / }).first()).toBeVisible();
+    const supervisorApi = await apiAs(request, 'm.ellis');
+    const supervisorUnits = await supervisorApi.get<Unit[]>('/units');
+    let chips = 0;
+    for (const unit of supervisorUnits) {
+      await selectUnit(page, unit.name);
+      chips = await page.getByRole('button', { name: /^(D12|N12) for / }).count();
+      if (chips > 0) break;
+    }
+    expect(chips, 'a D12 or N12 chip on the committed 2027 week').toBeGreaterThan(0);
 
-    // Demo step 7: fill one gap on the board.
-    const gap = gaps[0];
-    const officer = await fillableOfficer(request, gap);
-    await selectUnit(page, gap.unitName);
-    await goToWeek(page, current, mondayOf(gap.date));
+    // Demo step 7: fill one gap on the board, in a unit this supervisor owns.
+    const supervised = new Set(supervisorUnits.map((unit) => unit.id));
+    const gap = gaps.find((candidate) => supervised.has(candidate.unitId));
+    expect(gap, 'a gap in one of the supervisor\'s units').toBeTruthy();
+    const officer = await fillableOfficer(request, gap!);
+    await selectUnit(page, gap!.unitName);
+    await goToWeek(page, current, mondayOf(gap!.date));
     const off = page.getByRole('button', {
-      name: `Off - assign a shift to ${officer.name} on ${gap.date}`,
+      name: `Off - assign a shift to ${officer.name} on ${gap!.date}`,
     });
     await off.click();
-    await page.getByRole('button', { name: GAP_TEMPLATE[gap.block].label }).click();
+    await page.getByRole('button', { name: GAP_TEMPLATE[gap!.block].label }).click();
     const panel = page.getByRole('region', { name: 'Rule check' });
     const save = panel.getByRole('button', { name: /^(Assign shift|Acknowledge and assign)$/ });
     await expect(save).toBeVisible({ timeout: 15_000 });
