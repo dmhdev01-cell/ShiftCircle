@@ -16,6 +16,9 @@ import type {
   PlannerGap,
   PlannerPlan,
   PlannerWarningGroup,
+  MyPreferences,
+  MyPreferencesInput,
+  PlannerPreferenceRow,
 } from '../types';
 
 export const PLANNER_WINDOW = { from: '2027-01-04', to: '2027-04-11', periods: 7 };
@@ -178,6 +181,81 @@ export function plannerWarnings(): PlannerWarningGroup[] {
   ];
 }
 
+let myPreferences: MyPreferences = {
+  shiftLength: null,
+  timeOfDay: null,
+  daysOff: [],
+  maxDaysOff: 2,
+  allowedLengths: [8, 12, 16],
+  updatedAt: null,
+};
+
+export function fixtureMyPreferences(): MyPreferences {
+  return myPreferences;
+}
+
+export function saveMyPreferences(input: MyPreferencesInput): MyPreferences {
+  myPreferences = {
+    ...myPreferences,
+    ...input,
+    daysOff: input.daysOff.slice(0, myPreferences.maxDaysOff),
+    updatedAt: '2026-11-21T08:55:00-06:00',
+  };
+  return myPreferences;
+}
+
+export function clearMyPreferences(): void {
+  myPreferences = { ...myPreferences, shiftLength: null, timeOfDay: null, daysOff: [], updatedAt: null };
+}
+
+/** Everyone's preferences as the planner reads them; Tara has given some. */
+export function fixturePlannerPreferences(): PlannerPreferenceRow[] {
+  return [
+    {
+      employeeId: 'emp-tara',
+      name: 'Tara Nakamura',
+      employeeNo: 'E-0004',
+      unitName: 'Unit B · Living unit',
+      seniorityDate: '2019-04-01',
+      shiftLength: 8,
+      timeOfDay: 'DAY',
+      daysOff: ['SAT', 'SUN'],
+      maxDaysOff: 2,
+      inDraft: draft ? 'MET' : 'NO_DRAFT',
+      unmet: [],
+      updatedAt: '2026-11-21T08:55:00-06:00',
+    },
+    {
+      employeeId: 'emp-sam',
+      name: 'Sam Abara',
+      employeeNo: 'E-0007',
+      unitName: 'Control',
+      seniorityDate: '2016-01-11',
+      shiftLength: null,
+      timeOfDay: 'NIGHT',
+      daysOff: ['WED'],
+      maxDaysOff: 2,
+      inDraft: draft ? 'PARTLY' : 'NO_DRAFT',
+      unmet: draft ? ['time of day: 9 night shifts'] : [],
+      updatedAt: '2026-11-20T14:00:00-06:00',
+    },
+    {
+      employeeId: 'emp-ruth',
+      name: 'Ruth Okafor',
+      employeeNo: 'E-0012',
+      unitName: 'Unit B · Living unit',
+      seniorityDate: '2009-06-01',
+      shiftLength: 12,
+      timeOfDay: 'DAY',
+      daysOff: ['SAT', 'SUN'],
+      maxDaysOff: 2,
+      inDraft: draft ? 'MET' : 'NO_DRAFT',
+      unmet: [],
+      updatedAt: null,
+    },
+  ];
+}
+
 export function plannerCompare(): PlannerCompare {
   const current = plannerDraft();
   return {
@@ -232,4 +310,12 @@ export function discardPlannerDraft(): void {
 export function resetPlannerFixtures(): void {
   draft = null;
   committed = null;
+  myPreferences = {
+    shiftLength: null,
+    timeOfDay: null,
+    daysOff: [],
+    maxDaysOff: 2,
+    allowedLengths: [8, 12, 16],
+    updatedAt: null,
+  };
 }

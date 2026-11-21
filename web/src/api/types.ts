@@ -760,6 +760,39 @@ export interface PlannerWarningGroup {
   items: PlannerWarningItem[];
 }
 
+export type PreferenceShiftLength = 8 | 12 | 16;
+export type PreferenceTimeOfDay = 'DAY' | 'EVENING' | 'NIGHT';
+
+export interface MyPreferences {
+  shiftLength: PreferenceShiftLength | null;
+  timeOfDay: PreferenceTimeOfDay | null;
+  daysOff: string[];
+  maxDaysOff: number;
+  allowedLengths: PreferenceShiftLength[];
+  updatedAt: string | null;
+}
+
+export interface MyPreferencesInput {
+  shiftLength: PreferenceShiftLength | null;
+  timeOfDay: PreferenceTimeOfDay | null;
+  daysOff: string[];
+}
+
+export interface PlannerPreferenceRow {
+  employeeId: string;
+  name: string;
+  employeeNo: string;
+  unitName: string;
+  seniorityDate: string;
+  shiftLength: PreferenceShiftLength | null;
+  timeOfDay: PreferenceTimeOfDay | null;
+  daysOff: string[];
+  maxDaysOff: number;
+  inDraft: 'MET' | 'PARTLY' | 'NOT_MET' | 'NO_DRAFT' | 'NONE';
+  unmet: string[];
+  updatedAt: string | null;
+}
+
 export interface PlannerCompareRow {
   key: string;
   label: string;
@@ -820,6 +853,12 @@ export interface ShiftCircleApi {
   getPlannerGaps(draftId: string): Promise<PlannerGap[]>;
   getPlannerWarnings(draftId: string): Promise<PlannerWarningGroup[]>;
   getPlannerCompare(draftId: string): Promise<PlannerCompare>;
+
+  /** Preferences: the officer's own, and the planner's read of everyone's. */
+  getMyPreferences(): Promise<MyPreferences>;
+  putMyPreferences(input: MyPreferencesInput): Promise<MyPreferences>;
+  deleteMyPreferences(): Promise<void>;
+  getPlannerPreferences(unitId?: string): Promise<PlannerPreferenceRow[]>;
   getPlannerCommitPreview(draftId: string): Promise<PlannerCommitPreview>;
   commitPlannerDraft(
     draftId: string,

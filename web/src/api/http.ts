@@ -10,6 +10,9 @@ import type {
   PayPeriod,
   PlannerCommitPreview,
   PlannerCompare,
+  MyPreferences,
+  MyPreferencesInput,
+  PlannerPreferenceRow,
   PlannerCommitResult,
   PlannerDraft,
   PlannerGap,
@@ -229,6 +232,23 @@ export function createHttpApi(): ShiftCircleApi {
     getPlannerWarnings(draftId: string): Promise<PlannerWarningGroup[]> {
       return request<PlannerWarningGroup[]>(`/planner/drafts/${draftId}/warnings`);
     },
+    getMyPreferences(): Promise<MyPreferences> {
+      return request<MyPreferences>('/me/preferences');
+    },
+    putMyPreferences(input: MyPreferencesInput): Promise<MyPreferences> {
+      return request<MyPreferences>('/me/preferences', {
+        method: 'PUT',
+        body: JSON.stringify(input),
+      });
+    },
+    deleteMyPreferences(): Promise<void> {
+      return request<void>('/me/preferences', { method: 'DELETE' });
+    },
+    getPlannerPreferences(unitId?: string): Promise<PlannerPreferenceRow[]> {
+      const query = unitId ? `?unitId=${encodeURIComponent(unitId)}` : '';
+      return request<PlannerPreferenceRow[]>(`/planner/preferences${query}`);
+    },
+
     getPlannerCompare(draftId: string): Promise<PlannerCompare> {
       return request<PlannerCompare>(`/planner/drafts/${draftId}/compare`);
     },

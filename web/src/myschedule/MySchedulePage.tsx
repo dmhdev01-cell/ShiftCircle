@@ -18,6 +18,7 @@ import { shiftTemplates } from '../api/shiftTemplates';
 import type { MyOffer, RuleCheckChange, RuleCheckOutcome } from '../api/types';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
+import { MyPreferencesCard } from '../planner/MyPreferencesCard';
 import { CalendarGrid } from './CalendarGrid';
 import type { CalendarCell } from './CalendarGrid';
 import { useMyOffers, useMySchedule } from './useMySchedule';
@@ -365,6 +366,8 @@ export function MySchedulePage() {
           <span>Overtime = pay-period hours over {payload.payPeriod.thresholdHours} h (status pill)</span>
         </Legend>
       </Card>
+
+      <MyPreferencesCard />
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
         <Box

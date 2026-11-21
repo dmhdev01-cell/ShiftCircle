@@ -17,6 +17,7 @@ import type {
   CoverageReport,
   DemoUser,
   MockLoginResult,
+  MyPreferencesInput,
   HoursReport,
   MyOffer,
   MySchedulePayload,
@@ -85,6 +86,10 @@ import {
   generatePlannerDraft,
   plannerCommitPreview,
   plannerCompare,
+  clearMyPreferences,
+  fixtureMyPreferences,
+  fixturePlannerPreferences,
+  saveMyPreferences,
   plannerDraft,
   plannerGaps,
   plannerPlan,
@@ -465,6 +470,26 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
     async getPlannerWarnings() {
       await pause();
       return plannerWarnings();
+    },
+
+    async getMyPreferences() {
+      await pause();
+      return fixtureMyPreferences();
+    },
+
+    async putMyPreferences(input: MyPreferencesInput) {
+      await pause();
+      return saveMyPreferences(input);
+    },
+
+    async deleteMyPreferences() {
+      await pause();
+      clearMyPreferences();
+    },
+
+    async getPlannerPreferences() {
+      await pause();
+      return fixturePlannerPreferences();
     },
 
     async getPlannerCompare() {
