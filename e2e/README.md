@@ -4,6 +4,8 @@ Flows E1–E5 from `docs/10-testing.md` §5, on a desktop (1440 × 900) and a ta
 
 Specs find elements by role, label or text, never by CSS path. `BASE_URL` picks the web under test (default `http://localhost:8080`).
 
+**Give a test stack its own compose project.** `docker-compose.yml` pins `name: shiftcircle`, the same project as the person's trial stack on port 18080, so a compose command without `-p` can land in their stack. Always use `-p <your-name>` (and `ALLOW_PERSON_STACK` is never set for a real run).
+
 ## The commit guard (real-api runs)
 
 A real-api run must say which build it is testing and must not land on the

@@ -1,8 +1,8 @@
 # ShiftCircle
 
-A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervisors plan 8, 12 and 16-hour shifts against a **configurable rules engine** (rest and hours limits, consecutive shifts, staffing, qualifications, overtime). Employees see their schedule and hours and propose shifts. Time feeds a payroll export, and reports show coverage and overtime as planned vs. actual.
+A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervisors plan 8, 12 and 16-hour shifts against a **configurable rules engine** (rest and hours limits, consecutive shifts, staffing, qualifications, overtime), and a planner builds a whole-quarter draft through the same engine. Employees see their schedule and hours and propose shifts. Time feeds a payroll export, and reports show coverage and overtime as planned vs. actual.
 
-> Built for the AI Solutions Architect screening assessment. **All data is synthetic.** Payroll and sign-on are simulated. The dataset is 100 fictional officers over 90 days.
+> Built for the AI Solutions Architect screening assessment. **All data is synthetic.** Payroll and sign-on are simulated. The default demo seeds 100 fictional officers over 90 days; the quarter planner also offers a **120-officer crew dataset** from the About reset card.
 
 > **Picking this up?** Start with [HANDOFF.md](HANDOFF.md).
 
@@ -32,7 +32,7 @@ Three containers: **web** (nginx + React) · **api** (Java 21 + Spring Boot 4.x 
 
 ## Setup (clean clone)
 
-Everything on `main` is merged: the api, all the screens, the mock sign-in and the e2e suite. Sections 1, 2 and 4 below were run from a fresh clone of `main` at `f1d696d` on 2026-11-20 (macOS, Docker Desktop); anything not run is marked **UNVERIFIED**.
+Everything on `main` is merged: the api, all the screens, the mock sign-in, the quarter planner and the e2e suite. Sections 1, 2 and 4 below were run from a fresh clone of `main` at `f1d696d` on 2026-11-20 (macOS, Docker Desktop); the commands are unchanged at the final tip `5d0f810`, and the final counts are in §4. Anything not run is marked **UNVERIFIED**.
 
 ### Prerequisites
 
@@ -61,7 +61,7 @@ docker compose up -d --build --wait
 
 `--wait` returns when all three containers are healthy: the database first, then the api (after it has run the Flyway migrations and generated the synthetic dataset), then the web. Then open **http://localhost:8080** and you see the mock sign-in screen with the demo users.
 
-**How long:** with Docker's build cache warm, `up -d --build --wait` took **31 s**. Inside that, the api was ready about 6 s after it started, and the demo data took 2.8 s (`Demo data generated in 2814 ms: 6182 assignments, 193 absences, 194 open shifts, 309 offers` in `docker compose logs api`). The very first build also downloads the base images and the Maven and pnpm dependencies, which takes several minutes depending on the network (**UNVERIFIED** on a machine with an empty cache). The dataset: 100 fictional officers, 1 Oct – 29 Dec 2026, "today" fixed at 19 Nov 2026, seed 20261001.
+**How long:** with Docker's build cache warm, `up -d --build --wait` took **31 s**. Inside that, the api was ready about 6 s after it started, and the demo data took 2.8 s (`Demo data generated in 2814 ms: 6182 assignments, 193 absences, 194 open shifts, 309 offers` in `docker compose logs api`). The very first build also downloads the base images and the Maven and pnpm dependencies, which takes several minutes depending on the network (**UNVERIFIED** on a machine with an empty cache). The default dataset: 100 fictional officers, 1 Oct – 29 Dec 2026, "today" fixed at 19 Nov 2026, seed 20261001. The About reset card can also load the 120-officer crew dataset (see “Demo data and the quarter planner”).
 
 **Ports in use?** Only the web publishes a port. Set `SC_WEB_PORT` in `.env`, for example `SC_WEB_PORT=18080`, and open that port instead. For local debugging, `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build` also publishes the api (`SC_API_PORT`, default 8081) and the database (`SC_DB_PORT`, default 5433).
 
@@ -86,6 +86,31 @@ Sign-in is **simulated**. The sign-in screen lists fictional demo users (`GET /a
 | P. Singh | Rules approver | — | Approve and publish (not their own drafts) |
 | A. Reviewer | Auditor | all, read-only | Reports and audit |
 | Unit office TV | Display | counts only | Wall display |
+| P. Planner | Planner | all, read-only (plus preferences planning and the demo reset) | Quarter plan, preferences, reset the demo data |
+
+### Demo data and the quarter planner
+
+A reset rebuilds a known state from a fixed seed. **About & version → Reset the demo data** (signed
+in as P. Planner) selects **`100`** (the default 100 officers × 90 days; roster and period checksum
+`3390148255…6539`) or **`120`** (100 full-time D12/N12/E8 crew officers plus 20 casual relief
+officers; checksum `82b19cf8…32ca`). The reset is asynchronous, one at a time and audited, takes a
+few seconds, and leaves the payroll golden file unchanged.
+
+**Quarter plan** (P. Planner) builds the next quarter — Mon 4 Jan to Sun 11 Apr 2027, seven 14-day
+periods — from a fixed seed and the 8 h pattern (rotating 5 on / 2 off by default; fixed 5/2 and
+7/3 are selectable and show their warnings). Every proposed shift goes through the same rules engine
+as the planning board; a Block leaves a visible gap. The scorecard, gaps, compare and commit are on
+the same screen; commit re-checks the plan, needs the warning list accepted once, and refuses a
+stale draft or a locked period. On dataset 120 the measured draft is 38 gaps of 1,764 (all Escort
+evening), 7 warnings, zero Block, and 5,103 shifts on commit. The demo script in
+[`docs/demo-script.md`](docs/demo-script.md) §7 walks it.
+
+**Known limits**, stated on the scorecard and in [`BUILD_RECORD.md`](BUILD_RECORD.md): the planner
+does not enforce qualifications; the demo plan has no leave unless you enter it with
+`POST /api/v1/planner/absences` (PLANNER only, a read-only skip, no approval flow); payroll overtime
+stays per pay period (P-01); a 16 h shift exists only in the seeded 2026 data (the planner rosters
+8 and 12 h); a late-recorded actual is not re-checked against shifts saved after it; and 13
+shift-less casuals still read their wishes as MET on the 120 plan (a known candidate-4 gap).
 
 ### 4. Run the tests
 
@@ -127,8 +152,10 @@ other browser — against the compose stack. What the suite covers, screen by ro
 docker run --rm -v "$PWD/e2e":/app -w /app node:24-alpine \
   sh -c "corepack enable && pnpm install --frozen-lockfile"
 
-# the stack the suite drives
-docker compose up -d --build --wait
+# the stack the suite drives. ALWAYS give a test stack its own project with -p:
+# docker-compose.yml pins `name: shiftcircle`, the same project as the person's
+# trial stack on 18080, so a bare `docker compose` can land in their stack.
+docker compose -p sc-test up -d --build --wait
 
 # desktop viewport, real api (skip the fixtures-only specs). The commit guard
 # requires EXPECT_COMMIT: the suite refuses to drive a stack running a build
@@ -139,7 +166,7 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
   mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
 
 # tablet: the real-api specs change data, so a fresh stack per viewport
-docker compose down -v && docker compose up -d --wait
+docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait
 docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
   -e BASE_URL=http://host.docker.internal:8080 -e EXPECT_COMMIT=<the commit you built> \
   mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project tablet
@@ -152,25 +179,16 @@ makes the same name work on Docker Engine. `E2E_WORKERS` (default 2) sets parall
 runs in Docker); the HTML report is `playwright-report/`. The fixtures-mode web and the `@api` /
 `@fixtures` tags are in `e2e/README.md`.
 
-**Count:** the latest independent runs are dev-qa's. API at `f4496c6`: **356 = 101 rules + 27
-infrastructure + 228 api tests**, in the default order, 0 failures/errors/skipped (the random-seed
-run at that tip is this author's). Web unit tests at `72ebd24`: **239 passed in 29 files**. Playwright
-against the real api, whole suite: desktop **86 passed**, tablet **85 passed + 1 skipped** (the
-TV-size check is desktop-only); fixtures: desktop 22 passed (+56 skipped by design as `@api`),
-tablet 21 (+57). The static counts in this tree agree (101 + 27 + 228 `@Test` methods, one per line,
-no parameterised tests). Phase 3 at `abbaaf7` adds the planner, reset, 16 h policy, block rephasing,
-the FTE pool, absolute-time coverage, the night rule, D12/N12 rule-set v2, separate day/night crews,
-the 120 dataset selector/provider, the 120 commit/pay-period fix, the planned-absence input and the review fixes: **410 = 123 rules + 27 infrastructure + 260 api**; this author's full
-clean-worktree runs there are 410, 0 failures/errors/skipped, in the default order and with random
-seed 20261121 (the test-container flake fix - 400 connections, no local TLS, 30 s connect timeout -
-was verified twice each at `31fbd3a`/`5759b12`; this final feature tip has one run in each order). dev-qa's independent
-run at this tip is pending. Earlier, as history: this author's full API
-runs were 356 at `8a2257a`,
-352 at `c8c05cd`, 351 at `dc6890e` and 348 at `c0dcaf3` (the last also dev-qa's independent run),
-301 = 91 + 27 + 183 at `5e7765f`, 296 = 91 + 22 + 183 at `dcee43b`, and default/random at
-`fe6487d`, reverse and random seeds at `22375d4`.
+**Count:** the latest independent runs are dev-qa's at the final tip `5d0f810`. API: **422 = 123
+rules + 27 infrastructure + 272 api tests**, green in the default order and with random seed
+20261121, 0 failures/errors/skipped. Web unit tests: **277**. Playwright against the real api, whole
+suite, a fresh stack per viewport: desktop **101 passed / 0 failed**, tablet **100 passed + 1
+skipped** (the TV-size check is desktop-only) **/ 0 failed**; fixtures: **22 passed and 21**. The
+static counts in this tree agree (123 + 27 + 272 `@Test` methods, one per line, no parameterised
+tests). The dataset checksums, the earlier runs and each round are in `docs/review-rounds.md`
+(R61 is the final one) and `BUILD_RECORD.md`.
 
-**One viewport per fresh stack.** The real-api specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop`, then `docker compose down -v && docker compose up -d --wait`, then `--project tablet`.
+**One viewport per fresh stack.** The real-api specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop`, then `docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait`, then `--project tablet`.
 
 **Earlier fresh-clone check (history at `f1d696d`):** both viewports on one stack gave 21 passed, 1 skipped and 4 failed, all 4 on tablet after desktop had changed the data; tablet alone on a fresh stack gave 12 passed, 1 skipped (the TV-size check runs on desktop only). The `--add-host` line was run on macOS; on Linux it is **UNVERIFIED** here (`--network host` with `BASE_URL=http://localhost:8080` is the alternative). Not run by this author: the `api-test` service (the builders and QA run the same Maven build; counts per round are in `docs/review-rounds.md`) and the web unit-test line in this clone (the same command passes in the branch worktrees). The web unit tests write `web/node_modules` with Linux binaries.
 
@@ -198,10 +216,11 @@ docker run --rm -v "$PWD/api":/src -v /var/run/docker.sock:/var/run/docker.sock 
 |---|---|
 | Rules engine: Drools decision tables compiled from editable rows; rule checks with plain-language reasons | Sign-in: the token issuer is a mock; token validation is real |
 | Safeguards: emergency-policy Blocks need an override with a written reason (≥ 10 characters), and other Blocks can't be overridden (ADR-023); maker/checker on rule versions (API and a database CHECK); append-only audit (database triggers); locked pay periods (trigger) | Payroll system: ShiftCircle produces the payroll CSV; nothing is sent anywhere |
-| Role and unit scope on every endpoint (out of scope returns `404`) | People and data: 100 fictional officers, generated with a fixed seed |
+| Role and unit scope on every endpoint (out of scope returns `404`) | People and data: 100 fictional officers, or the 120-officer crew dataset, generated from fixed seeds |
+| Quarter planner: deterministic heuristic, every shift checked by the same rules engine; the 120 crew dataset is selectable from the reset card | — |
 | Period-based overtime classification and the payroll CSV | Collective-agreement values: many are MOCK placeholders to validate (`docs/05-union-rules.md`) |
 | PostgreSQL with Flyway migrations | "Today" is fixed at 19 Nov 2026 (`SC_DEMO_TODAY`) |
 
-**Not built at all** (designed, but not in the prototype): the Excel round-trip for rule tables, the employee shift planner and proposals inbox, offer withdrawal, a payroll-clerk role, arrow-key grid navigation and more. The full list, with what exists instead, is in [docs/10-testing.md §8](docs/10-testing.md#8-intentionally-not-built).
+**Not built at all** (designed, but not in the prototype): the Excel round-trip for rule tables, the employee shift planner and proposals inbox, offer withdrawal, a payroll-clerk role, arrow-key grid navigation, the two extra selectable patterns measured for decision 15, and more. The full list, with what exists instead, is in [docs/10-testing.md §8](docs/10-testing.md#8-intentionally-not-built).
 
 **Known limit, by decision (ADR-025):** the sign-in token is kept in memory only, so a page refresh, a new tab or a deep link asks you to sign in again ("Please sign in to continue.") and then returns you to the screen you asked for.
