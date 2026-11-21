@@ -98,9 +98,19 @@ erDiagram
 | Table | Key columns | Notes and constraints |
 |---|---|---|
 | `app_user` | `id`, `username` unique, `display_name`, `employee_id` null, `active` | Mock sign-in picks from this table (see `09-access-control.md`). |
-| `app_user_role` | (`user_id`, `role`) PK | Roles: `EMPLOYEE`, `SUPERVISOR`, `RULES_ADMIN`, `RULES_APPROVER`, `AUDITOR`, `DISPLAY`. |
+| `app_user_role` | (`user_id`, `role`) PK | Roles: `EMPLOYEE`, `SUPERVISOR`, `RULES_ADMIN`, `RULES_APPROVER`, `AUDITOR`, `DISPLAY`, `PLANNER`. |
 | `user_unit_scope` | (`user_id`, `unit_id`) PK | Which units a supervisor manages. |
 | `audit_event` | `id` bigint identity, `occurred_at`, `actor_user_id`, `action`, `entity_type`, `entity_id`, `before` jsonb, `after` jsonb, `rule_set_version_id` null, `override_id` null, `correlation_id` | **Append-only:** triggers raise an error on `UPDATE`, `DELETE` and `TRUNCATE`. The prototype has one database user, so there are no role grants yet; a pilot adds an application role with `INSERT, SELECT` only (ADR-018). |
+
+### 3.6 Planner (ADR-026)
+
+| Table | Key columns | Notes and constraints |
+|---|---|---|
+| `officer_preference` | `employee_id` PK, `shift_length` (8/12/16), `time_of_day` (`DAY`/`EVENING`/`NIGHT`/`NONE`), `days_off` text[], `max_days_off` (default 2), `updated_at`, `updated_by` | Soft wishes, not rules. Seeded synthetically for the demo officers from the dataset seed and the officer number (not part of the roster checksum). |
+| `plan_draft` | `id`, `from_date`, `to_date`, `seed`, `pattern8h` (`ROTATING_5_2`/`5_ON_2_OFF`/`7_ON_3_OFF`), `status` (`DRAFT`/`COMMITTED`/`DISCARDED`), `version`, `created_by`, `created_at`, `generated_ms`, `scorecard` jsonb, `warnings` jsonb, `warning_count`, `committed_at`, `committed_by` | One open draft (`partial unique index ... where status = 'DRAFT'`). `version` is the commit ETag. |
+| `plan_draft_assignment` | `id`, `draft_id`, `employee_id`, `unit_id`, `shift_template_id`, `work_date`, `start_at`, `end_at`, `kind`, `sort_order` | Unique on (`draft_id`, `employee_id`, `start_at`). Never read by the planning board; a draft is not a roster. |
+| `plan_draft_gap` | `id`, `draft_id`, `unit_id`, `gap_date`, `block`, `required`, `placed`, `reason` | One row per short block-day, visible in the scorecard and the Gaps tab. |
+| `shift_assignment.plan_draft_id` | uuid null, references `plan_draft` | Set by commit, so planner-created rows are distinguishable from a supervisor's edits. |
 
 ## 4. Indexes (beyond primary and unique keys)
 
