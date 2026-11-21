@@ -61,8 +61,10 @@ test.describe('publish the roster period', () => {
     await signIn(page, 'A. Reviewer');
     await expect(page.getByRole('banner')).toContainText('Auditor');
     await navTo(page, 'Audit log');
+    // The action label sits in the events table; an unscoped getByText also
+    // matches the closed Action picker's hidden <option> and reads as hidden.
     await expect(
-      page.getByText('Published. The officers see this roster as final.').first(),
+      page.getByRole('table', { name: 'Audit events' }).getByText('Period published').first(),
     ).toBeVisible();
   });
 });

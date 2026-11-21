@@ -186,7 +186,9 @@ test.describe('screenshots', () => {
     await settled(page, 'Audit log');
     await shot(page, testInfo, 'auditor', 'audit', 'normal');
 
-    await page.getByLabel('Actor').fill('nobody.at.all');
+    // The 'Actor' text filter is the 'Done by' picker now; a future From date
+    // gives the empty-state screenshot.
+    await page.getByLabel('From').fill('2027-01-01');
     await page.getByRole('button', { name: 'Apply' }).click();
     await expect(page.getByText('No audit events match these filters.')).toBeVisible();
     await shot(page, testInfo, 'auditor', 'audit', 'empty');
