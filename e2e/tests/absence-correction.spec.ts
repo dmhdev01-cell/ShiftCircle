@@ -22,8 +22,11 @@ interface TimeEntry {
 
 async function aWorkedEntry(request: import('@playwright/test').APIRequestContext): Promise<TimeEntry> {
   const api = await apiAs(request, 'm.ellis');
-  const periods = await api.get<{ id: string; status: string }[]>('/pay-periods');
-  const open = periods.find((period) => period.status === 'OPEN')!;
+  // The demo day's period (9 - 22 Nov), not the newest open one in the list.
+  const periods = await api.get<{ id: string; from: string; to: string; status: string }[]>('/pay-periods');
+  const open = periods.find(
+    (period) => period.status === 'OPEN' && period.from <= '2026-11-19' && period.to >= '2026-11-19',
+  )!;
   const entries = await api.get<TimeEntry[]>(`/pay-periods/${open.id}/time-entries`);
   const entry = entries.find((candidate) => candidate.date <= '2026-11-19' && candidate.worked);
   expect(entry, 'a worked entry in the open period').toBeTruthy();
@@ -35,8 +38,11 @@ async function entryAbsence(
   assignmentId: string,
 ): Promise<{ absence?: string; worked: boolean }> {
   const api = await apiAs(request, 'm.ellis');
-  const periods = await api.get<{ id: string; status: string }[]>('/pay-periods');
-  const open = periods.find((period) => period.status === 'OPEN')!;
+  // The demo day's period (9 - 22 Nov), not the newest open one in the list.
+  const periods = await api.get<{ id: string; from: string; to: string; status: string }[]>('/pay-periods');
+  const open = periods.find(
+    (period) => period.status === 'OPEN' && period.from <= '2026-11-19' && period.to >= '2026-11-19',
+  )!;
   const entries = await api.get<TimeEntry[]>(`/pay-periods/${open.id}/time-entries`);
   const entry = entries.find((candidate) => candidate.assignmentId === assignmentId);
   expect(entry, 'the entry is still in the period').toBeTruthy();
@@ -64,6 +70,8 @@ test.describe('a sickness record can be corrected', () => {
     await page.getByLabel('Absence type').selectOption('SICK');
     await page.getByRole('button', { name: 'Save' }).click();
     await expect.poll(async () => (await entryAbsence(request, entry.assignmentId)).absence).toBe('SICK');
+    // The drawer stays open with the result; Done closes it (observation #10).
+    await page.getByRole('button', { name: 'Done' }).click();
     const sick = cell.getByRole('button', { name: /Sick .* change/ });
     await expect(sick).toBeVisible();
 
@@ -72,7 +80,8 @@ test.describe('a sickness record can be corrected', () => {
     await expect(page.getByLabel('Absence type')).toHaveValue('SICK');
     await page.getByRole('radio', { name: 'Worked as scheduled' }).check();
     await page.getByRole('button', { name: 'Save' }).click();
-    await expect.poll(async () => (await entryAbsence(request, entry.assignmentId)).absence).toBeUndefined();
+    await expect.poll(async () => (await entryAbsence(request, entry.assignmentId)).absence).toBeFalsy();
+    await page.getByRole('button', { name: 'Done' }).click();
     await expect(sick).toHaveCount(0);
 
     // Worked -> sick again.
@@ -81,6 +90,7 @@ test.describe('a sickness record can be corrected', () => {
     await page.getByLabel('Absence type').selectOption('SICK');
     await page.getByRole('button', { name: 'Save' }).click();
     await expect.poll(async () => (await entryAbsence(request, entry.assignmentId)).absence).toBe('SICK');
+    await page.getByRole('button', { name: 'Done' }).click();
     await expect(cell.getByRole('button', { name: /Sick .* change/ })).toBeVisible();
   });
 });

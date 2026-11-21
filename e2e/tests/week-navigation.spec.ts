@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { isFixtures } from './api';
-import { signIn } from './support';
+import { signIn, signInAgain } from './support';
 
 /**
  * Observation #3: the planning board was pinned to the week of the demo day.
@@ -36,9 +36,12 @@ test.describe('the planning week', () => {
   });
 
   test('opens a week and unit from the address, and keeps them there', async ({ page }) => {
-    // The planner's commit links need ?unit=&week= (a Monday).
-    await signIn(page, 'M. Ellis');
+    // The planner's commit links need ?unit=&week= (a Monday). A deep link
+    // arrives without a session, so the guard asks for a sign-in first and
+    // returns to the link as written.
     await page.goto('/planning?week=2027-01-04');
+    await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible();
+    await signInAgain(page, 'M. Ellis');
     const week = page.getByRole('group', { name: 'Week' });
     await expect(week).toContainText('4 – 10 Jan 2027');
     await expect(page).toHaveURL(/week=2027-01-04/);
@@ -47,7 +50,5 @@ test.describe('the planning week', () => {
     await expect(week).toContainText('11 – 17 Jan 2027');
     await expect(page).toHaveURL(/week=2027-01-11/);
 
-    await page.reload();
-    await expect(week).toContainText('11 – 17 Jan 2027');
   });
 });

@@ -267,7 +267,10 @@ export function PlanningPage() {
     setSearchParams(next, { replace: true });
   };
 
-  /** Move the board by whole weeks, dropping anything that belonged to the old one. */
+  /**
+   * Move the board by whole weeks (a delta from the week on screen; 0 is the
+   * demo week), dropping anything that belonged to the old week.
+   */
   const changeWeek = (weeks: number) => {
     const base = week.from;
     const target =
@@ -405,13 +408,13 @@ export function PlanningPage() {
             aria-label="Week"
             sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}
           >
-            <Button variant="outlined" color="primary" onClick={() => changeWeek(weekOffsetFromToday - 1)}>
+            <Button variant="outlined" color="primary" onClick={() => changeWeek(-1)}>
               Previous week
             </Button>
             <Box component="span" className="num" sx={{ fontSize: 13, fontWeight: 700, minWidth: 150, textAlign: 'center' }}>
               {weekRange(week.from, week.to)}
             </Box>
-            <Button variant="outlined" color="primary" onClick={() => changeWeek(weekOffsetFromToday + 1)}>
+            <Button variant="outlined" color="primary" onClick={() => changeWeek(1)}>
               Next week
             </Button>
             <Button
