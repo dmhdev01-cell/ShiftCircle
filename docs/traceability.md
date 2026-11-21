@@ -14,6 +14,13 @@ dataset checksum is `3390148255...6539` with the payroll golden unchanged; the 1
 **425 = 123 + 27 + 275** in both orders, with dev-qa verification pending. A proof below names the
 test class and method that makes the claim, not the document that hopes it exists.
 
+**Phase 3 preference/pattern (`p3-pref`, merged tip `78fb935`; dev-qa gate pending).** The branch
+adds **19 api tests**: preference multi-select and the V9 backfill, coverage `extraPercent`, the
+Block sentence, V10 and the per-officer pattern. Author run from a clean worktree at the code tip
+`761f763` (Java identical to `78fb935`): **444 = 123 rules + 27 infrastructure + 294 api** in the
+default order and random seed 20261121, 0 failures/errors/skipped; web **290**. The 120 and 100
+drafts are sha256-identical to `c9ac073`; the checksums and payroll golden are unchanged.
+
 **Path shorthand.** `RulesTest` = a class in `api/shiftcircle-rules/src/test/java/ca/shiftcircle/rules/`;
 `ApiTest` = a class in `api/shiftcircle-api/src/test/java/ca/shiftcircle/api/`;
 `InfraTest` = a class in `api/shiftcircle-infrastructure/src/test/java/ca/shiftcircle/infrastructure/`;

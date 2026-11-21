@@ -26,7 +26,7 @@ The tab, unit and week live in the URL so Back, reload (ADR-025 return path) and
 
 **Words used on screen** (same everywhere; never codes):
 - **Night shift** = N8, A12 or L16 (amendment 4). Tile notes and explanations say "night shifts (8 h nights, 12 h 00–12 and 16 h shifts)" the first time on a screen, then "night shifts".
-- **Patterns:** "8 h · 5 on, 2 off" (default), "8 h · 7 on, 3 off", "12 h · 4 on, 4 off", "16 h · 1 on, 2 off". Shown in the roster grid's officer column, the same place as the board's rotation line.
+- **Patterns:** "Rotating 5 on, 2 off (weekends rotate)" (8 h default) · "Fixed 5 on, 2 off" · "7 on, 3 off" · "4 on, 4 off" (12 h) · "1 on, 2 off" (16 h). Shown in the roster grid's officer column, the same place as the board's rotation line.
 
 ---
 
