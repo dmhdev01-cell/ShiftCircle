@@ -16,6 +16,7 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -159,14 +160,14 @@ public class RuleCheckService {
   private List<ShiftFact> existingShifts(
       UUID employeeId, Instant around, UUID excludeAssignmentId) {
     List<ShiftFact> shifts = new ArrayList<>();
-    // A recorded actual moves the shift the rules see: rest is measured from the
-    // actual end, and an extension changes the shift's own length (U-04/U-05 and
-    // the weekly windows). No entry, or an absence entry, keeps the roster.
+    // The rules see the ENVELOPE of the roster and the recorded actual: the earliest start and
+    // the latest end. An actual can therefore lengthen a shift (the 4 h extension, U-04/U-05 and
+    // the weekly windows still see it) but can never shorten it and relax a Block (P3-2).
     String sql =
-        "SELECT s.id, e.employee_no, u.code AS unit_code, u.allows_12h, u.allows_16h,"
-            + " t.code AS template_code, t.duration_minutes,"
-            + " coalesce(te.start_at, s.start_at) AS start_at,"
-            + " coalesce(te.end_at, s.end_at) AS end_at, s.kind"
+        "SELECT s.id AS assignment_id, s.employee_id, e.employee_no, u.code AS unit_code,"
+            + " u.allows_12h, u.allows_16h, t.code AS template_code, t.duration_minutes,"
+            + " LEAST(s.start_at, te.start_at) AS start_at,"
+            + " GREATEST(s.end_at, te.end_at) AS end_at, s.kind"
             + " FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
             + " JOIN unit u ON u.id = s.unit_id JOIN shift_template t ON t.id = s.shift_template_id"
             + " LEFT JOIN LATERAL (SELECT start_at, end_at FROM time_entry"
@@ -192,25 +193,54 @@ public class RuleCheckService {
         sql,
         (org.springframework.jdbc.core.RowCallbackHandler)
             resultSet ->
-                shifts.add(
-                    new ShiftFact(
-                        resultSet.getObject("id").toString(),
-                        resultSet.getString("employee_no"),
-                        resultSet.getString("unit_code"),
-                        resultSet.getString("template_code"),
-                        resultSet.getTimestamp("start_at").toInstant(),
-                        resultSet.getTimestamp("end_at").toInstant(),
-                        "EXTRA".equals(resultSet.getString("kind"))
-                            ? ShiftKind.EXTRA
-                            : ShiftKind.ROSTERED,
-                        extensionMinutes(
-                            resultSet.getTimestamp("start_at").toInstant(),
-                            resultSet.getTimestamp("end_at").toInstant(),
-                            resultSet.getInt("duration_minutes")),
-                        resultSet.getBoolean("allows_12h"),
-                        resultSet.getBoolean("allows_16h"))),
+                shifts.add(fact(resultSet, resultSet.getObject("assignment_id").toString())),
         args);
     return shifts;
+  }
+
+  /**
+   * The committed history for the planner. The same row mapping and the same envelope as the board
+   * path, so an actual can lengthen the history the planner sees but cannot shorten it (P3-2).
+   */
+  public Map<UUID, List<ShiftFact>> history(Instant from, Instant to) {
+    Map<UUID, List<ShiftFact>> history = new HashMap<>();
+    jdbc.query(
+        "SELECT s.id AS assignment_id, s.employee_id, e.employee_no, u.code AS unit_code,"
+            + " u.allows_12h, u.allows_16h, t.code AS template_code, t.duration_minutes,"
+            + " LEAST(s.start_at, te.start_at) AS start_at,"
+            + " GREATEST(s.end_at, te.end_at) AS end_at, s.kind"
+            + " FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
+            + " JOIN unit u ON u.id = s.unit_id JOIN shift_template t ON t.id = s.shift_template_id"
+            + " LEFT JOIN LATERAL (SELECT start_at, end_at FROM time_entry"
+            + "   WHERE shift_assignment_id = s.id AND entry_type = 'ACTUAL'"
+            + "   AND absence_type IS NULL ORDER BY created_at DESC LIMIT 1) te ON true"
+            + " WHERE s.status <> 'CANCELLED' AND s.start_at < ? AND s.end_at > ?",
+        (org.springframework.jdbc.core.RowCallbackHandler)
+            resultSet ->
+                history
+                    .computeIfAbsent(
+                        resultSet.getObject("employee_id", UUID.class), key -> new ArrayList<>())
+                    .add(fact(resultSet, resultSet.getObject("employee_id").toString())),
+        Timestamp.from(to),
+        Timestamp.from(from));
+    return history;
+  }
+
+  private static ShiftFact fact(java.sql.ResultSet resultSet, String factId)
+      throws java.sql.SQLException {
+    Instant start = resultSet.getTimestamp("start_at").toInstant();
+    Instant end = resultSet.getTimestamp("end_at").toInstant();
+    return new ShiftFact(
+        factId,
+        resultSet.getString("employee_no"),
+        resultSet.getString("unit_code"),
+        resultSet.getString("template_code"),
+        start,
+        end,
+        "EXTRA".equals(resultSet.getString("kind")) ? ShiftKind.EXTRA : ShiftKind.ROSTERED,
+        extensionMinutes(start, end, resultSet.getInt("duration_minutes")),
+        resultSet.getBoolean("allows_12h"),
+        resultSet.getBoolean("allows_16h"));
   }
 
   /** Minutes a shift runs beyond its template, when an actual end makes it longer. */

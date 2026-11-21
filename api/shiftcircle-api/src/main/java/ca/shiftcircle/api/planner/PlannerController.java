@@ -145,7 +145,15 @@ public class PlannerController {
 
   @PostMapping("/drafts/{id}/discard")
   public PlannerViews.DiscardResult discard(@PathVariable UUID id) {
-    return planner.discard(id, scopeGuard.principal());
+    if (!demoLock.tryAcquire()) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "A demo reset or another planner run is in progress");
+    }
+    try {
+      return planner.discard(id, scopeGuard.principal());
+    } finally {
+      demoLock.release();
+    }
   }
 
   @GetMapping("/drafts/{id}/compare")

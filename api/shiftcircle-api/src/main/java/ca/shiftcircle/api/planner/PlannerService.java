@@ -320,8 +320,14 @@ public class PlannerService {
     if (!"DRAFT".equals(draft.get("status"))) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "Only a draft can be discarded");
     }
-    jdbc.update(
-        "UPDATE plan_draft SET status = 'DISCARDED', version = version + 1 WHERE id = ?", id);
+    if (jdbc.update(
+            "UPDATE plan_draft SET status = 'DISCARDED', version = version + 1"
+                + " WHERE id = ? AND status = 'DRAFT'",
+            id)
+        == 0) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "The draft was committed or discarded while this request ran");
+    }
     audit(principal, "discard_plan", "plan_draft", id, Map.of("assignments", shiftCount(id)));
     return new PlannerViews.DiscardResult(id, "DISCARDED");
   }
@@ -741,12 +747,19 @@ public class PlannerService {
         "INSERT INTO shift_assignment (id, employee_id, unit_id, shift_template_id, start_at,"
             + " end_at, work_date, kind, source, plan_draft_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         rows.stream().map(row -> java.util.Arrays.copyOf(row, 10)).toList());
-    jdbc.update(
-        "UPDATE plan_draft SET status = 'COMMITTED', version = version + 1,"
-            + " committed_at = now(), committed_by = (SELECT id FROM app_user WHERE username = ?)"
-            + " WHERE id = ?",
-        principal.username(),
-        id);
+    int committedRows =
+        jdbc.update(
+            "UPDATE plan_draft SET status = 'COMMITTED', version = version + 1,"
+                + " committed_at = now(), committed_by = (SELECT id FROM app_user WHERE username = ?)"
+                + " WHERE id = ? AND status = 'DRAFT'",
+            principal.username(),
+            id);
+    if (committedRows == 0) {
+      // The draft was discarded between the read and this write. Roll back the assignments and
+      // the audit: a discard that won must not leave a committed quarter behind.
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "The draft was discarded or committed while this request ran");
+    }
     long auditId =
         jdbc.queryForObject(
             "INSERT INTO audit_event (actor_user_id, action, entity_type, entity_id, after)"
@@ -1425,15 +1438,37 @@ public class PlannerService {
               + " is already recorded for that date; reset or correct it first");
     }
     UUID id = UUID.randomUUID();
-    jdbc.update(
-        "INSERT INTO absence (id, employee_id, type, start_at, end_at, recorded_by)"
-            + " VALUES (?, ?, ?, ?, ?, (SELECT id FROM app_user WHERE username = ?))",
-        id,
-        employeeId,
-        type,
-        Timestamp.from(start),
-        Timestamp.from(end),
-        principal.username());
+    int inserted =
+        jdbc.update(
+            "INSERT INTO absence (id, employee_id, type, start_at, end_at, recorded_by)"
+                + " VALUES (?, ?, ?, ?, ?, (SELECT id FROM app_user WHERE username = ?))"
+                + " ON CONFLICT (employee_id, start_at, end_at)"
+                + " WHERE shift_assignment_id IS NULL DO NOTHING",
+            id,
+            employeeId,
+            type,
+            Timestamp.from(start),
+            Timestamp.from(end),
+            principal.username());
+    if (inserted == 0) {
+      // A concurrent call won the insert. Same type is idempotent; a different type is a conflict.
+      Map<String, Object> row =
+          jdbc.queryForMap(
+              "SELECT id, type FROM absence WHERE employee_id = ? AND start_at = ? AND end_at = ?"
+                  + " AND shift_assignment_id IS NULL",
+              employeeId,
+              Timestamp.from(start),
+              Timestamp.from(end));
+      if (type.equals(row.get("type"))) {
+        return new PlannerViews.PlannedAbsenceResult(
+            absenceBody((UUID) row.get("id"), employeeId, date, type), false);
+      }
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "An absence of type "
+              + row.get("type")
+              + " is already recorded for that date; reset or correct it first");
+    }
     audit(
         principal,
         "record_absence",
@@ -1454,47 +1489,8 @@ public class PlannerService {
   }
 
   private Map<UUID, List<ShiftFact>> loadHistory(Instant from, Instant to) {
-    Map<UUID, List<ShiftFact>> history = new HashMap<>();
-    // Committed history with a recorded actual is the shift that happened: the
-    // planner's rest and hours checks read it the way the board's do.
-    jdbc.query(
-        "SELECT s.employee_id, e.employee_no, u.code AS unit_code, u.allows_12h, u.allows_16h,"
-            + " t.code AS template_code, t.duration_minutes,"
-            + " coalesce(te.start_at, s.start_at) AS start_at,"
-            + " coalesce(te.end_at, s.end_at) AS end_at, s.kind"
-            + " FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
-            + " JOIN unit u ON u.id = s.unit_id JOIN shift_template t ON t.id = s.shift_template_id"
-            + " LEFT JOIN LATERAL (SELECT start_at, end_at FROM time_entry"
-            + "   WHERE shift_assignment_id = s.id AND entry_type = 'ACTUAL'"
-            + "   AND absence_type IS NULL ORDER BY created_at DESC LIMIT 1) te ON true"
-            + " WHERE s.status <> 'CANCELLED' AND s.start_at < ? AND s.end_at > ?",
-        (RowCallbackHandler)
-            rs ->
-                history
-                    .computeIfAbsent(rs.getObject("employee_id", UUID.class), key -> new ArrayList<>())
-                .add(
-                    new ShiftFact(
-                        rs.getObject("employee_id", UUID.class).toString(),
-                        rs.getString("employee_no"),
-                        rs.getString("unit_code"),
-                        rs.getString("template_code"),
-                        rs.getTimestamp("start_at").toInstant(),
-                        rs.getTimestamp("end_at").toInstant(),
-                        "EXTRA".equals(rs.getString("kind")) ? ShiftKind.EXTRA : ShiftKind.ROSTERED,
-                        extensionMinutes(
-                            rs.getTimestamp("start_at").toInstant(),
-                            rs.getTimestamp("end_at").toInstant(),
-                            rs.getInt("duration_minutes")),
-                        rs.getBoolean("allows_12h"),
-                        rs.getBoolean("allows_16h"))),
-        Timestamp.from(to),
-        Timestamp.from(from));
-    return history;
-  }
-
-  /** Minutes a shift runs beyond its template, when an actual end makes it longer. */
-  private static int extensionMinutes(Instant start, Instant end, int templateMinutes) {
-    return (int) Math.max(0, Duration.between(start, end).toMinutes() - templateMinutes);
+    // One resolver with the board path (RuleCheckService): the envelope of roster and actual.
+    return ruleCheck.history(from, to);
   }
 
   private Map<String, Object> requireDraft(UUID id) {

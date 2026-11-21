@@ -163,13 +163,28 @@ public class DemoResetService {
       status = new Status("DONE", "done", status.startedAt(),
           java.time.Duration.between(Instant.parse(status.startedAt()), Instant.now()).toMillis(),
           checksum, provider.dataset(), null);
-    } catch (RuntimeException failure) {
-      lock.release();
-      status = new Status("FAILED", status.step(), status.startedAt(),
-          java.time.Duration.between(Instant.parse(status.startedAt()), Instant.now()).toMillis(),
-          null, provider.dataset(), failure.getMessage());
+    } catch (Throwable failure) {
+      // An Error (OOM, NoClassDefFoundError) must not leave the permit held and the status
+      // RUNNING: the interceptor answers 409 to everything else and the reset says "already
+      // running" until the process restarts (P3-5). The detail goes to the log only; a planner
+      // must not receive raw SQL or Flyway text.
+      status =
+          new Status(
+              "FAILED",
+              status.step(),
+              status.startedAt(),
+              status.startedAt() == null
+                  ? 0L
+                  : java.time.Duration.between(
+                          Instant.parse(status.startedAt()), Instant.now())
+                      .toMillis(),
+              null,
+              provider.dataset(),
+              "The demo reset failed. The api log has the detail.");
       org.slf4j.LoggerFactory.getLogger(DemoResetService.class)
           .error("demo reset failed at step {}", status.step(), failure);
+    } finally {
+      lock.release();
     }
   }
 
