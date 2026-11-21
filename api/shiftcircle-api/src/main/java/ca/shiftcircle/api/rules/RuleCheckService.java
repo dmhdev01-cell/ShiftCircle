@@ -81,6 +81,32 @@ public class RuleCheckService {
 
   public OutcomeView evaluate(
       Change change, PublishedRuleSet.Snapshot live, UUID excludeAssignmentId) {
+    List<ShiftFact> shifts =
+        new ArrayList<>(existingShifts(change.employeeId(), change.startAt(), excludeAssignmentId));
+    shifts.add(factFor(change));
+    return evaluateFacts(shifts, live);
+  }
+
+  /**
+   * The planner seam (ADR-026): the same evaluation, against shifts the caller holds in memory — the
+   * draft's own assignments plus the committed history before the window — instead of reading
+   * shift_assignment. The proposal still goes through every fact builder and the published rule
+   * base, so the generator cannot propose anything the planning board would refuse.
+   */
+  public OutcomeView evaluate(Change change, List<ShiftFact> employeeShifts) {
+    List<ShiftFact> shifts = new ArrayList<>(employeeShifts);
+    shifts.add(factFor(change));
+    return evaluateFacts(shifts, published.snapshot());
+  }
+
+  /** The same seam when the caller already holds the proposed fact (the planner builds thousands). */
+  public OutcomeView evaluate(ShiftFact proposed, List<ShiftFact> employeeShifts) {
+    List<ShiftFact> shifts = new ArrayList<>(employeeShifts);
+    shifts.add(proposed);
+    return evaluateFacts(shifts, published.snapshot());
+  }
+
+  private ShiftFact factFor(Change change) {
     Map<String, Object> employee =
         jdbc.queryForMap(
             "SELECT e.employee_no, u.code AS unit_code, u.allows_12h, u.allows_16h"
@@ -92,23 +118,20 @@ public class RuleCheckService {
             "SELECT duration_minutes FROM shift_template WHERE code = ?", change.shiftTemplate());
 
     int minutes = ((Number) template.get("duration_minutes")).intValue();
-    ShiftFact proposed =
-        new ShiftFact(
-            "proposed",
-            (String) employee.get("employee_no"),
-            (String) employee.get("unit_code"),
-            change.shiftTemplate(),
-            change.startAt(),
-            change.startAt().plus(Duration.ofMinutes(minutes)),
-            "EXTRA".equals(change.type()) ? ShiftKind.EXTRA : ShiftKind.ROSTERED,
-            0,
-            (Boolean) employee.get("allows_12h"),
-            (Boolean) employee.get("allows_16h"));
+    return new ShiftFact(
+        "proposed",
+        (String) employee.get("employee_no"),
+        (String) employee.get("unit_code"),
+        change.shiftTemplate(),
+        change.startAt(),
+        change.startAt().plus(Duration.ofMinutes(minutes)),
+        "EXTRA".equals(change.type()) ? ShiftKind.EXTRA : ShiftKind.ROSTERED,
+        0,
+        (Boolean) employee.get("allows_12h"),
+        (Boolean) employee.get("allows_16h"));
+  }
 
-    List<ShiftFact> shifts =
-        new ArrayList<>(existingShifts(change.employeeId(), change.startAt(), excludeAssignmentId));
-    shifts.add(proposed);
-
+  private OutcomeView evaluateFacts(List<ShiftFact> shifts, PublishedRuleSet.Snapshot live) {
     List<Object> facts = new ArrayList<>();
     facts.addAll(new RestFactBuilder().build(shifts));
     facts.addAll(new RollingHoursFactBuilder().build(shifts, 24));
