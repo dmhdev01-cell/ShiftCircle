@@ -20,6 +20,12 @@ export const USER_IDS: Record<string, string> = {
 export interface Api {
   get<T = unknown>(path: string): Promise<T>;
   post(path: string, data?: unknown): Promise<{ status: number; body: unknown }>;
+  /** A POST carrying If-Match, for the endpoints that are optimistic. */
+  postIfMatch(
+    path: string,
+    version: number,
+    data?: unknown,
+  ): Promise<{ status: number; body: unknown }>;
 }
 
 /** True when the web under test is the fixtures-mode build. */
@@ -41,6 +47,19 @@ export async function apiAs(request: APIRequestContext, userId: string): Promise
     },
     async post(path: string, data?: unknown) {
       const response = await request.post(`/api/v1${path}`, { headers, data });
+      let body: unknown = null;
+      try {
+        body = await response.json();
+      } catch {
+        body = null;
+      }
+      return { status: response.status(), body };
+    },
+    async postIfMatch(path: string, version: number, data?: unknown) {
+      const response = await request.post(`/api/v1${path}`, {
+        headers: { ...headers, 'If-Match': `"${version}"` },
+        data,
+      });
       let body: unknown = null;
       try {
         body = await response.json();
