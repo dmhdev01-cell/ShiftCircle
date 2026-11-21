@@ -11,6 +11,16 @@ import type { DemoResetStatus } from '../api/types';
 import { invalidateVersionCache } from '../api/useVersion';
 import { colour } from '../theme/tokens';
 
+/**
+ * What the datasets are, in the person's words (P3 amendments 20-21). The api
+ * currently sends the ids alone; when it sends a name, that name wins. A
+ * dataset this build does not know shows its id, nothing invented.
+ */
+const DATASET_WORDS: Record<string, string> = {
+  '100': '100: the seeded demo data',
+  '120': '120: 100 full-time crews + 20 casual relief officers',
+};
+
 const STEP_WORDS: Record<string, string> = {
   clean: 'Clearing the demo data',
   audit: 'Erasing the audit history',
@@ -131,7 +141,9 @@ export function ResetDemoCard({
               >
                 {datasets.map((entry) => (
                   <option key={entry.id} value={entry.id}>
-                    {entry.name}
+                    {entry.name && entry.name !== entry.id
+                      ? entry.name
+                      : (DATASET_WORDS[entry.id] ?? entry.id)}
                   </option>
                 ))}
               </Box>
