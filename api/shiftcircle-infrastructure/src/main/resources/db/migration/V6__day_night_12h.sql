@@ -31,7 +31,7 @@ SET params = jsonb_set(
 WHERE rule_set_version_id = '00000000-0000-0000-0000-000000000002' AND code = 'U-02';
 
 UPDATE rule_row
-SET message = 'More than 4 consecutive overnight 19-07 shifts.'
+SET message = 'More than 4 consecutive overnight (00-12 or 19-07) shifts.'
 WHERE rule_set_version_id = '00000000-0000-0000-0000-000000000002' AND code = 'U-10';
 
 INSERT INTO shift_template

@@ -219,6 +219,13 @@ Flyway clean+migrate, so switching back to 100 restores the V3 flags). The plann
 12 h phases are paired (j and j+4) so a crew of 2p covers exactly p posts every day. The 100 plan
 gained day cover from the pairing (789 → 727 gaps), which is an allocation improvement, not a rule
 change.
+**Governance (review-r2, SAFE WITH NOTES):** V6 seeds version 2 directly as PUBLISHED, exactly like
+version 1: `created_by`/`approved_by` are NULL, `change_reason` is recorded, and there is no
+`audit_event` row. That is the **baseline-seeding exception**, not the product's change path; every
+later version goes through maker/checker (ADR-019, docs/04 §6). U-10's message now reads "overnight
+(00-12 or 19-07)" because the counter still includes A12 00-12 night-block shifts from v1 as well as
+N12 19-07; behaviour is otherwise unchanged.
+
 **Evidence:** `HoursAndRunsRulesTest` D12/N12 cases (U-02 after N12, U-09 4/5, U-10 4/5, U-14
 48/60/68, U-05 16/16.25), `PlanGeneratorCrewTest` (196 N12 on 98 nights, separate crews, no
 N8/L16), `ReferenceDataMatchesRuleRowsTest`, `DemoResetApiTest`, `DemoOperationLockTest`.

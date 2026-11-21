@@ -8,7 +8,7 @@
 flowchart LR
     B[Browser: desktop · tablet · TV] -->|:8080| W[web: nginx + React 19 / MUI 9]
     W -->|/api/ proxy| A[api: Java 21 · Spring Boot 4.1.3 · Drools 10.2.0]
-    A -->|JDBC| D[(db: PostgreSQL 17 · Flyway V1–V4)]
+    A -->|JDBC| D[(db: PostgreSQL 17 · Flyway V1–V6)]
     R[Rule tables edited in-app] -->|validate → compile → scenarios → dry run → approve| A
 ```
 
@@ -18,7 +18,8 @@ Only the web publishes a port. A published rule version is compiled and swapped 
 
 - No AI at runtime: the rules engine decides, and a supervisor approves (ADR-002, ADR-005).
 - Drools decision tables are edited in the app; publishing uses maker/checker, test scenarios and a dry run (ADR-012).
-- Coverage is by unit and block, measured hourly. Overtime is the hours over the pay-period threshold (ADR-013, 016, 017).
+- Coverage is by unit and block, measured hourly in absolute time (the NIGHT block on D is 23:00 D–07:00 D+1). Overtime is the hours over the pay-period threshold (ADR-013, 016, 017).
+- Baseline rule set v2 (V6) is seeded PUBLISHED by migration, like v1, without maker/checker and without an audit row; every later version uses maker/checker (docs/04 §6).
 - **Deviations confirmed by the project lead on 2026-11-20:** only emergency Blocks can be overridden (ADR-023); lock and export are facility-wide (ADR-022); cross-unit cover (ADR-024). Audit relies on triggers, not grants (ADR-018, prototype only).
 
 ## 3. AI-assisted development

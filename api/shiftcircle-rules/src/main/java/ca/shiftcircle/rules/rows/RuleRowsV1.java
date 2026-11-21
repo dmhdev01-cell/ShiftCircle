@@ -158,7 +158,7 @@ public final class RuleRowsV1 {
         Map.of("counts", "SHIFTS_NIGHT_12H", "max", 4, "overtimeSeverity", "WARN"),
         RuleOutcome.WARN,
         OverridePolicy.ACKNOWLEDGE,
-        "More than 4 consecutive overnight 19-07 shifts.",
+        "More than 4 consecutive overnight (00-12 or 19-07) shifts.",
         "MOCK",
         true,
         100);
