@@ -16,6 +16,7 @@ import { useUnits } from '../api/useUnits';
 import { useVersion } from '../api/useVersion';
 import { useRole } from '../shell/nav';
 import { colour } from '../theme/tokens';
+import { addDays, weekdayDateWords } from '../planner/unitDates';
 import { KpiTile } from './KpiTile';
 import { OverrideDialog } from './OverrideDialog';
 import { PublishPeriodButton } from './PublishPeriodButton';
@@ -515,6 +516,28 @@ export function PlanningPage() {
       {readOnly ? (
         <Typography role="note" sx={{ fontSize: 13, color: colour.text.secondary }}>
           Read-only: the facility planner sees every unit's roster. Supervisors change their own.
+        </Typography>
+      ) : null}
+
+      {payload.unit.closedFrom ? (
+        <Typography
+          role="note"
+          sx={{
+            p: '10px 12px',
+            borderRadius: '8px',
+            backgroundColor: colour.status.info.bg,
+            color: colour.status.info.text,
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          {payload.unit.name.split(' · ')[0]} is closed from {weekdayDateWords(payload.unit.closedFrom)}
+          {payload.unit.closedReason ? ` ("${payload.unit.closedReason}")` : ''}
+          {payload.unit.closedTo
+            ? ` until it reopens on ${weekdayDateWords(addDays(payload.unit.closedTo, 1))}`
+            : ''}
+          . It has no roster and needs no staff from that date. Its officers work as relief in other
+          units, shown under those units.
         </Typography>
       ) : null}
 

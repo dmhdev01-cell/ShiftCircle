@@ -6,10 +6,18 @@ interface KpiTileProps {
   label: string;
   value: string | number;
   note?: string;
+  /** Optional colour for the figure (the staffing tile says Short in warn). */
+  tone?: 'warn' | 'pass' | 'block';
 }
 
 /** A KPI tile (docs/ui/README.md §5.1): a label, a figure and a note. */
-export function KpiTile({ label, value, note }: KpiTileProps) {
+const TONE_COLOUR = {
+  warn: colour.status.warn.text,
+  pass: colour.status.pass.text,
+  block: colour.status.block.text,
+} as const;
+
+export function KpiTile({ label, value, note, tone }: KpiTileProps) {
   return (
     <Box
       sx={{
@@ -29,7 +37,12 @@ export function KpiTile({ label, value, note }: KpiTileProps) {
       <Box
         className="num"
         component="span"
-        sx={{ fontSize: 28, fontWeight: 700, lineHeight: 1.1, color: colour.text.primary }}
+        sx={{
+          fontSize: 28,
+          fontWeight: 700,
+          lineHeight: 1.1,
+          color: tone ? TONE_COLOUR[tone] : colour.text.primary,
+        }}
       >
         {value}
       </Box>

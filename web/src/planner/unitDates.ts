@@ -31,6 +31,13 @@ export function weekdayDateWords(iso: string): string {
   return WEEKDAY_DAY.format(new Date(`${match[1]}-${match[2]}-${match[3]}T12:00:00Z`));
 }
 
+/** The date so many days later, as YYYY-MM-DD. */
+export function addDays(date: string, days: number): string {
+  const parsed = new Date(`${date}T00:00:00Z`);
+  parsed.setUTCDate(parsed.getUTCDate() + days);
+  return parsed.toISOString().slice(0, 10);
+}
+
 export function createdAtWords(iso: string): string {
   const parsed = new Date(iso);
   if (Number.isNaN(parsed.getTime())) return iso;

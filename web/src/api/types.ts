@@ -176,6 +176,7 @@ export interface SchedulePayload {
     closedTo?: string | null;
     closedLabel?: string | null;
     closedDates?: string[];
+    closedReason?: string | null;
   };
   from: string;
   to: string;
@@ -899,6 +900,8 @@ export interface PlannerUnitCoverage {
   closedTo?: string | null;
   closedLabel?: string | null;
   closedDates?: string[];
+  /** The closure's reason, when the api sends it (the roster and board notes). */
+  closedReason?: string | null;
 }
 
 /** A unit's dated closure (release 3, api contract v2). */
@@ -1188,6 +1191,9 @@ export interface DisplayUnit {
   coverage: DisplayBlock[];
   openShifts: number;
   officersInOvertime: number;
+  /** Release 3: the unit is closed today; the card says so instead of counts. */
+  closedToday?: boolean;
+  closedNote?: string | null;
 }
 
 /** `GET /display/today`: no names, employee numbers or employee ids, by contract. */

@@ -23,9 +23,14 @@ import type {
   PlannerScorecard,
   PlannerWarningGroup,
   PlannerCompare,
+  StaffingReport,
+  FlaggedShift,
 } from '../api/types';
 import { KpiTile } from '../planning/KpiTile';
 import { PlannerRosterTab } from './PlannerRosterTab';
+import { StaffingPanel } from './StaffingPanel';
+import { staffingTile } from './staffingWords';
+import { FlaggedShiftsCard } from './FlaggedShiftsCard';
 import { useRole } from '../shell/nav';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
@@ -38,6 +43,8 @@ const BLOCK_WORDS: Record<string, string> = {
 };
 
 const TILE_HELP: Record<string, string> = {
+  Staffing:
+    'Needed is the number of officers each unit must employ to fill its posts every day and still cover leave. It is worked out from each unit\'s minimum staffing, its shift pattern and the leave allowance, shown in the table below. On staff counts active officers homed in the unit. A unit\'s shortfall is needed minus on staff, never below zero. A closed unit needs no one while it\'s closed.',
   'Coverage gaps':
     'A block (Day 07–15, Evening 15–23, Night 23–07) is short when any hour in it has fewer officers than the unit needs. The planner never breaks a blocking rule to fill a gap, so the gap stays visible for overtime or a supervisor to fill. See the Gaps tab.',
   'Rule warnings':
@@ -121,6 +128,8 @@ export function PlannerPage() {
   const { role } = useRole();
   const navigate = useNavigate();
   const [plan, setPlan] = useState<PlannerPlan | null>(null);
+  const [staffing, setStaffing] = useState<StaffingReport | null>(null);
+  const [flagged, setFlagged] = useState<FlaggedShift[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [message, setMessage] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -181,6 +190,37 @@ export function PlannerPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const refreshStaffing = useCallback(async () => {
+    try {
+      setStaffing(await api.getStaffing());
+    } catch {
+      setStaffing(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void api
+      .getStaffing()
+      .then((next) => {
+        if (active) setStaffing(next);
+      })
+      .catch(() => {
+        if (active) setStaffing(null);
+      });
+    void api
+      .getFlaggedShifts()
+      .then((next) => {
+        if (active) setFlagged(next);
+      })
+      .catch(() => {
+        if (active) setFlagged([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // The roster's unit picker: the same units the board offers.
   useEffect(() => {
@@ -569,6 +609,8 @@ export function PlannerPage() {
         </Card>
       ) : null}
 
+      <FlaggedShiftsCard shifts={flagged} />
+
       {!draft && !committed && !planCommitted ? (
         <Card sx={{ maxWidth: 640 }}>
           <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -580,6 +622,8 @@ export function PlannerPage() {
           </CardContent>
         </Card>
       ) : null}
+
+      {!planDraft && staffing ? <StaffingPanel report={staffing} onChanged={refreshStaffing} /> : null}
 
       {planDraft ? (
         <>
@@ -653,9 +697,24 @@ export function PlannerPage() {
                     value: seconds(scorecard.generatedMs),
                     note: `seed ${planDraft.seed}`,
                   },
+                  ...(staffing
+                    ? [
+                        {
+                          label: 'Staffing',
+                          value: staffingTile(staffing).value,
+                          note: staffingTile(staffing).note,
+                          tone: staffingTile(staffing).tone,
+                        },
+                      ]
+                    : []),
                 ].map((tile) => (
                   <Box key={tile.label} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <KpiTile label={tile.label} value={tile.value} note={tile.note} />
+                    <KpiTile
+                      label={tile.label}
+                      value={tile.value}
+                      note={tile.note}
+                      tone={'tone' in tile ? tile.tone : undefined}
+                    />
                     <Button
                       variant="text"
                       color="primary"
@@ -856,6 +915,8 @@ export function PlannerPage() {
                     </table>
                   </CardContent>
                 </Card>
+
+              {staffing ? <StaffingPanel report={staffing} onChanged={refreshStaffing} /> : null}
 
                 {scorecard.patterns && scorecard.patterns.officers.length > 0 ? (
                   <Card sx={{ flex: '1 1 420px' }}>

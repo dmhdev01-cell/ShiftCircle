@@ -176,6 +176,7 @@ function UnitCard({ entry, now, live }: { entry: DisplayUnit; now: Block; live: 
   const others = entry.coverage.filter((item) => item.block !== now);
   const currentStatus = current ? statusOf(current) : null;
   const short = currentStatus?.kind === 'short';
+  const shortUnit = entry.unit.name.split(' · ')[0];
 
   return (
     <Box
@@ -199,7 +200,16 @@ function UnitCard({ entry, now, live }: { entry: DisplayUnit; now: Block; live: 
         {entry.unit.name}
       </Box>
 
-      {current ? (
+      {entry.closedToday ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: s(8) }}>
+          <Box component="span" sx={{ fontSize: s(32, 20), fontWeight: 700 }}>
+            {shortUnit} is closed today
+          </Box>
+          <Box component="span" sx={{ fontSize: s(22, 16), color: C.muted }}>
+            {entry.closedNote ?? 'No reopening date is set.'}
+          </Box>
+        </Box>
+      ) : current ? (
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: s(12), flexWrap: 'wrap' }}>
             <Box sx={{ display: 'flex', alignItems: 'baseline', gap: s(12) }}>
