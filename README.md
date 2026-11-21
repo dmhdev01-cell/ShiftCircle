@@ -63,7 +63,7 @@ docker compose up -d --build --wait
 
 **How long:** with Docker's build cache warm, `up -d --build --wait` took **31 s**. Inside that, the api was ready about 6 s after it started, and the demo data took 2.8 s (`Demo data generated in 2814 ms: 6182 assignments, 193 absences, 194 open shifts, 309 offers` in `docker compose logs api`). The very first build also downloads the base images and the Maven and pnpm dependencies, which takes several minutes depending on the network (**UNVERIFIED** on a machine with an empty cache). The default dataset: 100 fictional officers, 1 Oct – 29 Dec 2026, "today" fixed at 19 Nov 2026, seed 20261001. The About reset card can also load the 120-officer crew dataset (see “Demo data and the quarter planner”).
 
-**Ports in use?** Only the web publishes a port. Set `SC_WEB_PORT` in `.env`, for example `SC_WEB_PORT=18080`, and open that port instead. For local debugging, `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build` also publishes the api (`SC_API_PORT`, default 8081) and the database (`SC_DB_PORT`, default 5433).
+**Ports in use?** Only the web publishes a port, and it is bound to **127.0.0.1** (not the LAN) because the demo has mock sign-in and a destructive reset. Set `SC_WEB_PORT` in `.env`, for example `SC_WEB_PORT=18080`, and open that port instead. For local debugging, `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build` also publishes the api (`SC_API_PORT`, default 8081) and the database (`SC_DB_PORT`, default 5433).
 
 Checks once it's up (both checked):
 - `http://localhost:8080/healthz` returns `ok`
