@@ -973,6 +973,8 @@ export interface ShiftCircleApi {
   getPayPeriods(): Promise<PayPeriod[]>;
   getTimeEntries(payPeriodId: string): Promise<TimeEntry[]>;
   recordActual(entryId: string, input: RecordActualInput): Promise<RecordActualResult>;
+  /** DELETE /time-entries/{assignmentId}: back to "needs actual". */
+  clearActual(assignmentId: string): Promise<RecordActualResult>;
   lockPayPeriod(payPeriodId: string): Promise<PayPeriod>;
   unlockPayPeriod(payPeriodId: string, reason: string): Promise<PayPeriod>;
   exportPayroll(payPeriodId: string): Promise<{ fileName: string; content: string }>;

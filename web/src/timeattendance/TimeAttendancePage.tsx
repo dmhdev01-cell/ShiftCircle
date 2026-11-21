@@ -175,6 +175,19 @@ export function TimeAttendancePage() {
     target.focus?.();
   };
 
+  const clearActual = async () => {
+    if (!picked) return;
+    try {
+      await api.clearActual(picked.assignmentId);
+      setPicked(null);
+      setSaved(null);
+      setMessage('The record is cleared: the shift needs an actual again.');
+      reloadEntries();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'The record could not be cleared.');
+    }
+  };
+
   const recordActual = async (input: RecordActualInput) => {
     if (!picked) return;
     try {
@@ -555,6 +568,9 @@ export function TimeAttendancePage() {
                 setPicked(null);
                 setSaved(null);
               }}
+              onClear={
+                picked && (picked.worked || picked.absence) ? () => void clearActual() : undefined
+              }
             />
           ) : null}
         </Box>

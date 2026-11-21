@@ -499,6 +499,9 @@ export function createHttpApi(): ShiftCircleApi {
         body: JSON.stringify(input),
       });
     },
+    clearActual(assignmentId: string): Promise<RecordActualResult> {
+      return request<RecordActualResult>(`/time-entries/${assignmentId}`, { method: 'DELETE' });
+    },
 
     lockPayPeriod(payPeriodId: string): Promise<PayPeriod> {
       return request<PayPeriod>(`/pay-periods/${payPeriodId}/lock`, { method: 'POST' });
