@@ -42,6 +42,7 @@ resolution and answered a 500 (dev-qa, 2026-11-20).
 | `23P01` (exclusion) | `.../problems/shift-conflict` | `409` | This officer already has a shift at that time |
 | `23505` (unique) | `.../problems/duplicate-record` | `409` | That record already exists |
 | `23514` (check) | `.../problems/409` | `409` | State conflict (the locked-pay-period trigger is a check violation) |
+| `23P01` on `pay_period_no_overlap` | `.../problems/pay-period-overlap` | `409` | The pay periods for this plan overlap periods that already exist |
 | `22003` (numeric overflow) | `.../problems/invalid-hours` | `400` | The hours are out of range |
 | maker/checker check | `.../problems/403` | `403` | The author of a rule version cannot approve it |
 
@@ -382,6 +383,7 @@ same validation as the grid (R24/R28: rule values are code input).
 | POST | `/planner/drafts/{id}/commit` | `If-Match: <version>`, `{acceptedWarningCount}` → write every assignment atomically and audit once; 412 stale, 422 per-assignment failures, 409 locked period or changed warnings | PLANNER |
 | POST | `/planner/drafts/{id}/discard` | Discard an open draft | PLANNER |
 | GET | `/planner/drafts/{id}/compare` | Draft vs the board. Rows cover coverage gaps, unfilled gap hours, shifts, officers scheduled, planned hours, plan-added warnings, preferences met, and weekends min/avg/max, each with `board`, `draft`, `unit` and `direction` (`LOWER_IS_BETTER`/`HIGHER_IS_BETTER`/`NEUTRAL`), plus one coverage-gap row per unit. Board measures come from the committed shifts through the board's own coverage code; draft measures from the plan tables | PLANNER |
+| POST | `/planner/absences` | `{employeeId, date, type}` → mark a future absence (SICK/VACATION/OTHER) inside the quarter; the next draft skips that officer on that date. Read-only input, not leave management; PLANNER only | PLANNER |
 | GET | `/planner/preferences?unitId=` | Every officer's preferences with how the open draft met them | PLANNER |
 | GET · PUT · DELETE | `/me/preferences` | The signed-in officer's own preferences (`shiftLength`, `timeOfDay`, up to 2 `daysOff`) | any account linked to an officer |
 
@@ -404,8 +406,10 @@ event in one transaction. Each written row carries `plan_draft_id`; overrides ar
 The scorecard carries coverage gaps measured in absolute time (the NIGHT block on date D runs
 23:00 D to 07:00 D+1, the same code the board uses), warnings by plain rule name (only warnings the
 plan adds: each officer's history-only baseline is subtracted), preferences asked/met by kind,
-night share by seniority band plus the newest-first check and `nightPolicy` (only 12 h officers
-work nights; an 8 h night preference is shown unmet with that reason), `n12Officers`/
+night share by seniority band plus the newest-first check, `nightPolicy` (only 12 h officers
+work nights; an 8 h night preference is shown unmet with that reason), `absences` (`officers`,
+`days`, `coveredByRelief`, `uncovered` and one plain line such as "3 officers on leave were
+skipped: relief officers covered 22 of the shifts"), `n12Officers`/
 `n12NightShifts` and a fixed-crew note when the dataset has N12 crews, officers and hours over 80,
 generation time, weekends worked per officer (min/avg/max), and `fteBands` (full-time / 0.7-0.9 /
 under 0.7: officers, target hours, planned min/avg/max) with the plain note that part-time and

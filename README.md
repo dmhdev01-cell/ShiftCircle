@@ -158,10 +158,10 @@ run at that tip is this author's). Web unit tests at `72ebd24`: **239 passed in 
 against the real api, whole suite: desktop **86 passed**, tablet **85 passed + 1 skipped** (the
 TV-size check is desktop-only); fixtures: desktop 22 passed (+56 skipped by design as `@api`),
 tablet 21 (+57). The static counts in this tree agree (101 + 27 + 228 `@Test` methods, one per line,
-no parameterised tests). Phase 3 at `35c9fdc` adds the planner, reset, 16 h policy, block rephasing,
+no parameterised tests). Phase 3 at `abbaaf7` adds the planner, reset, 16 h policy, block rephasing,
 the FTE pool, absolute-time coverage, the night rule, D12/N12 rule-set v2, separate day/night crews,
-the 120 dataset selector/provider and the review fixes: **407 = 123 rules + 27 infrastructure + 257 api**; this author's full
-clean-worktree runs there are 407, 0 failures/errors/skipped, in the default order and with random
+the 120 dataset selector/provider, the 120 commit/pay-period fix, the planned-absence input and the review fixes: **410 = 123 rules + 27 infrastructure + 260 api**; this author's full
+clean-worktree runs there are 410, 0 failures/errors/skipped, in the default order and with random
 seed 20261121 (the test-container flake fix - 400 connections, no local TLS, 30 s connect timeout -
 was verified twice each at `31fbd3a`/`5759b12`; this final feature tip has one run in each order). dev-qa's independent
 run at this tip is pending. Earlier, as history: this author's full API

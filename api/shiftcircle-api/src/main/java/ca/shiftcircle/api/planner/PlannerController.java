@@ -5,10 +5,12 @@ import ca.shiftcircle.api.schedule.ScheduleQuery;
 import ca.shiftcircle.api.security.ScopeGuard;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -50,6 +52,16 @@ public class PlannerController {
                 "status", 409,
                 "reason", conflict.reason()));
   }
+
+  /** A planner marks a future absence; the next generate skips that officer on that date. */
+  @PostMapping("/absences")
+  @ResponseStatus(org.springframework.http.HttpStatus.CREATED)
+  public Map<String, Object> planAbsence(@RequestBody PlannedAbsence input) {
+    return planner.planAbsence(
+        input.employeeId(), input.date(), input.type(), scopeGuard.principal());
+  }
+
+  public record PlannedAbsence(UUID employeeId, java.time.LocalDate date, String type) {}
 
   @GetMapping("/plan")
   public PlannerViews.PlanState plan() {

@@ -89,6 +89,14 @@ public class ApiProblemAdvice {
           "The hours are out of range",
           "The actual times would record more hours than a pay entry can hold.");
     }
+    if ("23P01".equals(state) && "pay_period_no_overlap".equals(constraint)) {
+      // A plan period tried to overlap an existing pay period; this is not an officer conflict.
+      return problem(
+          HttpStatus.CONFLICT,
+          "pay-period-overlap",
+          "The pay periods for this plan overlap periods that already exist",
+          "Reset the demo data or choose a different quarter.");
+    }
     if ("23P01".equals(state)) {
       // The exclusion constraint: one officer cannot be in two places at once.
       return problem(

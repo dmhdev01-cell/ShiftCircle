@@ -133,6 +133,22 @@ public final class PlanGenerator {
       String pattern8h,
       long seed,
       Verifier verifier) {
+    return generate(employees, units, templates, history, pattern8h, seed, verifier, Map.of());
+  }
+
+  /**
+   * The overload with planned leave: an employee in {@code leave} on a date is not placed that
+   * day. This is a read-only input, not leave management; everything else is unchanged.
+   */
+  public Result generate(
+      List<Employee> employees,
+      List<Unit> units,
+      Map<String, Template> templates,
+      Map<UUID, List<ShiftFact>> history,
+      String pattern8h,
+      long seed,
+      Verifier verifier,
+      Map<UUID, Set<LocalDate>> leave) {
     long started = System.nanoTime();
     Map<UUID, List<ShiftFact>> facts = new HashMap<>();
     history.forEach((employee, shifts) -> facts.put(employee, new ArrayList<>(shifts)));
@@ -167,7 +183,10 @@ public final class PlanGenerator {
             Template template = null;
             Employee chosen = null;
             Check chosenCheck = null;
-            for (Employee candidate : orderedCandidates(staff.getOrDefault(unit.id(), List.of()), unit, block, date, assignedToday, pattern8h, blockOf)) {
+            for (Employee candidate :
+                orderedCandidates(
+                    staff.getOrDefault(unit.id(), List.of()), unit, block, date, assignedToday,
+                    pattern8h, blockOf, leave)) {
               Template candidateTemplate = templateFor(candidate, unit, block, templates);
               if (candidateTemplate == null || !covers(candidateTemplate, block)) {
                 continue;
@@ -228,6 +247,7 @@ public final class PlanGenerator {
         for (Employee employee : staff.getOrDefault(unit.id(), List.of())) {
           if (employee.fte() < 1.0
               || assignedToday.contains(employee.id())
+              || onLeave(employee.id(), date, leave)
               || !works(employee, date, pattern8h)) {
             continue;
           }
@@ -304,12 +324,12 @@ public final class PlanGenerator {
     }
 
     casualPool(units, staff, blockOf, assignments, byEmployee, facts, warnings, templates,
-        verifier, employees);
+        verifier, employees, leave);
     gaps = recomputeGaps(units, assignments);
     Map<String, Object> scorecard =
         scorecard(
             employees, units, assignments, byEmployee, gaps, warnings, pattern8h, started, facts,
-            templates, verifier, blockOf);
+            templates, verifier, blockOf, leave);
     return new Result(assignments, gaps, warnings, scorecard);
   }
 
@@ -375,11 +395,13 @@ public final class PlanGenerator {
       LocalDate date,
       Set<UUID> assignedToday,
       String pattern8h,
-      Map<UUID, String> blockOf) {
+      Map<UUID, String> blockOf,
+      Map<UUID, Set<LocalDate>> leave) {
     List<Employee> candidates = new ArrayList<>();
     for (Employee employee : employees) {
       if (employee.fte() < 1.0
           || assignedToday.contains(employee.id())
+          || onLeave(employee.id(), date, leave)
           || !works(employee, date, pattern8h)) {
         continue;
       }
@@ -573,7 +595,8 @@ public final class PlanGenerator {
       List<Warning> warnings,
       Map<String, Template> templates,
       Verifier verifier,
-      List<Employee> employees) {
+      List<Employee> employees,
+      Map<UUID, Set<LocalDate>> leave) {
     Set<String> warningKeys = new LinkedHashSet<>();
     Map<UUID, Double> target = new HashMap<>();
     employees.stream().filter(e -> e.fte() < 1.0).forEach(e -> target.put(e.id(), e.fte() * 80.0));
@@ -619,7 +642,8 @@ public final class PlanGenerator {
             Template chosenTemplate = null;
             Check chosenCheck = null;
             for (Employee candidate : casuals.getOrDefault(unit.id(), List.of())) {
-              if (already.contains(candidate.id())) {
+              if (already.contains(candidate.id())
+                  || onLeave(candidate.id(), date, leave)) {
                 continue;
               }
               Template template = templateFor(candidate, unit, block, templates);
@@ -821,7 +845,8 @@ public final class PlanGenerator {
       Map<UUID, List<ShiftFact>> facts,
       Map<String, Template> templates,
       Verifier verifier,
-      Map<UUID, String> blockOf) {
+      Map<UUID, String> blockOf,
+      Map<UUID, Set<LocalDate>> leave) {
     Map<String, Object> scorecard = new LinkedHashMap<>();
     long totalBlockDays = (long) units.size() * ChronoUnit.DAYS.between(FROM, TO.plusDays(1)) * 3;
     scorecard.put(
@@ -868,10 +893,72 @@ public final class PlanGenerator {
               + " a seventh consecutive work day, a second 72-hour period keeps every shift free of a"
               + " Block rule. Hours are balanced over the quarter, not per period.");
     }
+    scorecard.put("absences", absencesCard(employees, leave, assignments));
     scorecard.put(
         "generatedMs", (System.nanoTime() - startedNanos) / 1_000_000);
     scorecard.put("pattern8h", pattern8h);
     return scorecard;
+  }
+
+  private static boolean onLeave(
+      UUID employeeId, LocalDate date, Map<UUID, Set<LocalDate>> leave) {
+    return leave.getOrDefault(employeeId, Set.of()).contains(date);
+  }
+
+  /** How many planned absences the plan respected, and how many absence-days relief covered. */
+  private static Map<String, Object> absencesCard(
+      List<Employee> employees,
+      Map<UUID, Set<LocalDate>> leave,
+      List<Assignment> assignments) {
+    Map<UUID, Employee> byId = new HashMap<>();
+    employees.forEach(employee -> byId.put(employee.id(), employee));
+    int officers = 0;
+    int days = 0;
+    int covered = 0;
+    for (Map.Entry<UUID, Set<LocalDate>> entry : leave.entrySet()) {
+      if (entry.getValue().isEmpty()) {
+        continue;
+      }
+      officers++;
+      Employee absent = byId.get(entry.getKey());
+      for (LocalDate date : entry.getValue()) {
+        days++;
+        boolean relief =
+            assignments.stream()
+                .anyMatch(
+                    assignment -> {
+                      if (!assignment.unitId().equals(absent.unitId())
+                          || !assignment.date().equals(date)
+                          || assignment.employeeId().equals(absent.id())) {
+                        return false;
+                      }
+                      Employee other = byId.get(assignment.employeeId());
+                      return other != null
+                          && (other.fte() < 1.0
+                              || (other.crew() != null && other.crew().contains("RELIEF")));
+                    });
+        if (relief) {
+          covered++;
+        }
+      }
+    }
+    String line =
+        days == 0
+            ? "No planned absences were entered for this quarter."
+            : officers
+                + (officers == 1 ? " officer on leave was" : " officers on leave were")
+                + " skipped: relief officers covered "
+                + covered
+                + " of the "
+                + days
+                + " shifts.";
+    Map<String, Object> result = new LinkedHashMap<>();
+    result.put("officers", officers);
+    result.put("days", days);
+    result.put("coveredByRelief", covered);
+    result.put("uncovered", days - covered);
+    result.put("line", line);
+    return result;
   }
 
   private static Map<String, Object> warningsCard(List<Warning> warnings) {
