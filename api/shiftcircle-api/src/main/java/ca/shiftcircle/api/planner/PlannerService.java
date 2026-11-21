@@ -947,7 +947,13 @@ public class PlannerService {
         if (pref.timeOfDay() != null
             && !"NONE".equals(pref.timeOfDay())
             && !shifts.isEmpty()
-            && shifts.stream().allMatch(shift -> pref.timeOfDay().equals(timeOfDay(shift)))) {
+            && shifts.stream()
+                .allMatch(
+                    shift ->
+                        pref.timeOfDay()
+                            .equals(
+                                ShiftKinds.timeOfDay(
+                                    (java.sql.Time) shift.get("start_time"))))) {
           preferencesMet++;
         }
         if (pref.daysOff() != null
@@ -974,17 +980,6 @@ public class PlannerService {
         round1(weekends.stream().mapToInt(Integer::intValue).average().orElse(0)),
         weekends.stream().mapToInt(Integer::intValue).max().orElse(0),
         preferencesMet);
-  }
-
-  private static String timeOfDay(Map<String, Object> shift) {
-    int hour = ((java.sql.Time) shift.get("start_time")).toLocalTime().getHour();
-    if (hour == 7) {
-      return "DAY";
-    }
-    if (hour == 12 || hour == 15) {
-      return "EVENING";
-    }
-    return "NIGHT";
   }
 
   private static double round1(double value) {
@@ -1100,8 +1095,9 @@ public class PlannerService {
     Map<UUID, List<Map<String, Object>>> inDraft = new HashMap<>();
     if (planId != null) {
       jdbc.queryForList(
-              "SELECT a.employee_id, t.code, a.work_date FROM plan_draft_assignment a"
-                  + " JOIN shift_template t ON t.id = a.shift_template_id WHERE a.draft_id = ?",
+              "SELECT a.employee_id, t.code, t.start_time, t.duration_minutes, a.work_date"
+                  + " FROM plan_draft_assignment a JOIN shift_template t ON t.id = a.shift_template_id"
+                  + " WHERE a.draft_id = ?",
               planId)
           .forEach(row ->
               inDraft
@@ -1128,7 +1124,11 @@ public class PlannerService {
           List<String> unmet = new ArrayList<>();
           if (length != null
               && shifts.stream()
-                  .anyMatch(shift -> nominalMinutes((String) shift.get("code")) != length * 60)) {
+                  .anyMatch(
+                      shift ->
+                          ShiftKinds.lengthHours(
+                                  ((Number) shift.get("duration_minutes")).intValue())
+                              != length)) {
             unmet.add(
                 length == 16
                     ? "Shift length 16 h: the planner does not roster 16-hour shifts"
@@ -1137,7 +1137,10 @@ public class PlannerService {
           if (time != null
               && !"NONE".equals(time)
               && shifts.stream()
-                  .anyMatch(shift -> !time.equals(preferenceOf((String) shift.get("code"))))) {
+                  .anyMatch(
+                      shift ->
+                          !time.equals(
+                              ShiftKinds.timeOfDay((java.sql.Time) shift.get("start_time"))))) {
             unmet.add(
                 "NIGHT".equals(time) && (length == null || length == 8)
                     ? "Time of day NIGHT: only 12-hour officers work nights"
@@ -1602,24 +1605,6 @@ public class PlannerService {
     } catch (Exception unreadable) {
       return List.of();
     }
-  }
-
-  private static String preferenceOf(String templateCode) {
-    return switch (templateCode) {
-      case "D8" -> "DAY";
-      case "E8", "P12" -> "EVENING";
-      case "N8", "A12", "L16" -> "NIGHT";
-      default -> "DAY";
-    };
-  }
-
-  private static int nominalMinutes(String templateCode) {
-    return switch (templateCode) {
-      case "D8", "E8", "N8" -> 480;
-      case "A12", "P12" -> 720;
-      case "L16" -> 960;
-      default -> 480;
-    };
   }
 
   private void audit(
