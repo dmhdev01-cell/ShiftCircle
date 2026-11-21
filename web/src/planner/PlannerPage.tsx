@@ -142,9 +142,12 @@ export function PlannerPage() {
   const [pattern, setPattern] = useState('ROTATING_5_2');
   const [busy, setBusy] = useState<null | 'generate' | 'commit' | 'discard'>(null);
   const [explain, setExplain] = useState<string | null>(null);
+  const [explainGroup, setExplainGroup] = useState<string | null>(null);
   const [gaps, setGaps] = useState<PlannerGap[]>([]);
   const [warnings, setWarnings] = useState<PlannerWarningGroup[]>([]);
   const [compare, setCompare] = useState<PlannerCompare | null>(null);
+  const [gapUnit, setGapUnit] = useState('');
+  const [gapBlock, setGapBlock] = useState('');
   const [units, setUnits] = useState<{ id: string; name: string }[]>([]);
   const [commitOpen, setCommitOpen] = useState(false);
   const [preview, setPreview] = useState<PlannerCommitPreview | null>(null);
@@ -797,21 +800,32 @@ export function PlannerPage() {
                     </Button>
                   </Box>
                   {explain === 'warnings'
-                    ? warnings.map((group) => (
-                        <Box key={group.ruleName} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                          <Typography sx={{ fontSize: 14, fontWeight: 700 }}>
-                            {group.ruleName} · {group.count}
-                          </Typography>
-                          {group.items.map((item, index) => (
-                            <Typography
-                              key={`${item.unitCode}-${item.date}-${index}`}
-                              sx={{ fontSize: 13, color: colour.text.secondary }}
+                    ? warnings.map((group) => {
+                        const open = explainGroup === group.ruleName;
+                        return (
+                          <Box key={group.ruleName} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <Button
+                              variant="text"
+                              color="primary"
+                              aria-expanded={open}
+                              onClick={() => setExplainGroup(open ? null : group.ruleName)}
+                              sx={{ alignSelf: 'flex-start', justifyContent: 'flex-start', minHeight: 44, fontWeight: 700 }}
                             >
-                              {unitWords(item.unitCode)} · {shortDay(item.date)} · {item.employeeName} · {item.message}
-                            </Typography>
-                          ))}
-                        </Box>
-                      ))
+                              {group.ruleName} · {group.count}
+                            </Button>
+                            {open
+                              ? group.items.map((item, index) => (
+                                  <Typography
+                                    key={`${item.unitCode}-${item.date}-${index}`}
+                                    sx={{ fontSize: 13, color: colour.text.secondary }}
+                                  >
+                                    {unitWords(item.unitCode)} · {shortDay(item.date)} · {item.employeeName} · {item.message}
+                                  </Typography>
+                                ))
+                              : null}
+                          </Box>
+                        );
+                      })
                     : null}
                 </CardContent>
               </Card>
@@ -826,6 +840,38 @@ export function PlannerPage() {
                     {gaps.length} block-days are short. The planner left them open rather than break a
                     blocking rule.
                   </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                    <Box component="label" sx={{ display: 'flex', flexDirection: 'column', gap: 1, fontSize: 12, fontWeight: 600, color: colour.text.secondary }}>
+                      Unit
+                      <Box
+                        component="select"
+                        aria-label="Filter by unit"
+                        value={gapUnit}
+                        onChange={(event: { target: { value: string } }) => setGapUnit(event.target.value)}
+                        sx={{ minHeight: 44, px: 3, border: `1px solid ${colour.border.input}`, borderRadius: '2px', fontFamily: 'inherit', fontSize: 14, color: colour.text.primary, backgroundColor: colour.bg.surface }}
+                      >
+                        <option value="">All units</option>
+                        {Array.from(new Set(gaps.map((gap) => gap.unitName))).map((name) => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                      </Box>
+                    </Box>
+                    <Box component="label" sx={{ display: 'flex', flexDirection: 'column', gap: 1, fontSize: 12, fontWeight: 600, color: colour.text.secondary }}>
+                      Block
+                      <Box
+                        component="select"
+                        aria-label="Filter by block"
+                        value={gapBlock}
+                        onChange={(event: { target: { value: string } }) => setGapBlock(event.target.value)}
+                        sx={{ minHeight: 44, px: 3, border: `1px solid ${colour.border.input}`, borderRadius: '2px', fontFamily: 'inherit', fontSize: 14, color: colour.text.primary, backgroundColor: colour.bg.surface }}
+                      >
+                        <option value="">All blocks</option>
+                        <option value="DAY">Days</option>
+                        <option value="EVENING">Evenings</option>
+                        <option value="NIGHT">Nights</option>
+                      </Box>
+                    </Box>
+                  </Box>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr>
@@ -847,7 +893,10 @@ export function PlannerPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {gaps.map((gap) => (
+                      {gaps
+                        .filter((gap) => (gapUnit ? gap.unitName === gapUnit : true))
+                        .filter((gap) => (gapBlock ? gap.block === gapBlock : true))
+                        .map((gap) => (
                         <tr key={`${gap.unitId}-${gap.date}-${gap.block}`}>
                           <td style={{ padding: '6px 8px', fontWeight: 600 }}>{gap.unitName}</td>
                           <td style={{ padding: '6px 8px' }}>{shortDay(gap.date)}</td>
