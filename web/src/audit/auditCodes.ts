@@ -47,6 +47,8 @@ export const API_AUDIT_ACTIONS = [
 export const API_AUDIT_ENTITIES = [
   'shift_assignment',
   'time_entry',
+  // A planned absence (P3 amendment 20.2): the planner's read-only leave input.
+  'absence',
   'pay_period',
   'open_shift',
   'overtime_offer',
@@ -93,6 +95,7 @@ export const ACTION_LABELS: Record<string, string> = {
 export const ENTITY_LABELS: Record<string, string> = {
   shift_assignment: 'Shift',
   time_entry: 'Time entry',
+  absence: 'Planned absence',
   pay_period: 'Pay period',
   open_shift: 'Open shift',
   overtime_offer: 'Overtime offer',
