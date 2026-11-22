@@ -29,7 +29,7 @@ import type {
 import { KpiTile } from '../planning/KpiTile';
 import { PlannerRosterTab } from './PlannerRosterTab';
 import { StaffingPanel } from './StaffingPanel';
-import { staffingTile } from './staffingWords';
+import { staffingFloorLine, staffingHelp, staffingTile } from './staffingWords';
 import { FlaggedShiftsCard } from './FlaggedShiftsCard';
 import { useRole } from '../shell/nav';
 import { StatusPill } from '../components/StatusPill';
@@ -623,7 +623,9 @@ export function PlannerPage() {
         </Card>
       ) : null}
 
-      {!planDraft && staffing ? <StaffingPanel report={staffing} onChanged={refreshStaffing} /> : null}
+      {!planDraft && staffing ? (
+        <StaffingPanel report={staffing} draftGaps={null} onChanged={refreshStaffing} />
+      ) : null}
 
       {planDraft ? (
         <>
@@ -700,10 +702,7 @@ export function PlannerPage() {
                   ...(staffing
                     ? [
                         {
-                          label: 'Staffing',
-                          value: staffingTile(staffing).value,
-                          note: staffingTile(staffing).note,
-                          tone: staffingTile(staffing).tone,
+                          ...staffingTile(staffing),
                         },
                       ]
                     : []),
@@ -714,6 +713,7 @@ export function PlannerPage() {
                       value={tile.value}
                       note={tile.note}
                       tone={'tone' in tile ? tile.tone : undefined}
+                      pill={'pill' in tile ? tile.pill : undefined}
                     />
                     <Button
                       variant="text"
@@ -729,7 +729,13 @@ export function PlannerPage() {
                 ))}
               </Box>
 
-              {explain && TILE_HELP[explain] ? (
+              {staffing ? (
+                <Typography sx={{ fontSize: 13, color: colour.text.secondary }}>
+                  {staffingFloorLine(Math.round(staffing.leaveAllowance * 100))}
+                </Typography>
+              ) : null}
+
+              {explain && (TILE_HELP[explain] || (explain === 'Needed (at least)' && staffing)) ? (
                 <Box
                   id="planner-tile-help"
                   role="region"
@@ -742,7 +748,9 @@ export function PlannerPage() {
                     color: colour.text.secondary,
                   }}
                 >
-                  {TILE_HELP[explain]}
+                  {explain === 'Needed (at least)' && staffing
+                    ? staffingHelp(Math.round(staffing.leaveAllowance * 100))
+                    : TILE_HELP[explain]}
                 </Box>
               ) : null}
 
@@ -916,7 +924,13 @@ export function PlannerPage() {
                   </CardContent>
                 </Card>
 
-              {staffing ? <StaffingPanel report={staffing} onChanged={refreshStaffing} /> : null}
+              {staffing ? (
+                <StaffingPanel
+                  report={staffing}
+                  draftGaps={planDraft.scorecard.coverage.shortBlockDays}
+                  onChanged={refreshStaffing}
+                />
+              ) : null}
 
                 {scorecard.patterns && scorecard.patterns.officers.length > 0 ? (
                   <Card sx={{ flex: '1 1 420px' }}>

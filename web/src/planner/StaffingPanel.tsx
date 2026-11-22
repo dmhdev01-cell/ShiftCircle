@@ -16,7 +16,7 @@ import { StatusPill } from '../components/StatusPill';
 import { KpiTile } from '../planning/KpiTile';
 import { colour } from '../theme/tokens';
 import { dateWords } from './unitDates';
-import { staffingTile } from './staffingWords';
+import { staffingFloorLine, staffingTile } from './staffingWords';
 
 /**
  * Staffing (release 3): the tile and the "Staffing by unit" panel. Every number
@@ -28,23 +28,40 @@ function shortName(row: StaffingUnitRow): string {
   return row.unitName.split(' · ')[0];
 }
 
-function periodSentence(period: StaffingPeriod, index: number, leavePercent: number): string {
+function periodSentence(
+  period: StaffingPeriod,
+  index: number,
+  draftGaps: number | null,
+): { tone: 'warn' | 'info' | 'pass'; text: string } {
   const prefix = index === 0 ? '' : `From ${dateWords(period.from)}: `;
-  const closed = period.units.filter((unit) => unit.closed);
-  if (period.totals.short === 0) {
-    if (index > 0 && closed.length > 0) {
-      const names = closed.map(shortName).join(' and ');
-      return `${prefix}No. ${names} ${closed.length === 1 ? 'is' : 'are'} closed and ${
-        closed.length === 1 ? 'its' : 'their'
-      } officers work as relief in other units.`;
-    }
-    return `${prefix}Do we need more staff? No. Every unit has at least the officers it needs, with a ${leavePercent}% leave allowance.`;
+  if (period.totals.short > 0) {
+    const units = period.units
+      .filter((unit) => unit.short > 0)
+      .map((unit) => `${shortName(unit)} (${unit.short})`)
+      .join(', ');
+    return {
+      tone: 'warn',
+      text: `${prefix}Do we need more staff? Yes, at least ${period.totals.short} more: ${units}.${
+        draftGaps !== null ? ` The draft also has ${draftGaps} block-days short.` : ''
+      }`,
+    };
   }
-  const units = period.units
-    .filter((unit) => unit.short > 0)
-    .map((unit) => `${shortName(unit)} (${unit.short})`)
-    .join(' and ');
-  return `${prefix}Do we need more staff? Yes: ${period.totals.short} more officers in total, in ${units}.`;
+  if (draftGaps === null) {
+    return {
+      tone: 'info',
+      text: `${prefix}Every unit meets the floor. Generate a draft to see whether the plan still has gaps.`,
+    };
+  }
+  if (draftGaps > 0) {
+    return {
+      tone: 'info',
+      text: `${prefix}Do we need more staff? Probably: every unit meets the floor, but this draft still has ${draftGaps} block-days short. See the Gaps tab.`,
+    };
+  }
+  return {
+    tone: 'pass',
+    text: `${prefix}Do we need more staff? Not for this plan: every unit meets the floor and the draft has no coverage gaps.`,
+  };
 }
 
 function howLine(row: StaffingUnitRow): string {
@@ -66,9 +83,12 @@ export function StaffingTile({ report }: { report: StaffingReport }) {
 
 export function StaffingPanel({
   report,
+  draftGaps,
   onChanged,
 }: {
   report: StaffingReport;
+  /** The draft's short block-days, the same number as the Coverage gaps tile. */
+  draftGaps: number | null;
   onChanged: () => Promise<void> | void;
 }) {
   const [howOpen, setHowOpen] = useState(false);
@@ -83,18 +103,26 @@ export function StaffingPanel({
         <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
           Staffing by unit
         </Typography>
+        <Typography sx={{ fontSize: 13, color: colour.text.secondary }}>
+          {staffingFloorLine(leavePercent)}
+        </Typography>
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          {periods.map((period, index) => (
-            <Box key={period.from} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <StatusPill tone={period.totals.short > 0 ? 'warn' : 'pass'}>
-                {period.totals.short > 0 ? 'Short' : 'Enough'}
-              </StatusPill>
-              <Typography sx={{ fontSize: 16, fontWeight: 600 }}>
-                {periodSentence(period, index, leavePercent)}
-              </Typography>
-            </Box>
-          ))}
+          {periods.map((period, index) => {
+            const sentence = periodSentence(period, index, draftGaps);
+            return (
+              <Box key={period.from} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <StatusPill tone={sentence.tone}>
+                  {sentence.tone === 'warn'
+                    ? 'Short'
+                    : sentence.tone === 'pass'
+                      ? 'Covered'
+                      : 'Meets the floor'}
+                </StatusPill>
+                <Typography sx={{ fontSize: 16, fontWeight: 600 }}>{sentence.text}</Typography>
+              </Box>
+            );
+          })}
         </Box>
 
         <Box sx={{ overflowX: 'auto' }}>
@@ -113,7 +141,7 @@ export function StaffingPanel({
             </caption>
             <thead>
               <tr>
-                {['Unit', 'Allocated', 'On staff'].map((heading) => (
+                {['Unit', 'Allocated', 'On staff*'].map((heading) => (
                   <th
                     key={heading}
                     scope="col"
@@ -142,7 +170,7 @@ export function StaffingPanel({
                       borderBottom: `1px solid ${colour.border.default}`,
                     }}
                   >
-                    Needed
+                    Needed (at least)
                     <Box component="span" sx={{ display: 'block', fontSize: 11, fontWeight: 500 }}>
                       {dateWords(period.from)} – {dateWords(period.to)}
                     </Box>
@@ -241,6 +269,9 @@ export function StaffingPanel({
             </tbody>
           </table>
         </Box>
+        <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
+          * On staff counts people, full-time and part-time alike, not hours.
+        </Typography>
         {report.truncatedNote ? (
           <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
             {report.truncatedNote}
@@ -291,6 +322,10 @@ export function StaffingPanel({
           </Typography>
           <Typography sx={{ fontSize: 14 }}>
             A closed unit needs no officers on the days it is closed.
+          </Typography>
+          <Typography sx={{ fontSize: 14 }}>
+            This is a floor: it counts every officer as full-time and assumes leave is spread
+            evenly. The planner&apos;s gaps show the real need.
           </Typography>
         </Box>
         <Typography sx={{ fontSize: 13, color: colour.text.secondary }}>{report.note}</Typography>

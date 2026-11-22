@@ -119,7 +119,7 @@ describe('the demo reset', () => {
   it('names the datasets honestly when the api sends ids alone', async () => {
     // p3-api-ds sends ["100","120"]; the card says what they are instead of
     // showing a bare number, and still sends the id the api chose.
-    stubVersion(true, ['100', '120']);
+    stubVersion(true, ['100', '120', '150']);
     const user = userEvent.setup();
     renderAbout();
     await user.selectOptions(await screen.findByLabelText('Mock sign-in: choose a role'), 'PLANNER');
@@ -131,6 +131,7 @@ describe('the demo reset', () => {
     expect(labels).toEqual([
       '100: the seeded demo data',
       '120: 100 full-time crews + 20 casual relief officers',
+      '150: 120 full-time crews + 30 part-time officers',
     ]);
     expect((dataset as HTMLSelectElement).value).toBe('100');
     vi.restoreAllMocks();

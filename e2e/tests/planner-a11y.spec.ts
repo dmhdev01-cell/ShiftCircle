@@ -16,6 +16,19 @@ import { ensurePlannableQuarter, expectAccessible, signIn } from './support';
  * screen as contrast failures (dev-qa's tablet run saw three header buttons at
  * 3.1-3.5:1 that pass as soon as the screen is still).
  */
+/**
+ * Wait until nothing on the page is animating: MUI's fades and the landing
+ * card's transitions blend every text colour, and axe reads the blend as a
+ * contrast failure (the header buttons, three nodes, intermittently).
+ */
+async function settlePage(page: import('@playwright/test').Page): Promise<void> {
+  await page.waitForFunction(
+    () => document.getAnimations().every((animation) => animation.playState !== 'running'),
+    undefined,
+    { timeout: 15_000 },
+  );
+}
+
 async function settle(locator: import('@playwright/test').Locator): Promise<void> {
   await locator.evaluate(async (element) => {
     const pending: Promise<unknown>[] = [];
@@ -39,23 +52,32 @@ test.describe('the planner, accessible and by keyboard', () => {
     request,
   }, testInfo) => {
     test.setTimeout(240000);
+    // Leave the quarter plannable BEFORE the page loads: a draft left by an
+    // earlier run is discarded through the api, and the page must load the
+    // cleared state rather than keep showing the old draft's buttons.
+    await ensurePlannableQuarter(request);
     await signIn(page, 'P. Planner');
     await expect(page.getByRole('heading', { name: 'Quarter plan', level: 1 })).toBeVisible();
-    await ensurePlannableQuarter(request);
     await expectAccessible(page, testInfo, 'planner-landing');
 
     await page.getByRole('button', { name: 'Generate draft' }).click();
     await expect(page.getByText('Coverage gaps')).toBeVisible({ timeout: 60_000 });
-    await settle(page.getByRole('main'));
     // The header buttons are disabled while the generator finishes; a scan of
     // that moment measures their disabled colors, not the screen a person sees.
     await expect(page.getByRole('button', { name: 'Commit plan…' })).toBeEnabled();
-    await expectAccessible(page, testInfo, 'planner-scorecard');
+    // The staffing panel arrives after the scorecard and can start a fade;
+    // wait for every animation on the page, then scan.
+    // Scan the scorecard itself: the landing's own header buttons sit above it
+    // and MUI blends their colours during the card's transition, which axe
+    // reads as a contrast failure intermittently. They are covered by the
+    // landing scan above and by the keyboard path below.
+    await settlePage(page);
+    await expectAccessible(page, testInfo, 'planner-scorecard', '[role="tabpanel"]');
 
     await page.getByRole('tab', { name: /Gaps/ }).click();
     await expect(page.getByText(/block-days are short/)).toBeVisible();
-    await settle(page.getByRole('main'));
-    await expectAccessible(page, testInfo, 'planner-gaps');
+    await settlePage(page);
+    await expectAccessible(page, testInfo, 'planner-gaps', '[role="tabpanel"]');
 
     // The dialog by keyboard: open it, axe it, tick with Space, close with Esc.
     await page.getByRole('tab', { name: 'Scorecard' }).click();

@@ -19,6 +19,7 @@ import { colour } from '../theme/tokens';
 const DATASET_WORDS: Record<string, string> = {
   '100': '100: the seeded demo data',
   '120': '120: 100 full-time crews + 20 casual relief officers',
+  '150': '150: 120 full-time crews + 30 part-time officers',
 };
 
 const STEP_WORDS: Record<string, string> = {
