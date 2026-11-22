@@ -199,6 +199,11 @@ public class PlannerService {
                 leave,
                 activeUnits::active);
     result.scorecard().put("staffing", unitsService.staffing());
+    result
+        .scorecard()
+        .put(
+            "qualification",
+            QualificationCoverage.card(jdbc, result.assignments(), activeUnits::active));
     int generatedMs = (int) ((System.nanoTime() - before) / 1_000_000);
 
     UUID id = UUID.randomUUID();

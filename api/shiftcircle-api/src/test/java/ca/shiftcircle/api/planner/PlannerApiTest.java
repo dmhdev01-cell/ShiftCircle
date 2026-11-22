@@ -106,6 +106,7 @@ class PlannerApiTest {
     Map<String, Object> scorecard = (Map<String, Object>) body.get("scorecard");
     assertThat(scorecard).containsKeys(
         "coverage", "warnings", "preferences", "nights", "overtime", "weekends", "quarterHours",
+        "qualification",
         "patterns", "warningNote", "generatedMs");
     assertThat(assignmentCount()).isGreaterThan(3000);
     assertThat(((Map<?, ?>) scorecard.get("coverage")).get("shortBlockDays")).isNotNull();

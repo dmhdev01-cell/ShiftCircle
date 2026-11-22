@@ -8,6 +8,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -124,6 +125,41 @@ class Demo150ResetApiTest {
             draft);
     @SuppressWarnings("unchecked")
     Map<String, Object> warnings = (Map<String, Object>) scorecard.get("warnings");
+    @SuppressWarnings("unchecked")
+    Map<String, Object> qualification = (Map<String, Object>) scorecard.get("qualification");
+    assertThat(qualification).as("the qualification card is on the 150 scorecard").isNotNull();
+    assertThat(((Number) qualification.get("failingBlockDays")).intValue())
+        .as("the 150 qualification count is measured, not assumed")
+        .isEqualTo(103);
+    assertThat(((Number) qualification.get("checkedBlockDays")).intValue()).isEqualTo(1470);
+    assertThat((String) qualification.get("sentence")).startsWith("103 block-days");
+    assertThat(qualification.get("validFromRespected")).isEqualTo(false);
+    assertThat(scorecard).doesNotContainKey("qualificationPolicy");
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> qualificationRows =
+        (List<Map<String, Object>>) qualification.get("byUnitBlock");
+    Map<String, Integer> failingByUnitBlock = new LinkedHashMap<>();
+    for (Map<String, Object> row : qualificationRows) {
+      int count = ((Number) row.get("failingBlockDays")).intValue();
+      if (count > 0) {
+        failingByUnitBlock.put(row.get("unitCode") + "/" + row.get("block"), count);
+      }
+    }
+    assertThat(failingByUnitBlock)
+        .containsExactlyInAnyOrderEntriesOf(
+            Map.ofEntries(
+                Map.entry("A/DAY", 16),
+                Map.entry("A/NIGHT", 9),
+                Map.entry("B/DAY", 9),
+                Map.entry("B/NIGHT", 10),
+                Map.entry("C/DAY", 22),
+                Map.entry("C/EVENING", 1),
+                Map.entry("C/NIGHT", 20),
+                Map.entry("CTL/DAY", 2),
+                Map.entry("CTL/NIGHT", 8),
+                Map.entry("ESC/DAY", 2),
+                Map.entry("ESC/NIGHT", 4)));
+
     assertThat(gaps).as("the 150 plan's short block-days are pinned").isEqualTo(100);
     assertThat(((Number) warnings.get("total")).intValue()).isEqualTo(39);
     assertThat(shifts).isEqualTo(5414);

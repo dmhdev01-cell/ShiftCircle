@@ -265,7 +265,7 @@ class Demo120ResetApiTest {
         .as("the 120 plan is shift-for-shift the c9ac073 plan")
         .isEqualTo(PLAN_120_FINGERPRINT);
     assertNoBlocks(draftId);
-    qualificationReport(draftId, "120");
+    qualificationReport(draftId, scorecard, "120");
 
     Map<String, Object> preview120 = preview(draftId);
     int warnings120 = ((Number) preview120.get("warningCount")).intValue();
@@ -374,7 +374,14 @@ class Demo120ResetApiTest {
     assertThat(planFingerprint(draft100))
         .as("the 100 plan is shift-for-shift the c9ac073 plan")
         .isEqualTo(PLAN_100_FINGERPRINT);
-    qualificationReport(draft100, "100");
+    Map<String, Object> draft100Body =
+        mapper.readValue(
+            send("GET", "/api/v1/planner/drafts/" + draft100, null, tokens.get("p.planner"))
+                .body(),
+            Map.class);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> scorecard100 = (Map<String, Object>) draft100Body.get("scorecard");
+    qualificationReport(draft100, scorecard100, "100");
     Map<String, Object> preview100 = preview(draft100);
     int warnings100 = ((Number) preview100.get("warningCount")).intValue();
     int shifts100 = ((Number) preview100.get("shiftsToWrite")).intValue();
@@ -475,7 +482,8 @@ class Demo120ResetApiTest {
   }
 
   @SuppressWarnings("unchecked")
-  private void qualificationReport(UUID draftId, String label) {
+  private void qualificationReport(
+      UUID draftId, Map<String, Object> scorecard, String label) {
     Map<UUID, java.util.Set<UUID>> qualified = new LinkedHashMap<>();
     jdbc.query(
         "SELECT employee_id, qualification_id FROM employee_qualification",
@@ -498,6 +506,7 @@ class Demo120ResetApiTest {
             draftId);
     Map<String, Integer> failures = new LinkedHashMap<>();
     int total = 0;
+    int checked = 0;
     for (Map<String, Object> requirement : requirements) {
       UUID unitId = (UUID) requirement.get("unit_id");
       String unit = (String) requirement.get("unit");
@@ -530,17 +539,53 @@ class Demo120ResetApiTest {
             }
           }
         }
+        checked++;
         if (qualifiedOnDuty < minimum) {
           failures.merge(unit + "/" + block, 1, Integer::sum);
           total++;
         }
       }
     }
+    @SuppressWarnings("unchecked")
+    Map<String, Object> card = (Map<String, Object>) scorecard.get("qualification");
+    assertThat(card).as(label + " qualification card").isNotNull();
+    assertThat(((Number) card.get("failingBlockDays")).intValue())
+        .as(label + " card total equals the independent SQL")
+        .isEqualTo(total);
+    assertThat(((Number) card.get("checkedBlockDays")).intValue()).isEqualTo(checked);
+    assertThat(card.get("from")).isEqualTo("2027-01-04");
+    assertThat(card.get("to")).isEqualTo("2027-04-11");
+    assertThat(card.get("validFromRespected")).isEqualTo(false);
+    assertThat((String) card.get("validFromNote"))
+        .isEqualTo(
+            "Qualification start dates are not checked: an officer with a qualification counts as"
+                + " qualified for the whole quarter.");
+    assertThat(scorecard).doesNotContainKey("qualificationPolicy");
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> rows = (List<Map<String, Object>>) card.get("byUnitBlock");
+    assertThat(rows).hasSize(requirements.size());
+    Map<String, Integer> cardFailures = new LinkedHashMap<>();
+    for (Map<String, Object> row : rows) {
+      int rowFailures = ((Number) row.get("failingBlockDays")).intValue();
+      if (rowFailures > 0) {
+        cardFailures.put(row.get("unitCode") + "/" + row.get("block"), rowFailures);
+      }
+    }
+    assertThat(cardFailures).as(label + " per unit/block equals the independent SQL").isEqualTo(failures);
+    if ("120".equals(label)) {
+      assertThat(total).isZero();
+      assertThat((String) card.get("sentence")).contains("No block-day is below");
+    } else {
+      assertThat(total).as("the 100 seed's measured 346").isEqualTo(346);
+      assertThat((String) card.get("sentence")).startsWith("346 block-days");
+    }
     System.out.println(
         "QUALIFICATION "
             + label
             + " blockDaysFailing="
             + total
+            + " checked="
+            + checked
             + " byUnitBlock="
             + failures);
   }

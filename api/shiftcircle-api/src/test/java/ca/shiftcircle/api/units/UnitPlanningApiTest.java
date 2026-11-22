@@ -109,6 +109,24 @@ class UnitPlanningApiTest {
         .as("the days before the closure are unchanged")
         .isEqualTo(beforeClose);
 
+    @SuppressWarnings("unchecked")
+    Map<String, Object> qualification = qualificationCard(closed);
+    assertThat(((Number) qualification.get("checkedBlockDays")).intValue())
+        .as("a closed unit has no checked requirement days")
+        .isEqualTo(1470 - 3 * 56);
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> qualificationRows =
+        (List<Map<String, Object>>) qualification.get("byUnitBlock");
+    assertThat(qualificationRows)
+        .filteredOn(row -> "C".equals(row.get("unitCode")))
+        .allSatisfy(
+            row -> {
+              assertThat(((Number) row.get("checkedBlockDays")).intValue())
+                  .as("Unit C checked only before 15 Feb")
+                  .isEqualTo(42);
+              assertThat(((Number) row.get("failingBlockDays")).intValue()).isZero();
+            });
+
     List<Map<String, Object>> relief =
         jdbc.queryForList(
             "SELECT a.employee_id, a.unit_id, a.work_date, t.code FROM plan_draft_assignment a"
@@ -140,6 +158,15 @@ class UnitPlanningApiTest {
     assertThat(unitAssignments(afterReopen, unitC, REOPEN, LocalDate.of(2027, 4, 11)))
         .as("Unit C is planned again after it reopens")
         .isNotEmpty();
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<String, Object> qualificationCard(UUID draftId) throws Exception {
+    Map<String, Object> summary =
+        mapper.readValue(
+            send("GET", "/api/v1/planner/drafts/" + draftId, null, planner).body(), Map.class);
+    Map<String, Object> scorecard = (Map<String, Object>) summary.get("scorecard");
+    return (Map<String, Object>) scorecard.get("qualification");
   }
 
   private UUID generateDraft() throws Exception {

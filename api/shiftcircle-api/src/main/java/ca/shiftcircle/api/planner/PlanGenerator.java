@@ -1103,10 +1103,6 @@ public final class PlanGenerator {
         "nightPolicy",
         "Only 12-hour officers work nights; 8-hour officers work day or evening shifts.");
     scorecard.put(
-        "qualificationPolicy",
-        "The planner checks rest, hours and Block rules, not qualification coverage. The 120"
-            + " dataset seeds the unit minimums by crew; a draft is not qualification-verified.");
-    scorecard.put(
         "nights",
         nightsCard(
             employees,
