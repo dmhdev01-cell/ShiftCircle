@@ -216,7 +216,12 @@ describe('the quarter plan', () => {
 
     await user.click(screen.getByRole('button', { name: 'Generate draft' }));
     await screen.findByText('Coverage gaps');
-    expect(screen.getByText('Staffing', { exact: true })).toBeInTheDocument();
+    // The floor wording (release-3 addition): the label, the line and the pill.
+    expect(screen.getAllByText('Needed (at least)').length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/least staff the unit minimums need with 20% leave/).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByText('Short').length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: 'What this means' })).toHaveLength(7);
     expect(screen.getByRole('heading', { name: 'Staffing by unit' })).toBeInTheDocument();
 
