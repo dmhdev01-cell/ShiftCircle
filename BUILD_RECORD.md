@@ -15,7 +15,7 @@ one transaction (ADR-026).
 - No AI at runtime: the engine decides and a supervisor approves (ADR-002, ADR-005); Drools tables are edited in the app with maker/checker, test scenarios and a dry run (ADR-012). Coverage is hourly by unit and block in absolute time (the NIGHT block on D is 23:00 D–07:00 D+1); overtime is hours over the pay-period threshold (ADR-013, 016, 017).
 - Baseline rule set v2 (V6) is seeded PUBLISHED by migration, like v1, without maker/checker or an audit row; every later version uses maker/checker (ADR-027, docs/04 §6).
 - **Phase 3 (ADR-026/027):** a deterministic quarter planner (7 periods from 4 Jan 2027, rotating 5/2 default per officer, fixed 5/2 and 7/3 set per officer, 12 h crew 4/4 read-only), every proposal engine-checked, guarded commit; D12/N12 crews, rule-set v2, dataset 120 (100 FT + 20 casual), read-only absences and actual ends in rule facts.
-- **Release 3 (ADR-027 addendum):** units close from a date with an optional reopening; a closed unit needs no staff, roster or gaps, its full-time officers work relief in other units, and its published future shifts are flagged, never deleted. The Staffing tile shows allocated/filled/needed/short with the 12 h/8 h formula and the editable 20% leave allowance.
+- **Release 3 (ADR-027):** units close from a date; future shifts are flagged, never deleted; a Staffing tile.
 - **Lead decisions:** emergency-only overrides (ADR-023), facility-wide lock and export (ADR-022), cross-unit cover (ADR-024), trigger-based audit (ADR-018, prototype only).
 
 ## 3. AI-assisted development
@@ -28,7 +28,7 @@ one transaction (ADR-026).
 |---|---|---|
 | **Remote code execution through a rule edit** (unescaped values in generated Drools source; no approval needed). Fixed in three layers, each enough alone | review-r2 ran a payload | R24, R28 |
 | **Concurrent saves passed a Block rule**; now a per-officer lock. An open-shift **double fill** and an **unscoped roster list** were missed by earlier passes and closed later | review-r2; review-r3 | R13, R16, R40, R42 |
-| **Phase 3:** candidate 1 named the 120 officers First92 Last92, read a date-only commit value as UTC midnight (the wrong day), showed raw FTE keys and a 150-dataset note, and left the wall Exit over the clock and "No draft" preferences after commit; candidate 2 scored D12/N12 preferences as 8 h DAY (scorecard 68 vs Compare 195); the 120 commit collided with a seeded pay period; the planner's actual-time seam was unpinned | dev-design, review-r2 | R54–R59 |
+| **Phase 3:** candidate 1 had placeholder names, a commit date read as UTC midnight (the wrong day), raw FTE keys, the wall Exit over the clock and "No draft" preferences after commit; candidate 2 scored D12/N12 preferences as 8 h DAY (scorecard 68 vs Compare 195); the 120 commit collided with a seeded pay period; the planner's actual-time seam was unpinned | dev-design, review-r2 | R54–R59 |
 
 **Suggestions corrected or rejected.** The lead rejected a custom rule catalogue and 16 h shifts as overtime-only (log #5, #13); the builder rejected a catch-all handler that hid `403`s as `500`s, then built it safely (log #69). Phase 3 corrected the 7/3 default and the "gaps are mostly sizing" reading; decisions 15–16 and log #96–97 hold the rest.
 
