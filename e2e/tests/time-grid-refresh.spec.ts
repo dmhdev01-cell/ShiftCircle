@@ -57,13 +57,20 @@ test.describe('recording an actual', () => {
     await expect(grid).toBeVisible();
 
     // Scroll the page down to the grid: replacing the grid with a short
-    // loading line clamped the page back to the top (observation #9).
-    await page.evaluate(() => window.scrollTo(0, 400));
-    const before = await page.evaluate(() => window.scrollY);
-    expect(before).toBeGreaterThan(0);
+    // loading line clamped the page back to the top (observation #9). The
+    // target is the grid's own position, not a fixed pixel count (the seed's
+    // row count moves it).
+    const target = await grid.evaluate(
+      (element) => element.getBoundingClientRect().top + window.scrollY - 240,
+    );
+    await page.evaluate((y) => window.scrollTo(0, Math.max(0, y)), target);
 
+    // Clicking a cell may scroll it into view; measure where the page is with
+    // the drawer open, because the save is what must not move it.
     const cell = page.locator(`[data-assignment-id="${entry.assignmentId}"]`).first();
     await cell.getByRole('button').first().click();
+    const before = await page.evaluate(() => window.scrollY);
+    expect(before).toBeGreaterThan(0);
     await page.getByRole('radio', { name: 'Adjusted times' }).check();
     await page.getByRole('button', { name: 'Save' }).click();
 
@@ -74,7 +81,8 @@ test.describe('recording an actual', () => {
     await page.getByRole('button', { name: 'Done' }).click();
     await expect(page.getByRole('button', { name: 'Done' })).toHaveCount(0);
     await expect(grid).toBeVisible();
-    expect(await page.evaluate(() => window.scrollY)).toBe(before);
+    const after = await page.evaluate(() => window.scrollY);
+    expect(Math.abs(after - before), 'the save does not move the page').toBeLessThan(50);
   });
 });
 
