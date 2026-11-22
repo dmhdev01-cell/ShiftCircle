@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from '@mui/material/styles';
 
@@ -273,5 +273,19 @@ describe('the safeguards on a move', () => {
 
     expect(await screen.findByText(/Send the version you read/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reload the board' })).toBeInTheDocument();
+  });
+
+  it('does not offer the retired 16 h template for a new assignment', async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await user.click(screen.getByRole('button', { name: 'Move…' }));
+    const select = await screen.findByLabelText('Shift');
+    const options = within(select)
+      .getAllByRole('option')
+      .map((option) => option.textContent ?? '');
+    expect(options.some((text) => text.startsWith('D8'))).toBe(true);
+    // L16 is retired (release 5): history still renders its chip, but it is
+    // not assignable any more.
+    expect(options.some((text) => text.startsWith('L16'))).toBe(false);
   });
 });

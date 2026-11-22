@@ -9,7 +9,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { api, ApiError } from '../api/client';
-import { shiftTemplates } from '../api/shiftTemplates';
+import { assignableTemplates, shiftTemplates } from '../api/shiftTemplates';
 import type { OfficerRow, RuleResult, ShiftItem } from '../api/types';
 import { colour } from '../theme/tokens';
 import { OverrideDialog } from './OverrideDialog';
@@ -207,7 +207,7 @@ export function ShiftActionsDialog({
               onChange={(event) => setTemplateCode(event.target.value)}
               slotProps={{ select: { native: true } }}
             >
-              {Object.values(shiftTemplates).map((option) => (
+              {assignableTemplates.map((option) => (
                 <option key={option.code} value={option.code}>
                   {option.code} · {option.start} – {option.end}
                   {option.endsNextDay ? ' +1' : ''}
