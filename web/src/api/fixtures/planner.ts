@@ -45,7 +45,7 @@ function scorecard(seed: number) {
       note: 'About one rest warning and one week-hours warning per officer, from the rotating pattern. Warnings never block a shift.',
       byRule: [
         { ruleName: 'Fewer than 12 hours between shifts', count: 74 + nudge },
-        { ruleName: 'Week over 60 hours', count: 38 + nudge },
+        { ruleName: 'Week over 48 hours', count: 38 + nudge },
       ],
     },
     preferences: {
@@ -200,7 +200,7 @@ export function plannerWarnings(): PlannerWarningGroup[] {
       ],
     },
     {
-      ruleName: 'Week over 60 hours',
+      ruleName: 'Week over 48 hours',
       count: 38,
       items: [
         {
