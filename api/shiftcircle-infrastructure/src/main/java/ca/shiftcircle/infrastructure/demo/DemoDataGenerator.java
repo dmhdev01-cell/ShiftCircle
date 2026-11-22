@@ -483,7 +483,7 @@ public class DemoDataGenerator implements ApplicationRunner {
                 requirement.getOrDefault("DAY", 0),
                 requirement.getOrDefault("EVENING", 0),
                 requirement.getOrDefault("NIGHT", 0));
-        shifts.addAll(planner.shiftsFor(date, unitCode, counts, unit.allows12h(), unit.allows16h()));
+        shifts.addAll(planner.shiftsFor(date, unitCode, counts, unit.allows12h()));
       }
     }
     return shifts;
@@ -767,7 +767,6 @@ public class DemoDataGenerator implements ApplicationRunner {
       case "E8" -> LocalTime.of(15, 0);
       case "A12" -> LocalTime.of(0, 0);
       case "P12" -> LocalTime.of(12, 0);
-      case "L16" -> LocalTime.of(20, 0);
       default -> LocalTime.of(23, 0);
     };
   }
@@ -775,7 +774,6 @@ public class DemoDataGenerator implements ApplicationRunner {
   private static int templateMinutes(String template) {
     return switch (template) {
       case "A12", "P12" -> 720;
-      case "L16" -> 960;
       default -> 480;
     };
   }
@@ -874,8 +872,8 @@ public class DemoDataGenerator implements ApplicationRunner {
       return true;
     }
     for (Assignment assignment : existing) {
-      long restBefore = "L16".equals(assignment.templateCode()) ? 12 * 3600L : 8 * 3600L;
-      long restAfter = "L16".equals(openShift.templateCode()) ? 12 * 3600L : 8 * 3600L;
+      long restBefore = 8 * 3600L;
+      long restAfter = 8 * 3600L;
       boolean restBlocked =
           openShift.start().isBefore(assignment.end().plusSeconds(restBefore))
               && assignment.start().isBefore(openShift.end().plusSeconds(restAfter));
@@ -1070,8 +1068,7 @@ public class DemoDataGenerator implements ApplicationRunner {
       Instant next = nextStart.get(assignment.id());
       long restNeeded = 8 * 3600L;
       boolean canExtend =
-          !"L16".equals(assignment.templateCode())
-              && maxExtensionHours >= 0.5
+          maxExtensionHours >= 0.5
               && durationHours(start, end) + maxExtensionHours <= 16.0
               && (next == null || !candidateEnd.plusSeconds(restNeeded).isAfter(next));
       if (roll < 0.03 && canExtend) {

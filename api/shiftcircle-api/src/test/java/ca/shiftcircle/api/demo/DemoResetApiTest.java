@@ -51,7 +51,7 @@ class DemoResetApiTest {
   }
 
   private static final String CHECKSUM =
-      "3390148255db715844c4df90f553ae342530417621539b23499f638c5b126539";
+      "01b0543646580f6dc9cedefd2ece7352a3d69e563c85db0baf287dd78b322e58";
 
   @Autowired private JdbcTemplate jdbc;
   @Autowired private Environment environment;
@@ -88,8 +88,9 @@ class DemoResetApiTest {
       System.out.println("RESET elapsedMs=" + done.get("elapsedMs") + " checksum=" + done.get("checksum"));
       assertThat(done.get("state")).isEqualTo("DONE");
       assertThat(done.get("checksum")).isEqualTo(CHECKSUM);
-      // V6 adds D12/N12 templates, but the 100 seed keeps its A12/P12/L16 roster and unit
-      // agreements: the checksum above is the proof, these pin the isolation directly.
+      // V6 adds D12/N12 templates; the 100 seed keeps its A12/P12 roster (L16 was retired in
+      // release 5 and the template is inactive). The checksum above is the proof; these pin the
+      // isolation directly.
       assertThat(jdbc.queryForObject(
               "SELECT count(*) FROM shift_template WHERE code IN ('D12','N12')", Integer.class))
           .isEqualTo(2);
@@ -102,6 +103,14 @@ class DemoResetApiTest {
               "SELECT count(*) FROM unit WHERE code IN ('ADM','ESC') AND allows_12h",
               Integer.class))
           .isZero();
+      assertThat(jdbc.queryForObject(
+              "SELECT count(*) FROM shift_assignment s JOIN shift_template t"
+                  + " ON t.id = s.shift_template_id WHERE t.code = 'L16'",
+              Integer.class))
+          .isZero();
+      assertThat(jdbc.queryForObject(
+              "SELECT active FROM shift_template WHERE code = 'L16'", Boolean.class))
+          .isFalse();
 
       assertThat(jdbc.queryForObject("SELECT count(*) FROM employee", Integer.class))
           .isEqualTo(100);
@@ -134,7 +143,7 @@ class DemoResetApiTest {
     byte[] bytes =
         getClass().getResourceAsStream("/payroll/pc05-2026-10-26.csv").readAllBytes();
     assertThat(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes)))
-        .isEqualTo("d502848dad316ae00d7f7f90ccd01be8f82aa9332391f13cfb41b1b2d5e9d06a");
+        .isEqualTo("9f2d51b38581abea673fe5c85aead3670ca45b36db390fee1d2033d1faa004ff");
   }
 
   @Test

@@ -173,10 +173,15 @@ public class OvertimeService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "reason must be one of " + REASONS.stream().sorted().toList());
     }
-    Map<String, Object> template =
-        jdbc.queryForMap(
-            "SELECT id, duration_minutes FROM shift_template WHERE code = ?",
+    List<Map<String, Object>> templates =
+        jdbc.queryForList(
+            "SELECT id, duration_minutes FROM shift_template WHERE code = ? AND active",
             request.shiftTemplate());
+    if (templates.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "That shift type is retired; choose another shift type.");
+    }
+    Map<String, Object> template = templates.get(0);
     Instant end =
         request.startAt().plusSeconds(((Number) template.get("duration_minutes")).longValue() * 60);
 

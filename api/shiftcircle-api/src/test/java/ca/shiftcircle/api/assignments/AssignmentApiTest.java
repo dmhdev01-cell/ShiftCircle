@@ -286,6 +286,22 @@ class AssignmentApiTest {
   }
 
   @Test
+  void aNewAssignmentCannotNameTheRetiredSixteenHourTemplate() throws Exception {
+    jdbc.update("DELETE FROM shift_assignment WHERE employee_id = ?", EMPLOYEE);
+    HttpResponse<String> response =
+        post(
+            "/api/v1/assignments",
+            changeAt("L16", "2026-12-10T20:00:00-06:00"),
+            login("m.ellis"));
+
+    assertThat(response.statusCode()).as(response.body()).isEqualTo(400);
+    assertThat(response.body()).contains("retired").contains("shift type");
+    assertThat(count("SELECT count(*) FROM shift_assignment WHERE employee_id = '" + EMPLOYEE + "'"))
+        .as("the retired template is refused before anything is saved")
+        .isZero();
+  }
+
+  @Test
   void aBlockRuleWithoutAnEmergencyOverrideCannotBeOverridden() throws Exception {
     jdbc.update("DELETE FROM shift_assignment WHERE employee_id = ?", EMPLOYEE);
     ZoneId regina = ZoneId.of("America/Regina");

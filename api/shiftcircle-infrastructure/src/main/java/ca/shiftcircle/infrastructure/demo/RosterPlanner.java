@@ -14,10 +14,10 @@ import java.util.Map;
  * Builds the shift slots for the 90-day window and assigns officers.
  *
  * <p>Coverage is the primary goal: each unit gets its required block staffing first (8-hour shifts
- * on the block boundaries), then some day+evening pairs are swapped for 12-hour shifts and some
- * night+day+evening triples for a 16-hour shift on units that have the local agreement. A swap never
+ * on the block boundaries), then some day+evening pairs are swapped for 12-hour shifts. A swap never
  * reduces coverage: 00-12 plus 12-24 covers the same day and evening hours as an 8-hour day plus an
- * 8-hour evening shift, and adds night coverage.
+ * 8-hour evening shift, and adds night coverage. The 16-hour swap was retired in release 5 (#19):
+ * a "16 h shift" is a 12 h shift plus an extension, not a template row.
  *
  * <p>Assignment is a fairness walk with the block rules pre-checked in Java (no overlap, eight hours
  * of rest, consecutive limits); the self-check then evaluates the saved roster against the real rule
@@ -40,21 +40,20 @@ final class RosterPlanner {
 
   private static final Map<String, LocalTime> TEMPLATE_START =
       Map.of("D8", LocalTime.of(7, 0), "E8", LocalTime.of(15, 0), "N8", LocalTime.of(23, 0),
-          "A12", LocalTime.of(0, 0), "P12", LocalTime.of(12, 0), "L16", LocalTime.of(20, 0));
+          "A12", LocalTime.of(0, 0), "P12", LocalTime.of(12, 0));
 
   private static final Map<String, Integer> TEMPLATE_MINUTES =
-      Map.of("D8", 480, "E8", 480, "N8", 480, "A12", 720, "P12", 720, "L16", 960);
+      Map.of("D8", 480, "E8", 480, "N8", 480, "A12", 720, "P12", 720);
 
   /** Slots for one unit and day, with the swap rules applied. */
   List<Shift> shiftsFor(LocalDate date, String unitCode, Requirements requirements,
-      boolean allows12h, boolean allows16h) {
+      boolean allows12h) {
     int day = requirements.day();
     int evening = requirements.evening();
     int night = requirements.night();
 
     int a12 = 0;
     int p12 = 0;
-    int l16 = 0;
 
     // Swap A: one day + one evening shift become a 00-12 and a 12-24 pair.
     if (allows12h && day >= 1 && evening >= 1) {
@@ -63,22 +62,9 @@ final class RosterPlanner {
       day--;
       evening--;
     }
-    // Swap B: one night + one day + one evening become a 16-hour shift plus a 12-24 shift, on units
-    // that allow 16-hour patterns. The 12-24 shift keeps the 15:00-20:00 evening hours covered.
-    if (allows16h && night >= 1 && day >= 1 && evening >= 1) {
-      l16++;
-      p12++;
-      night--;
-      day--;
-      evening--;
-    }
-
     List<Shift> shifts = new ArrayList<>();
     for (int i = 0; i < a12; i++) {
       shifts.add(shift(date, unitCode, "A12", "NIGHT", shifts.size()));
-    }
-    for (int i = 0; i < l16; i++) {
-      shifts.add(shift(date, unitCode, "L16", "NIGHT", shifts.size()));
     }
     for (int i = 0; i < day; i++) {
       shifts.add(shift(date, unitCode, "D8", "DAY", shifts.size()));
@@ -147,10 +133,10 @@ final class RosterPlanner {
       return true;
     }
     for (Shift other : existing) {
-      // Eight hours is the legal floor; after a 16-hour shift the agreement needs twelve (U-03), and
-      // that is a block, so the generator must not create it.
-      long restBefore = "L16".equals(other.templateCode()) ? 12 * 3600L : 8 * 3600L;
-      long restAfter = "L16".equals(shift.templateCode()) ? 12 * 3600L : 8 * 3600L;
+      // Eight hours is the legal floor. A 16 h worked shift (12 h + extension) needs twelve
+      // (U-03), but the generator no longer creates 16 h slots; its extensions stay under U-05.
+      long restBefore = 8 * 3600L;
+      long restAfter = 8 * 3600L;
       boolean overlaps = shift.start().isBefore(other.end().plusSeconds(restBefore))
           && other.start().isBefore(shift.end().plusSeconds(restAfter));
       if (overlaps) {

@@ -113,6 +113,25 @@ class PlannerApiTest {
         .as("U-14 is named by what a warning means: the 48 h level, not the 60 h Block")
         .contains("Week over 48 hours")
         .doesNotContain("Week over 60 hours");
+    @SuppressWarnings("unchecked")
+    Map<String, Object> warningCard = (Map<String, Object>) scorecard.get("warnings");
+    assertThat(((Number) warningCard.get("total")).intValue())
+        .as("100 plan: 78 U-12 + 57 U-14 after L16 retirement (117 before; 18 U-14 warnings"
+            + " were previously hidden by the L16 history baseline)")
+        .isEqualTo(135);
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> warningByRule = (List<Map<String, Object>>) warningCard.get("byRule");
+    assertThat(warningByRule)
+        .anySatisfy(
+            row -> {
+              assertThat(row.get("ruleName")).isEqualTo("Fewer than 2 days off in 7");
+              assertThat(((Number) row.get("count")).intValue()).isEqualTo(78);
+            })
+        .anySatisfy(
+            row -> {
+              assertThat(row.get("ruleName")).isEqualTo("Week over 48 hours");
+              assertThat(((Number) row.get("count")).intValue()).isEqualTo(57);
+            });
     System.out.println("scorecard warnings: " + scorecard.get("warnings"));
     System.out.println("scorecard coverage: " + scorecard.get("coverage") + " quarterHours: " + scorecard.get("quarterHours"));
     List<Map<String, Object>> groups =

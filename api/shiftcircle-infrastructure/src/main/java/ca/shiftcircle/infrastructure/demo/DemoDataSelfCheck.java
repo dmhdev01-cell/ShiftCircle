@@ -360,10 +360,12 @@ public final class DemoDataSelfCheck {
     int override =
         count(
             "SELECT count(*) FROM shift_assignment s JOIN override o ON o.id = s.override_id"
+                + " JOIN time_entry te ON te.shift_assignment_id = s.id"
                 + " WHERE o.reason LIKE 'Lockdown%' AND s.work_date = DATE '2026-11-03'"
-                + " AND s.end_at - s.start_at = interval '17 hours'");
+                + " AND s.end_at - s.start_at = interval '12 hours'"
+                + " AND te.entry_type = 'ACTUAL' AND te.end_at - te.start_at = interval '17 hours'");
     if (override != 1) {
-      violations.add("PC-03: the 17-hour override on Wed 4 Nov is missing");
+      violations.add("PC-03: the 12 h + 5 h (17 h) override on Tue 3 Nov is missing");
     }
 
     int piotrNights =

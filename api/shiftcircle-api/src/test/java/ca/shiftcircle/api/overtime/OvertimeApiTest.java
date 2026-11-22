@@ -643,6 +643,11 @@ class OvertimeApiTest {
                 Integer.class))
         .isGreaterThanOrEqualTo(1);
 
+    HttpResponse<String> retired =
+        send("POST", "/api/v1/open-shifts", body.replace("D8", "L16"), "m.ellis");
+    assertThat(retired.statusCode()).as(retired.body()).isEqualTo(400);
+    assertThat(retired.body()).contains("retired").contains("shift type");
+
     jdbc.update(
         "DELETE FROM open_shift WHERE id = ?", UUID.fromString((String) json(created).get("id")));
   }

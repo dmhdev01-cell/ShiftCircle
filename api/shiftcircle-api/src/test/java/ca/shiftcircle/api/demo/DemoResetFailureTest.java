@@ -65,7 +65,7 @@ class DemoResetFailureTest {
     Map<String, Object> done = waitFor("DONE", token);
     assertThat(done.get("checksum"))
         .isEqualTo(
-            "3390148255db715844c4df90f553ae342530417621539b23499f638c5b126539");
+            "01b0543646580f6dc9cedefd2ece7352a3d69e563c85db0baf287dd78b322e58");
   }
 
   private Map<String, Object> waitFor(String state, String token) throws Exception {

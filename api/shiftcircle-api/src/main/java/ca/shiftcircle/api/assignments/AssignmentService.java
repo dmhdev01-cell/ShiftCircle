@@ -99,6 +99,7 @@ public class AssignmentService {
     String unitCode = unitCode(request.change().unitId());
     scopeGuard.requireUnit(principal, unitCode);
     requireOpenPayPeriod(request.change().startAt());
+    Map<String, Object> template = activeTemplate(request.change().shiftTemplate());
 
     // Two supervisors (or a double click) must not both pass the rules against the same old roster:
     // the exclusion constraint catches true overlaps, but two saves close together can break rest
@@ -108,10 +109,6 @@ public class AssignmentService {
     RuleCheckService.OutcomeView outcome = ruleChecks.evaluate(change(request));
     UUID overrideId = decide(outcome, request, principal);
 
-    Map<String, Object> template =
-        jdbc.queryForMap(
-            "SELECT id, duration_minutes FROM shift_template WHERE code = ?",
-            request.change().shiftTemplate());
     UUID assignmentId = UUID.randomUUID();
     Instant end = endAt(request.change().startAt(), template);
 
@@ -162,6 +159,7 @@ public class AssignmentService {
     String targetUnitCode = unitCode(request.change().unitId());
     scopeGuard.requireUnit(principal, targetUnitCode);
     requireValidChange(request);
+    Map<String, Object> template = activeTemplate(request.change().shiftTemplate());
     int expected = parseIfMatch(ifMatch);
 
     // If the officer changes, take both locks in id order so two opposite moves cannot deadlock.
@@ -194,10 +192,6 @@ public class AssignmentService {
     RuleCheckService.OutcomeView outcome = ruleChecks.evaluate(change, assignmentId);
     UUID overrideId = decide(outcome, request, principal);
 
-    Map<String, Object> template =
-        jdbc.queryForMap(
-            "SELECT id, duration_minutes FROM shift_template WHERE code = ?",
-            request.change().shiftTemplate());
     Instant end = endAt(request.change().startAt(), template);
     LocalDate workDate = request.change().startAt().atZone(REGINA).toLocalDate();
     int version = current.version() + 1;
@@ -507,6 +501,21 @@ public class AssignmentService {
         .filter(result -> "WARN".equals(result.outcome()))
         .map(RuleCheckService.ResultView::ruleCode)
         .toList();
+  }
+
+  /**
+   * A new assignment or move may only name an active template. A retired template (L16 since V13)
+   * still renders on old rows, but it cannot be selected for new work.
+   */
+  private Map<String, Object> activeTemplate(String code) {
+    List<Map<String, Object>> rows =
+        jdbc.queryForList(
+            "SELECT id, duration_minutes FROM shift_template WHERE code = ? AND active", code);
+    if (rows.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "That shift type is retired; choose another shift type.");
+    }
+    return rows.get(0);
   }
 
   private String unitCode(UUID unitId) {

@@ -32,9 +32,10 @@ import tools.jackson.databind.ObjectMapper;
  * in 5b05e16, {@code PlannerService.loadHistory}). Behaviour was right but no test pinned it: with
  * the actual resolution reverted to roster-only, the whole suite stayed green.
  *
- * <p>This test records a +4 h time entry on a committed look-back shift of an officer who works in
- * the plan's first week, generates with the same seed, and asserts the plan changes. Roster-only
- * facts would ignore it, so the plan would be byte-identical.
+ * <p>This test records a +5 h time entry on a committed look-back shift of an officer who works in
+ * the plan's first week, generates with the same seed, and asserts the plan changes. A 12 h shift
+ * plus five hours is the 17 h over-limit shape of PC-03, so U-05 sees it; roster-only facts would
+ * ignore it, and the plan would be byte-identical.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @SpringBootTest(
@@ -68,10 +69,9 @@ class PlannerHistoryActualApiTest {
   }
 
   /**
-   * A +4 h actual end on the look-back history changes the plan (rest/hours see it). This is the
-   * observable direction: shortening a history shift can only remove a warning or a block the seed
-   * does not have, but an extension adds hours to the next day's window, so the generator either
-   * warns or moves the proposal - roster-only facts would ignore it and the plan would not move.
+   * A +5 h actual end on the look-back history changes the plan (rest/hours see it). A 12 h shift
+   * plus five hours is 17 h, over U-05's 16 h ceiling, so the generator sees a Block and moves the
+   * proposal; roster-only facts would ignore the actual and the plan would not move.
    */
   @Test
   void anExtensionOnTheLookBackHistoryIsReadByTheGenerator() throws Exception {
@@ -82,7 +82,7 @@ class PlannerHistoryActualApiTest {
 
     Candidate pinned = null;
     for (Candidate candidate : candidates.subList(0, Math.min(12, candidates.size()))) {
-      Actual actual = record(candidate, candidate.endAt.plus(Duration.ofHours(4)));
+      Actual actual = record(candidate, candidate.endAt.plus(Duration.ofHours(5)));
       Plan changed = generate();
       discard(changed.id);
       delete(actual);
@@ -93,9 +93,9 @@ class PlannerHistoryActualApiTest {
     }
 
     assertThat(pinned)
-        .as("a +4 h actual end on the look-back history changes the generated plan")
+        .as("a +5 h actual end on the look-back history changes the generated plan")
         .isNotNull();
-    System.out.println("planner actual seam (+4 h): " + pinned.employeeId + " " + pinned.startAt);
+    System.out.println("planner actual seam (+5 h): " + pinned.employeeId + " " + pinned.startAt);
   }
 
   // ---------------------------------------------------------------------------------------------

@@ -56,7 +56,7 @@ class DemoDataGeneratorTest {
     assertThat(count("SELECT count(*) FROM open_shift")).isGreaterThan(5);
     assertThat(count("SELECT count(*) FROM overtime_offer")).isGreaterThan(10);
 
-    // Every shift length in the design is present: 8, 12 and 16 hours.
+    // The retired 16 h template is absent from the roster; 8 h and 12 h remain.
     Map<String, Integer> byTemplate =
         jdbc.query(
             "SELECT t.code, count(*) AS n FROM shift_assignment s"
@@ -68,8 +68,11 @@ class DemoDataGeneratorTest {
               }
               return counts;
             });
-    assertThat(byTemplate).containsKeys("D8", "E8", "N8", "A12", "P12", "L16");
-    assertThat(byTemplate.get("L16")).isGreaterThan(0);
+    assertThat(byTemplate).containsKeys("D8", "E8", "N8", "A12", "P12");
+    assertThat(byTemplate).doesNotContainKey("L16");
+    assertThat(count("SELECT count(*) FROM shift_template WHERE code = 'L16' AND active"))
+        .as("the L16 template is retired, not deleted (old history must still render)")
+        .isZero();
 
     // Planted cases PC-01 to PC-09 (docs/10 §6.6) exist with their documented shape.
     assertThat(
@@ -88,9 +91,13 @@ class DemoDataGeneratorTest {
         .isEqualTo(1);
     assertThat(
             count(
-                "SELECT count(*) FROM shift_assignment WHERE override_id IS NOT NULL"
-                    + " AND work_date = DATE '2026-11-03'"
-                    + " AND end_at - start_at = interval '17 hours'"))
+                "SELECT count(*) FROM shift_assignment s JOIN shift_template t"
+                    + " ON t.id = s.shift_template_id JOIN time_entry te"
+                    + " ON te.shift_assignment_id = s.id"
+                    + " WHERE s.override_id IS NOT NULL AND s.work_date = DATE '2026-11-03'"
+                    + " AND t.code = 'P12' AND s.end_at - s.start_at = interval '12 hours'"
+                    + " AND te.entry_type = 'ACTUAL'"
+                    + " AND te.end_at - te.start_at = interval '17 hours'"))
         .isEqualTo(1);
     assertThat(
             count(
@@ -120,9 +127,9 @@ class DemoDataGeneratorTest {
     assertThat(
             count(
                 "SELECT count(*) FROM time_entry t JOIN shift_assignment s"
-                    + " ON s.id = t.shift_assignment_id JOIN shift_template st"
-                    + " ON st.id = s.shift_template_id WHERE st.code = 'L16'"
-                    + " AND s.override_id IS NULL"
+                    + " ON s.id = t.shift_assignment_id"
+                    + " WHERE s.override_id IS NULL"
+                    + " AND t.entry_type = 'ACTUAL'"
                     + " AND t.end_at - t.start_at > interval '16 hours'"))
         .isZero();
 

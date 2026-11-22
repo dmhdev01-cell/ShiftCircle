@@ -82,29 +82,37 @@ final class DemoPlantedCases {
     insertOpenShift("planted:pc02:evening", "A", "E8", PC02_DATE.plusDays(1), "SICK_CALL");
   }
 
-  // PC-03: Wed 4 Nov, Unit C, a 16-hour shift extended by an hour to 13:00 (17 hours worked), with
-  // the supervisor's emergency reason.
+  // PC-03: Tue 3 Nov, Unit C, a 12-hour P12 shift extended by five hours to 05:00 next day (17
+  // hours worked), with the supervisor's emergency reason. The five-hour extension is over the
+  // normal four-hour limit, so U-05 blocks it without the override. The assignment stays 12 h;
+  // the actual records the 17 h, exactly like a real extension.
   private void plantPc03SeventeenHourOverride() {
     UUID assignment =
         jdbc.query(
             "SELECT s.id FROM shift_assignment s JOIN unit u ON u.id = s.unit_id"
                 + " JOIN shift_template t ON t.id = s.shift_template_id"
-                + " WHERE u.code = 'C' AND t.code = 'L16' AND s.work_date = ? LIMIT 1",
+                + " WHERE u.code = 'C' AND t.code = 'P12' AND s.work_date = ? LIMIT 1",
             resultSet -> resultSet.next() ? (UUID) resultSet.getObject(1) : null,
             PC03_DATE);
 
+    Instant start;
     if (assignment == null) {
-      Instant start = instant(PC03_DATE, "20:00");
+      start = instant(PC03_DATE, "12:00");
       assignment = id("planted:pc03:long");
-      deleteAssignments("E-005", PC03_DATE);
-      deleteAssignments("E-005", PC03_DATE.plusDays(1));
-      insertAssignment(assignment, "E-005", "C", "L16", start,
-          start.plusSeconds(16 * 3600L), PC03_DATE);
+      deleteAssignments("E-053", PC03_DATE);
+      deleteAssignments("E-053", PC03_DATE.plusDays(1));
+      insertAssignment(assignment, "E-053", "C", "P12", start,
+          start.plusSeconds(12 * 3600L), PC03_DATE);
+    } else {
+      start =
+          jdbc
+              .queryForObject(
+                  "SELECT start_at FROM shift_assignment WHERE id = ?",
+                  (resultSet, row) -> resultSet.getTimestamp(1).toInstant(),
+                  assignment);
     }
 
-    Instant extendedEnd = instant(PC03_DATE, "20:00").plusSeconds(17 * 3600L);
-    jdbc.update("UPDATE shift_assignment SET end_at = ? WHERE id = ?", Timestamp.from(extendedEnd),
-        assignment);
+    Instant extendedEnd = start.plusSeconds(17 * 3600L);
 
     UUID override = id("planted:pc03:override");
     jdbc.update(
@@ -112,7 +120,7 @@ final class DemoPlantedCases {
             + " VALUES (?, 'Lockdown, relief unavailable', ?,"
             + " (SELECT id FROM rule_set_version WHERE status = 'PUBLISHED'),"
             + " (SELECT id FROM app_user WHERE username = 'm.ellis'),"
-            + " TIMESTAMPTZ '2026-11-04 13:05:00-06')",
+            + " TIMESTAMPTZ '2026-11-04 05:05:00-06')",
         override,
         new String[] {"U-05"});
     jdbc.update("UPDATE shift_assignment SET override_id = ? WHERE id = ?", override, assignment);
