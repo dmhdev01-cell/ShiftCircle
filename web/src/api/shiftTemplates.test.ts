@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { chipTextFor, formatShiftTimes, shiftTemplates } from './shiftTemplates';
+import { chipTextFor, formatShiftTimes, ruleNameFor, shiftTemplates } from './shiftTemplates';
 
 /**
  * V6 (P3 amendments item 18) adds the 12 h crews the person actually runs:
@@ -21,5 +21,10 @@ describe('the 12 h crew templates', () => {
     for (const code of ['D12', 'N12']) {
       expect(shiftTemplates[code].regular, code).toBe(true);
     }
+  });
+
+  it('names the 8 h officer night-shift warning (U-16)', () => {
+    // Release 4 #10: a WARN rule, shown by its plain name in the panel.
+    expect(ruleNameFor('U-16')).toBe('8-hour officer on a night shift');
   });
 });

@@ -45,7 +45,7 @@ function scorecard(seed: number) {
       note: 'About one rest warning and one week-hours warning per officer, from the rotating pattern. Warnings never block a shift.',
       byRule: [
         { ruleName: 'Fewer than 12 hours between shifts', count: 74 + nudge },
-        { ruleName: 'Week over 60 hours', count: 38 + nudge },
+        { ruleName: 'Week over 48 hours', count: 38 + nudge },
       ],
     },
     preferences: {
@@ -200,7 +200,7 @@ export function plannerWarnings(): PlannerWarningGroup[] {
       ],
     },
     {
-      ruleName: 'Week over 60 hours',
+      ruleName: 'Week over 48 hours',
       count: 38,
       items: [
         {
@@ -294,6 +294,23 @@ export function fixturePlannerPreferences(): PlannerPreferenceRow[] {
       inDraft: draft ? 'PARTLY' : 'NO_DRAFT',
       unmet: draft ? ['time of day: 9 night shifts'] : [],
       updatedAt: '2026-11-20T14:00:00-06:00',
+    },
+    {
+      employeeId: 'emp-devon',
+      name: 'Devon Clarke',
+      employeeNo: 'E-0015',
+      unitName: 'Unit A · Living unit',
+      seniorityDate: '2024-02-01',
+      shiftLength: 8,
+      timesOfDay: ['DAY'],
+      daysOff: [],
+      maxDaysOff: 2,
+      pattern: 'ROTATING_5_2',
+      patternWords: 'Rotating 5 on, 2 off (weekends rotate)',
+      patternEditable: true,
+      inDraft: 'NOT_ROSTERED',
+      unmet: [],
+      updatedAt: null,
     },
     {
       employeeId: 'emp-ruth',

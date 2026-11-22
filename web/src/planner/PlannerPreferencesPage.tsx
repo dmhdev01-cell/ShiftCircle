@@ -26,6 +26,7 @@ const IN_DRAFT = {
   PARTLY: { words: 'Partly met', tone: 'warn' as const },
   NOT_MET: { words: 'Not met', tone: 'warn' as const },
   NO_DRAFT: { words: 'No draft', tone: 'info' as const },
+  NOT_ROSTERED: { words: 'Not rostered', tone: 'info' as const },
   NONE: { words: '—', tone: 'info' as const },
 } as const;
 

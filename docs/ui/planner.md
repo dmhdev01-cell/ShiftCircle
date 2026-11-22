@@ -99,7 +99,7 @@ The last cell has a bar (Flax track, Football Green fill) **and** the percentage
 
 ### 2.5 Rule warnings by kind (panel)
 
-Collapsed: a white button **"Show 112 warnings"** (`aria-expanded`). Expanded: one group per plain rule name with its count ("Fewer than 12 hours between shifts · 74"; "Week over 60 hours · 38"). A group expands to up to 20 lines, "Unit B · Sat 9 Jan · K. Lindqvist · 9 h between shifts" with **Show week** (§4.1 behaviour), then "and 54 more". This is the same list the commit dialog asks the planner to accept (§6.2), so it's worth reading here first.
+Collapsed: a white button **"Show 112 warnings"** (`aria-expanded`). Expanded: one group per plain rule name with its count ("Fewer than 12 hours between shifts · 74"; "Week over 48 hours · 38"). A group expands to up to 20 lines, "Unit B · Sat 9 Jan · K. Lindqvist · 9 h between shifts" with **Show week** (§4.1 behaviour), then "and 54 more". This is the same list the commit dialog asks the planner to accept (§6.2), so it's worth reading here first.
 
 With per-officer patterns and every 8 h officer on the default rotating pattern there should be no week-hours warnings for 8-hour officers (amendment 1). If an officer is set to 7 on, 3 off on Preferences, its warnings show here honestly.
 

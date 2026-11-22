@@ -94,13 +94,15 @@ describe('preferences', () => {
     expect(await screen.findByRole('heading', { name: 'Officer preferences' })).toBeInTheDocument();
     const table = await screen.findByRole('table');
     expect(within(table).getByText('Tara Nakamura')).toBeInTheDocument();
-    expect(within(table).getByText('8 h')).toBeInTheDocument();
+    expect(within(table).getAllByText('8 h').length).toBeGreaterThan(0);
     // A set reads in words and never as raw enum text.
     expect(within(table).getByText('Evenings, Nights')).toBeInTheDocument();
     expect(within(table).queryByText(/EVENING|NIGHT/)).not.toBeInTheDocument();
     // No draft in the fixtures until one is generated: every row says so.
     expect(within(table).getAllByText('No draft').length).toBeGreaterThan(0);
-    expect(screen.getByText(/3 officers · 3 gave preferences/)).toBeInTheDocument();
+    // The new officer with no shifts is listed with the distinct status.
+    expect(within(table).getByText('Not rostered')).toBeInTheDocument();
+    expect(screen.getByText(/4 officers · 4 gave preferences/)).toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Find an officer'), 'sam');
     expect(within(table).getByText('Sam Abara')).toBeInTheDocument();

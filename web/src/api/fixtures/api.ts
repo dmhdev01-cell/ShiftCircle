@@ -194,7 +194,7 @@ const PC01_RESULTS: RuleResult[] = [
     ruleTable: 'MAX_HOURS',
     outcome: 'BLOCK',
     overridePolicy: 'ACKNOWLEDGE',
-    message: 'Weekly hours above the 60-hour ceiling.',
+    message: 'Weekly hours above the 48-hour warning level or the 60-hour ceiling.',
     facts: { hours: 61, maxHours: 60 },
   },
 ];
