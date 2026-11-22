@@ -1013,7 +1013,7 @@ public class PlannerService {
       }
       weekends.add(weekendDays.size());
       PlanGenerator.Pref pref = prefs.get(employeeId);
-      if (pref != null) {
+      if (pref != null && !shifts.isEmpty()) {
         // Same definition as the scorecard's preferencesCard: each asked criterion counts once,
         // not "all of this officer's wishes in one bucket". This is what keeps scorecard.met and
         // the compare row equal.
@@ -1252,12 +1252,16 @@ public class PlannerService {
                                   .substring(0, 3)))) {
             unmet.add("Preferred days off");
           }
+          boolean askedSomething =
+              length != null || !times.isEmpty() || !days.isEmpty();
           String status =
               planId == null
                   ? "NO_DRAFT"
-                  : length == null && times.isEmpty() && days.isEmpty()
-                      ? "NONE"
-                      : unmet.isEmpty() ? "MET" : unmet.size() >= 2 ? "NOT_MET" : "PARTLY";
+                  : shifts.isEmpty() && askedSomething
+                      ? "NOT_ROSTERED"
+                      : !askedSomething
+                          ? "NONE"
+                          : unmet.isEmpty() ? "MET" : unmet.size() >= 2 ? "NOT_MET" : "PARTLY";
           Timestamp updated = rs.getTimestamp("updated_at");
           return new PlannerViews.PreferenceView(
               employeeId,

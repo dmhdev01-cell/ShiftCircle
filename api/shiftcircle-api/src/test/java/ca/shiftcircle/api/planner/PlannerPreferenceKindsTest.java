@@ -120,6 +120,77 @@ class PlannerPreferenceKindsTest {
     assertThat((List<?>) nights.get("bands")).hasSize(3);
   }
 
+  /**
+   * Release 4 #14: a casual with a preference but no shift in the draft is NOT_ROSTERED, and the
+   * scorecard/compare headline counts only officers who were actually rostered. The expected asked
+   * count is derived from the database with the same three criteria, so the test cannot pass by
+   * hard-coding the demo's numbers.
+   */
+  @Test
+  void anOfficerWithNoDraftShiftIsNotRosteredAndDropsOutOfTheHeadline() throws Exception {
+    reset120();
+    UUID draft = generate();
+
+    UUID unrostered =
+        jdbc.queryForObject(
+            "SELECT e.id FROM employee e JOIN officer_preference p ON p.employee_id = e.id"
+                + " WHERE NOT EXISTS (SELECT 1 FROM plan_draft_assignment a"
+                + "   WHERE a.draft_id = ? AND a.employee_id = e.id)"
+                + " AND (p.shift_length IS NOT NULL OR cardinality(p.times_of_day) > 0"
+                + "   OR cardinality(p.days_off) > 0)"
+                + " ORDER BY e.employee_no LIMIT 1",
+            UUID.class,
+            draft);
+    Map<String, Object> row = preferenceRow(unrostered);
+    assertThat(row.get("inDraft"))
+        .as("asked for something but the draft has no shift for them")
+        .isEqualTo("NOT_ROSTERED");
+
+    Map<String, Object> body =
+        mapper.readValue(
+            send("GET", "/api/v1/planner/drafts/" + draft, null, token).body(), Map.class);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> scorecard = (Map<String, Object>) body.get("scorecard");
+    @SuppressWarnings("unchecked")
+    Map<String, Object> preferences = (Map<String, Object>) scorecard.get("preferences");
+
+    int rosteredAsked =
+        jdbc.queryForObject(
+            "SELECT coalesce(sum((p.shift_length IS NOT NULL)::int"
+                + " + (cardinality(p.times_of_day) > 0)::int"
+                + " + (cardinality(p.days_off) > 0)::int), 0)"
+                + " FROM employee e JOIN officer_preference p ON p.employee_id = e.id"
+                + " WHERE EXISTS (SELECT 1 FROM plan_draft_assignment a"
+                + "   WHERE a.draft_id = ? AND a.employee_id = e.id)",
+            Integer.class,
+            draft);
+    int everyoneAsked =
+        jdbc.queryForObject(
+            "SELECT coalesce(sum((p.shift_length IS NOT NULL)::int"
+                + " + (cardinality(p.times_of_day) > 0)::int"
+                + " + (cardinality(p.days_off) > 0)::int), 0)"
+                + " FROM officer_preference p",
+            Integer.class);
+    assertThat(everyoneAsked)
+        .as("the shift-less officers do ask for something, so the exclusion is observable")
+        .isGreaterThan(rosteredAsked);
+    assertThat(((Number) preferences.get("asked")).intValue()).isEqualTo(rosteredAsked);
+
+    Map<String, Object> compare =
+        mapper.readValue(
+            send("GET", "/api/v1/planner/drafts/" + draft + "/compare", null, token).body(),
+            Map.class);
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> rows = (List<Map<String, Object>>) compare.get("rows");
+    int compareMet =
+        rows.stream()
+            .filter(entry -> "preferencesMet".equals(entry.get("key")))
+            .map(entry -> ((Number) entry.get("draft")).intValue())
+            .findFirst()
+            .orElse(-1);
+    assertThat(compareMet).isEqualTo(((Number) preferences.get("met")).intValue());
+  }
+
   private Map<String, Object> preferenceRow(UUID employeeId) throws Exception {
     List<Map<String, Object>> rows =
         mapper.readValue(

@@ -1247,6 +1247,11 @@ public final class PlanGenerator {
     int daysMet = 0;
     for (Employee employee : employees) {
       List<Assignment> shifts = byEmployee.getOrDefault(employee.id(), List.of());
+      if (shifts.isEmpty()) {
+        // A shift-less officer cannot have met a preference; the headline counts only rostered
+        // officers (release 4, #14).
+        continue;
+      }
       Pref pref = employee.pref();
       if (pref.shiftLength() != null) {
         lengthAsked++;
@@ -1524,6 +1529,7 @@ public final class PlanGenerator {
       case "U-12" -> "Fewer than 2 days off in 7";
       case "U-14" -> "Week over 48 hours";
       case "U-15" -> "Pay-period overtime";
+      case "U-16" -> "8-hour officer on a night shift";
       default -> code;
     };
   }
