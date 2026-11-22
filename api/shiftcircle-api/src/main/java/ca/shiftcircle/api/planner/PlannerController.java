@@ -78,12 +78,13 @@ public class PlannerController {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "A demo reset or another planner run is in progress");
     }
+    long token = demoLock.token();
     try {
       return planner.generate(
           creation == null ? new PlannerViews.DraftCreation(0, null) : creation,
           scopeGuard.principal());
     } finally {
-      demoLock.release();
+      demoLock.release(token);
     }
   }
 
@@ -135,12 +136,13 @@ public class PlannerController {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "A demo reset or another planner run is in progress");
     }
+    long token = demoLock.token();
     try {
       PlannerService.CommitAttempt attempt =
           planner.commit(id, input, version(ifMatch), scopeGuard.principal());
       return ResponseEntity.status(attempt.status()).body(attempt.body());
     } finally {
-      demoLock.release();
+      demoLock.release(token);
     }
   }
 
@@ -150,10 +152,11 @@ public class PlannerController {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "A demo reset or another planner run is in progress");
     }
+    long token = demoLock.token();
     try {
       return planner.discard(id, scopeGuard.principal());
     } finally {
-      demoLock.release();
+      demoLock.release(token);
     }
   }
 

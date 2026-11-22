@@ -120,14 +120,15 @@ public class DemoResetService {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "A planner draft is generating or committing; try again");
     }
+    long token = lock.token();
     status =
         new Status(
             "RUNNING", "starting", Instant.now().toString(), 0L, null, provider.dataset(), null);
-    Thread.ofVirtual().name("demo-reset").start(() -> run(principal == null ? "p.planner" : principal.username(), provider));
+    Thread.ofVirtual().name("demo-reset").start(() -> run(principal == null ? "p.planner" : principal.username(), provider, token));
     return status();
   }
 
-  private void run(String actor, DemoDatasetProvider provider) {
+  private void run(String actor, DemoDatasetProvider provider, long token) {
     try {
       step("clean", provider);
       Flyway flyway =
@@ -159,7 +160,7 @@ public class DemoResetService {
       String checksum = provider.checksum();
       // Release before publishing DONE: a caller that polls the status and immediately starts the
       // next reset must not race the lock release. The same is true of FAILED below.
-      lock.release();
+      lock.release(token);
       status = new Status("DONE", "done", status.startedAt(),
           java.time.Duration.between(Instant.parse(status.startedAt()), Instant.now()).toMillis(),
           checksum, provider.dataset(), null);
@@ -184,7 +185,7 @@ public class DemoResetService {
       org.slf4j.LoggerFactory.getLogger(DemoResetService.class)
           .error("demo reset failed at step {}", status.step(), failure);
     } finally {
-      lock.release();
+      lock.release(token);
     }
   }
 
