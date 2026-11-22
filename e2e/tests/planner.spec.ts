@@ -66,7 +66,14 @@ test.describe('the quarter plan', () => {
     // The window and the planner's own nav.
     await expect(page.getByText(/4 Jan – 11 Apr 2027/)).toBeVisible();
     const nav = page.getByRole('navigation', { name: 'Main' }).getByRole('link');
-    await expect(nav).toHaveText(['Quarter plan', 'Preferences', 'Planning board', 'Reports', 'About & version']);
+    await expect(nav).toHaveText([
+      'Quarter plan',
+      'Preferences',
+      'Units',
+      'Planning board',
+      'Reports',
+      'About & version',
+    ]);
 
     await page.getByRole('button', { name: 'Generate draft' }).click();
     // The scorecard appears: the six tiles and the two panels.
