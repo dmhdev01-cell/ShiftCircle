@@ -110,6 +110,12 @@ function unit(value: unknown): DisplayUnit {
     coverage: list(raw.coverage, 'coverage').map(block),
     openShifts: count(raw.openShifts, 'open shifts'),
     officersInOvertime: count(raw.officersInOvertime, 'officers in overtime'),
+    // Release 3: the wall must not drop the closed state (a gate finding).
+    closedToday: raw.closedToday === true,
+    closedNote:
+      raw.closedNote === null || raw.closedNote === undefined
+        ? null
+        : text(raw.closedNote, 'closed note'),
   };
 }
 
