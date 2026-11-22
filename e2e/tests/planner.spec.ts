@@ -78,9 +78,15 @@ test.describe('the quarter plan', () => {
     await page.getByRole('button', { name: 'Generate draft' }).click();
     // The scorecard appears: the six tiles and the two panels.
     await expect(page.getByText('Coverage gaps')).toBeVisible({ timeout: 60_000 });
-    for (const tile of ['Rule warnings', 'Preferences met', 'Night fairness', 'Overtime built in', 'Generated in']) {
+    for (const tile of ['Rule warnings', 'Preferences met', 'Night fairness', 'Overtime built in', 'Qualified staff', 'Generated in']) {
       await expect(page.getByText(tile, { exact: true })).toBeVisible();
     }
+    // Release 6: the warn-only qualified-staff card, in the api's words.
+    await expect(page.getByText('block-days below the qualified minimum, of 1,470')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Qualified staff by unit' })).toBeVisible();
+    await expect(page.getByText(/block-days are below the qualified minimum\. The planner does not enforce this\./)).toBeVisible();
+    await expect(page.getByText(/Checked every day from 4 Jan to 11 Apr 2027/)).toBeVisible();
+    await expect(page.getByText(/Qualification start dates are not checked/)).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Night shifts by seniority' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Preferences by kind' })).toBeVisible();
     await expect(page.getByText(/Held|Not held/).first()).toBeVisible();

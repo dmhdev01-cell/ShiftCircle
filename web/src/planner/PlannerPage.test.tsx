@@ -58,6 +58,12 @@ describe('the quarter plan', () => {
     expect(screen.getByText('Preferences met')).toBeInTheDocument();
     expect(screen.getByText('Night fairness')).toBeInTheDocument();
     expect(screen.getByText('Overtime built in')).toBeInTheDocument();
+    // Release 6: the qualified-staff figure sits between overtime and the build time.
+    expect(screen.getByText('Qualified staff')).toBeInTheDocument();
+    expect(
+      screen.getByText('block-days below the qualified minimum, of 1,470'),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText('Below minimum').length).toBe(2);
     expect(screen.getByText('Generated in')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Night shifts by seniority' })).toBeInTheDocument();
     // The api's plain sentence about the warnings, and the quarter in numbers.
@@ -66,13 +72,22 @@ describe('the quarter plan', () => {
     expect(screen.getByText(/Weekends worked: 4–11/)).toBeInTheDocument();
     // "What this means" explains each tile in the design's words, one at a time.
     const explained = screen.getAllByRole('button', { name: 'What this means' });
-    expect(explained).toHaveLength(7);
+    expect(explained).toHaveLength(8);
     await user.click(explained[0]);
     expect(
       screen.getByRole('region', { name: 'What Coverage gaps means' }),
     ).toHaveTextContent(/never breaks a blocking rule to fill a gap/);
     await user.click(explained[0]);
     expect(screen.queryByRole('region', { name: 'What Coverage gaps means' })).not.toBeInTheDocument();
+    // The qualified-staff help says who needs a qualification and that nothing is enforced.
+    await user.click(explained[5]);
+    expect(
+      screen.getByRole('region', { name: 'What Qualified staff means' }),
+    ).toHaveTextContent(/first aid on the living units, Control in Control, Escort in Escort/);
+    expect(
+      screen.getByRole('region', { name: 'What Qualified staff means' }),
+    ).toHaveTextContent(/does not try to fix these/);
+    await user.click(explained[5]);
 
     // The FTE band table: officers, target, planned min/avg/max, the api's note.
     expect(
@@ -89,6 +104,23 @@ describe('the quarter plan', () => {
     expect(screen.getByText('none asked')).toBeInTheDocument();
     expect(screen.queryByText(/hired –/)).not.toBeInTheDocument();
 
+    // Release 6: the card under the FTE band table, in the api's words.
+    expect(
+      screen.getByRole('heading', { name: 'Qualified staff by unit', level: 2 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText((_, element) =>
+        (element?.textContent ?? '').replace(/\s+/g, ' ').trim() ===
+        '346 block-days are below the qualified minimum. The planner does not enforce this.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Checked every day from 4 Jan to 11 Apr 2027/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Qualification start dates are not checked/),
+    ).toBeInTheDocument();
+
     // The N12 crew figures and the api's crew sentence, and the 5/2 changeover
     // note, are the api's words, shown as sent.
     expect(screen.getByText(/N12 night crew: 38 officers/)).toBeInTheDocument();
@@ -104,6 +136,52 @@ describe('the quarter plan', () => {
     expect(screen.getByRole('heading', { name: 'Preferences by kind' })).toBeInTheDocument();
     // A draft is not a roster: the tab says so rather than showing an empty grid.
     expect(screen.getByRole('tab', { name: /Gaps/ })).toBeInTheDocument();
+  });
+
+  it('shows no qualified staff tile or card when a stored scorecard predates release 6', async () => {
+    const user = userEvent.setup();
+    const real = api.createPlannerDraft;
+    const spy = vi.spyOn(api, 'createPlannerDraft').mockImplementation(async (input) => {
+      const draft = await real.call(api, input);
+      const copy = structuredClone(draft);
+      delete (copy.scorecard as { qualification?: unknown }).qualification;
+      return copy;
+    });
+    renderPlanner();
+    await asPlanner(user);
+    await user.click(await screen.findByRole('button', { name: 'Generate draft' }));
+    await screen.findByText('Coverage gaps');
+
+    expect(screen.queryByText('Qualified staff')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Qualified staff by unit' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/qualified minimum/)).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'What this means' })).toHaveLength(7);
+    spy.mockRestore();
+  });
+
+  it('uses the api checked window on the card when it differs from the quarter', async () => {
+    const user = userEvent.setup();
+    const real = api.createPlannerDraft;
+    const spy = vi.spyOn(api, 'createPlannerDraft').mockImplementation(async (input) => {
+      const draft = await real.call(api, input);
+      const copy = structuredClone(draft);
+      if (copy.scorecard.qualification) {
+        copy.scorecard.qualification.from = '2026-11-04';
+        copy.scorecard.qualification.to = '2027-02-11';
+      }
+      return copy;
+    });
+    renderPlanner();
+    await asPlanner(user);
+    await user.click(await screen.findByRole('button', { name: 'Generate draft' }));
+    await screen.findByText('Coverage gaps');
+
+    expect(
+      screen.getByText(/Checked every day from 4 Nov 2026 to 11 Feb 2027/),
+    ).toBeInTheDocument();
+    spy.mockRestore();
   });
 
   it('keeps the tab in the address, so a link and Back land on it', async () => {
@@ -222,7 +300,7 @@ describe('the quarter plan', () => {
       screen.getAllByText(/least staff the unit minimums need with 20% leave/).length,
     ).toBeGreaterThan(0);
     expect(screen.getAllByText('Short').length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('button', { name: 'What this means' })).toHaveLength(7);
+    expect(screen.getAllByRole('button', { name: 'What this means' })).toHaveLength(8);
     expect(screen.getByRole('heading', { name: 'Staffing by unit' })).toBeInTheDocument();
 
     // The formula's own words, and the per-unit How line from the api breakdown.

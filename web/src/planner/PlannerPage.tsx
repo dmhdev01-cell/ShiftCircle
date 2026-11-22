@@ -28,6 +28,7 @@ import type {
 } from '../api/types';
 import { KpiTile } from '../planning/KpiTile';
 import { PlannerRosterTab } from './PlannerRosterTab';
+import { QualifiedStaffCard } from './QualifiedStaffCard';
 import { StaffingPanel } from './StaffingPanel';
 import { staffingFloorLine, staffingHelp, staffingTile } from './staffingWords';
 import { FlaggedShiftsCard } from './FlaggedShiftsCard';
@@ -55,6 +56,8 @@ const TILE_HELP: Record<string, string> = {
     'Only the 12-hour night crews work nights (D12 is days, N12 is 19:00–07:00). Officers who asked for nights get them first, most senior first; the rest of the night crew is seeded from the newest officers, so a senior officer works nights they did not ask for only when no newer officer can take the shift.',
   'Overtime built in':
     'Hours over 80 in a two-week pay period are paid as overtime. 8-hour officers work 5 on, 2 off: exactly 80 hours. 12-hour patterns give 72 to 96 hours a pay period and 16-hour patterns 64 to 80, so some overtime is built in before anyone picks up an extra shift.',
+  'Qualified staff':
+    'Some posts need officers with a qualification: first aid on the living units, Control in Control, Escort in Escort. This counts the shift blocks in the draft that have fewer qualified officers on duty than the unit\'s minimum. The planner does not enforce qualifications, so it does not try to fix these.',
   'Generated in':
     "The planner follows fixed steps; it isn't AI. The same seed and the same data always give the same plan, so a plan can be checked and repeated.",
 };
@@ -694,6 +697,18 @@ export function PlannerPage() {
                     value: `${scorecard.overtime.hoursOver} h`,
                     note: `${scorecard.overtime.officersOver} officers over ${scorecard.overtime.thresholdHours} h in a pay period`,
                   },
+                  ...(scorecard.qualification
+                    ? [
+                        {
+                          label: 'Qualified staff',
+                          value: scorecard.qualification.failingBlockDays,
+                          note: `block-days below the qualified minimum, of ${scorecard.qualification.checkedBlockDays.toLocaleString('en-CA')}`,
+                          pill: scorecard.qualification.passes
+                            ? { tone: 'info' as const, text: 'All met' }
+                            : { tone: 'warn' as const, text: 'Below minimum' },
+                        },
+                      ]
+                    : []),
                   {
                     label: 'Generated in',
                     value: seconds(scorecard.generatedMs),
@@ -813,6 +828,14 @@ export function PlannerPage() {
                     </Typography>
                   </CardContent>
                 </Card>
+              ) : null}
+
+              {scorecard.qualification ? (
+                <QualifiedStaffCard
+                  qualification={scorecard.qualification}
+                  from={scorecard.qualification.from ?? plan.window.from}
+                  to={scorecard.qualification.to ?? plan.window.to}
+                />
               ) : null}
 
               {scorecard.warningNote ? (
