@@ -10,7 +10,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import Typography from '@mui/material/Typography';
 
-import { shiftTemplates } from '../api/shiftTemplates';
+import { assignableTemplates, shiftTemplates } from '../api/shiftTemplates';
 import type { OfficerRow, ShiftItem, Unit } from '../api/types';
 import { useUnits } from '../api/useUnits';
 import { useVersion } from '../api/useVersion';
@@ -624,7 +624,7 @@ export function PlanningPage() {
               : ''}
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {Object.values(shiftTemplates).map((option) => (
+            {assignableTemplates.map((option) => (
               <Button
                 key={option.code}
                 variant="outlined"

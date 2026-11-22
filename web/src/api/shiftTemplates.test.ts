@@ -27,4 +27,11 @@ describe('the 12 h crew templates', () => {
     // Release 4 #10: a WARN rule, shown by its plain name in the panel.
     expect(ruleNameFor('U-16')).toBe('8-hour officer on a night shift');
   });
+
+  it('keeps L16 for history though it is retired', () => {
+    // Release 5: old rows still render their chip and label; new assignments
+    // use the assignable list, which excludes it.
+    expect(shiftTemplates.L16.chipText).toBe('L16');
+    expect(shiftTemplates.L16.label).toBe('16 h shift');
+  });
 });

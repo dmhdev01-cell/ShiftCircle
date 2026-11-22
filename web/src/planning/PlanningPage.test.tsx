@@ -287,6 +287,8 @@ describe('the planning board', () => {
     await user.click(
       await screen.findByRole('button', { name: /assign a shift to Aiden Bergeron on 2026-11-19/ }),
     );
+    // The retired 16 h template is not in the assignable list (release 5).
+    expect(screen.queryByRole('button', { name: /L16 · / })).not.toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: /D8 · Day 8 h/ }));
     await user.click(await screen.findByRole('button', { name: 'Assign shift' }));
 
