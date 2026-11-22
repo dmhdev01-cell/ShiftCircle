@@ -80,8 +80,8 @@ test.describe('units closed from a date', () => {
       await expect(page.getByText('Coverage gaps')).toBeVisible({ timeout: 60_000 });
       // The staffing periods split at the closure: the later period is there.
       await expect(page.getByText(/15 Feb 2027 – 11 Apr 2027/).first()).toBeVisible();
-      // The 7th tile is next to the six from before.
-      await expect(page.getByText('Staffing', { exact: true })).toBeVisible();
+      // The 7th tile is next to the six from before (the floor wording).
+      await expect(page.getByText('Needed (at least)').first()).toBeVisible();
 
       await page.getByRole('tab', { name: 'Roster' }).click();
       await page.getByLabel('Unit', { exact: true }).selectOption(unitC.id);
