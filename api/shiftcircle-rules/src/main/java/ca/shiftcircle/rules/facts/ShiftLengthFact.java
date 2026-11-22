@@ -12,6 +12,7 @@ public class ShiftLengthFact {
   private final int durationMinutes;
   private final int nominalMinutes;
   private final boolean allowedPatternByUnit;
+  private final boolean nightShift;
   private final String evidence;
   private final List<String> evidenceAssignmentIds;
 
@@ -20,12 +21,14 @@ public class ShiftLengthFact {
       int durationMinutes,
       int nominalMinutes,
       boolean allowedPatternByUnit,
+      boolean nightShift,
       String evidence,
       String assignmentId) {
     this.templateCode = templateCode;
     this.durationMinutes = durationMinutes;
     this.nominalMinutes = nominalMinutes;
     this.allowedPatternByUnit = allowedPatternByUnit;
+    this.nightShift = nightShift;
     this.evidence = evidence;
     this.evidenceAssignmentIds = List.of(assignmentId);
   }
@@ -45,6 +48,11 @@ public class ShiftLengthFact {
 
   public boolean isAllowedPatternByUnit() {
     return allowedPatternByUnit;
+  }
+
+  /** True when the shift starts in the night block (23:00-07:00). */
+  public boolean isNightShift() {
+    return nightShift;
   }
 
   public boolean isTwelveHour() {

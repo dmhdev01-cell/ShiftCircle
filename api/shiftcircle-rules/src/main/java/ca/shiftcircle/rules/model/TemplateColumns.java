@@ -128,6 +128,9 @@ public final class TemplateColumns {
   }
 
   private static String shiftLengthCondition(RuleRow row) {
+    if (Boolean.TRUE.equals(row.params().get("nightShiftOnly"))) {
+      return "nightShift && nominalMinutes == 480";
+    }
     if (row.params().containsKey("allowedLengths")) {
       // The grid edits hours; the fact carries minutes.
       String allowed =

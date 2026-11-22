@@ -209,7 +209,7 @@ class RuleSetApiTest {
   @Test
   @Order(1)
   void t13ARowBelowTheLegalFloorFailsValidationAndCannotBeSubmitted() throws Exception {
-    int draft = createDraft(1, "T13: the legal floor");
+    int draft = createDraft(publishedVersion(), "T13: the legal floor");
     Map<String, Object> rest = table(draft, "REST");
     setParam(rest, "U-01", "minRestHours", 7);
     HttpResponse<String> put =
@@ -250,7 +250,7 @@ class RuleSetApiTest {
             + " ON CONFLICT DO NOTHING");
     tokens.put("l.fraser", login("l.fraser"));
 
-    int draft = createDraft(1, "T10: maker/checker");
+    int draft = createDraft(publishedVersion(), "T10: maker/checker");
     Map<String, Object> report = build(draft);
     assertThat((List<Map<String, Object>>) report.get("steps"))
         .allSatisfy(step -> assertThat((Boolean) step.get("done")).isTrue());
@@ -265,7 +265,7 @@ class RuleSetApiTest {
 
   @Test
   void aRejectionReasonLongerThanTheCapIsABadRequest() throws Exception {
-    int draft = createDraft(1, "reject reason cap");
+    int draft = createDraft(publishedVersion(), "reject reason cap");
     build(draft);
     submit(draft);
 
@@ -292,7 +292,7 @@ class RuleSetApiTest {
         .as("before the change, four consecutive nights do not warn")
         .noneSatisfy(result -> assertThat(result.get("ruleCode")).isEqualTo("U-10"));
 
-    int draft = createDraft(1, "T7: three nights");
+    int draft = createDraft(publishedVersion(), "T7: three nights");
     Map<String, Object> consecutive = table(draft, "CONSECUTIVE");
     setParam(consecutive, "U-10", "max", 3);
     saveRows(draft, "CONSECUTIVE", consecutive);

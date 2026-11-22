@@ -89,6 +89,7 @@ Each line is at least three tests: just under, exactly at, just over. Times are 
 | U-11 16 h shifts: 3 per 7 d, 10 per 28 d | 3 in 7 d → PASS | 4th within 7 d → **WARN**; 11th within 28 d → **WARN** | 4th exactly 7 d after the 1st → PASS (window boundary) |
 | U-12 2 consecutive days off per 7 | 48 h off → PASS | 47 h 59 m off → **WARN** (a break of 24 h or less isn't a day of rest) | — |
 | U-14 weekly ceiling: warn above 48 h, block above 60 h | 48 h → PASS | 48.25 h → **WARN**; 60.00 h → **WARN** (the limit itself passes; the Block is above it); 60.25 h → **BLOCK** (no override, ADR-023) | — |
+| U-16 8 h officer on a night shift | D8 07:00 → no result | N8 23:00 → **WARN** (acknowledged, not overridden); N12 19:00 → no result | — |
 | P-01 overtime by pay period (threshold 80 h) | 80 h worked → 80 REG | 80.5 h → 80 REG + 0.5 OT15 | 96 h incl. a picked-up 16 h shift → 80 REG + 16 OT15; rostered 16 h shifts within 80 h → all REG |
 | P-02 day of rest: 2×, min 2 h (off by default; test when switched on) | 1 h worked → paid 2 h OT20 | 2 h → 2 h OT20 | 8 h → 8 h OT20 |
 | P-04 OT under 30 min unpaid | 29 m → 0 | 30 m → 0.5 h | — |

@@ -360,6 +360,27 @@ public final class RuleRowValidator {
   private static void validateShiftLengths(RuleRow row, List<Violation> violations) {
     Object rawLengths = row.params().get("allowedLengths");
     boolean hasLengths = row.params().containsKey("allowedLengths");
+    boolean hasFlags = row.params().containsKey("requireUnitFlagFor");
+    Object rawNight = row.params().get("nightShiftOnly");
+    boolean hasNight = row.params().containsKey("nightShiftOnly");
+    // Release 4 #10 adds a third kind of SHIFT_LENGTHS row; the three are alternatives, never a
+    // combination, so a half-converted row cannot silently disable one of them.
+    if ((hasLengths ? 1 : 0) + (hasFlags ? 1 : 0) + (hasNight ? 1 : 0) != 1) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "Shift-types row",
+              "A shift-types row does one thing: list the allowed lengths, name the lengths that"
+                  + " need a local agreement, or warn about an 8-hour officer on a night shift."));
+    }
+    if (hasNight && !Boolean.TRUE.equals(rawNight)) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "Night shift only",
+              "The night-shift warning applies only to night shifts; remove the row instead of"
+                  + " turning it off."));
+    }
     if (hasLengths && rawLengths == null) {
       violations.add(
           new Violation(row.code(), "Allowed lengths", "Choose at least one shift length."));

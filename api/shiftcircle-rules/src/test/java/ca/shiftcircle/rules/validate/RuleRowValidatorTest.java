@@ -225,6 +225,24 @@ class RuleRowValidatorTest {
   }
 
   @Test
+  void aShiftTypesRowDoesExactlyOneThing() {
+    assertThat(
+            validateWith(
+                "U-16", params("nightShiftOnly", true, "allowedLengths", List.of(8))))
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.column()).isEqualTo("Shift-types row");
+              assertThat(violation.message()).contains("does one thing");
+            });
+    assertThat(validateWith("U-16", params("nightShiftOnly", false)))
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.column()).isEqualTo("Night shift only");
+              assertThat(violation.message()).contains("applies only to night shifts");
+            });
+  }
+
+  @Test
   void anEmptyMessageIsRefused() {
     RuleRow row = RuleRowsV1.u10();
     RuleRow withoutMessage =

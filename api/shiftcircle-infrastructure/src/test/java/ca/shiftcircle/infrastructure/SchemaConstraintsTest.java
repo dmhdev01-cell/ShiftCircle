@@ -69,14 +69,14 @@ class SchemaConstraintsTest {
 
   @Test
   void migrationsApplyAndSeedTheReferenceData() throws Exception {
-    assertThat(queryInt("SELECT max(version) FROM rule_set_version")).isEqualTo(2);
+    assertThat(queryInt("SELECT max(version) FROM rule_set_version")).isEqualTo(3);
     assertThat(queryInt("SELECT count(*) FROM rule_table")).isEqualTo(8);
-    // V6 publishes a second rule-set version; only the published set's 19 rows are live.
+    // V12 publishes rule-set v3 (v2 plus U-16); only the published set's 20 rows are live.
     assertThat(queryInt(
             "SELECT count(*) FROM rule_row r JOIN rule_set_version v"
                 + " ON v.id = r.rule_set_version_id WHERE v.status = 'PUBLISHED'"))
-        .isEqualTo(19);
-    assertThat(queryInt("SELECT count(*) FROM rule_row")).isEqualTo(38);
+        .isEqualTo(20);
+    assertThat(queryInt("SELECT count(*) FROM rule_row")).isEqualTo(58);
     assertThat(queryInt("SELECT count(*) FROM shift_template")).isEqualTo(8);
     assertThat(queryInt("SELECT count(*) FROM unit")).isEqualTo(6);
     assertThat(queryInt("SELECT count(*) FROM unit_requirement")).isEqualTo(18);
@@ -86,6 +86,8 @@ class SchemaConstraintsTest {
     assertThat(queryString("SELECT status FROM rule_set_version WHERE version = 1"))
         .isEqualTo("SUPERSEDED");
     assertThat(queryString("SELECT status FROM rule_set_version WHERE version = 2"))
+        .isEqualTo("SUPERSEDED");
+    assertThat(queryString("SELECT status FROM rule_set_version WHERE version = 3"))
         .isEqualTo("PUBLISHED");
     assertThat(queryString("SELECT start_time::text FROM shift_template WHERE code = 'A12'"))
         .isEqualTo("00:00:00");
@@ -226,7 +228,7 @@ class SchemaConstraintsTest {
         () ->
             exec(
                 "INSERT INTO rule_set_version (version, status, effective_from, created_by,"
-                    + " approved_by) VALUES (3, 'APPROVED', DATE '2026-11-01', ?, ?)",
+                    + " approved_by) VALUES (4, 'APPROVED', DATE '2026-11-01', ?, ?)",
                 author,
                 author));
   }
@@ -235,11 +237,11 @@ class SchemaConstraintsTest {
   void allowsADifferentApprover() throws Exception {
     exec(
         "INSERT INTO rule_set_version (version, status, effective_from, created_by, approved_by)"
-            + " VALUES (3, 'APPROVED', DATE '2026-11-01', ?, ?)",
+            + " VALUES (4, 'APPROVED', DATE '2026-11-01', ?, ?)",
         UUID.fromString("22222222-2222-2222-2222-000000000004"),
         UUID.fromString("22222222-2222-2222-2222-000000000005"));
 
-    assertThat(queryInt("SELECT count(*) FROM rule_set_version WHERE version = 3")).isEqualTo(1);
+    assertThat(queryInt("SELECT count(*) FROM rule_set_version WHERE version = 4")).isEqualTo(1);
   }
 
   @Test
@@ -249,7 +251,7 @@ class SchemaConstraintsTest {
         () ->
             exec(
                 "INSERT INTO rule_set_version (version, status, effective_from)"
-                    + " VALUES (3, 'PUBLISHED', DATE '2026-11-21')"));
+                    + " VALUES (5, 'PUBLISHED', DATE '2026-11-22')"));
   }
 
   // -------------------------------------------------------------------------------------------

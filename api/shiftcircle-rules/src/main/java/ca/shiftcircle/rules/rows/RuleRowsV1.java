@@ -25,7 +25,7 @@ public final class RuleRowsV1 {
 
   public static RuleSet ruleSet() {
     return new RuleSet(VERSION, List.of(u01(), u02(), u03(), u04(), u05(), u08(), u09(), u10(),
-        u11(), u12(), u14(), p01(), p01b(), p04(), o01(), o02(), o03(), l01(), s03()));
+        u11(), u12(), u14(), p01(), p01b(), p04(), o01(), o02(), o03(), l01(), s03(), u16()));
   }
 
   // A. Rest and fatigue ------------------------------------------------------------------------
@@ -309,5 +309,25 @@ public final class RuleRowsV1 {
         "PSGE",
         true,
         200);
+  }
+
+  /**
+   * Release 4 #10: the planner never puts an 8-hour officer on a night shift (nights are 12-hour
+   * crews), so this row guards a supervisor's manual assignment. It is published as rule-set v3 by
+   * V12; the fixture carries it so the boot-time rule base and the rule tests see the same rows as
+   * the database.
+   */
+  public static RuleRow u16() {
+    return new RuleRow(
+        "U-16",
+        RuleTableCode.SHIFT_LENGTHS,
+        true,
+        Map.of("nightShiftOnly", true),
+        RuleOutcome.WARN,
+        OverridePolicy.ACKNOWLEDGE,
+        "An 8-hour officer is assigned to a night shift; 8-hour officers work day or evening.",
+        "Person (release 4 #10)",
+        true,
+        205);
   }
 }

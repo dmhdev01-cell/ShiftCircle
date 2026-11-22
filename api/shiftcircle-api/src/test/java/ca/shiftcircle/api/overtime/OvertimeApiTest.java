@@ -278,9 +278,12 @@ class OvertimeApiTest {
     // Casey has the fewest hours but is blocked by rest: skipped in first place, not pushed down.
     assertThat(candidateIds(candidates))
         .isEqualTo("[" + BLOCKED + ", " + REST8 + ", " + SENIOR + ", " + JUNIOR + "]");
+    // Dana already holds an N8 shift in the window, so U-16 (release 4 #10) makes her a WARN
+    // candidate even for a day shift: the roster itself contains an 8 h officer on a night shift.
     assertThat(candidates).extracting(c -> c.get("eligibility"))
-        .containsExactly("SKIPPED", "ELIGIBLE", "ELIGIBLE", "ELIGIBLE");
+        .containsExactly("SKIPPED", "WARN", "ELIGIBLE", "ELIGIBLE");
     assertThat((String) candidates.get(0).get("reason")).contains("U-0");
+    assertThat((String) candidates.get(1).get("reason")).contains("U-16");
     assertThat((double) candidates.get(2).get("overtimeHoursThisQuarter")).isEqualTo(4.0);
     assertThat((String) candidates.get(2).get("seniorityDate")).contains("2012");
     assertThat((String) json(response).get("rankingNote"))
