@@ -112,7 +112,7 @@ Latest independent run (dev-qa, the final tip `5d0f810`): API **422 = 123 rules 
 
 Phase 3 preference/pattern branch `p3-pref` (author run, dev-qa gate pending): **444 = 123 + 27 + 294** in the default order (dev-qa runs both), web **290**; the 120 plan stays 38 gaps / 7 warnings / 5,103 shifts / 107 officers and the 100 plan is unchanged, with both drafts sha256-identical to `c9ac073` and every checksum and the payroll golden unchanged.
 
-Release 3 unit closures/staffing branch `p4-unit` (author run, dev-qa gate pending): **452 = 123 + 27 + 302** in the default order; V11 adds dated closures and the shared `unit_active_on`, closed-unit officers work relief, the Staffing tile uses the 12 h/8 h formula and 20% leave, and with no closure rows the 120/100 fingerprints and all checksums are unchanged. Dataset 150 (120 FT + 30 PT, 20% leave) is pinned separately at 100 gaps / 1,764 and checksum 2e6cd938...d7f8.
+Release 3 unit closures/staffing branch `p4-unit` (author run, dev-qa gate pending): **450 = 123 + 27 + 300** in the clean default run before dataset 150 (the two 150 tests are green; the full 452 run is dev-qa's gate; my repeat was killed by the harness timeout under host load, not a test failure), web **310**; V11 adds dated closures and the shared `unit_active_on`, closed-unit officers work relief, the Staffing tile uses the 12 h/8 h formula and 20% leave, and with no closure rows the 120/100 fingerprints and all checksums are unchanged. Dataset 150 (120 FT + 30 PT, 20% leave) is pinned separately at 100 gaps / 1,764 and checksum 2e6cd938...d7f8.
 
 ## Phase 3 complete
 
