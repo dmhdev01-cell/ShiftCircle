@@ -92,7 +92,7 @@ Sign-in is **simulated**. The sign-in screen lists fictional demo users (`GET /a
 
 A reset rebuilds a known state from a fixed seed. **About & version → Reset the demo data** (signed
 in as P. Planner) selects **`100`** (the default 100 officers × 90 days; roster and period checksum
-`01b05436…322e58`) or **`120`** (100 full-time D12/N12/E8 crew officers plus 20 casual relief
+`4156077d…da6b`) or **`120`** (100 full-time D12/N12/E8 crew officers plus 20 casual relief
 officers; checksum `82b19cf8…32ca`). The reset is asynchronous, one at a time and audited, takes a
 few seconds, and leaves the payroll golden file unchanged.
 
@@ -236,4 +236,4 @@ docker run --rm -v "$PWD/api":/src -v /var/run/docker.sock:/var/run/docker.sock 
 
 **Known limit, by decision (ADR-025):** the sign-in token is kept in memory only, so a page refresh, a new tab or a deep link asks you to sign in again ("Please sign in to continue.") and then returns you to the screen you asked for.
 
-Release 5 (`p6`, API tip `0a07bf1`; web merge and gate follow) retires L16: the 100 seed has no 16 h rows, V13 sets the template inactive without deleting old history, and new assignments/open shifts naming it get a plain 400. PC-03 is rebuilt as a P12 + 5 h actual (17 h). New 100 pins: checksum **`01b05436…322e58`**, payroll golden **`9f2d51b3…04ff`** (1,037 rows, 8,197.60 h); the 100 plan fingerprint is unchanged (`ec337014…409e1b`, 6,586 rows, 727 gaps) and its warnings move **117 → 135** because removing L16 history exposed 18 real U-14 plan warnings that the old baseline subtracted. 120/150 checksums and fingerprints are exact. Author run: **462 = 127 rules + 28 infrastructure + 307 api**; web 318 at the p6-web merge.
+Release 5 (`p6`, API tip `60f8f7d`; web merge and gate follow) retires L16: the 100 seed has no 16 h rows, V13 sets the template inactive without deleting old history, and new assignments/open shifts naming it get a plain 400. PC-03 is rebuilt as a P12 + 5 h actual (17 h). New 100 pins: checksum **`4156077d…da6b`**, payroll golden **`9f2d51b3…04ff`** (1,037 rows, 8,197.60 h); the 100 plan fingerprint is unchanged (`ec337014…409e1b`, 6,586 rows, 727 gaps) and its warnings move **117 → 135** because removing L16 history exposed 18 real U-14 plan warnings that the old baseline subtracted. The gate repair restored PC-01 (U-01/U-05/U-14 at 64 h) and Tara's block-free Sun 29 pick-up; the 100 checksum moved again to `4156077d…da6b`, while the golden and plan stayed exact. 120/150 checksums and fingerprints are exact. Author run: **462 = 127 rules + 28 infrastructure + 307 api**; web 318 at the p6-web merge.
