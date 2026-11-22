@@ -404,6 +404,16 @@ visible gap instead of a shift. Commit re-runs every check against the current c
 refuses any Block with a per-assignment list, requires the exact warning count to be acknowledged
 (`acceptedWarningCount`), refuses a locked period, and writes all rows plus one `commit_plan` audit
 event in one transaction. Each written row carries `plan_draft_id`; overrides are never implied.
+The scorecard also carries **`qualification`** (release 6 #6, warn-only): `failingBlockDays`,
+`checkedBlockDays`, `passes`, `from`, `to`, `byUnitBlock` (`unitCode`, `unitName`, `block`,
+`qualification`, `minimum`, `failingBlockDays`, `checkedBlockDays`), `validFromRespected: false`,
+`validFromNote` and `sentence`. It is read-only over the draft; `PlanGenerator` and every placement
+path are untouched. It counts active unit-days only (a date-aware closure has no checked or failing
+day) and counts an officer placed as relief in the unit where they are placed, with their own
+qualifications. `valid_from` is not read: an officer with the qualification counts for the whole
+quarter, stated on the card. Measured with no closures: 100 **346 of 1,470**, 120 **0 of 1,470**,
+150 **103 of 1,470**.
+
 The scorecard carries coverage gaps measured in absolute time (the NIGHT block on date D runs
 23:00 D to 07:00 D+1, the same code the board uses), warnings by plain rule name (only warnings the
 plan adds: each officer's history-only baseline is subtracted), preferences asked/met by kind,
