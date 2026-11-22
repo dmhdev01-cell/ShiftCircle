@@ -2,6 +2,7 @@ package ca.shiftcircle.infrastructure.demo;
 
 import ca.shiftcircle.rules.RuleEvaluator;
 import ca.shiftcircle.rules.RuleSetCompiler;
+import ca.shiftcircle.rules.build.BusinessTime;
 import ca.shiftcircle.rules.build.ConsecutiveRunFactBuilder;
 import ca.shiftcircle.rules.build.DaysOffFactBuilder;
 import ca.shiftcircle.rules.build.LongShiftCountFactBuilder;
@@ -48,6 +49,8 @@ public final class DemoDataSelfCheck {
 
     checkNoDoubleBooking(violations);
     checkBlockRules(violations);
+    checkPc01BlockSet(violations);
+    checkTaraFreeSlot(violations);
     checkCoverage(violations);
     checkOvertime(violations);
     checkLockedPeriods(violations);
@@ -115,6 +118,77 @@ public final class DemoDataSelfCheck {
               + ": "
               + unjustified.get(0).evidence());
     }
+  }
+
+  /**
+   * Release 5: the retired L16 history used to supply the U-14 block in PC-01. The proposal must
+   * still block with U-01, U-05 and U-14; if a seed change drops one, generation fails here rather
+   * than in the e2e.
+   */
+  private void checkPc01BlockSet(List<String> violations) {
+    List<ShiftFact> shifts =
+        loadShifts().stream().filter(shift -> "E-002".equals(shift.employeeId())).toList();
+    Instant start =
+        LocalDate.of(2026, 11, 21).atTime(7, 0).atZone(BusinessTime.REGINA).toInstant();
+    List<ShiftFact> withProposal = new ArrayList<>(shifts);
+    withProposal.add(
+        new ShiftFact(
+            "pc01-proposal",
+            "E-002",
+            "B",
+            "D8",
+            start,
+            start.plusSeconds(8 * 3600L),
+            ShiftKind.ROSTERED,
+            0,
+            true,
+            true));
+    Set<String> blocks = blockCodes(withProposal);
+    if (!blocks.containsAll(Set.of("U-01", "U-05", "U-14"))) {
+      violations.add("PC-01: the Saturday D8 block set is " + blocks + ", expected U-01/U-05/U-14");
+    }
+  }
+
+  /** The e2e's decline case needs a block-free Tara pick-up after the demo week. */
+  private void checkTaraFreeSlot(List<String> violations) {
+    List<ShiftFact> shifts =
+        loadShifts().stream().filter(shift -> "E-001".equals(shift.employeeId())).toList();
+    Instant start =
+        LocalDate.of(2026, 11, 29).atTime(7, 0).atZone(BusinessTime.REGINA).toInstant();
+    List<ShiftFact> withProposal = new ArrayList<>(shifts);
+    withProposal.add(
+        new ShiftFact(
+            "tara-free-slot",
+            "E-001",
+            "B",
+            "D8",
+            start,
+            start.plusSeconds(8 * 3600L),
+            ShiftKind.ROSTERED,
+            0,
+            true,
+            true));
+    Set<String> blocks = blockCodes(withProposal);
+    if (!blocks.isEmpty()) {
+      violations.add("Tara's Sun 29 Nov pick-up is not block-free: " + blocks);
+    }
+  }
+
+  private Set<String> blockCodes(List<ShiftFact> shifts) {
+    KieBase ruleBase = new RuleSetCompiler().compile(RuleRowsV1.ruleSet());
+    List<Object> facts = new ArrayList<>();
+    facts.addAll(new RestFactBuilder().build(shifts));
+    facts.addAll(new RollingHoursFactBuilder().build(shifts, 24));
+    facts.addAll(new RollingHoursFactBuilder().build(shifts, 168));
+    facts.addAll(new ConsecutiveRunFactBuilder().build(shifts));
+    facts.addAll(new LongShiftCountFactBuilder().build(shifts));
+    facts.addAll(new DaysOffFactBuilder().build(shifts));
+    facts.addAll(new ShiftLengthFactBuilder().build(shifts));
+    return new RuleEvaluator()
+        .evaluate(ruleBase, RuleRowsV1.VERSION, facts.toArray()).stream()
+            .filter(result -> result.outcome() == RuleOutcome.BLOCK)
+            .map(RuleResult::ruleId)
+            .collect(Collectors.toSet());
   }
 
   private List<ShiftFact> loadShifts() {

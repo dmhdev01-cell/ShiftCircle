@@ -51,7 +51,7 @@ class DemoResetApiTest {
   }
 
   private static final String CHECKSUM =
-      "01b0543646580f6dc9cedefd2ece7352a3d69e563c85db0baf287dd78b322e58";
+      "4156077d76d41bd5fcf6d6a9a0f51111e9007d16c8a0c6b311e09c6fe801da6b";
 
   @Autowired private JdbcTemplate jdbc;
   @Autowired private Environment environment;

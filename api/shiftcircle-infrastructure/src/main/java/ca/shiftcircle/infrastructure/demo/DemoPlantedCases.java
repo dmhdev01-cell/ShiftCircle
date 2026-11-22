@@ -55,10 +55,46 @@ final class DemoPlantedCases {
     deleteAssignments(nia, PC01_DATE);
     // Saturday must be free for her, or the base roster would already give her the blocked rest.
     deleteAssignments(nia, PC01_DATE.plusDays(1));
+    // The previous Saturday would make the base week 64 h (a saved U-14 Block) once the two
+    // shifts below are added; without it the base is 56 h and only the proposal crosses 60.
+    deleteAssignments(nia, PC01_DATE.minusDays(6));
 
     Instant start = instant(PC01_DATE, "12:00");
     insertAssignment(
         id("planted:pc01:nia"), nia, "B", "P12", start, start.plusSeconds(12 * 3600L), PC01_DATE);
+
+    // The U-14 block needs Nia's week over 60 h without L16 (retired in release 5). Turn her
+    // Monday E8 into a 12 h P12 (+4 h) and add a Thursday E8 (+8 h); removing her previous
+    // Saturday keeps the saved week at 56 h, so the Saturday D8 takes it to 64 h and U-14 blocks
+    // with U-01 and U-05. The Monday shift is past, so its actual is moved with it.
+    LocalDate monday = PC01_DATE.minusDays(4);
+    Instant mondayStart = instant(monday, "12:00");
+    Instant mondayEnd = mondayStart.plusSeconds(12 * 3600L);
+    jdbc.update(
+        "UPDATE shift_assignment SET shift_template_id ="
+            + " (SELECT id FROM shift_template WHERE code = 'P12'), start_at = ?, end_at = ?"
+            + " WHERE employee_id = (SELECT id FROM employee WHERE employee_no = 'E-002')"
+            + " AND work_date = ?",
+        Timestamp.from(mondayStart),
+        Timestamp.from(mondayEnd),
+        monday);
+    jdbc.update(
+        "UPDATE time_entry SET start_at = ?, end_at = ?, hours = 12.0 WHERE shift_assignment_id ="
+            + " (SELECT id FROM shift_assignment WHERE employee_id ="
+            + " (SELECT id FROM employee WHERE employee_no = 'E-002') AND work_date = ?)",
+        Timestamp.from(mondayStart),
+        Timestamp.from(mondayEnd),
+        monday);
+    LocalDate thursday = PC01_DATE.minusDays(1);
+    Instant thursdayStart = instant(thursday, "15:00");
+    insertAssignment(
+        id("planted:pc01:nia-thu"),
+        "E-002",
+        "B",
+        "E8",
+        thursdayStart,
+        thursdayStart.plusSeconds(8 * 3600L),
+        thursday);
 
     // Make one Unit B day shift on the Saturday open (the demo tries to fill it with Nia).
     removeOneAssignment("B", "D8", PC01_DATE.plusDays(1));
@@ -66,6 +102,11 @@ final class DemoPlantedCases {
     // shift, or the supervisor cannot offer it to the one employee who can sign in.
     deleteAssignments("E-001", PC01_DATE.plusDays(1));
     insertOpenShift("planted:pc08:unit-b-day", "B", "D8", PC01_DATE.plusDays(1), "EXTRA_COVERAGE");
+
+    // A shift after the demo week where Tara has no Block: give her two consecutive days off
+    // (Sat 28 + Sun 29) and enough 168 h headroom for an 8 h pick-up. Removing the Sun 29 base
+    // shift does not touch the golden period or the plan's 30 Nov look-back.
+    deleteAssignments("E-001", LocalDate.of(2026, 11, 29));
   }
 
   // PC-02: an officer finishes a night shift at 07:00 on Thu 26 Nov; an evening slot at 15:00 is

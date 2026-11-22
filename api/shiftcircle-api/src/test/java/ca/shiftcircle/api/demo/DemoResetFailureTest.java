@@ -56,6 +56,12 @@ class DemoResetFailureTest {
         .as("the planner must not receive the raw error")
         .doesNotContain("raw detail")
         .contains("The demo reset failed");
+    // FAILED is published just before the finally releases the permit, so a poll can see the
+    // status a few microseconds early. Wait for the release instead of racing it.
+    long lockDeadline = System.nanoTime() + java.time.Duration.ofSeconds(2).toNanos();
+    while (lock.busy() && System.nanoTime() < lockDeadline) {
+      Thread.sleep(20);
+    }
     assertThat(lock.busy()).as("the permit is released even for an Error").isFalse();
 
     // The service is usable again: a real reset reaches DONE and its checksum.
@@ -65,7 +71,7 @@ class DemoResetFailureTest {
     Map<String, Object> done = waitFor("DONE", token);
     assertThat(done.get("checksum"))
         .isEqualTo(
-            "01b0543646580f6dc9cedefd2ece7352a3d69e563c85db0baf287dd78b322e58");
+            "4156077d76d41bd5fcf6d6a9a0f51111e9007d16c8a0c6b311e09c6fe801da6b");
   }
 
   private Map<String, Object> waitFor(String state, String token) throws Exception {
