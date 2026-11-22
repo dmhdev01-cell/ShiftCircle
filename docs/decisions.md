@@ -257,6 +257,12 @@ ever switches to D12/N12 (N12 crosses midnight and pay-period boundaries).
 **Staffing.** `unit_staffing(unit_id, allocated_headcount)` stores the planner's allocation (default: active officers homed in the unit); `staffing_setting.leave_allowance` defaults to 0.20 and both are audited. The estimate, stated in words on the panel, is: with 12 h allowed, a DAY minimum becomes a 12 h day post, a NIGHT minimum a 12 h night post, and the 8 h evening posts are `max(0, EVENING - NIGHT)` (the 19-23 hours the night crew does not cover); a unit without 12 h uses 8 h posts for every block. `rawNeeded = 2 × (posts12Day + posts12Night) + 1.4 × posts8`, and `needed = ceil(rawNeeded / (1 - leaveAllowance))`. `shortfall = max(0, needed - filled)`; a unit closed for the whole period needs 0. Staffing periods split at every closure boundary (so a unit is open or closed for a whole period, never part), and at most the three with the most shortage are shown.
 **Evidence:** `UnitAvailabilityMigrationTest` (V11 function and defaults), `UnitApiTest` (read/preview/add/change/remove, validation, 403, flagged shifts, staffing split/breakdown/totals/allocation/leave), `UnitPlanningApiTest` (Unit C closed 2027-02-15: no C roster or gap after it, the days before bit-identical, relief in other units, no Block, deterministic, reopen), `Demo120ResetApiTest` (no closure rows, fingerprints and checksums unchanged), `check-audit-codes.sh` (49 codes).
 
+### ADR-027 addendum — U-16 and its night window (Release 4, 2026-11-22)
+
+**Status:** Built on `p5`; U-16 is a Warn/acknowledge row in rule-set v3 (V12), and v2 stays as history.
+**Night window (review-r2).** U-16 fires for a 480-minute shift that starts in **23:00–07:00**, the N8 template's window; that is deliberately narrower than `ShiftKinds.timeOfDay`'s preference classification (DAY 07:00, EVENING 12:00/15:00, everything else NIGHT), so an 8 h 19:00 start is an evening for this safeguard, not a night. The flag is computed once in `ShiftLengthFactBuilder` and carried on `ShiftLengthFact`, so the template has one source.
+**Evidence:** `EightHourNightWarningTest` (N8 warns; D8 and N12 do not), `RuleSetV3SeedTest` (v3 published with U-16, v2 retained), the 100/120/150 fingerprints.
+
 ## ADR-028 — Dataset 150: 120 full-time + 30 part-time with 20% leave (Release 3 addition)
 
 **Status:** Accepted by the person on 2026-11-22 00:19Z; built on `p4-unit` after ADR-027's closure work.
