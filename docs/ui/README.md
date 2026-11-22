@@ -60,7 +60,7 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 | 12 h afternoon–evening (12–24) | `P12` | bg `#D5E8F3`, text `#00558C` |
 | Evening 8 h (15–23) | `E` | bg `#D5E8F3`, text `#00558C` |
 | Night 8 h (23–07) / 12 h overnight–morning (00–12) | `N` / `A12` | bg `#00558C`, text `#FFFFFF` |
-| 16 h shift (20:00–12:00), rostered | `L16` | bg `#E1E3E6`, text `#333333`, 1px border `#8E959C` |
+| 16 h shift (20:00–12:00), historical only (L16 retired, ADR-029) | `L16` | bg `#E1E3E6`, text `#333333`, 1px border `#8E959C` |
 | Extra shift picked up beyond the roster | `E · extra`, `L16 · extra` | bg `#A4D65E`, text `#1F2A0A` |
 | Overtime offered (pending) | `E · offer` | white, 2px dashed `#64A70B`, text `#2F5206` |
 | Proposed but blocked | `! D proposed` | white, 2px dashed `#C40000`, text `#A30000` |

@@ -132,7 +132,9 @@ version goes through steps 1–7. V6's version 2 adds D12/N12 to U-02's kind lis
 version 1. V12's version 3 copies version 2 unchanged and adds **U-16** (Warn, acknowledge): an
 8-hour officer assigned to a night shift. The planner never makes that assignment — 8-hour officers
 work day or evening, nights are the 12-hour crews — so U-16 exists for a supervisor's manual
-assignment. Version 2 stays in the table as history.
+assignment. Version 2 stays in the table as history. V13 is not a rule-set version: it only retires
+the L16 template (`active=false`, ADR-029). Every 16 h rule (L-01, S-03, U-03/U-04/U-05/U-11) and
+the extension tests stay, because a "16 h shift" in the rules means a 12 h shift plus an extension.
 
 ## 7. Runtime evaluation
 

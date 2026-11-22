@@ -8,7 +8,7 @@ Read this first, then the docs it points to. Everything needed to start building
 
 ## 1. What this is
 
-ShiftCircle is a **working prototype** for the *AI Solutions Architect – Screening Assessment* (Government of Saskatchewan). It schedules 8, 12 and 16-hour shifts at a fictional 24/7 provincial correctional centre, checks every change against a **configurable Drools rules engine** that non-technical staff can edit, and feeds time to a simulated payroll export.
+ShiftCircle is a **working prototype** for the *AI Solutions Architect – Screening Assessment* (Government of Saskatchewan). It schedules 8- and 12-hour shifts (a 16 h day is a 12 h shift plus an extension) at a fictional 24/7 provincial correctional centre, checks every change against a **configurable Drools rules engine** that non-technical staff can edit, and feeds time to a simulated payroll export.
 
 **The assessment** (summary; the lead has the original PDF):
 - Seven calendar days from the invitation; **check the exact deadline with the lead**.
@@ -58,7 +58,7 @@ docs/ai-dev-log.md           AI-assisted development log (assessment requirement
 | **No AI at runtime**; rules engine decides; a supervisor approves every change | ADR-002, ADR-005 |
 | **Drools decision tables** edited by non-technical admins via an in-app grid (Excel round-trip: future work, not built); time maths in Java fact builders; maker/checker publish with tests and dry run | ADR-012, `04-rules-engine.md` |
 | Coverage **by unit and block**, measured **hourly** | ADR-013 (revised), `10-testing.md` §6.3 |
-| **Shift times (configurable defaults):** 8 h 07–15 / 15–23 / 23–07; 12 h 00–12 / 12–24; 16 h 20:00–12:00 (regular shift on units that allow it). Edited as a "Shift types" table through the rules approval flow. | ADR-015 |
+| **Shift times (configurable defaults):** 8 h 07–15 / 15–23 / 23–07; 12 h 00–12 / 12–24. L16 (16 h 20:00–12:00) is retired (V13 inactive, ADR-029); a 16 h shift is a 12 h shift plus an extension. Edited as a "Shift types" table through the rules approval flow. | ADR-015, ADR-029 |
 | **Overtime = hours beyond the pay-period threshold** (default 80 h per 2 weeks; weekly 40 h selectable), not a property of a shift. Shifts are `ROSTERED` or `EXTRA`. | ADR-016 |
 | API: REST `/api/v1`, Problem Details, rule results as `422` with `ruleResults`, preview endpoint, ETags | ADR-014, `07-api-spec.md` |
 | Scope: planning board, employee view, overtime, time + payroll export, reports, rules admin, wall display. **Trades and notifications are future work.** | ADR-009, ADR-010 |
@@ -117,7 +117,7 @@ Each step lists its "done when" check. If time runs short, cut from the bottom o
 ## 8. Open questions (ask the lead; some need a practitioner)
 
 1. Coverage model: is **by unit and block** right, or do centres staff by headcount or by named post?
-2. Shift times are the lead's best guess (ADR-015): confirm real start times. Common rotations: is 12 h "2 × 00–12, 2 × 12–24, 4 off" realistic? 8 h patterns? Which units use 16 h shifts, and on what rotation? **Confirmed (2026-11-21):** a "16 h shift" is a 12 h shift plus about 4 h extension worked as overtime and recorded after the fact (U-04/U-05/P-01). The planner rosters 8/12 h only and shows a 16 h preference unmet; the seeded L16 data and rules are unchanged; retiring L16 is a post-freeze option.
+2. Shift times are the lead's best guess (ADR-015): confirm real start times. Common rotations: is 12 h "2 × 00–12, 2 × 12–24, 4 off" realistic? 8 h patterns? Which units use 16 h shifts, and on what rotation? **Confirmed (2026-11-21):** a "16 h shift" is a 12 h shift plus about 4 h extension worked as overtime and recorded after the fact (U-04/U-05/P-01). The planner rosters 8/12 h only and shows a 16 h preference unmet; L16 is retired (ADR-029) and the U-03/U-04/U-05/U-11 rules plus the extension tests stay.
 3. Is there required rest after a 16 h shift or after an extension?
 4. How is overtime offered (fewest hours, seniority, rotating list)? What happens to someone skipped for insufficient rest?
 5. Is overtime ever ordered (mandatory), and how often per person?
@@ -129,7 +129,7 @@ Until answered, build with the documented defaults; they're all configuration (r
 
 ## 9. Known gaps and inconsistencies to tidy
 
-- **UI mockups show old 12 h times** (07–19 / 19–07, chips `D12`/`N12`). Build with the ADR-015 defaults (00–12 / 12–24, chips `A12`/`P12`; 16 h 20:00–12:00 is a regular shift). Mockup "OT" chips mean "extra shift"; overtime is the period status pill (ADR-016).
+- **UI mockups show old 12 h times** (07–19 / 19–07, chips `D12`/`N12`). Build with the ADR-015 defaults (00–12 / 12–24, chips `A12`/`P12`; 16 h is 12 h + extension; L16 is retired). Mockup "OT" chips mean "extra shift"; overtime is the period status pill (ADR-016).
 - **UI sample numbers vs generator:** the design files show illustrative staffing (e.g. Unit B needing 5/4/3; wall display Escort 7/6). The generator config in `10-testing.md` §6.2 is authoritative; align the UI's demo data to it when building.
 - **Not yet designed:** sign-in picker, time & attendance, proposals inbox, rule version review, tablet layouts (see `docs/ui/README.md` §6). Build them from the documented patterns.
 - `01-scope-and-plan.md` still has a day-by-day plan from before the Drools and spec work; **§6 of this note supersedes it**.
@@ -139,7 +139,7 @@ Until answered, build with the documented defaults; they're all configuration (r
 
 ## 10. Suggested demo storyline (≤ 5 minutes)
 
-1. **Problem and users** (30 s): 24/7 centre, 8/12/16 h shifts, rest and overtime rules, payroll handoff.
+1. **Problem and users** (30 s): 24/7 centre, 8/12 h shifts (a 16 h day is 12 h + extension), rest and overtime rules, payroll handoff.
 2. **Planning board** (60 s): coverage and overtime at a glance; assign Nia → **blocked** with clear reasons (safeguard).
 3. **Overtime** (60 s): fair ranked list, skipped-for-rest kept in place; offer → employee accepts on My schedule.
 4. **Rules admin** (60 s): a non-technical change (12 h → 14 h), plain-language sentence, tests and dry run, second approver publishes. **No code change.**

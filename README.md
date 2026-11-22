@@ -1,6 +1,6 @@
 # ShiftCircle
 
-A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervisors plan 8, 12 and 16-hour shifts against a **configurable rules engine** (rest and hours limits, consecutive shifts, staffing, qualifications, overtime), and a planner builds a whole-quarter draft through the same engine. Employees see their schedule and hours and propose shifts. Time feeds a payroll export, and reports show coverage and overtime as planned vs. actual.
+A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervisors plan 8- and 12-hour shifts (a 16 h day is a 12 h shift plus an extension) against a **configurable rules engine** (rest and hours limits, consecutive shifts, staffing, qualifications, overtime), and a planner builds a whole-quarter draft through the same engine. Employees see their schedule and hours and propose shifts. Time feeds a payroll export, and reports show coverage and overtime as planned vs. actual.
 
 > Built for the AI Solutions Architect screening assessment. **All data is synthetic.** Payroll and sign-on are simulated. The default demo seeds 100 fictional officers over 90 days; the quarter planner also offers a **120-officer crew dataset** from the About reset card.
 
@@ -92,7 +92,7 @@ Sign-in is **simulated**. The sign-in screen lists fictional demo users (`GET /a
 
 A reset rebuilds a known state from a fixed seed. **About & version → Reset the demo data** (signed
 in as P. Planner) selects **`100`** (the default 100 officers × 90 days; roster and period checksum
-`3390148255…6539`) or **`120`** (100 full-time D12/N12/E8 crew officers plus 20 casual relief
+`01b05436…322e58`) or **`120`** (100 full-time D12/N12/E8 crew officers plus 20 casual relief
 officers; checksum `82b19cf8…32ca`). The reset is asynchronous, one at a time and audited, takes a
 few seconds, and leaves the payroll golden file unchanged.
 
@@ -108,9 +108,10 @@ evening), 7 warnings, zero Block, and 5,103 shifts on commit. The demo script in
 **Known limits**, stated on the scorecard and in [`BUILD_RECORD.md`](BUILD_RECORD.md): the planner
 does not enforce qualifications; the demo plan has no leave unless you enter it with
 `POST /api/v1/planner/absences` (PLANNER only, a read-only skip, no approval flow); payroll overtime
-stays per pay period (P-01); a 16 h shift exists only in the seeded 2026 data (the planner rosters
-8 and 12 h); a late-recorded actual is not re-checked against shifts saved after it; and 13
-shift-less casuals still read their wishes as MET on the 120 plan (a known candidate-4 gap).
+stays per pay period (P-01); L16 is retired (a 16 h shift is a 12 h shift plus an extension; an
+old database still renders its history); a late-recorded actual is not re-checked against shifts
+saved after it; and the 120 preferences headline excludes the 13 shift-less casuals instead of
+counting their wishes (release 4 #14).
 
 ### 4. Run the tests
 
@@ -234,3 +235,5 @@ docker run --rm -v "$PWD/api":/src -v /var/run/docker.sock:/var/run/docker.sock 
 **Not built at all** (designed, but not in the prototype): the Excel round-trip for rule tables, the employee shift planner and proposals inbox, offer withdrawal, a payroll-clerk role, arrow-key grid navigation, the two extra selectable patterns measured for decision 15, and more. The full list, with what exists instead, is in [docs/10-testing.md §8](docs/10-testing.md#8-intentionally-not-built).
 
 **Known limit, by decision (ADR-025):** the sign-in token is kept in memory only, so a page refresh, a new tab or a deep link asks you to sign in again ("Please sign in to continue.") and then returns you to the screen you asked for.
+
+Release 5 (`p6`, API tip `0a07bf1`; web merge and gate follow) retires L16: the 100 seed has no 16 h rows, V13 sets the template inactive without deleting old history, and new assignments/open shifts naming it get a plain 400. PC-03 is rebuilt as a P12 + 5 h actual (17 h). New 100 pins: checksum **`01b05436…322e58`**, payroll golden **`9f2d51b3…04ff`** (1,037 rows, 8,197.60 h); the 100 plan fingerprint is unchanged (`ec337014…409e1b`, 6,586 rows, 727 gaps) and its warnings move **117 → 135** because removing L16 history exposed 18 real U-14 plan warnings that the old baseline subtracted. 120/150 checksums and fingerprints are exact. Author run: **462 = 127 rules + 28 infrastructure + 307 api**; web 318 at the p6-web merge.

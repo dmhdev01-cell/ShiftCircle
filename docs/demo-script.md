@@ -31,7 +31,7 @@ About 25 s of slack is left for transitions.
 
 | Do | Say (outline) | Status |
 |---|---|---|
-| Show `/login`: the "Mock sign-in · demo only" banner and the list of demo users | A 24/7 correctional centre runs 8, 12 and 16-hour shifts. Supervisors must respect rest and hours rules, offer overtime fairly and hand clean time to payroll. Everything here is fictional, synthetic data, and sign-in is simulated. | VERIFIED (every real-api spec signs in through this picker) |
+| Show `/login`: the "Mock sign-in · demo only" banner and the list of demo users | A 24/7 correctional centre runs 8- and 12-hour shifts; a 16 h day is a 12 h shift plus an extension. Supervisors must respect rest and hours rules, offer overtime fairly and hand clean time to payroll. Everything here is fictional, synthetic data, and sign-in is simulated. | VERIFIED (every real-api spec signs in through this picker) |
 
 ## 2. Planning board: blocked change (60 s) · T2, PC-01
 
@@ -64,8 +64,8 @@ About 25 s of slack is left for transitions.
 
 | Do | Say (outline) | Status |
 |---|---|---|
-| As M. Ellis, open **Time & attendance** and choose pay period **26 Oct – 8 Nov** (Locked). Click **Payroll export (CSV)** and open the file | Overtime is classified per pay period. The CSV totals equal the recorded hours, and a golden-file test checks it. The payroll system itself is simulated: the CSV is the handoff. | VERIFIED: the export is 1,010 lines, sha256 `d502848d…d06a`, byte-identical to the golden file. The locked period is read-only, the CSV header follows docs/07 §4.5 and every row is in the period; "Unlock…" asks for a reason of ≥ 10 characters. Locking the **open** period also works at the demo clock (the real-clock bug is fixed). Optional, if time allows |
-| Sign in as **A. Reviewer** (Auditor, facility-wide, read-only). Open **Reports → Coverage**, then **Overtime**. On the overrides list, point to **Tue 3 Nov (ended Wed 4 Nov 13:00), 17 h, "Lockdown, relief unavailable"** (PC-03) | **This is the legitimate override.** In a lockdown with no relief, a supervisor kept an officer on for 17 h. U-05 (16 h in 24 h) is a Block whose policy allows an emergency override, so the supervisor gave a written reason, and it is reported and audited. Compare Nia: no override existed. Human judgment stays with people, inside limits the rules set. | VERIFIED: the auditor's overrides list holds exactly this one row: the reason, rule **U-05**, the officer (Nell Holm), **Unit C · Living unit**, the actor (M. Ellis) and 4 Nov 13:05. Use the auditor: no demo supervisor has Unit C in scope, so a supervisor's report doesn't show it. (An earlier "fields empty" note was a verifier's own tool error, retracted on the raw data.) |
+| As M. Ellis, open **Time & attendance** and choose pay period **26 Oct – 8 Nov** (Locked). Click **Payroll export (CSV)** and open the file | Overtime is classified per pay period. The CSV totals equal the recorded hours, and a golden-file test checks it. The payroll system itself is simulated: the CSV is the handoff. | VERIFIED: the export is 1,038 lines, sha256 `9f2d51b3…04ff`, byte-identical to the golden file. The locked period is read-only, the CSV header follows docs/07 §4.5 and every row is in the period; "Unlock…" asks for a reason of ≥ 10 characters. Locking the **open** period also works at the demo clock (the real-clock bug is fixed). Optional, if time allows |
+| Sign in as **A. Reviewer** (Auditor, facility-wide, read-only). Open **Reports → Coverage**, then **Overtime**. On the overrides list, point to **Tue 3 Nov (ended Wed 4 Nov 05:00), 17 h, "Lockdown, relief unavailable"** (PC-03) | **This is the legitimate override.** In a lockdown with no relief, a supervisor kept an officer on for 17 h. U-05 (16 h in 24 h) is a Block whose policy allows an emergency override, so the supervisor gave a written reason, and it is reported and audited. Compare Nia: no override existed. Human judgment stays with people, inside limits the rules set. | VERIFIED: the auditor's overrides list holds exactly this one row: the reason, rule **U-05**, the officer (Pia Nguyen, E-047), **Unit C · Living unit**, the actor (M. Ellis) and 4 Nov 05:05. Use the auditor: no demo supervisor has Unit C in scope, so a supervisor's report doesn't show it. (An earlier "fields empty" note was a verifier's own tool error, retracted on the raw data.) |
 
 ## 6. Close (20 s)
 
@@ -114,7 +114,7 @@ This is a separate segment after the 5-minute script, or it replaces segments 3�
 > - **Hours are balanced over a cycle, but payroll overtime stays per pay period** (P-01). A full-timer's 84 h period on 4 on / 4 off is paid as 4 h overtime even when the cycle averages out. Real averaging arrangements need a rule change.
 > - **Recorded extensions count in rule checks.** An officer kept on about 4 h after a 12 h shift counts for rest and hours on the next shift. But a time entry recorded late is not re-checked against shifts already saved after it.
 > - **Rule set v2 (the D12/N12 rows) was published by a database migration** as the baseline, like v1. It did not go through the maker/checker approval that every later change uses.
-> - **16-hour shifts exist only in the seeded 2026 data.** The planner never rosters them. A "16 h shift" in practice is a 12 h shift plus an extension worked as overtime.
+> - **L16 is retired (release 5).** The 100 seed has no 16 h template rows; a "16 h shift" is a 12 h shift plus an extension worked as overtime, and an old database still renders its L16 history. The planner never rosters 16 h shifts.
 
 ---
 
