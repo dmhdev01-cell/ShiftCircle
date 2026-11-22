@@ -745,6 +745,26 @@ export interface PlannerScorecard {
     /** The api's plain sentence about the fixed day/night crews. */
     crewNote?: string;
   };
+  /** Qualified staff coverage (release 6): read-only, warn-only. */
+  qualification?: {
+    failingBlockDays: number;
+    checkedBlockDays: number;
+    /** True when no checked block-day is below the qualified minimum. */
+    passes: boolean;
+    byUnitBlock: {
+      unitCode: string;
+      unitName: string;
+      block: Block;
+      qualification: string;
+      minimum: number;
+      failingBlockDays: number;
+      checkedBlockDays: number;
+    }[];
+    validFromRespected: boolean;
+    validFromNote: string;
+    /** The api's plain lead sentence, rendered as sent. */
+    sentence: string;
+  };
   /** Each officer's own shift pattern, in words (option C). */
   patterns?: {
     officers: { employeeNo: string; name: string; unitCode: string; pattern: string; words: string }[];

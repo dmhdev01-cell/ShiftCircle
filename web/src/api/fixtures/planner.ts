@@ -109,6 +109,31 @@ function scorecard(seed: number) {
     },
     warningNote:
       'At the weekend-rotation changeover an officer has one rest-day warning and one weekly-hours warning, and the changeover pay period is 72 hours.',
+    qualification: {
+      failingBlockDays: 346,
+      checkedBlockDays: 1470,
+      passes: false,
+      byUnitBlock: [
+        { unitCode: 'A', unitName: 'Unit A · Living unit', block: 'DAY' as const, qualification: 'FIRST_AID', minimum: 1, failingBlockDays: 0, checkedBlockDays: 98 },
+        { unitCode: 'A', unitName: 'Unit A · Living unit', block: 'EVENING' as const, qualification: 'FIRST_AID', minimum: 1, failingBlockDays: 1, checkedBlockDays: 98 },
+        { unitCode: 'A', unitName: 'Unit A · Living unit', block: 'NIGHT' as const, qualification: 'FIRST_AID', minimum: 1, failingBlockDays: 98, checkedBlockDays: 98 },
+        { unitCode: 'B', unitName: 'Unit B · Living unit', block: 'DAY' as const, qualification: 'FIRST_AID', minimum: 1, failingBlockDays: 0, checkedBlockDays: 98 },
+        { unitCode: 'B', unitName: 'Unit B · Living unit', block: 'EVENING' as const, qualification: 'FIRST_AID', minimum: 1, failingBlockDays: 0, checkedBlockDays: 98 },
+        { unitCode: 'B', unitName: 'Unit B · Living unit', block: 'NIGHT' as const, qualification: 'FIRST_AID', minimum: 1, failingBlockDays: 13, checkedBlockDays: 98 },
+        { unitCode: 'C', unitName: 'Unit C · Living unit', block: 'DAY' as const, qualification: 'FIRST_AID', minimum: 1, failingBlockDays: 0, checkedBlockDays: 98 },
+        { unitCode: 'C', unitName: 'Unit C · Living unit', block: 'EVENING' as const, qualification: 'FIRST_AID', minimum: 1, failingBlockDays: 0, checkedBlockDays: 98 },
+        { unitCode: 'C', unitName: 'Unit C · Living unit', block: 'NIGHT' as const, qualification: 'FIRST_AID', minimum: 1, failingBlockDays: 13, checkedBlockDays: 98 },
+        { unitCode: 'CTL', unitName: 'Control', block: 'DAY' as const, qualification: 'CONTROL', minimum: 3, failingBlockDays: 1, checkedBlockDays: 98 },
+        { unitCode: 'CTL', unitName: 'Control', block: 'EVENING' as const, qualification: 'CONTROL', minimum: 3, failingBlockDays: 0, checkedBlockDays: 98 },
+        { unitCode: 'CTL', unitName: 'Control', block: 'NIGHT' as const, qualification: 'CONTROL', minimum: 3, failingBlockDays: 98, checkedBlockDays: 98 },
+        { unitCode: 'ESC', unitName: 'Escort & transport', block: 'DAY' as const, qualification: 'ESCORT', minimum: 6, failingBlockDays: 24, checkedBlockDays: 98 },
+        { unitCode: 'ESC', unitName: 'Escort & transport', block: 'EVENING' as const, qualification: 'ESCORT', minimum: 4, failingBlockDays: 0, checkedBlockDays: 98 },
+        { unitCode: 'ESC', unitName: 'Escort & transport', block: 'NIGHT' as const, qualification: 'ESCORT', minimum: 2, failingBlockDays: 98, checkedBlockDays: 98 },
+      ],
+      validFromRespected: false,
+      validFromNote: 'Qualification start dates are not checked: an officer with a qualification counts as qualified for the whole quarter.',
+      sentence: '346 block-days are below the qualified minimum. The planner does not enforce this.',
+    },
     patterns: {
       officers: [
         { employeeNo: 'E-0004', name: 'Tara Nakamura', unitCode: 'B', pattern: 'ROTATING_5_2', words: 'Rotating 5 on, 2 off (weekends rotate)' },
