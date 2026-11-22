@@ -8,11 +8,12 @@ import { navTo, signIn } from './support';
  * from /version, choosing '120' generates the crews-plus-casuals dataset with
  * its own checksum, and resetting back to '100' returns the seeded one.
  *
- * The checksum of the 100 dataset is fixed (3390148255...6539); the 120 set
+ * The checksum of the 100 dataset is fixed (4156077d...da6b, after L16
+ * retirement and the PC-01 seed repair); the 120 set
  * must differ, which is how the spec knows the choice took effect.
  */
 
-const SEED_CHECKSUM = '3390148255db715844c4df90f553ae342530417621539b23499f638c5b126539';
+const SEED_CHECKSUM = '4156077d76d41bd5fcf6d6a9a0f51111e9007d16c8a0c6b311e09c6fe801da6b';
 
 test.describe('the demo reset datasets', () => {
   test.beforeEach(async ({ page }) => {

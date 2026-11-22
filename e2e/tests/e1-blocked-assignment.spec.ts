@@ -78,12 +78,15 @@ test.describe('E1 blocked assignment (PC-01)', () => {
     await cell.click();
     await page.getByRole('button', { name: /D8 · Day 8 h/ }).click();
 
-    // The real rule set also blocks U-14 because the proposed shift takes the
-    // week over the 60 h ceiling; the fixture returns two blocks.
-    await expect(page.getByText(/Blocked: [23] rules fail/)).toBeVisible();
+    // The real rule set blocks U-01, U-05 and U-14 (the proposed shift takes
+    // the week over the 60 h ceiling); the repaired seed also adds U-08 here
+    // (ten consecutive work days). The fixture returns two blocks.
+    await expect(page.getByText(/Blocked: [234] rules fail/)).toBeVisible();
     await expect(page.getByRole('heading', { name: /Assign Nia Thompson/ })).toBeVisible();
     await expect(page.getByText(/U-01 · Minimum rest/)).toBeVisible();
     await expect(page.getByText(/Less than 8 hours rest/)).toBeVisible();
+    // The seed repair restores PC-01's U-14 meaning: 64 h in the week.
+    await expect(page.getByText(/U-14 · Weekly ceiling/)).toBeVisible();
     await expect(page.getByRole('button', { name: /^Assign shift$/ })).toHaveCount(0);
     // U-14 is a Block row whose policy is ACKNOWLEDGE, so the api refuses an
     // override and the screen must not offer the dialog.
