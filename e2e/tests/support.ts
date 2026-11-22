@@ -94,6 +94,14 @@ export async function expectAccessible(
   screenName: string,
   include?: string,
 ): Promise<void> {
+  // MUI fades and transitions blend text colours, and axe reads the blend as a
+  // contrast failure (an outlined primary at 0.7 opacity measures ~4.15:1).
+  // Wait for the page's animations, then measure the settled screen.
+  await page.waitForFunction(
+    () => document.getAnimations().every((animation) => animation.playState !== 'running'),
+    undefined,
+    { timeout: 15_000 },
+  );
   let scan = new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']);
   // A modal dims the page behind it; scanning only the dialog keeps the
   // finding about the screen under test rather than the backdrop's blend.
