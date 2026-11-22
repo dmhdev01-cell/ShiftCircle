@@ -333,4 +333,29 @@ describe('Wall display', () => {
     expect(screen.getByText('Unit C is closed today')).toBeInTheDocument();
     expect(screen.getByText('No reopening date is set.')).toBeInTheDocument();
   });
+
+  it('renders the closed wording through the real payload mapper', async () => {
+    startAt(DAY_TIME);
+    const mapped = toDisplayToday({
+      asOf: '2026-11-19',
+      generatedAt: '2026-11-19T20:32:00Z',
+      totalOpenShifts: 0,
+      totalOfficersInOvertime: 0,
+      units: [
+        {
+          unit: { id: 'unit-b', name: 'Unit B · Living unit' },
+          coverage: [],
+          openShifts: 0,
+          officersInOvertime: 0,
+          closedToday: true,
+          closedNote: 'No reopening date is set.',
+        },
+      ],
+    });
+    vi.spyOn(api, 'getDisplayToday').mockResolvedValue(mapped);
+    renderDisplay();
+    await firstLoad();
+    expect(screen.getByText('Unit B is closed today')).toBeInTheDocument();
+    expect(screen.getByText('No reopening date is set.')).toBeInTheDocument();
+  });
 });
