@@ -194,9 +194,9 @@ orders), web **290**; dev-qa's gate is pending. The 120 and 100 drafts are shift
 sha256-identical to `c9ac073`, and the checksums and payroll golden are unchanged.
 
 Release 3 (`p4-unit`, final tip at handover; dev-qa gate pending) adds dated unit closures,
-closed-unit relief and the staffing estimate. Its 6 api tests make an author run **450 = 123 + 27
-+ 300** in the default order, web **304**; with no closure rows the 120/100 fingerprints and all
-checksums stay identical.
+closed-unit relief and the staffing estimate. Its 8 api tests (including dataset 150) make an author run **452 = 123
++ 27 + 302** in the default order; with no closure rows the 120/100 fingerprints and all
+checksums stay identical, and 150 has its own pinned checksum and plan.
 
 **One viewport per fresh stack.** The real-api specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop`, then `docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait`, then `--project tablet`.
 
