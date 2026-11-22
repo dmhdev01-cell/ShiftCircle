@@ -751,6 +751,9 @@ export interface PlannerScorecard {
     checkedBlockDays: number;
     /** True when no checked block-day is below the qualified minimum. */
     passes: boolean;
+    /** The window the api actually checked, when it sends one. */
+    from?: string;
+    to?: string;
     byUnitBlock: {
       unitCode: string;
       unitName: string;

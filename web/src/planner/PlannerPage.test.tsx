@@ -161,6 +161,29 @@ describe('the quarter plan', () => {
     spy.mockRestore();
   });
 
+  it('uses the api checked window on the card when it differs from the quarter', async () => {
+    const user = userEvent.setup();
+    const real = api.createPlannerDraft;
+    const spy = vi.spyOn(api, 'createPlannerDraft').mockImplementation(async (input) => {
+      const draft = await real.call(api, input);
+      const copy = structuredClone(draft);
+      if (copy.scorecard.qualification) {
+        copy.scorecard.qualification.from = '2026-11-04';
+        copy.scorecard.qualification.to = '2027-02-11';
+      }
+      return copy;
+    });
+    renderPlanner();
+    await asPlanner(user);
+    await user.click(await screen.findByRole('button', { name: 'Generate draft' }));
+    await screen.findByText('Coverage gaps');
+
+    expect(
+      screen.getByText(/Checked every day from 4 Nov 2026 to 11 Feb 2027/),
+    ).toBeInTheDocument();
+    spy.mockRestore();
+  });
+
   it('keeps the tab in the address, so a link and Back land on it', async () => {
     const user = userEvent.setup();
     const first = renderPlanner();

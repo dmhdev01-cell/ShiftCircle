@@ -113,6 +113,8 @@ function scorecard(seed: number) {
       failingBlockDays: 346,
       checkedBlockDays: 1470,
       passes: false,
+      from: '2027-01-04',
+      to: '2027-04-11',
       byUnitBlock: [
         { unitCode: 'A', unitName: 'Unit A · Living unit', block: 'DAY' as const, qualification: 'FIRST_AID', minimum: 1, failingBlockDays: 0, checkedBlockDays: 98 },
         { unitCode: 'A', unitName: 'Unit A · Living unit', block: 'EVENING' as const, qualification: 'FIRST_AID', minimum: 1, failingBlockDays: 1, checkedBlockDays: 98 },

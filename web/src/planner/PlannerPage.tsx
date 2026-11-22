@@ -833,8 +833,8 @@ export function PlannerPage() {
               {scorecard.qualification ? (
                 <QualifiedStaffCard
                   qualification={scorecard.qualification}
-                  from={plan.window.from}
-                  to={plan.window.to}
+                  from={scorecard.qualification.from ?? plan.window.from}
+                  to={scorecard.qualification.to ?? plan.window.to}
                 />
               ) : null}
 

@@ -118,6 +118,20 @@ describe('the qualified staff card', () => {
     );
   });
 
+  it('keeps the start year when the checked window crosses a year', () => {
+    render(
+      <QualifiedStaffCard
+        qualification={qualification()}
+        from="2026-11-04"
+        to="2027-02-11"
+      />,
+    );
+
+    expectText(
+      `Checked every day from 4 Nov 2026 to 11 Feb 2027: an officer counts when their shift overlaps the block in that unit. ${WORDS.notChecked}`,
+    );
+  });
+
   it('renders the api start-date sentence as sent when it is read', () => {
     renderCard(
       qualification({

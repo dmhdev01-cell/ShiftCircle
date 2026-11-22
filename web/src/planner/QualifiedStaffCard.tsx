@@ -48,6 +48,16 @@ function LeadSentence({ sentence }: { sentence: string }) {
   );
 }
 
+/** "4 Jan to 11 Apr 2027"; the start year stays when the window crosses a year. */
+function checkedPeriod(from: string, to: string): string {
+  const start = plainDate(from);
+  const end = plainDate(to);
+  const startYear = / \d{4}$/.exec(start)?.[0];
+  const endYear = / \d{4}$/.exec(end)?.[0];
+  const startWords = startYear && startYear === endYear ? start.slice(0, -startYear.length) : start;
+  return `${startWords} to ${end}`;
+}
+
 /**
  * Qualified staff by unit (release 6): the api's warn-only figures over the
  * draft. Nothing here changes a placement.
@@ -129,9 +139,8 @@ export function QualifiedStaffCard({
         ) : null}
 
         <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
-          Checked every day from {plainDate(from).replace(/ \d{4}$/, '')} to {plainDate(to)}: an
-          officer counts when their shift overlaps the block in that unit.{' '}
-          {qualification.validFromNote}
+          Checked every day from {checkedPeriod(from, to)}: an officer counts when their shift
+          overlaps the block in that unit. {qualification.validFromNote}
         </Typography>
       </CardContent>
     </Card>
