@@ -386,6 +386,11 @@ function ClosureDialog({
           ? 'Set reopening date'
           : 'Remove closure';
 
+  const reopenBeforeClose = Boolean(reopensOn) && Boolean(closedFrom) && reopensOn <= closedFrom;
+  const reasonTooShort = reason !== '' && reason.trim().length < 5;
+  const canSave =
+    dialog.kind === 'remove' ||
+    (closedFrom !== '' && reason.trim().length >= 5 && !reopenBeforeClose);
   const effect = (() => {
     if (dialog.kind === 'remove') {
       return `${shortName(unit)} will be open on every day from ${dateWords(closure?.closedFrom ?? '')} again. New drafts plan it as usual. The removal is recorded in the audit log.`;
@@ -396,7 +401,11 @@ function ClosureDialog({
       preview && preview.publishedShiftsAffected > 0
         ? ` ${preview.publishedShiftsAffected} shifts already published in ${shortName(unit)} on or after that date are not deleted. They'll be listed on the Quarter plan under "Shifts in closed units" for a supervisor to move or cancel.`
         : '';
-    const reopened = reopensOn ? ` The unit is open again from ${weekdayDateWords(reopensOn)}.` : '';
+    // The reopen sentence only when the reopening date is really after the close.
+    const reopened =
+      reopensOn && reopensOn > closedFrom
+        ? ` The unit is open again from ${weekdayDateWords(reopensOn)}.`
+        : '';
     return `From ${weekdayDateWords(closedFrom)}, ${shortName(unit)} needs no staff, gets no roster and shows no coverage gaps in new drafts.${officers} and work as relief in other units.${published}${reopened} The current draft, if any, isn't changed: generate a new draft to plan without the unit.`;
   })();
 
@@ -461,14 +470,24 @@ function ClosureDialog({
               type="date"
               value={reopensOn}
               onChange={(event) => setReopensOn(event.target.value)}
-              helperText="Leave empty if you don't know yet. You can set it later."
+              helperText={
+                reopenBeforeClose
+                  ? 'The reopening date must be after the closing date.'
+                  : "Leave empty if you don't know yet. You can set it later."
+              }
+              error={reopenBeforeClose}
               slotProps={{ inputLabel: { shrink: true } }}
             />
             <TextField
               label="Reason"
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              helperText="Shown on the Units screen and in the audit log."
+              helperText={
+                reasonTooShort
+                  ? 'Write a reason of at least 5 characters.'
+                  : 'Shown on the Units screen and in the audit log.'
+              }
+              error={reasonTooShort}
             />
             {effect ? (
               <Typography aria-live="polite" sx={{ fontSize: 14 }}>
@@ -487,7 +506,12 @@ function ClosureDialog({
         <Button variant="outlined" color="primary" onClick={onClose}>
           Cancel
         </Button>
-        <Button variant="contained" color="primary" disabled={busy} onClick={() => void save()}>
+        <Button
+          variant="contained"
+          color="primary"
+          disabled={busy || !canSave}
+          onClick={() => void save()}
+        >
           {busy ? 'Saving…' : submitLabel}
         </Button>
       </DialogActions>

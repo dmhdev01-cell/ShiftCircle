@@ -867,7 +867,7 @@ export interface PlannerPreferenceRow {
   patternWords: string;
   /** True only for 8 h officers: a 12 h officer keeps the crew pattern. */
   patternEditable: boolean;
-  inDraft: 'MET' | 'PARTLY' | 'NOT_MET' | 'NO_DRAFT' | 'NONE';
+  inDraft: 'MET' | 'PARTLY' | 'NOT_MET' | 'NO_DRAFT' | 'NOT_ROSTERED' | 'NONE';
   unmet: string[];
   updatedAt: string | null;
 }

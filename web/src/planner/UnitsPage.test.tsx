@@ -90,10 +90,12 @@ describe('the Units screen', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Close Unit A from a date' });
     await user.type(within(dialog).getByLabelText('Closed from'), '2027-03-15');
     await user.type(within(dialog).getByLabelText('Reason'), 'no');
-    await user.click(within(dialog).getByRole('button', { name: 'Close Unit A' }));
-    expect(within(dialog).getByRole('alert')).toHaveTextContent(
-      'Write a reason of at least 5 characters.',
-    );
+    // Live validation: the reason error is under the field and the button is
+    // disabled, so there is no click that could send a short reason.
+    expect(
+      within(dialog).getByText('Write a reason of at least 5 characters.'),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Close Unit A' })).toBeDisabled();
   });
 
   it('removes a closure and edits the allocated headcount', async () => {
@@ -132,5 +134,37 @@ describe('the Units screen', () => {
       await screen.findByText('Only the facility planner can close or reopen a unit.'),
     ).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('validates the reopening date as it is typed', async () => {
+    const user = userEvent.setup();
+    renderAt('/planner/units');
+    await asPlanner(user);
+    await user.click(await screen.findByRole('button', { name: 'Close Unit A from a date' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Close Unit A from a date' });
+
+    await user.type(within(dialog).getByLabelText('Closed from'), '2027-03-15');
+    await user.type(within(dialog).getByLabelText('Reason'), 'Renovation');
+    await user.type(within(dialog).getByLabelText('Reopens on'), '2027-03-10');
+
+    // The impossible date shows its error as it is typed, the button is
+    // disabled, and the effect text does not claim the unit reopens.
+    expect(
+      within(dialog).getByText('The reopening date must be after the closing date.'),
+    ).toBeInTheDocument();
+    const close = within(dialog).getByRole('button', { name: 'Close Unit A' });
+    expect(close).toBeDisabled();
+    expect(within(dialog).queryByText(/The unit is open again from/)).not.toBeInTheDocument();
+
+    // A valid date enables the button and adds the reopening sentence.
+    await user.clear(within(dialog).getByLabelText('Reopens on'));
+    await user.type(within(dialog).getByLabelText('Reopens on'), '2027-03-20');
+    expect(close).toBeEnabled();
+    expect(
+      within(dialog).getByText(/The unit is open again from Sat 20 Mar 2027\./),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).queryByText('The reopening date must be after the closing date.'),
+    ).not.toBeInTheDocument();
   });
 });
