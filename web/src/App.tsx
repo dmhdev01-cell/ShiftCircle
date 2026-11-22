@@ -106,7 +106,6 @@ export function AppRoutes() {
         <Route path="/overtime" element={<OvertimePage />} />
         <Route path="/reports/:tab" element={<ReportsPage />} />
         <Route path="/rules" element={<RulesPage />} />
-        <Route path="/rules/:version/shift-types" element={<RulesPage />} />
         <Route
           path="/rules/:version/review"
           element={

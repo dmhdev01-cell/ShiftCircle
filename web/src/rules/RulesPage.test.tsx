@@ -47,6 +47,23 @@ describe('Rules admin', () => {
     expect(screen.getByRole('columnheader', { name: '…needs at least' })).toBeInTheDocument();
   });
 
+  it('opens the Shift types table from the address, not the first table', async () => {
+    renderRules('/rules/7/shift-types');
+
+    const tables = await screen.findByRole('region', { name: 'Rule tables' });
+    // The literal '/rules/:version/shift-types' route used to win over the
+    // generic ':table' one without a table param, so the page fell back to
+    // Rest between shifts and the Shift types table was unreachable.
+    expect(within(tables).getByRole('button', { name: 'Shift types' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(await screen.findByRole('heading', { name: 'Shift types' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Rest between shifts' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('shows the plain-language sentence the api sent', async () => {
     renderRules();
 
