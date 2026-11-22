@@ -84,15 +84,15 @@ test.describe('units closed from a date', () => {
       await expect(page.getByText('Staffing', { exact: true })).toBeVisible();
 
       await page.getByRole('tab', { name: 'Roster' }).click();
-      await page.getByLabel('Unit').selectOption(unitC.id);
-      for (let week = 0; week < 8; week += 1) {
-        const range = page.getByRole('group', { name: 'Week' });
-        if ((await range.textContent())?.includes('15 – 21 Feb 2027')) break;
+      await page.getByLabel('Unit', { exact: true }).selectOption(unitC.id);
+      // The roster opens on the plan's first week (4 Jan); the closure's week
+      // is six weeks later. Six clicks, then read the range once.
+      for (let week = 0; week < 6; week += 1) {
         await page.getByRole('button', { name: 'Next week' }).click();
       }
       await expect(page.getByRole('group', { name: 'Week' })).toContainText('15 – 21 Feb 2027');
       await expect(page.getByText(/Unit C is closed from Mon 15 Feb 2027 \("Renovation \(e2e\)"\)/)).toBeVisible();
-      await expect(page.getByText('Closed').first()).toBeVisible();
+      await expect(page.getByTitle(/is closed on this day/).first()).toBeVisible();
 
       // Reopen through the Units screen: remove the closure.
       await navTo(page, 'Units');
