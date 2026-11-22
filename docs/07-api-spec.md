@@ -447,7 +447,7 @@ its seven 14-day pay periods and each unit's schedule periods, so it can be lock
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
-| POST | `/demo/reset` | `{ "confirm": "RESET", "dataset": "100" }` → start emptying and reloading the selected demo dataset. `dataset` defaults to `100`; `120` is the 100 full-time crews + 20 casual relief pool; an unknown value is 400 listing the available datasets; 409 while a reset or a planner generate/commit is in flight | PLANNER |
+| POST | `/demo/reset` | `{ "confirm": "RESET", "dataset": "100" }` → start emptying and reloading the selected demo dataset. `dataset` defaults to `100`; `120` is the 100 full-time crews + 20 casual relief pool; `150` is 120 full-time + 30 part-time with 20% leave (ADR-028); an unknown value is 400 listing the available datasets; 409 while a reset or a planner generate/commit is in flight | PLANNER |
 | GET | `/demo/reset/status` | `{ state: IDLE\|RUNNING\|DONE\|FAILED, step, startedAt, elapsedMs, checksum, dataset, error }`; `dataset` is the one that ran | PLANNER |
 
 The endpoints exist only on the **demo** profile (`/version` carries `demoMode` and the

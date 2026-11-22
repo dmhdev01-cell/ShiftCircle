@@ -395,7 +395,7 @@ class Demo120ResetApiTest {
     Map<?, ?> version =
         mapper.readValue(send("GET", "/api/v1/version", null, null).body(), Map.class);
     assertThat(((List<?>) version.get("datasets")).stream().map(String::valueOf).toList())
-        .containsExactly("100", "120");
+        .containsExactly("100", "120", "150");
   }
 
   @Test

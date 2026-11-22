@@ -15,7 +15,7 @@ one transaction (ADR-026).
 - No AI at runtime: the engine decides and a supervisor approves (ADR-002, ADR-005); Drools tables are edited in the app with maker/checker, test scenarios and a dry run (ADR-012). Coverage is hourly by unit and block in absolute time (the NIGHT block on D is 23:00 D–07:00 D+1); overtime is hours over the pay-period threshold (ADR-013, 016, 017).
 - Baseline rule set v2 (V6) is seeded PUBLISHED by migration, like v1, without maker/checker or an audit row; every later version uses maker/checker (ADR-027, docs/04 §6).
 - **Phase 3 (ADR-026/027):** a deterministic quarter planner (7 periods from 4 Jan 2027, rotating 5/2 default per officer, fixed 5/2 and 7/3 set per officer, 12 h crew 4/4 read-only), every proposal engine-checked, guarded commit; D12/N12 crews, rule-set v2, dataset 120 (100 FT + 20 casual), read-only absences and actual ends in rule facts.
-- **Release 3 (ADR-027):** units close from a date; future shifts are flagged, never deleted; a Staffing tile.
+- **Release 3 (ADR-027/028):** units close from a date; future shifts are flagged, never deleted; a Staffing tile; dataset 150 (120 FT + 30 PT, 20% leave).
 - **Lead decisions:** emergency-only overrides (ADR-023), facility-wide lock and export (ADR-022), cross-unit cover (ADR-024), trigger-based audit (ADR-018, prototype only).
 
 ## 3. AI-assisted development
