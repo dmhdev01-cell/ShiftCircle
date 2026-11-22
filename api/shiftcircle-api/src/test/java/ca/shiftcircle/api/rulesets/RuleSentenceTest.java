@@ -56,6 +56,29 @@ class RuleSentenceTest {
         .contains("acknowledge");
   }
 
+  /**
+   * Release 4 #20: release 3 already fixed the wording, so this pins the three shipped Block +
+   * ACKNOWLEDGE rows rather than re-fixing it. An acknowledgement cannot override a Block.
+   */
+  @Test
+  void everyBlockThatAsksForAcknowledgementSaysItCannotBeSaved() {
+    List<RuleRow> acknowledgeBlocks =
+        rows.stream()
+            .filter(row -> row.severity() == ca.shiftcircle.rules.facts.RuleOutcome.BLOCK)
+            .filter(row -> row.overridePolicy() == ca.shiftcircle.rules.model.OverridePolicy.ACKNOWLEDGE)
+            .toList();
+    assertThat(acknowledgeBlocks)
+        .extracting(RuleRow::code)
+        .containsExactlyInAnyOrder("U-08", "U-09", "U-14");
+    for (RuleRow row : acknowledgeBlocks) {
+      assertThat(RuleSentence.of(row))
+          .as(row.code())
+          .contains("cannot be saved")
+          .contains("no override")
+          .doesNotContain("acknowledge");
+    }
+  }
+
   @Test
   void theRestSentenceNamesTheShiftAndTheOutcomeInWords() {
     RuleRow u01 = rows.stream().filter(row -> "U-01".equals(row.code())).findFirst().orElseThrow();
