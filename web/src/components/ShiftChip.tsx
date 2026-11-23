@@ -42,6 +42,8 @@ interface ShiftChipProps {
   offer?: boolean;
   /** Proposed, and the rules blocked it. */
   proposed?: boolean;
+  /** Hand-edited in the draft (release 7). */
+  edited?: boolean;
   /** The smaller chip for the month calendar. */
   compact?: boolean;
   /** Makes the chip a button, so a shift can be picked. */
@@ -62,6 +64,7 @@ export function ShiftChip({
   worked = false,
   offer = false,
   proposed = false,
+  edited = false,
   compact = false,
   onClick,
   context,
@@ -81,6 +84,9 @@ export function ShiftChip({
   if (proposed) {
     style = proposedChipStyle;
     label = `! ${text} proposed`;
+  }
+  if (edited) {
+    label = `${label} · edited`;
   }
 
   const times = formatShiftTimes(template);

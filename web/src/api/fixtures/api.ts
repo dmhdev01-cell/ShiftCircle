@@ -302,6 +302,8 @@ function shiftHours(entry: TimeEntry): number {
 }
 
 let assignmentCounter = 0;
+let plannerEditCount = 0;
+let plannerEditedIds: string[] = [];
 
 /**
  * Put the fixtures back, so one test cannot change what the next one sees.
@@ -330,6 +332,21 @@ export function resetFixtures(): void {
     entry.approvedAt = undefined;
     entry.publishedAt = entry.version === 7 ? '20 Nov 13:50' : undefined;
   });
+}
+
+function draftEditResult(assignmentId: string) {
+  const draft = plannerDraft();
+  return {
+    draftId: draft.id,
+    assignmentId,
+    version: draft.version + plannerEditCount,
+    handEdits: plannerEditCount,
+    editedAssignmentIds: plannerEditedIds,
+    scorecard: draft.scorecard,
+    warnings: plannerWarnings(),
+    warningCount: draft.scorecard.warnings.total,
+    gaps: plannerGaps(),
+  };
 }
 
 export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftCircleApi {
@@ -480,6 +497,8 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
 
     async createPlannerDraft(body: { seed: number; pattern8h?: string }) {
       await pause();
+      plannerEditCount = 0;
+      plannerEditedIds = [];
       return generatePlannerDraft(body.seed, body.pattern8h);
     },
 
@@ -506,6 +525,34 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
     async getPlannerCoverage(_draftId: string, range: { from: string; to: string }) {
       await pause();
       return plannerCoverage(range);
+    },
+
+    async previewPlannerAssignment() {
+      await pause();
+      return { outcome: 'PASS' as const, ruleSetVersion: 3, overridable: false, ruleResults: [] };
+    },
+
+    async addPlannerAssignment(_draftId: string, _version: number) {
+      await pause();
+      plannerEditCount += 1;
+      const assignmentId = `draft-edit-${plannerEditCount}`;
+      plannerEditedIds = [...plannerEditedIds, assignmentId];
+      return draftEditResult(assignmentId);
+    },
+
+    async updatePlannerAssignment(_draftId: string, assignmentId: string) {
+      await pause();
+      plannerEditCount += 1;
+      if (!plannerEditedIds.includes(assignmentId)) {
+        plannerEditedIds = [...plannerEditedIds, assignmentId];
+      }
+      return draftEditResult(assignmentId);
+    },
+
+    async removePlannerAssignment(_draftId: string, assignmentId: string) {
+      await pause();
+      plannerEditCount += 1;
+      return draftEditResult(assignmentId);
     },
 
     async resetDemo(_confirm: string, dataset: string) {

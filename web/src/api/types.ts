@@ -139,6 +139,8 @@ export interface ShiftItem {
   offer?: boolean;
   /** Proposed but blocked by a rule. */
   proposed?: boolean;
+  /** Edited by hand in the draft (release 7). */
+  edited?: boolean;
   /** The row version for If-Match; the api sends it with every SHIFT item. */
   version: number;
 }
@@ -805,6 +807,9 @@ export interface PlannerDraft {
   createdBy: string;
   generatedMs: number;
   scorecard: PlannerScorecard;
+  /** Release 7: shifts edited by hand in this draft. */
+  handEdits?: number;
+  editedAssignmentIds?: string[];
 }
 
 export interface PlannerPlan {
@@ -816,6 +821,34 @@ export interface PlannerPlan {
   lastCommitted: { draftId: string; at: string; by: string; shiftsWritten: number } | null;
   /** The committed plan's summary, so its tabs can be read after a commit. */
   committedDraft?: PlannerDraft | null;
+}
+
+/** Release 7: the body of a planner draft edit (add, move, reassign). */
+export interface PlannerAssignmentInput {
+  employeeId: string;
+  unitId: string;
+  shiftTemplate: string;
+  startAt: string;
+  kind?: 'ROSTERED' | 'EXTRA';
+  acknowledgeWarnings?: boolean;
+}
+
+/** The preview asks about the change before anything is saved. */
+export interface PlannerAssignmentCheck extends PlannerAssignmentInput {
+  assignmentId?: string;
+}
+
+/** What a saved draft edit returns: the recomputed draft, ready to show. */
+export interface PlannerAssignmentResult {
+  draftId: string;
+  assignmentId: string;
+  version: number;
+  handEdits: number;
+  editedAssignmentIds: string[];
+  scorecard: PlannerScorecard;
+  warnings: PlannerWarningGroup[];
+  warningCount: number;
+  gaps: PlannerGap[];
 }
 
 export interface PlannerGap {
@@ -1092,6 +1125,28 @@ export interface ShiftCircleApi {
   resetDemo(confirm: string, dataset: string): Promise<DemoResetStatus>;
   getDemoResetStatus(): Promise<DemoResetStatus>;
   getPlannerCompare(draftId: string): Promise<PlannerCompare>;
+
+  /** Release 7: check and save one hand edit in a DRAFT. */
+  previewPlannerAssignment(
+    draftId: string,
+    input: PlannerAssignmentCheck,
+  ): Promise<RuleCheckOutcome>;
+  addPlannerAssignment(
+    draftId: string,
+    version: number,
+    input: PlannerAssignmentInput,
+  ): Promise<PlannerAssignmentResult>;
+  updatePlannerAssignment(
+    draftId: string,
+    assignmentId: string,
+    version: number,
+    input: PlannerAssignmentInput,
+  ): Promise<PlannerAssignmentResult>;
+  removePlannerAssignment(
+    draftId: string,
+    assignmentId: string,
+    version: number,
+  ): Promise<PlannerAssignmentResult>;
 
   /** Preferences: the officer's own, and the planner's read of everyone's. */
   getMyPreferences(): Promise<MyPreferences>;

@@ -8,6 +8,9 @@ import type {
   OvertimeReport,
   OverrideRow,
   PayPeriod,
+  PlannerAssignmentCheck,
+  PlannerAssignmentInput,
+  PlannerAssignmentResult,
   PlannerCommitPreview,
   PlannerCompare,
   MyPreferences,
@@ -366,6 +369,52 @@ export function createHttpApi(): ShiftCircleApi {
     },
     discardPlannerDraft(draftId: string): Promise<void> {
       return request<void>(`/planner/drafts/${draftId}/discard`, { method: 'POST' });
+    },
+
+    previewPlannerAssignment(
+      draftId: string,
+      input: PlannerAssignmentCheck,
+    ): Promise<RuleCheckOutcome> {
+      return request<RuleCheckOutcome>(`/planner/drafts/${draftId}/assignment-checks`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      });
+    },
+    addPlannerAssignment(
+      draftId: string,
+      version: number,
+      input: PlannerAssignmentInput,
+    ): Promise<PlannerAssignmentResult> {
+      return request<PlannerAssignmentResult>(`/planner/drafts/${draftId}/assignments`, {
+        method: 'POST',
+        headers: { 'If-Match': `"${version}"` },
+        body: JSON.stringify(input),
+      });
+    },
+    updatePlannerAssignment(
+      draftId: string,
+      assignmentId: string,
+      version: number,
+      input: PlannerAssignmentInput,
+    ): Promise<PlannerAssignmentResult> {
+      return request<PlannerAssignmentResult>(
+        `/planner/drafts/${draftId}/assignments/${assignmentId}`,
+        {
+          method: 'PUT',
+          headers: { 'If-Match': `"${version}"` },
+          body: JSON.stringify(input),
+        },
+      );
+    },
+    removePlannerAssignment(
+      draftId: string,
+      assignmentId: string,
+      version: number,
+    ): Promise<PlannerAssignmentResult> {
+      return request<PlannerAssignmentResult>(
+        `/planner/drafts/${draftId}/assignments/${assignmentId}`,
+        { method: 'DELETE', headers: { 'If-Match': `"${version}"` } },
+      );
     },
 
     moveAssignment(
