@@ -23,7 +23,7 @@ Everyone also has **About & version**. The unit office TV uses the **Wall displa
 1. Open ShiftCircle. The **Sign in** page lists fictional users. It says "Mock sign-in · demo only": a pilot would use government single sign-on.
 2. Pick a user. Your role decides your side menu, and your name shows in the top bar.
 
-<!-- screenshot: desktop__all__login -->
+<!-- No screenshot yet: desktop__all__login (no clean capture from the gated build) -->
 
 ## Words used throughout
 
@@ -64,4 +64,4 @@ A reset:
 - records one `demo_reset` line in the new audit history;
 - removes any planner draft, including its hand edits.
 
-<!-- screenshot: desktop__all__about -->
+<!-- No screenshot yet: desktop__all__about (no clean capture from the gated build) -->

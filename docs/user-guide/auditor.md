@@ -22,7 +22,7 @@ To narrow the list:
 
 An entry marked **Not allowed** is a refused attempt, for example a role trying something it may not do. Refused attempts are logged too.
 
-<!-- screenshot: desktop__auditor__audit-log -->
+<!-- No screenshot yet: desktop__auditor__audit-log (no clean capture from the gated build) -->
 
 ## Follow a change from start to end
 
@@ -34,12 +34,12 @@ An entry marked **Not allowed** is a refused attempt, for example a role trying 
   - So do the approver's approve and publish.
   - The approver can't be the person who wrote the version.
 - **A quarter plan:**
-  - The planner's hand changes to the draft appear as "Draft shift edited". Each says what kind of change it was: Changed, Given to another officer, Removed, or Added.
+  - The planner's hand changes to the draft appear as "Draft shift edited". The summary gives the kind of change: `Kind: MOVE` (time or unit changed), `REASSIGN` (given to another officer), `REMOVE` or `ADD`.
   - Then one commit writes the plan to the board.
   - You don't see the draft itself; only the planner does, until it is committed.
 - **A demo reset:** it erases the earlier history and leaves one `demo_reset` line.
 
-<!-- screenshot: desktop__auditor__audit-log__draft-edits -->
+![Audit log showing a demo reset, a generated quarter plan, one Draft shift edited row with Kind: MOVE, and the commit](img/auditor-draft-shift-edited.png)
 
 ## Planning board, Reports, Rules, Wall display
 

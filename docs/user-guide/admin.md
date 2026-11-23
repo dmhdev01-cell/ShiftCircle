@@ -23,7 +23,7 @@ The rules are kept as tables:
 
 Each table row is also shown as a plain sentence.
 
-<!-- screenshot: desktop__rules_admin__rules -->
+<!-- No screenshot yet: desktop__rules_admin__rules (no clean capture from the gated build) -->
 
 ## Rules admin: change a rule
 
@@ -43,7 +43,7 @@ Each table row is also shown as a plain sentence.
 
 You can't approve or publish a version you created; the screen says "You created this version. Another approver must review it." Every step is recorded in the audit log.
 
-<!-- screenshot: desktop__rules_approver__rules-review -->
+<!-- No screenshot yet: desktop__rules_approver__rules-review (no clean capture from the gated build) -->
 
 ## Who may do what
 

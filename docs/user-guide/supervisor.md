@@ -23,8 +23,8 @@ To move around:
 - **Unit** changes the unit.
 - **Rules help** explains each rule in plain words.
 
-<!-- screenshot: desktop__supervisor__planning-board -->
-<!-- screenshot: tablet__supervisor__planning-board -->
+<!-- No screenshot yet: desktop__supervisor__planning-board (no clean capture from the gated build) -->
+<!-- No screenshot yet: tablet__supervisor__planning-board (no clean capture from the gated build) -->
 
 ### Assign a shift
 
@@ -34,7 +34,7 @@ To move around:
    - **Warn:** read the warnings, then acknowledge them to go ahead.
    - **Block:** nothing is saved. Choose another officer or shift, or use an emergency override if one is offered (below).
 
-<!-- screenshot: desktop__supervisor__assign__warn -->
+![A proposed assignment on the planning board refused with Blocked: 4 rules fail, each rule listed with its evidence](img/supervisor-assign-blocked.png)
 
 ### Move or cancel a shift
 
@@ -45,7 +45,7 @@ Tap a shift on the board.
   - The shift stays in the audit trail.
   - If it was filling an open shift, that shift goes back to open.
 
-<!-- screenshot: desktop__supervisor__shift-actions -->
+<!-- No screenshot yet: desktop__supervisor__shift-actions (no clean capture from the gated build) -->
 
 ### Emergency override
 
@@ -53,7 +53,7 @@ Some Blocks allow an **Emergency override…**. The button only appears when eve
 
 You must write the reason as a real sentence. It goes to the audit log, and the override shows in **Reports → Overrides**.
 
-<!-- screenshot: desktop__supervisor__override-dialog -->
+<!-- No screenshot yet: desktop__supervisor__override-dialog (no clean capture from the gated build) -->
 
 ### Publish a pay period
 
@@ -79,7 +79,7 @@ The **Overtime board** lists open shifts, current needs first. Filled and past s
 
 Ordered (mandatory) overtime is only offered once the voluntary list is used up. It goes in reverse order, at most once per officer every 14 days.
 
-<!-- screenshot: desktop__supervisor__overtime -->
+<!-- No screenshot yet: desktop__supervisor__overtime (no clean capture from the gated build) -->
 
 ## Time & attendance
 
@@ -96,8 +96,8 @@ Record what actually happened on past shifts, then lock the pay period for payro
 
 **Unlock pay period** needs a reason, which goes to the audit log.
 
-<!-- screenshot: desktop__supervisor__time -->
-<!-- screenshot: tablet__supervisor__time -->
+<!-- No screenshot yet: desktop__supervisor__time (no clean capture from the gated build) -->
+<!-- No screenshot yet: tablet__supervisor__time (no clean capture from the gated build) -->
 
 ## Reports
 
@@ -109,7 +109,7 @@ Reports has four tabs:
 
 **Export CSV** downloads the table. **Payroll export (CSV)** makes the simulated payroll file.
 
-<!-- screenshot: desktop__supervisor__reports-coverage -->
+<!-- No screenshot yet: desktop__supervisor__reports-coverage (no clean capture from the gated build) -->
 
 ## Rules and Audit log
 
@@ -128,8 +128,8 @@ The unit office TV shows today at a glance:
 
 It is a shared screen, so it shows counts only, no names. **Leave the wall display** returns to your menu.
 
-<!-- screenshot: desktop__supervisor__wall-display -->
-<!-- screenshot: tablet__display__wall-display -->
+<!-- No screenshot yet: desktop__supervisor__wall-display (no clean capture from the gated build) -->
+<!-- No screenshot yet: tablet__display__wall-display (no clean capture from the gated build) -->
 
 ## Employee view
 

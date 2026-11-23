@@ -23,7 +23,7 @@ The draft opens with four tabs: **Scorecard**, **Gaps (n)**, **Roster** and **Co
 
 A note on the draft reminds you that it isn't on the planning board yet. Officers and supervisors can't see it until it's committed.
 
-<!-- screenshot: desktop__planner__planner__no-draft -->
+<!-- No screenshot yet: desktop__planner__planner__no-draft (no clean capture from the gated build) -->
 
 ## 2. Read the scorecard
 
@@ -51,9 +51,11 @@ Two of them need a note:
 - **Qualified staff:** this is a warning only. The planner does not enforce qualifications. Qualification start dates are not checked: an officer with a qualification counts as qualified for the whole quarter.
 - **Needed (at least):** a floor. Part-time and casual officers work fewer shifts, so a plan can still have gaps when the floor is met. The draft's own gaps are the real test.
 
-<!-- screenshot: desktop__planner__scorecard -->
-<!-- screenshot: tablet__planner__scorecard -->
-<!-- screenshot: desktop__planner__qualified-staff-card -->
+![Quarter plan scorecard for a 120-officer draft: eight tiles, including Coverage gaps 39, Rule warnings 7 and Qualified staff 0 (All met)](img/planner-scorecard.png)
+
+<!-- No screenshot yet: tablet__planner__scorecard (no clean capture from the gated build) -->
+
+![Qualified staff by unit card for the 100-officer dataset: 346 block-days below the qualified minimum, listed by unit and block](img/planner-qualified-staff-card.png)
 
 ## 3. Gaps and warnings
 
@@ -69,13 +71,11 @@ Some gaps can't be filled without breaking a rule, so the draft leaves them open
 
 If a unit is closed from a date, a note says so. From that date the unit has no roster and needs no staff, and its officers appear as relief in other units.
 
-<!-- screenshot: desktop__planner__draft-roster -->
+<!-- No screenshot yet: desktop__planner__draft-roster (no clean capture from the gated build) -->
 
 ## 5. Change shifts in the draft
 
 You can change single shifts in a draft before you commit it. The planning board isn't touched. Every change is checked against the same rules a supervisor's change is.
-
-> The button and message words in this section follow the Release 7 design. They will be checked against the built screens before release.
 
 **Tap a shift** on the draft roster, then choose one of:
 - **Change time or unit…**: pick the date, shift and unit, then press **Check and save**.
@@ -93,11 +93,14 @@ After each save, the scorecard, gaps, warnings, Qualified staff and Staffing fig
 
 If you see "The draft changed since you opened it" or "This draft was committed or discarded", reload and try again.
 
-<!-- screenshot: desktop__planner__draft-edit__dialog -->
-<!-- screenshot: tablet__planner__draft-edit__dialog -->
-<!-- screenshot: desktop__planner__draft-edit__block -->
-<!-- screenshot: desktop__planner__draft-edit__warn -->
-<!-- screenshot: desktop__planner__draft-roster__edited -->
+<!-- No screenshot yet: desktop__planner__draft-edit__dialog (no clean capture from the gated build) -->
+<!-- No screenshot yet: tablet__planner__draft-edit__dialog (no clean capture from the gated build) -->
+
+![Draft shift dialog refusing a change: four rule results, including U-01 minimum rest, then the sentence that a Block rule stops it going in the draft](img/planner-draft-edit-block.png)
+
+![Draft shift dialog with two warnings, U-12 and U-14, and the button Keep the change with these warnings](img/planner-draft-edit-warn.png)
+
+![Draft roster after one edit: the note says 1 hand edit so far, the status line says Draft changed, and the changed shift reads E · edited](img/planner-draft-roster-edited.png)
 
 ## 6. Compare
 
@@ -111,7 +114,9 @@ If you see "The draft changed since you opened it" or "This draft was committed 
 - **Generate again** replaces the draft. Press **Replace draft** to confirm. **Your hand edits are lost**; the confirm text says how many.
 - **Discard draft…** then **Discard draft** removes the draft and its hand edits. Nothing on the planning board changes.
 
-<!-- screenshot: desktop__planner__regenerate-confirm__edits -->
+![Quarter plan after commit: the Committed badge and a Plan committed box with a button to open each unit on the planning board](img/planner-committed.png)
+
+<!-- No screenshot yet: desktop__planner__regenerate-confirm__edits (no clean capture from the gated build) -->
 
 ## 8. Preferences
 
@@ -138,7 +143,7 @@ A closure that hasn't started offers **Change…** and **Remove…**. One that h
 
 **Shifts in closed units** lists draft shifts that fall in a closed unit, with **Show on board**.
 
-<!-- screenshot: desktop__planner__units -->
+<!-- No screenshot yet: desktop__planner__units (no clean capture from the gated build) -->
 
 ## 10. Staffing by unit
 

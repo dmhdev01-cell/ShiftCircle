@@ -4,8 +4,8 @@
 
 As an officer, you have one screen: **My schedule**.
 
-<!-- screenshot: desktop__employee__my-schedule -->
-<!-- screenshot: tablet__employee__my-schedule -->
+<!-- No screenshot yet: desktop__employee__my-schedule (no clean capture from the gated build) -->
+<!-- No screenshot yet: tablet__employee__my-schedule (no clean capture from the gated build) -->
 
 ## See your shifts
 
@@ -41,7 +41,7 @@ Good to know:
 - Only 12-hour night crews work nights. If you work 8-hour shifts, a nights wish can't be met.
 - If your unit uses 8-hour shifts only, the card says so.
 
-<!-- screenshot: desktop__employee__my-preferences -->
+<!-- No screenshot yet: desktop__employee__my-preferences (no clean capture from the gated build) -->
 
 ## Propose a shift
 
@@ -56,7 +56,7 @@ Good to know:
 
 A proposal is a request: only a supervisor can authorise an extra shift.
 
-<!-- screenshot: desktop__employee__my-schedule__rule-result -->
+<!-- No screenshot yet: desktop__employee__my-schedule__rule-result (no clean capture from the gated build) -->
 
 ## What you can't do here
 
