@@ -25,7 +25,7 @@ ShiftCircle is a **working prototype** for the *AI Solutions Architect – Scree
 | Data model, API spec, deployment spec, access control | ✅ Written (`docs/06`–`09`) |
 | Test strategy and demo dataset spec | ✅ Written (`docs/10-testing.md`) |
 | UI design: 6 screens + full UI spec | ✅ In `docs/ui/` |
-| AI development log | ✅ Started (`docs/ai-dev-log.md`); **keep it updated** |
+| AI development log | ✅ Started (`docs/process/ai-dev-log.md`); **keep it updated** |
 | Code | ❌ Nothing yet: no `api/`, `web/` or `docker-compose.yml` |
 | Build record, demo script, recording | ❌ Not started |
 
@@ -33,7 +33,7 @@ ShiftCircle is a **working prototype** for the *AI Solutions Architect – Scree
 
 ```
 README.md                    overview + doc index
-HANDOFF.md                   this file
+docs/process/HANDOFF.md      this file
 docs/01-scope-and-plan.md    problem, users, priorities (F1–F13), assumptions, plan
 docs/02-requirements.md      screens, FR/NFR, rules summary, data needs
 docs/03-architecture.md      containers, layers, change flow, security overview
@@ -47,7 +47,7 @@ docs/10-testing.md           test layers, rule boundary matrix, scenarios, E2E f
 docs/ui/README.md            UI spec: tokens (Sask palette), components, every screen, routes
 docs/ui/screens/*.dc.html    exact design files (reference markup, not runnable)
 docs/decisions.md            ADR-001 … ADR-014
-docs/ai-dev-log.md           AI-assisted development log (assessment requirement)
+docs/process/ai-dev-log.md   AI-assisted development log (assessment requirement)
 ```
 
 ## 4. Decisions already made (don't reopen without asking the lead)
@@ -71,7 +71,7 @@ docs/ai-dev-log.md           AI-assisted development log (assessment requirement
 2. **No secrets in the repo.** Ship `.env.example` only; the API must refuse to start without `POSTGRES_PASSWORD` and `SC_JWT_SECRET`.
 3. **Never weaken a safeguard to make a demo work:** no auto-approval, no bypassing Block rules without an override reason, no editing audit rows, no skipping maker/checker.
 4. **Every rule needs boundary tests** (under / exactly / over), reviewed by a human, not only generated.
-5. **Log AI use** in `docs/ai-dev-log.md`, especially suggestions you corrected or rejected. That's 10% of the marks.
+5. **Log AI use** in `docs/process/ai-dev-log.md`, especially suggestions you corrected or rejected. That's 10% of the marks.
 6. **Keep docs in sync** with what's built; record new decisions as ADRs.
 7. **Commits:** small and descriptive. The lead pushes to GitHub (`dmhdev01-cell/ShiftCircle01`, private).
 8. Keep the footer line on every screen: "Not an official Government of Saskatchewan service · fictional, synthetic data only".
@@ -80,7 +80,7 @@ docs/ai-dev-log.md           AI-assisted development log (assessment requirement
 
 | Guardrail | Exception | Status |
 |---|---|---|
-| 4: boundary tests reviewed by a human | **Waived by the project lead on 2026-11-20.** The rule boundary tests are reviewed by AI verifiers instead: `dev-qa` (GLM 5.3, with mutation spot-checks) and `review-r2` (GLM 5.3, independent of the DeepSeek author). **No human review of the boundary tests has taken place.** | A pilot should restore human review (a labour-relations or scheduling practitioner) before any rule set is relied on. See `docs/ai-dev-log.md` #24. |
+| 4: boundary tests reviewed by a human | **Waived by the project lead on 2026-11-20.** The rule boundary tests are reviewed by AI verifiers instead: `dev-qa` (GLM 5.3, with mutation spot-checks) and `review-r2` (GLM 5.3, independent of the DeepSeek author). **No human review of the boundary tests has taken place.** | A pilot should restore human review (a labour-relations or scheduling practitioner) before any rule set is relied on. See `docs/process/ai-dev-log.md` #24. |
 
 ## 6. Next steps for development (in order)
 

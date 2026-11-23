@@ -4,7 +4,7 @@ A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervis
 
 > Built for the AI Solutions Architect screening assessment. **All data is synthetic.** Payroll and sign-on are simulated. The default demo seeds 100 fictional officers over 90 days; the quarter planner also offers a **120-officer crew dataset** from the About reset card.
 
-> **Picking this up?** Start with [HANDOFF.md](HANDOFF.md).
+> **Using it?** [INSTALL.md](INSTALL.md) sets it up and the [user guide](USER-GUIDE.md) explains each role. All documentation starts at [docs/index.md](docs/index.md).
 
 ## Architecture at a glance
 
@@ -25,8 +25,18 @@ Three containers: **web** (nginx + React) · **api** (Java 21 + Spring Boot 4.x 
 | [docs/09-access-control.md](docs/09-access-control.md) | Roles, permission matrix, enforcement, mock sign-in, privacy |
 | [docs/10-testing.md](docs/10-testing.md) | Test strategy, rule boundary matrix, scenarios, E2E flows, demo dataset spec |
 | [docs/ui/README.md](docs/ui/README.md) | UI spec: Sask design tokens, components, every screen; design files in `docs/ui/screens/` |
-| [docs/ai-dev-log.md](docs/ai-dev-log.md) | AI-assisted development log (assessment requirement) |
 | [docs/decisions.md](docs/decisions.md) | Decision log (ADRs) |
+| [USER-GUIDE.md](USER-GUIDE.md) | How to use it, per role: officer, supervisor, planner, auditor, rules admin and approver |
+| [INSTALL.md](INSTALL.md) | Install, start, reset, upgrade and remove, with Docker only |
+
+## How this was built
+
+The build process is kept apart from the product docs, in [docs/process/](docs/process/):
+- [HANDOFF.md](docs/process/HANDOFF.md) is the brief the team worked from.
+- [ai-dev-log.md](docs/process/ai-dev-log.md) is the AI-assisted development log, an assessment requirement.
+- [review-rounds.md](docs/process/review-rounds.md) records every independent review and QA round.
+
+[BUILD_RECORD.md](BUILD_RECORD.md) is the two-page summary.
 
 **UI design:** six screens (planning board, my schedule, overtime board, rules admin, reports, wall display) are specified in `docs/ui/`. The original design canvas is a private Claude artifact owned by the project lead.
 
@@ -186,7 +196,7 @@ rules + 27 infrastructure + 272 api tests**, green in the default order and with
 suite, a fresh stack per viewport: desktop **101 passed / 0 failed**, tablet **100 passed + 1
 skipped** (the TV-size check is desktop-only) **/ 0 failed**; fixtures: **22 passed and 21**. The
 static counts in this tree agree (123 + 27 + 272 `@Test` methods, one per line, no parameterised
-tests). The dataset checksums, the earlier runs and each round are in `docs/review-rounds.md`
+tests). The dataset checksums, the earlier runs and each round are in `docs/process/review-rounds.md`
 (R61 is the final independent one) and `BUILD_RECORD.md`. review-r3's security fixes on `p3-sec`
 add three api tests: an author run at `74a58c0` is **425 = 123 + 27 + 275** in both orders; dev-qa
 verification is pending. The phase 3 preference/pattern branch (`p3-pref`, final tip at handover)
@@ -201,7 +211,7 @@ Release 4 (`p5`, final tip at handover; dev-qa gate pending) adds the #20 Block 
 
 **One viewport per fresh stack.** The real-api specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop`, then `docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait`, then `--project tablet`.
 
-**Earlier fresh-clone check (history at `f1d696d`):** both viewports on one stack gave 21 passed, 1 skipped and 4 failed, all 4 on tablet after desktop had changed the data; tablet alone on a fresh stack gave 12 passed, 1 skipped (the TV-size check runs on desktop only). The `--add-host` line was run on macOS; on Linux it is **UNVERIFIED** here (`--network host` with `BASE_URL=http://localhost:8080` is the alternative). Not run by this author: the `api-test` service (the builders and QA run the same Maven build; counts per round are in `docs/review-rounds.md`) and the web unit-test line in this clone (the same command passes in the branch worktrees). The web unit tests write `web/node_modules` with Linux binaries.
+**Earlier fresh-clone check (history at `f1d696d`):** both viewports on one stack gave 21 passed, 1 skipped and 4 failed, all 4 on tablet after desktop had changed the data; tablet alone on a fresh stack gave 12 passed, 1 skipped (the TV-size check runs on desktop only). The `--add-host` line was run on macOS; on Linux it is **UNVERIFIED** here (`--network host` with `BASE_URL=http://localhost:8080` is the alternative). Not run by this author: the `api-test` service (the builders and QA run the same Maven build; counts per round are in `docs/process/review-rounds.md`) and the web unit-test line in this clone (the same command passes in the branch worktrees). The web unit tests write `web/node_modules` with Linux binaries.
 
 **Fixtures and the shared test database:** each API test class gets its **own database** inside the
 shared PostgreSQL container (`PostgresTestSupport` creates one per class, and Flyway builds the
@@ -239,3 +249,7 @@ docker run --rm -v "$PWD/api":/src -v /var/run/docker.sock:/var/run/docker.sock 
 Release 5 (`p6`, API tip `60f8f7d`; web merge and gate follow) retires L16: the 100 seed has no 16 h rows, V13 sets the template inactive without deleting old history, and new assignments/open shifts naming it get a plain 400. PC-03 is rebuilt as a P12 + 5 h actual (17 h). New 100 pins: checksum **`4156077d…da6b`**, payroll golden **`9f2d51b3…04ff`** (1,037 rows, 8,197.60 h); the 100 plan fingerprint is unchanged (`ec337014…409e1b`, 6,586 rows, 727 gaps) and its warnings move **117 → 135** because removing L16 history exposed 18 real U-14 plan warnings that the old baseline subtracted. The gate repair restored PC-01 (U-01/U-05/U-08/U-14 at 64 h) and Tara's block-free Sun 29 pick-up; the 100 checksum moved again to `4156077d…da6b`, while the golden and plan stayed exact. 120/150 checksums and fingerprints are exact. Author run: **462 = 127 rules + 28 infrastructure + 307 api**; web 318 at the p6-web merge.
 
 Release 6 (#6 Option A, `p7`, API tip `da08dde`; web merge and gate follow) adds a read-only **Qualified staff** card to the quarter plan: failing/checked block-days per unit and block, with the sentence “N block-days are below the qualified minimum. The planner does not enforce this.” Measured with no closures: 100 **346 of 1,470**, 120 **0 of 1,470**, 150 **103 of 1,470**. Closed unit-days are not checked; relief counts where placed; qualification start dates are not checked. Checksums, golden and plan fingerprints unchanged. Author run **462 = 127 + 28 + 307**; web **325/325** at the merged tip, build clean, lint 4 pre-existing, audit 49.
+
+## License
+
+[MIT](LICENSE). All data in this repository is synthetic.
