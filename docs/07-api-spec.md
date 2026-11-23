@@ -380,6 +380,10 @@ same validation as the grid (R24/R28: rule values are code input).
 | GET | `/planner/drafts/{id}/gaps` | Short block-days with unit, date, block, required and placed | PLANNER |
 | GET | `/planner/drafts/{id}/warnings` | All warnings, grouped by plain rule name | PLANNER |
 | GET | `/planner/drafts/{id}/commit-preview` | Version, shifts, officers, gaps and warning count the commit will ask to accept | PLANNER |
+| POST | `/planner/drafts/{id}/assignment-checks` | Preview one draft add/move; saves nothing. Body `{assignmentId?, employeeId, unitId, shiftTemplate, startAt, kind?}`; 200 with `{outcome, ruleSetVersion, overridable, ruleResults}` | PLANNER |
+| POST | `/planner/drafts/{id}/assignments` | Add one shift to a DRAFT; `If-Match` draft version; Pass saves, Warn needs `acknowledgeWarnings:true`, Block refuses | PLANNER |
+| PUT | `/planner/drafts/{id}/assignments/{assignmentId}` | Move time/unit or reassign the one shift; same body/rules/If-Match | PLANNER |
+| DELETE | `/planner/drafts/{id}/assignments/{assignmentId}` | Remove one draft shift; `If-Match` draft version | PLANNER |
 | POST | `/planner/drafts/{id}/commit` | `If-Match: <version>`, `{acceptedWarningCount}` → write every assignment atomically and audit once; 412 stale, 422 per-assignment failures, 409 locked period or changed warnings | PLANNER |
 | POST | `/planner/drafts/{id}/discard` | Discard an open draft; 409 if it is no longer a draft (a commit or another discard already won, including a discard that raced a running commit) | PLANNER |
 | GET | `/planner/drafts/{id}/compare` | Draft vs the board. Rows cover coverage gaps, unfilled gap hours, shifts, officers scheduled, planned hours, plan-added warnings, preferences met (the same per-criterion count as the scorecard's `preferences.met`), and weekends min/avg/max, each with `board`, `draft`, `unit` and `direction` (`LOWER_IS_BETTER`/`HIGHER_IS_BETTER`/`NEUTRAL`), plus one coverage-gap row per unit. Board measures come from the committed shifts through the board's own coverage code; draft measures from the plan tables | PLANNER |
@@ -397,7 +401,9 @@ and `basis`: a committed plan is compared with the **current board, including su
 the commit**; an open draft is compared with the last committed plan (or the seeded roster before a
 commit). A committed id is never writable: commit/discard still refuse it.
 
-**A draft is not a roster.** `plan_draft_assignment` is separate from `shift_assignment`; the
+**Draft hand edits (release 7 #27).** A PLANNER may add, move time/unit, reassign one-way, or remove one shift in an uncommitted DRAFT. Draft rows live in `plan_draft_assignment`; the live board is untouched. Every save requires `If-Match` with the draft version (428/412) and uses the planner's `RuleCheckService` seam: a Block is 422 `blocked-by-rules` with ruleResults and saves nothing; a Warn without `acknowledgeWarnings:true` is 422 `warnings-need-acknowledgement` and saves nothing; a Pass or acknowledged Warn writes one row, bumps the version, writes one `edit_plan_draft` audit row and recomputes gaps, warnings and the scorecard synchronously. DRAFT only (409 after commit/discard); closed unit, duplicate `(employee,start)`, unknown id, retired template, non-PLANNER and a busy reset/generate get plain problem details. No EMERGENCY override. Success: `{draftId, assignmentId, version, handEdits, editedAssignmentIds, scorecard, warnings, warningCount, gaps}`; `DraftSummary` carries `handEdits`/`editedAssignmentIds`, and roster shift items carry `edited:true` (derived from audit rows, no migration). Generate/discard delete edits; commit still re-verifies every row, edits included.
+
+**A draft is not a roster.****A draft is not a roster.** `plan_draft_assignment` is separate from `shift_assignment`; the
 planning board never reads it. Every generated assignment is verified by `RuleCheckService` against
 the draft's own assignments plus the committed history before the window, and a Block rule leaves a
 visible gap instead of a shift. Commit re-runs every check against the current committed state,
