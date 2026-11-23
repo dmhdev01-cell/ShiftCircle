@@ -29,9 +29,7 @@ git clone https://github.com/dmhdev01-cell/ShiftCircle01.git
 cd ShiftCircle01
 ```
 
-The repository is private; use an account that has access. The GitHub URL only
-works once the repository is public; until then, clone it through the access the
-project owner gave you, or use the local path they provide.
+The repository is public, so no GitHub account is needed to clone it.
 
 ## 3. Create `.env` and the two secrets
 
