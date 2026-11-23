@@ -157,6 +157,37 @@ test.describe('session and navigation', () => {
     await expect(page.getByRole('status').filter({ hasText: 'Your session ended. Sign in again.' })).toBeVisible();
   });
 
+  // S11 / ADR-025 amendment: on the demo profile a refresh keeps the session.
+  test('demo: a refresh keeps the person signed in on the same screen', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await signIn(page, 'M. Ellis');
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Reports' }).click();
+    await expect(page).toHaveURL(/\/reports\/coverage$/);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole('banner')).toContainText('M. Ellis');
+    expect(errors).toEqual([]);
+  });
+
+  test('demo: signing out clears the saved session, so a refresh asks for sign-in', async ({ page }) => {
+    await signIn(page, 'M. Ellis');
+    await signOut(page, 'M. Ellis');
+    expect(await page.evaluate(() => window.sessionStorage.getItem('sc.demoSession'))).toBeNull();
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible();
+  });
+
+  test('demo: a 401 clears the saved session', async ({ page }) => {
+    await signIn(page, 'M. Ellis');
+    await page.route('**/api/v1/open-shifts*', (route) =>
+      route.fulfill({ status: 401, contentType: 'application/problem+json', json: { title: 'Not signed in', status: 401 } }),
+    );
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Overtime' }).click();
+    await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible();
+    expect(await page.evaluate(() => window.sessionStorage.getItem('sc.demoSession'))).toBeNull();
+  });
+
   // D11 was here: the token lives only in memory, so a full reload or a deep
   // link lost the session and the screen fired 401s and page errors instead of
   // going to sign-in. Whether to persist the token is the person's security
@@ -174,6 +205,9 @@ test.describe('session and navigation', () => {
       await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible();
       await expect(page).toHaveURL(new RegExp(`${path}$`));
 
+      // The demo keeps the token in sessionStorage (ADR-025 amendment); clearing
+      // it gives the memory-only (prod-like) case this test is about.
+      await page.evaluate(() => window.sessionStorage.clear());
       await page.reload();
       await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible({ timeout: 5_000 });
       // An expired session says 'Your session ended. Sign in again.'; a reload
@@ -188,6 +222,7 @@ test.describe('session and navigation', () => {
       await signIn(page, 'M. Ellis');
       await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: link }).click();
       await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible();
+      await page.evaluate(() => window.sessionStorage.clear());
       await page.reload();
       await page.getByRole('button', { name: /M\. Ellis/ }).click({ timeout: 5_000 });
       await expect(page).toHaveURL(new RegExp(`${path}$`), { timeout: 5_000 });

@@ -31,6 +31,43 @@ export interface SessionState {
 const EMPTY: SessionState = { token: null, user: null, ended: false, signedOut: false };
 
 let state: SessionState = EMPTY;
+
+/**
+ * ADR-025 amendment (S11): on the demo profile only, the token is also kept in
+ * sessionStorage so a refresh during a live demo does not lose the session.
+ * Off by default; `enableSessionPersistence` is called at start-up only when
+ * the api reports `demoMode` (never on prod-like), and the build-time switch
+ * `VITE_PERSIST_DEMO_SESSION=false` turns it off for good.
+ */
+const STORAGE_KEY = 'sc.demoSession';
+let persist = false;
+
+function store(value: { token: string; user: DemoUser } | null): void {
+  try {
+    if (value) window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+    else window.sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Storage blocked: the session simply stays memory-only.
+  }
+}
+
+/** Demo profile only: keep the token across a refresh, and restore a saved one. */
+export function enableSessionPersistence(): void {
+  if (import.meta.env.VITE_PERSIST_DEMO_SESSION === 'false') return;
+  persist = true;
+  if (state.token !== null) return;
+  try {
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    const saved = raw ? (JSON.parse(raw) as { token?: unknown; user?: unknown }) : null;
+    if (saved && typeof saved.token === 'string' && saved.user && typeof saved.user === 'object') {
+      state = { token: saved.token, user: saved.user as DemoUser, ended: false, signedOut: false };
+      emit();
+    }
+  } catch {
+    store(null);
+  }
+}
+
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -61,6 +98,7 @@ export function getToken(): string | null {
 /** A successful mock sign-in: keep the token and the user it belongs to. */
 export function setSession(token: string, user: DemoUser): void {
   state = { token, user, ended: false, signedOut: false };
+  if (persist) store({ token, user });
   emit();
 }
 
@@ -76,17 +114,21 @@ export function setActingUser(user: DemoUser | null): void {
 /** A deliberate sign out. It is not an expired session, so no warning. */
 export function signOut(): void {
   state = { ...EMPTY, signedOut: true };
+  store(null);
   emit();
 }
 
 /** The api answered 401: drop the token and mark the session as ended. */
 export function sessionExpired(): void {
   state = { token: null, user: null, ended: true, signedOut: false };
+  store(null);
   emit();
 }
 
 /** Tests only: put the store back, so one test cannot sign the next one in. */
 export function resetSession(): void {
   state = EMPTY;
+  persist = false;
+  store(null);
   listeners.clear();
 }

@@ -64,6 +64,7 @@ test.describe('the officer pattern', () => {
       await expect(page.getByText('4 on, 4 off').first()).toBeVisible();
 
       // Reload loses the session; signing in again shows the saved pattern.
+      await page.evaluate(() => window.sessionStorage.clear()); // demo keeps the token in sessionStorage
       await page.reload();
       await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible();
       await signInAgain(page, 'P. Planner');

@@ -63,6 +63,7 @@ test.describe('the committed quarter plan', () => {
 
     // A reload loses the in-memory session; signing in again returns to the
     // committed plan, tabs and all. This is the honest case the review flagged.
+    await page.evaluate(() => window.sessionStorage.clear()); // demo keeps the token in sessionStorage
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible();
     await signInAgain(page, 'P. Planner');
