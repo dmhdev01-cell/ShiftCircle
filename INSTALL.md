@@ -25,8 +25,8 @@ the host.
 ## 2. Clone
 
 ```sh
-git clone https://github.com/dmhdev01-cell/ShiftCircle01.git
-cd ShiftCircle01
+git clone https://github.com/dmhdev01-cell/ShiftCircle.git
+cd ShiftCircle
 ```
 
 The repository is public, so no GitHub account is needed to clone it.

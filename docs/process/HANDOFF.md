@@ -73,7 +73,7 @@ docs/process/ai-dev-log.md   AI-assisted development log (assessment requirement
 4. **Every rule needs boundary tests** (under / exactly / over), reviewed by a human, not only generated.
 5. **Log AI use** in `docs/process/ai-dev-log.md`, especially suggestions you corrected or rejected. That's 10% of the marks.
 6. **Keep docs in sync** with what's built; record new decisions as ADRs.
-7. **Commits:** small and descriptive. The lead pushes to GitHub (`dmhdev01-cell/ShiftCircle01`, public since 23 Nov 2026).
+7. **Commits:** small and descriptive. The lead pushes to GitHub (`dmhdev01-cell/ShiftCircle`, public since 23 Nov 2026).
 8. Keep the footer line on every screen: "Not an official Government of Saskatchewan service · fictional, synthetic data only".
 
 ### Governance exceptions (recorded so the build record can't overstate them)
