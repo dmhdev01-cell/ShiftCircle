@@ -30,6 +30,14 @@ class DemoDataGeneratorTest {
 
   private static JdbcTemplate jdbc;
 
+  /** The generator's own demo "now", so the self-check does not age with the real clock. */
+  private static final java.time.Instant DEMO_NOW =
+      DemoSettings.defaults()
+          .today()
+          .atTime(java.time.LocalTime.NOON)
+          .atZone(DemoSettings.REGINA)
+          .toInstant();
+
   @BeforeAll
   static void prepare() {
     DriverManagerDataSource dataSource = new DriverManagerDataSource();
@@ -210,7 +218,7 @@ class DemoDataGeneratorTest {
             + " (SELECT id FROM unit WHERE code = 'A') AND start_date = DATE '2026-11-16'");
 
     org.assertj.core.api.Assertions.assertThatThrownBy(
-            () -> new DemoDataSelfCheck(jdbc, null, java.time.Instant.now()).verify())
+            () -> new DemoDataSelfCheck(jdbc, null, DEMO_NOW).verify())
         .isInstanceOf(DemoDataSelfCheckException.class)
         .hasMessageContaining("schedule period");
   }
@@ -232,7 +240,7 @@ class DemoDataGeneratorTest {
     jdbc.update("DELETE FROM shift_assignment WHERE id IN (" + runAssignments + ")");
 
     org.assertj.core.api.Assertions.assertThatThrownBy(
-            () -> new DemoDataSelfCheck(jdbc, null, java.time.Instant.now()).verify())
+            () -> new DemoDataSelfCheck(jdbc, null, DEMO_NOW).verify())
         .isInstanceOf(DemoDataSelfCheckException.class)
         .hasMessageContaining("PC-06");
   }

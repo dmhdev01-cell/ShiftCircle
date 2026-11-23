@@ -343,10 +343,11 @@ class ReportsApiTest {
     UUID overrideId = UUID.fromString("99999999-9999-9999-9999-0000000000aa");
     jdbc.update("DELETE FROM override WHERE id = ?", overrideId);
     jdbc.update(
-        "INSERT INTO override (id, reason, rule_codes, rule_set_version_id, created_by)"
-            + " VALUES (?, 'Reports test override', ARRAY['U-05'],"
+        "INSERT INTO override (id, reason, rule_codes, rule_set_version_id, created_by,"
+            + " created_at) VALUES (?, 'Reports test override', ARRAY['U-05'],"
             + " (SELECT id FROM rule_set_version WHERE status = 'PUBLISHED'),"
-            + " (SELECT id FROM app_user WHERE username = 'm.ellis'))",
+            + " (SELECT id FROM app_user WHERE username = 'm.ellis'),"
+            + " TIMESTAMPTZ '2026-11-20 12:00:00-06')",
         overrideId);
     jdbc.update(
         "UPDATE shift_assignment SET override_id = ? WHERE id ="
