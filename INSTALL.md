@@ -29,8 +29,9 @@ git clone https://github.com/dmhdev01-cell/ShiftCircle01.git
 cd ShiftCircle01
 ```
 
-The repository is private; use an account that has access. If you are testing an
-already-pushed release, check out that tag or commit first.
+The repository is private; use an account that has access. The GitHub URL only
+works once the repository is public; until then, clone it through the access the
+project owner gave you, or use the local path they provide.
 
 ## 3. Create `.env` and the two secrets
 
@@ -60,9 +61,9 @@ mock sign-in screen; `prod-like` disables both. `SC_DEMO_TODAY` and `SC_DEMO_SEE
 the demo's "today" and its data generator seed, so the same seed rebuilds the same data.
 
 Optional: to show a commit at `/api/v1/version`, run `git rev-parse --short HEAD` and
-set `SC_GIT_COMMIT=<that value>` in `.env` **before** the build. Compose does not run
-`$(...)` inside `.env`; paste the literal value. It is baked into the api image at
-build time.
+replace the empty `SC_GIT_COMMIT=` line in `.env` with `SC_GIT_COMMIT=<that value>`
+**before** the build. Compose does not run `$(...)` inside `.env`; paste the literal
+value. It is baked into the api image at build time.
 
 ## 4. Start
 
@@ -85,6 +86,12 @@ SC_WEB_PORT=9090
 
 Then open `http://localhost:9090`. The web port is bound to `127.0.0.1`, so it is not
 reachable from the LAN by default.
+
+On a shared machine, give this stack its own Compose project name with `-p`:
+`docker-compose.yml` pins `name: shiftcircle`, so a plain `docker compose up` adopts an
+existing stack with that name instead of starting a separate one. Use the same `-p` on
+every command for this checkout, for example
+`docker compose -p shiftcircle-guide up -d --build --wait`.
 
 ## 5. Health check
 
@@ -114,6 +121,9 @@ Container state and logs:
 docker compose ps
 docker compose logs -f api
 ```
+
+When a browser or test runs inside another container, `localhost:8080` means that
+container, not this machine; use `http://host.docker.internal:8080` for the stack.
 
 ## 6. Demo profile, datasets and reset
 
@@ -193,10 +203,10 @@ Images stay on the machine after `down`; the next `up --build` reuses the build 
 |---|---|
 | Compose stops with `required variable POSTGRES_PASSWORD is missing a value: POSTGRES_PASSWORD is not set - copy .env.example to .env and set it` | `.env` is missing or the value is empty. Run `cp .env.example .env` and fill in both secrets (§3). |
 | The api exits and its log names `SC_JWT_SECRET` | The secret is missing or shorter than 32 characters. Generate a new value (§3) and `docker compose up -d --build --wait` again. |
-| `Bind for 127.0.0.1:8080 failed: port is already allocated` | Another process owns 8080. Set `SC_WEB_PORT=9090` in `.env`, start again and open `http://localhost:9090`. |
+| `Bind for 127.0.0.1:8080 failed: port is already allocated` (the message contains `address already in use`) | Another process owns 8080. Set `SC_WEB_PORT=9090` in `.env`, start again and open `http://localhost:9090`. |
 | `--wait` times out or a container is unhealthy | Run `docker compose ps` and `docker compose logs api` (or `db`, `web`). The first api start can take a minute or more; check Docker has about 2 GB free. |
 | `/api/v1/version` reports `gitCommit: "unknown"` | `SC_GIT_COMMIT` was empty when the image was built. Set it in `.env` and rebuild. |
 | The reset card shows `FAILED` | Retry the reset. A reset and a planner generate/commit cannot run at the same time; wait for the other operation to finish. |
 | A second checkout conflicts with the first | `docker-compose.yml` fixes the project name to `shiftcircle`. For a second copy, use a unique project and port: `docker compose -p shiftcircle-test up -d --build --wait` with a different `SC_WEB_PORT`. |
 | Apple Silicon | No `--platform` override is needed; the stack uses multi-arch official images. If Docker warns about amd64 emulation, fix Docker Desktop's architecture setting rather than adding a flag. |
-| Running the Playwright suite from Linux | The install itself needs no extra flag. The browser container needs `--add-host=host.docker.internal:host-gateway` (macOS/Windows do not). See [`e2e/README.md`](e2e/README.md); Linux is unverified in this repository. |
+| Running the Playwright suite from Linux | The install itself needs no extra flag. A browser container cannot reach the stack at `localhost:8080`; use `BASE_URL=http://host.docker.internal:8080` and add `--add-host=host.docker.internal:host-gateway` (macOS/Windows do not need it). See [`e2e/README.md`](e2e/README.md); Linux is unverified in this repository. |
