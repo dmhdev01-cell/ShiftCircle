@@ -198,12 +198,7 @@ public class PlannerService {
                 verifier,
                 leave,
                 activeUnits::active);
-    result.scorecard().put("staffing", unitsService.staffing());
-    result
-        .scorecard()
-        .put(
-            "qualification",
-            QualificationCoverage.card(jdbc, result.assignments(), activeUnits::active));
+    operationalCards(result.scorecard(), result.assignments());
     int generatedMs = (int) ((System.nanoTime() - before) / 1_000_000);
 
     UUID id = UUID.randomUUID();
@@ -278,6 +273,14 @@ public class PlannerService {
     return draftSummary(row);
   }
 
+  /** The two cards both a generated and a re-scored draft carry. */
+  private void operationalCards(
+      Map<String, Object> scorecard, List<PlanGenerator.Assignment> assignments) {
+    scorecard.put("staffing", unitsService.staffing());
+    scorecard.put(
+        "qualification", QualificationCoverage.card(jdbc, assignments, activeUnits::active));
+  }
+
   /**
    * Re-score a draft after one hand edit (release 7). It reads the edited draft rows, rebuilds
    * warnings, gaps and the whole scorecard with the generator's own assessment helpers; it never
@@ -333,7 +336,7 @@ public class PlannerService {
         jdbc.query(
             "SELECT a.id, a.employee_id, e.first_name || ' ' || e.last_name AS employee_name,"
                 + " a.unit_id, u.code AS unit_code, a.shift_template_id, t.code AS template_code,"
-                + " a.work_date, a.start_at, a.end_at FROM plan_draft_assignment a"
+                + " a.work_date, a.start_at, a.end_at, a.kind FROM plan_draft_assignment a"
                 + " JOIN employee e ON e.id = a.employee_id JOIN unit u ON u.id = a.unit_id"
                 + " JOIN shift_template t ON t.id = a.shift_template_id"
                 + " WHERE a.draft_id = ? ORDER BY a.start_at, a.employee_id",
@@ -366,6 +369,7 @@ public class PlannerService {
                 loadLeave(),
                 activeUnits::active,
                 assignments);
+    operationalCards(result.scorecard(), result.assignments());
     String scorecardJson = mapper.writeValueAsString(result.scorecard());
     String warningsJson = mapper.writeValueAsString(warningMaps(result.warnings()));
     int generatedMs = (int) ((System.nanoTime() - started) / 1_000_000);
