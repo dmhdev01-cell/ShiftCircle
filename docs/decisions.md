@@ -19,7 +19,7 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 ## ADR-005 — No AI at runtime
 **Status:** Accepted
 **Context:** Scheduling decisions affect employment rights, pay and facility safety.
-**Decision:** No AI in the running system. AI is used during design and development (required by the assessment) and logged in `ai-dev-log.md`.
+**Decision:** No AI in the running system. AI is used during design and development (required by the assessment) and logged in `process/ai-dev-log.md`.
 **Consequences:** Simpler governance (no model risk, no external data flow); everything is reproducible. Future AI uses (drafting notifications, summarizing reports) are documented but not built.
 
 ## ADR-006 — Three containers: React SPA / ASP.NET Core / PostgreSQL
@@ -110,7 +110,7 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Consequences:** `05-union-rules.md` §2E and §4 updated; S-04 is tested by the authorization tests (an `EMPLOYEE` creating or confirming an `EXTRA` shift gets `403`) and by checking the audit event, not by the rule boundary matrix.
 
 ## ADR-020 — Demo data sizing correction: 2% sick + 2% vacation, overtime band 3–8%
-**Status:** Accepted (2026-11-20, `orch.lead` while the project lead was away). **Confirmed by the person on 2026-11-20.** Found by the generator build (`docs/ai-dev-log.md` #27).
+**Status:** Accepted (2026-11-20, `orch.lead` while the project lead was away). **Confirmed by the person on 2026-11-20.** Found by the generator build (`docs/process/ai-dev-log.md` #27).
 **Decision:** the demo generator uses about **2% sick + 2% vacation** (was 4% + 4%), and self-check 4 accepts **3–8% overtime** of worked hours (was 3–6%).
 **Arithmetic (per 2-week pay period, 80 h threshold, ADR-016):**
 - 12 h crews, 60 officers on 2 × 00–12, 2 × 12–24, 4 off. That's 48 h per 8 days, so **84 h** per period, and 4 h of overtime each before any absence is covered: 60 × 4 = **240 h**.

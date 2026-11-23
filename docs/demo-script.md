@@ -1,6 +1,6 @@
 # ShiftCircle demo script (≤ 5 minutes)
 
-**Status:** v0.4 · 2026-11-21 · follows `HANDOFF.md` §10.
+**Status:** v0.4 · 2026-11-21 · follows `docs/process/HANDOFF.md` §10.
 - **VERIFIED** means the step was done on the **real api**, in two independent walks by dev-qa. The first was in the browser from a clean clone at `17308b7` (R30). The final one was at the api level from a true clone of the merged `main` `3a4bbbd`, and every step worked. The exact figures below come from that final walk. The Playwright specs drive most of the same steps in a browser.
 - **The panel's wording differs slightly from the quotes here.** Read the words on the screen, not the script's.
 - The time budgets add up to 275 s, almost all of it narration. dev-qa timed the read calls on a warm stack at `3a4bbbd` (Docker Desktop, macOS, two runs each): sign-in 32 / 4 ms, rule-check preview 43 / 7 ms, planning board week 27 / 12 ms, open shifts 9 / 6 ms, the auditor's overrides 13 / 7 ms, 90-day coverage 20 / 15 ms, wall display 15 / 7 ms. The write steps (offer, accept, confirm, build, publish, export) weren't timed. In the walk each one completed interactively.

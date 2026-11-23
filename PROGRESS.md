@@ -7,7 +7,7 @@ Internal note for the team; remove before submission (step 13) or fold into the 
 Run the full API suite (the only supported way; the host has no JDK):
 
 ```
-docker run --rm -v /Users/mharder/repos/ShiftCircle01/api:/src -v shiftcircle_m2:/root/.m2 -v /var/run/docker.sock:/var/run/docker.sock -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -w /src maven:3.9-eclipse-temurin-21 ./mvnw -B test
+docker run --rm -v "$PWD/api":/src -v shiftcircle_m2:/root/.m2 -v /var/run/docker.sock:/var/run/docker.sock -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -w /src maven:3.9-eclipse-temurin-21 ./mvnw -B test
 ```
 
 Verify from a clean checkout (do this before quoting any count):
@@ -118,7 +118,7 @@ Release 3 unit closures/staffing branch `p4-unit` (author run, dev-qa gate pendi
 
 The quarter planner (ADR-026), the D12/N12 crews and rule set v2 (ADR-027), the 120 dataset and the
 reset selector, the read-only planned-absence input, actual times in the rule checks and the trial
-fixes are all on `5d0f810`. The phase 3 review/QA record is R48–R61 in `docs/review-rounds.md`; the
+fixes are all on `5d0f810`. The phase 3 review/QA record is R48–R61 in `docs/process/review-rounds.md`; the
 acceptance table is in the mission folder.
 
 ## Before submission

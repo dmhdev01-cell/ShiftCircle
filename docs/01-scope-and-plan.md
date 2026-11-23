@@ -65,7 +65,7 @@ The assessment notes that extra features don't automatically earn higher marks, 
 ## 6. Approach to AI
 
 - **Runtime:** no AI. Scheduling decisions affect employment rights, pay and facility safety, so they have to be **deterministic, explainable and auditable**. A configurable rules engine does that better than a language model. This is the "where conventional software is more appropriate" argument the assessment asks for.
-- **Development:** the assessment *requires* AI tools during design or development. We use Claude for requirements, architecture, scaffolding, test generation and code review, and keep `docs/ai-dev-log.md` as we go, including AI suggestions we corrected or rejected.
+- **Development:** the assessment *requires* AI tools during design or development. We use Claude for requirements, architecture, scaffolding, test generation and code review, and keep `docs/process/ai-dev-log.md` as we go, including AI suggestions we corrected or rejected.
 - **Future option (documented, not built):** AI could later draft staff messages (once notifications exist) or summarize reports. It would never decide whether a change is allowed.
 
 ## 7. Assumptions
@@ -108,7 +108,7 @@ This is tight for the Must list. If we slip, the Should items go first.
 | Build record (≤2 pages) | `BUILD_RECORD.md`, drawn from these docs |
 | Architecture diagram | `docs/03-architecture.md` |
 | Design decisions | `docs/decisions.md` |
-| AI-assisted development | `docs/ai-dev-log.md` |
+| AI-assisted development | `docs/process/ai-dev-log.md` |
 | 2–5 test cases | `docs/02-requirements.md` §6, plus automated tests |
 
 ## 11. Open questions

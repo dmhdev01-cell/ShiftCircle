@@ -1,6 +1,6 @@
 # Review and QA rounds
 
-Every independent check on the build, newest last. Each entry gives who checked, at which commit, what was checked, what was found, and what happened to it. Times are UTC on 2026-11-20 and 2026-11-21. Full narratives are in `docs/ai-dev-log.md`.
+Every independent check on the build, newest last. Each entry gives who checked, at which commit, what was checked, what was found, and what happened to it. Times are UTC on 2026-11-20 and 2026-11-21. Full narratives are in `docs/process/ai-dev-log.md`.
 
 **Model independence, honestly.** The verifiers (GLM 5.3 and GLM 5.3 Flash) are a different model family from the builders (DeepSeek V4.1 Flash, and MiniMax for dev-build2 until 05:06Z), so verification doesn't depend on the authors. **Exception: about 10:07Z to 11:30Z.** The OpenCode Go credit ran out, and all five OpenCode seats were relaunched fresh on MiniMax (builders M3.1 Flash, verifiers M3). Authors and verifiers were then the same family. The checks done in that window have **weaker independence**: R32, R33 and R34. From about 11:40Z every seat is back on the original DeepSeek/GLM mapping. **From about 12:55Z** dev-qa and review-r2 run on **GLM 5.3 Flash**, a lower tier than the earlier GLM 5.3 rounds, though still independent of the DeepSeek authors. The person asked for this change to save credit. The final security review is **review-r3, on Claude Sonnet 5.5**.
 
