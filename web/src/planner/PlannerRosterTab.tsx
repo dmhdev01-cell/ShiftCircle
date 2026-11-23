@@ -6,11 +6,21 @@ import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 
 import { api } from '../api/client';
-import type { PlannerGap, PlannerUnitCoverage, SchedulePayload } from '../api/types';
+import type {
+  OfficerRow,
+  PlannerAssignmentResult,
+  PlannerGap,
+  PlannerUnitCoverage,
+  SchedulePayload,
+  ShiftItem,
+} from '../api/types';
 import { CoverageCell } from '../planning/CoverageCell';
 import { RosterGrid } from '../planning/RosterGrid';
 import { colour } from '../theme/tokens';
 import { weekdayDateWords } from './unitDates';
+import { DraftAddDialog } from './DraftAddDialog';
+import { DraftShiftDialog } from './DraftShiftDialog';
+import type { DraftOfficerChoice, DraftUnitChoice } from './DraftShiftDialog';
 
 const BLOCKS: { block: 'DAY' | 'EVENING' | 'NIGHT'; label: string }[] = [
   { block: 'DAY', label: 'Days 07–15' },
@@ -53,6 +63,12 @@ interface PlannerRosterTabProps {
   unitParam: string | null;
   weekParam: string | null;
   onChange: (next: { unit?: string; week?: string }) => void;
+  /** Release 7: the draft's version, hand-edit count and editability. */
+  version?: number;
+  handEdits?: number;
+  editable?: boolean;
+  onDraftChanged?: (result: PlannerAssignmentResult) => void;
+  onReload?: () => void;
 }
 
 /**
@@ -68,6 +84,11 @@ export function PlannerRosterTab({
   unitParam,
   weekParam,
   onChange,
+  version = 0,
+  handEdits = 0,
+  editable = false,
+  onDraftChanged,
+  onReload,
 }: PlannerRosterTabProps) {
   const firstWeek = mondayOf(window.from);
   const lastWeek = mondayOf(window.to);
@@ -88,6 +109,41 @@ export function PlannerRosterTab({
   const [payload, setPayload] = useState<SchedulePayload | null>(null);
   const [strip, setStrip] = useState<PlannerUnitCoverage[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [officers, setOfficers] = useState<DraftOfficerChoice[]>([]);
+  const [status, setStatus] = useState<string | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [dialog, setDialog] = useState<
+    | { kind: 'shift'; officer: OfficerRow; item: ShiftItem }
+    | { kind: 'add'; officer: OfficerRow; date: string }
+    | null
+  >(null);
+
+  // The officer picker for "give to another officer": the planner's read of
+  // everyone, with their home unit. FTE is not in the payload (P8-SPEC agrees).
+  useEffect(() => {
+    if (!editable) return;
+    let active = true;
+    void api
+      .getPlannerPreferences()
+      .then((rows) => {
+        if (!active) return;
+        setOfficers(
+          rows
+            .map((row) => ({
+              employeeId: row.employeeId,
+              name: row.name,
+              unitName: row.unitName,
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name)),
+        );
+      })
+      .catch(() => {
+        if (active) setOfficers([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [editable]);
 
   useEffect(() => {
     let active = true;
@@ -109,7 +165,7 @@ export function PlannerRosterTab({
     return () => {
       active = false;
     };
-  }, [draftId, unit, week]);
+  }, [draftId, unit, week, version, refreshTick]);
 
   /** A unit's closure words for the visible week, from the coverage strip. */
   const closedFor = (unitId: string): string | null =>
@@ -122,6 +178,41 @@ export function PlannerRosterTab({
 
   const days = Array.from({ length: 7 }, (_, index) => addDays(week, index));
   const boardWeek = { from: week, to: addDays(week, 6) };
+
+  const unitChoices: DraftUnitChoice[] = strip.length
+    ? strip.map((entry) => ({
+        id: entry.unitId,
+        name: entry.unitName,
+        closedFrom: entry.closedFrom ?? null,
+        closedTo: entry.closedTo ?? null,
+      }))
+    : units.map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        closedFrom: null,
+        closedTo: null,
+      }));
+
+  const officerChoices: DraftOfficerChoice[] = (() => {
+    const combined = [...officers];
+    for (const row of payload?.officers ?? []) {
+      if (!combined.some((entry) => entry.employeeId === row.employeeId)) {
+        combined.push({
+          employeeId: row.employeeId,
+          name: row.name,
+          unitName: payload?.unit.name ?? unit?.name ?? '',
+        });
+      }
+    }
+    return combined.sort((a, b) => a.name.localeCompare(b.name));
+  })();
+
+  const saveResult = (result: PlannerAssignmentResult, words: string) => {
+    setStatus(words);
+    setDialog(null);
+    onDraftChanged?.(result);
+    setRefreshTick((tick) => tick + 1);
+  };
 
   return (
     <Card>
@@ -262,9 +353,18 @@ export function PlannerRosterTab({
             fontWeight: 600,
           }}
         >
-          Draft · not on the planning board yet. Officers and supervisors can't see it until it's
-          committed.
+          {editable
+            ? `Draft · not on the planning board yet. You can change shifts here until you commit. Officers and supervisors can't see it until it's committed.${
+                handEdits > 0 ? ` ${handEdits} hand edit${handEdits === 1 ? '' : 's'} so far.` : ''
+              }`
+            : 'This plan is committed. Shifts are changed on the planning board by a supervisor.'}
         </Box>
+
+        {status ? (
+          <Typography role="status" sx={{ fontSize: 13, fontWeight: 600, color: colour.status.pass.text }}>
+            {status}
+          </Typography>
+        ) : null}
 
         {state === 'loading' ? (
           <Typography role="status" sx={{ fontSize: 14, color: colour.text.secondary }}>
@@ -304,8 +404,69 @@ export function PlannerRosterTab({
                 other units, shown under those units.
               </Typography>
             ) : null}
-            <RosterGrid payload={payload} today={payload.asOf} />
+            <RosterGrid
+              payload={payload}
+              today={payload.asOf}
+              onEmptyCell={
+                editable
+                  ? (officer, date) => {
+                      setStatus(null);
+                      setDialog({ kind: 'add', officer, date });
+                    }
+                  : undefined
+              }
+              onPickChip={
+                editable
+                  ? (officer, item) => {
+                      setStatus(null);
+                      setDialog({ kind: 'shift', officer, item });
+                    }
+                  : undefined
+              }
+            />
           </>
+        ) : null}
+
+        {dialog?.kind === 'shift' && unit ? (
+          <DraftShiftDialog
+            draftId={draftId}
+            version={version}
+            officer={dialog.officer}
+            item={dialog.item}
+            unit={unit}
+            units={unitChoices}
+            officers={officerChoices}
+            onClose={() => setDialog(null)}
+            onSaved={saveResult}
+            onReload={() => {
+              setDialog(null);
+              onReload?.();
+            }}
+          />
+        ) : null}
+
+        {dialog?.kind === 'add' && unit ? (
+          <DraftAddDialog
+            draftId={draftId}
+            version={version}
+            officer={dialog.officer}
+            date={dialog.date}
+            defaultUnitId={
+              unitChoices.find(
+                (entry) =>
+                  entry.name ===
+                  officerChoices.find((choice) => choice.employeeId === dialog.officer.employeeId)
+                    ?.unitName,
+              )?.id ?? unit.id
+            }
+            units={unitChoices}
+            onClose={() => setDialog(null)}
+            onSaved={saveResult}
+            onReload={() => {
+              setDialog(null);
+              onReload?.();
+            }}
+          />
         ) : null}
 
         <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
@@ -182,6 +182,45 @@ describe('the quarter plan', () => {
       screen.getByText(/Checked every day from 4 Nov 2026 to 11 Feb 2027/),
     ).toBeInTheDocument();
     spy.mockRestore();
+  });
+
+  it('says hand edits are lost on replace and discard, and rechecked at commit', async () => {
+    const user = userEvent.setup();
+    const real = api.createPlannerDraft;
+    vi.spyOn(api, 'createPlannerDraft').mockImplementation(async (body) => {
+      const draft = await real.call(api, body);
+      return { ...draft, handEdits: 2, editedAssignmentIds: ['a1', 'a2'] };
+    });
+    renderPlanner();
+    await asPlanner(user);
+    await user.click(await screen.findByRole('button', { name: 'Generate draft' }));
+    await screen.findByText('Coverage gaps');
+
+    await user.click(screen.getByRole('button', { name: 'Generate again' }));
+    const replace = await screen.findByRole('dialog');
+    expect(within(replace).getByText('Generate a new draft?')).toBeInTheDocument();
+    expect(
+      within(replace).getByText(
+        "It replaces this draft and its 2 hand edits. They can't be brought back.",
+      ),
+    ).toBeInTheDocument();
+    await user.click(within(replace).getByRole('button', { name: 'Keep this draft' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Discard draft…' }));
+    const discard = await screen.findByRole('dialog');
+    expect(within(discard).getByText(/Its 2 hand edits are discarded too\./)).toBeInTheDocument();
+    await user.click(within(discard).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Commit plan…' }));
+    const commit = await screen.findByRole('dialog');
+    expect(
+      await within(commit).findByText(
+        'Commit checks every shift again, hand edits included. Shifts you kept with warnings go to the planning board with those warnings.',
+      ),
+    ).toBeInTheDocument();
+    await user.click(within(commit).getByRole('button', { name: 'Cancel' }));
   });
 
   it('keeps the tab in the address, so a link and Back land on it', async () => {

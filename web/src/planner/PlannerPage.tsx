@@ -15,6 +15,7 @@ import Typography from '@mui/material/Typography';
 
 import { api, ApiError } from '../api/client';
 import type {
+  PlannerAssignmentResult,
   PlannerCommitPreview,
   PlannerCommitResult,
   PlannerDraft,
@@ -329,6 +330,25 @@ export function PlannerPage() {
       setBusy(null);
       setReplaceOpen(false);
     }
+  };
+
+  const handleDraftChanged = (result: PlannerAssignmentResult) => {
+    setPlan((current) =>
+      current?.draft
+        ? {
+            ...current,
+            draft: {
+              ...current.draft,
+              version: result.version,
+              handEdits: result.handEdits,
+              editedAssignmentIds: result.editedAssignmentIds,
+              scorecard: result.scorecard,
+            },
+          }
+        : current,
+    );
+    setGaps(result.gaps);
+    setWarnings(result.warnings);
   };
 
   const openCommit = async () => {
@@ -1255,6 +1275,11 @@ export function PlannerPage() {
                 window={plan.window}
                 gaps={gaps}
                 units={units}
+                version={planDraft.version}
+                handEdits={draft?.handEdits ?? 0}
+                editable={Boolean(draft)}
+                onDraftChanged={handleDraftChanged}
+                onReload={() => void load()}
                 unitParam={searchParams.get('unit')}
                 weekParam={searchParams.get('week')}
                 onChange={(next) => {
@@ -1271,18 +1296,28 @@ export function PlannerPage() {
       ) : null}
 
       <Dialog open={replaceOpen} onClose={() => setReplaceOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontSize: 18, fontWeight: 700 }}>Replace this draft?</DialogTitle>
+        <DialogTitle sx={{ fontSize: 18, fontWeight: 700 }}>
+          {(draft?.handEdits ?? 0) > 0 ? 'Generate a new draft?' : 'Replace this draft?'}
+        </DialogTitle>
         <DialogContent>
-          <Typography sx={{ fontSize: 14 }}>
-            The current draft and its scorecard are replaced. Nothing on the planning board changes.
-          </Typography>
+          {(draft?.handEdits ?? 0) > 0 ? (
+            <Typography sx={{ fontSize: 14 }}>
+              It replaces this draft and its {draft?.handEdits} hand edit
+              {draft?.handEdits === 1 ? '' : 's'}. They can&apos;t be brought back.
+            </Typography>
+          ) : (
+            <Typography sx={{ fontSize: 14 }}>
+              The current draft and its scorecard are replaced. Nothing on the planning board
+              changes.
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
           <Button variant="outlined" color="primary" onClick={() => setReplaceOpen(false)}>
-            Cancel
+            {(draft?.handEdits ?? 0) > 0 ? 'Keep this draft' : 'Cancel'}
           </Button>
           <Button variant="contained" color="primary" disabled={busy !== null} onClick={() => void generate()}>
-            Replace draft
+            {(draft?.handEdits ?? 0) > 0 ? 'Replace draft and edits' : 'Replace draft'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1293,6 +1328,9 @@ export function PlannerPage() {
           <Typography sx={{ fontSize: 14 }}>
             The draft is removed. Nothing on the planning board changes. The discard is recorded in
             the audit log.
+            {(draft?.handEdits ?? 0) > 0
+              ? ` Its ${draft?.handEdits} hand edit${draft?.handEdits === 1 ? ' is' : 's are'} discarded too.`
+              : ''}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
@@ -1319,6 +1357,12 @@ export function PlannerPage() {
                 Every shift is checked by the rules again as it is written. If any shift is blocked,{' '}
                 <strong>nothing is written</strong>.
               </Typography>
+              {(draft?.handEdits ?? 0) > 0 ? (
+                <Typography sx={{ fontSize: 14 }}>
+                  Commit checks every shift again, hand edits included. Shifts you kept with warnings
+                  go to the planning board with those warnings.
+                </Typography>
+              ) : null}
               <Typography sx={{ fontSize: 14 }}>
                 <strong>{preview.shortBlockDays} block-days stay short.</strong> Fill them from the
                 Overtime board after committing.

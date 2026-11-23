@@ -46,6 +46,7 @@ export const API_AUDIT_ACTIONS = [
   'leave_allowance_changed',
   'commit_plan',
   'discard_plan',
+  'edit_plan_draft',
   'demo_reset',
 ] as const;
 
@@ -90,6 +91,7 @@ export const ACTION_LABELS: Record<string, string> = {
   leave_allowance_changed: 'Leave allowance changed',
   commit_plan: 'Quarter plan committed',
   discard_plan: 'Draft quarter plan discarded',
+  edit_plan_draft: 'Draft shift edited',
   offer_overtime: 'Overtime offered',
   accept_overtime_offer: 'Overtime accepted',
   decline_overtime_offer: 'Overtime declined',

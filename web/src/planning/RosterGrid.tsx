@@ -80,6 +80,7 @@ function CellChips({
             worked={item.worked}
             offer={item.offer ?? false}
             proposed={item.proposed ?? false}
+            edited={item.edited ?? false}
             onClick={onPick ? () => onPick(item) : undefined}
             context={`for ${officerName} on ${date}`}
           />

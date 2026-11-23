@@ -172,3 +172,138 @@ describe('the roster tab unit picker', () => {
     expect(screen.getAllByText('Closed').length).toBeGreaterThanOrEqual(7);
   });
 });
+
+describe('draft editing on the roster tab', () => {
+  function mockSchedule(editFirst = false) {
+    vi.spyOn(api, 'getPlannerSchedule').mockImplementation(async (_draftId, query) => {
+      const base = plannerSchedule(query);
+      const officer = base.officers[0];
+      if (officer) {
+        officer.cells = base.days.map((date, index) => ({
+          date,
+          items:
+            index === 0
+              ? [
+                  {
+                    type: 'SHIFT' as const,
+                    assignmentId: 'a1',
+                    shiftTemplate: 'D8',
+                    startAt: `${date}T07:00:00-06:00`,
+                    endAt: `${date}T15:00:00-06:00`,
+                    kind: 'ROSTERED' as const,
+                    worked: false,
+                    version: 1,
+                    edited: editFirst,
+                  },
+                ]
+              : [],
+        }));
+      }
+      return base;
+    });
+    vi.spyOn(api, 'getPlannerCoverage').mockResolvedValue([]);
+    vi.spyOn(api, 'getPlannerPreferences').mockResolvedValue([
+      {
+        employeeId: 'e1',
+        name: 'Nia Thompson',
+        employeeNo: 'E-1',
+        unitName: 'Unit A · Living unit',
+        seniorityDate: '2020-01-01',
+        shiftLength: null,
+        timesOfDay: [],
+        daysOff: [],
+        maxDaysOff: 2,
+        pattern: 'ROTATING_5_2',
+        patternWords: 'Rotating 5 on, 2 off',
+        patternEditable: true,
+        inDraft: 'NONE',
+        unmet: [],
+        updatedAt: null,
+      },
+    ]);
+  }
+
+  function renderEditable(editable: boolean, handEdits = 0) {
+    mockSchedule(false);
+    return render(
+      <ThemeProvider theme={theme}>
+        <PlannerRosterTab
+          draftId="draft-1"
+          version={3}
+          handEdits={handEdits}
+          editable={editable}
+          window={{ from: '2027-01-04', to: '2027-04-11' }}
+          gaps={[]}
+          units={UNITS}
+          unitParam="unit-a"
+          weekParam={null}
+          onChange={() => undefined}
+          onDraftChanged={() => undefined}
+        />
+      </ThemeProvider>,
+    );
+  }
+
+  it('counts hand edits and opens the shift and add dialogs', async () => {
+    const user = userEvent.setup();
+    renderEditable(true, 2);
+
+    expect(
+      await screen.findByText(
+        "Draft · not on the planning board yet. You can change shifts here until you commit. Officers and supervisors can't see it until it's committed. 2 hand edits so far.",
+      ),
+    ).toBeInTheDocument();
+
+    const chip = screen.getAllByRole('button', { name: /for .+ on \d{4}-\d{2}-\d{2}/ })[0];
+    await user.click(chip);
+    expect(
+      screen.getByText(
+        'Change this shift in the draft. Nothing reaches the planning board until you commit.',
+      ),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+
+    const off = screen
+      .getAllByRole('button', { name: /Off - assign a shift/ })
+      .find((button) => !button.hasAttribute('disabled'))!;
+    await user.click(off);
+    expect(screen.getByText(/Add a shift for .+ on /)).toBeInTheDocument();
+  });
+
+  it('marks a hand-edited chip in words', async () => {
+    mockSchedule(true);
+    render(
+      <ThemeProvider theme={theme}>
+        <PlannerRosterTab
+          draftId="draft-1"
+          version={4}
+          handEdits={1}
+          editable
+          window={{ from: '2027-01-04', to: '2027-04-11' }}
+          gaps={[]}
+          units={UNITS}
+          unitParam="unit-a"
+          weekParam={null}
+          onChange={() => undefined}
+          onDraftChanged={() => undefined}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(await screen.findByText(/· edited/)).toBeInTheDocument();
+  });
+
+  it('is read-only once the plan is committed', async () => {
+    renderEditable(false);
+
+    expect(
+      await screen.findByText(
+        'This plan is committed. Shifts are changed on the planning board by a supervisor.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /for .+ on \d{4}-\d{2}-\d{2}/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/hand edits so far/)).not.toBeInTheDocument();
+  });
+});
