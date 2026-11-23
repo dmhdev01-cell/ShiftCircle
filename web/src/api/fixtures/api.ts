@@ -861,17 +861,6 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
       return { ...offer, status };
     },
 
-    async submitProposals(
-      note: string,
-      items: RuleCheckChange[],
-    ): Promise<{ id: string; accepted: number }> {
-      await pause();
-      if (note.trim().length === 0) {
-        throw new ApiError('A note to the supervisor is required.', 400);
-      }
-      return { id: `p-fixture-${items.length}`, accepted: items.length };
-    },
-
     async getAuditEvents(query: AuditQuery): Promise<AuditPage> {
       await pause();
       let items = demoAuditEvents;

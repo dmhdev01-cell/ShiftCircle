@@ -235,6 +235,43 @@ describe('the overtime board', () => {
     ).toBeInTheDocument();
   });
 
+  it('M3: says a slot has no open shift instead of opening a different one', async () => {
+    // Unit B, Sat 21 Nov 15:00: the fixtures have no open shift for it.
+    renderBoard(
+      `/overtime?unit=unit-b&startAt=${encodeURIComponent('2026-11-21T15:00:00-06:00')}`,
+    );
+
+    const panel = await screen.findByRole('region', { name: 'Eligible officers' });
+    expect(
+      await within(panel).findByRole('heading', { name: 'No open shift for this slot yet' }),
+    ).toBeInTheDocument();
+    expect(await within(panel).findByText(/Sat 21 Nov 15:00/)).toBeInTheDocument();
+    // No other shift's ranked list is passed off as the answer.
+    expect(within(panel).queryByRole('heading', { name: /Fri 20 Nov · Evenings/ })).toBeNull();
+    expect(within(panel).queryByRole('heading', { name: /Sat 21 Nov · Days/ })).toBeNull();
+    expect(within(panel).queryByRole('checkbox')).toBeNull();
+    // The next step goes back to the slot's week on the planning board.
+    expect(within(panel).getByRole('link', { name: 'Back to the planning board' })).toHaveAttribute(
+      'href',
+      '/planning?unit=unit-b&week=2026-11-21',
+    );
+  });
+
+  it('M3: an unknown shift id also says so, and a picked shift still opens', async () => {
+    const user = userEvent.setup();
+    renderBoard('/overtime?shift=no-such-shift');
+
+    const panel = await screen.findByRole('region', { name: 'Eligible officers' });
+    expect(
+      await within(panel).findByRole('heading', { name: 'No open shift for this slot yet' }),
+    ).toBeInTheDocument();
+
+    const list = screen.getByRole('region', { name: 'Open shifts' });
+    await user.click(within(list).getByRole('button', { name: /Sat 21 Nov · Days 07:00 – 15:00/ }));
+    expect(await screen.findByRole('heading', { name: /Sat 21 Nov · Days/ })).toBeInTheDocument();
+    expect(screen.queryByText('No open shift for this slot yet')).toBeNull();
+  });
+
   it('E2: an offer reaches the employee, comes back accepted, and can be confirmed', async () => {
     const user = userEvent.setup();
     const supervisor = renderBoard();

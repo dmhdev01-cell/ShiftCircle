@@ -188,8 +188,6 @@ export function MySchedulePage() {
   const { state: offersState, reload: reloadOffers } = useMyOffers();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [note, setNote] = useState('');
-  const [sent, setSent] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [newDate, setNewDate] = useState('2026-11-26');
   const [newTemplate, setNewTemplate] = useState('A12');
@@ -307,22 +305,6 @@ export function MySchedulePage() {
             : draft,
         ),
       );
-    }
-  };
-
-  const sendToSupervisor = async () => {
-    try {
-      await api.submitProposals(
-        note,
-        drafts.map((draft) => draft.change),
-      );
-      setSent(
-        `Sent. Your supervisor decides - ${drafts.length} shift${drafts.length === 1 ? '' : 's'} proposed.`,
-      );
-      setDrafts([]);
-      setNote('');
-    } catch (error) {
-      setSent(error instanceof Error ? error.message : 'The proposal could not be sent.');
     }
   };
 
@@ -636,8 +618,8 @@ export function MySchedulePage() {
                 Propose shifts
               </Typography>
               <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary, lineHeight: 1.45 }}>
-                Draft the shifts you would like. The rules are checked as you go, and your supervisor
-                decides. A proposal is a request - only a supervisor can authorise an extra shift.
+                Check a shift you would like against the rules before you ask for it. Only a
+                supervisor can authorise an extra shift.
               </Box>
             </Box>
 
@@ -669,38 +651,29 @@ export function MySchedulePage() {
               </Box>
             ))}
 
-            <TextField
-              label="Note to your supervisor"
-              multiline
-              minRows={3}
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-            />
-
-            {sent ? (
-              <Box
-                role="status"
-                sx={{
-                  p: '10px 12px',
-                  borderRadius: '8px',
-                  backgroundColor: '#E8F1F8',
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
-              >
-                {sent}
+            {/* M1: the api has no proposals endpoint or inbox (README, "Not built
+                at all"), so nothing is sent; the officer is told plainly instead of
+                meeting a 404. */}
+            <Box
+              role="note"
+              aria-label="Sending a proposal"
+              sx={{
+                p: '10px 12px',
+                borderRadius: '8px',
+                backgroundColor: colour.status.info.bg,
+                color: colour.status.info.text,
+                fontSize: 13,
+                lineHeight: 1.45,
+              }}
+            >
+              <Box component="strong" sx={{ display: 'block', fontWeight: 700 }}>
+                Sending to your supervisor: not available in this prototype
               </Box>
-            ) : null}
+              There is no proposals inbox yet, so nothing is sent from here. Check the shift, then
+              ask your supervisor directly.
+            </Box>
 
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-              <Button
-                variant="contained"
-                color="primary"
-                disabled={drafts.length === 0}
-                onClick={() => void sendToSupervisor()}
-              >
-                Send to supervisor
-              </Button>
               <Button variant="outlined" color="primary" onClick={() => setAdding(true)}>
                 Add a shift
               </Button>
