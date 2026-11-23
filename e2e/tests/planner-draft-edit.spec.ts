@@ -20,7 +20,7 @@ test.describe('draft hand edits', () => {
     test.skip(await isFixtures(page), 'draft edits need the real api');
   });
 
-  test('keeps a warning, removes a shift, moves the scorecard, then commits', async ({
+  test('refuses a block, keeps a warning, removes a shift, then commits', async ({
     page,
     request,
   }) => {
@@ -31,13 +31,29 @@ test.describe('draft hand edits', () => {
     await expect(page.getByText('Coverage gaps')).toBeVisible({ timeout: 60_000 });
     const warningsBefore = await tileValue(page, 'Rule warnings');
 
-    // Unit B's Bram Beaulieu, E8 on Wed 6 Jan 2027, moved to Tue 5 Jan.
-    // The first save is refused as a Warn; keeping it saves with the
-    // acknowledgement (dev-build's pinned recipe).
+    // Block: Wade Xu's D12 on Mon 4 Jan becomes an N8 the same day; the rules
+    // refuse it and nothing is saved (dev-build's pinned UI-shaped move).
     const planner = await apiAs(request, 'p.planner');
     const units = await planner.get<{ id: string; code: string }[]>('/planner/units');
-    const unitB = units.find((unit) => unit.code === 'B')!;
+    const unitEsc = units.find((unit) => unit.code === 'ESC')!;
     await page.getByRole('tab', { name: 'Roster' }).click();
+    await page.getByLabel('Unit').selectOption(unitEsc.id);
+    await page.getByRole('button', { name: /for Wade Xu on 2027-01-04/ }).click();
+    await page.getByRole('button', { name: 'Change time or unit…' }).click();
+    await page.getByLabel('Shift').selectOption('N8');
+    await page.getByRole('button', { name: 'Check and save' }).click();
+    await expect(
+      page.getByText(
+        "This change breaks a Block rule, so it can't go in the draft. Choose another officer or time, or leave the gap.",
+      ),
+    ).toBeVisible();
+    await expect(page.getByText(/hand edit/)).toHaveCount(0);
+    await page.getByRole('button', { name: 'Close' }).click();
+
+    // Warn: Unit B's Bram Beaulieu, E8 on Wed 6 Jan 2027, moved to Tue 5 Jan.
+    // The first save is refused as a Warn; keeping it saves with the
+    // acknowledgement (dev-build's pinned recipe).
+    const unitB = units.find((unit) => unit.code === 'B')!;
     await page.getByLabel('Unit').selectOption(unitB.id);
     await page
       .getByRole('button', { name: /for Bram Beaulieu on 2027-01-06/ })
