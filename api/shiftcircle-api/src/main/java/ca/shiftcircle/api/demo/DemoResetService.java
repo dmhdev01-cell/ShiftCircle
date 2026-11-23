@@ -84,6 +84,25 @@ public class DemoResetService {
     return datasets;
   }
 
+  /**
+   * The dataset the database holds now, durably: the dataset of the last {@code demo_reset} audit
+   * row (a reset erases the history and writes that row first), or "100" when there is none (a
+   * fresh boot seeds Dataset 100). While a reset runs it is the dataset being generated. The web
+   * reads it to warn the planner that Dataset 100 is under-staffed for nights (S6).
+   */
+  public String activeDataset() {
+    Status current = status;
+    if ("RUNNING".equals(current.state())) {
+      return current.dataset();
+    }
+    List<String> rows =
+        jdbc.queryForList(
+            "SELECT after->>'dataset' FROM audit_event WHERE action = 'demo_reset'"
+                + " ORDER BY id DESC LIMIT 1",
+            String.class);
+    return rows.isEmpty() || rows.get(0) == null ? "100" : rows.get(0);
+  }
+
   public Status status() {
     Status current = status;
     if ("RUNNING".equals(current.state()) && current.startedAt() != null) {

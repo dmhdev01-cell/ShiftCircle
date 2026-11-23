@@ -351,7 +351,8 @@ export type OfferResponse = 'ACCEPT' | 'DECLINE';
 
 // --- Time and attendance (docs/07-api-spec.md §4.5, ADR-017) ---
 
-export type AbsenceType = 'SICK' | 'VACATION';
+/** The api's absence codes (FR-51): sick, vacation, other. */
+export type AbsenceType = 'SICK' | 'VACATION' | 'OTHER';
 
 export interface PayCode {
   code: string;

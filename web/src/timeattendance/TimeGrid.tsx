@@ -95,7 +95,8 @@ export function TimeCell({ entry, locked, onPick }: TimeCellProps) {
   }
 
   if (entry.absence) {
-    const label = entry.absence === 'VACATION' ? 'Vac' : 'Sick';
+    const label =
+      entry.absence === 'VACATION' ? 'Vac' : entry.absence === 'OTHER' ? 'Other' : 'Sick';
     // An absence used to be a plain span, so a Sick or Vac record could not be
     // reopened or corrected (observation #11). It is a button like the others;
     // the drawer opens on the current choice.

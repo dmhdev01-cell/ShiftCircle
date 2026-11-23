@@ -33,6 +33,7 @@ import { QualifiedStaffCard } from './QualifiedStaffCard';
 import { StaffingPanel } from './StaffingPanel';
 import { staffingFloorLine, staffingHelp, staffingTile } from './staffingWords';
 import { FlaggedShiftsCard } from './FlaggedShiftsCard';
+import { DatasetBanner } from './DatasetBanner';
 import { useRole } from '../shell/nav';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
@@ -540,6 +541,8 @@ export function PlannerPage() {
           )}
         </Box>
       </Box>
+
+      <DatasetBanner />
 
       {busy === 'generate' ? (
         <Typography role="status" sx={{ fontSize: 14, color: colour.text.secondary }}>

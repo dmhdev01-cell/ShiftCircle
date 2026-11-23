@@ -1240,7 +1240,7 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
                     code:
                       entry.absence === 'VACATION'
                         ? 'VAC'
-                        : entry.absence === 'SICK'
+                        : entry.absence === 'SICK' || entry.absence === 'OTHER'
                           ? 'SICK'
                           : 'REG',
                     hours: shiftHours(entry),
