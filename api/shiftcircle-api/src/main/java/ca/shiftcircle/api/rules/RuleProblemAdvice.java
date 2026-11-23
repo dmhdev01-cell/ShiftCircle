@@ -25,6 +25,11 @@ public class RuleProblemAdvice {
             ? "Warnings need acknowledgement"
             : "This change breaks " + blockingCount(outcome) + " rule(s)");
     body.put("status", HttpStatus.UNPROCESSABLE_CONTENT.value());
+    body.put(
+        "detail",
+        exception.kind() == RuleViolationException.Kind.WARNINGS
+            ? "These warnings need acknowledgement before the change can be saved."
+            : "This change breaks a Block rule, so it can't be saved.");
     body.put("outcome", outcome.outcome());
     body.put("ruleSetVersion", outcome.ruleSetVersion());
     body.put("overridable", outcome.overridable());

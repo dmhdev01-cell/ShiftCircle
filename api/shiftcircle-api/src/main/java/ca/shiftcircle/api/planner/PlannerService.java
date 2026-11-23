@@ -278,6 +278,125 @@ public class PlannerService {
     return draftSummary(row);
   }
 
+  /**
+   * Re-score a draft after one hand edit (release 7). It reads the edited draft rows, rebuilds
+   * warnings, gaps and the whole scorecard with the generator's own assessment helpers; it never
+   * generates or moves a shift. The caller owns the row change, the version increment and the audit
+   * event, inside one transaction and the demo lock.
+   */
+  public Map<String, Object> recomputeDraft(UUID id) {
+    Map<String, Object> draft = requireDraft(id);
+    if (!"DRAFT".equals(draft.get("status"))) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Only a draft can be changed; this plan is committed or discarded.");
+    }
+    List<PlanGenerator.Unit> units = loadUnits();
+    List<PlanGenerator.Employee> employees = loadEmployees(units);
+    Map<String, PlanGenerator.Template> templates = loadTemplates();
+    Map<UUID, List<ShiftFact>> history =
+        loadHistory(
+            FROM.minusDays(35).atStartOfDay(REGINA).toInstant(),
+            FROM.atStartOfDay(REGINA).toInstant());
+    Map<UUID, Set<String>> baselineWarnings = new HashMap<>();
+    history.forEach(
+        (employeeId, shifts) ->
+            baselineWarnings.put(employeeId, warningKeys(ruleCheck.evaluateFacts(shifts))));
+    PlanGenerator.Verifier verifier =
+        (employee, unit, template, start, current) -> {
+          ShiftFact proposed =
+              new ShiftFact(
+                  "proposed",
+                  employee.employeeNo(),
+                  unit.code(),
+                  template.code(),
+                  start,
+                  start.plus(Duration.ofMinutes(template.minutes())),
+                  ShiftKind.ROSTERED,
+                  0,
+                  unit.allows12h(),
+                  unit.allows16h());
+          RuleCheckService.OutcomeView outcome = ruleCheck.evaluate(proposed, current);
+          boolean blocked =
+              outcome.ruleResults().stream().anyMatch(result -> "BLOCK".equals(result.outcome()));
+          Set<String> baseline = baselineWarnings.getOrDefault(employee.id(), Set.of());
+          List<PlanGenerator.RuleWarning> warnings =
+              outcome.ruleResults().stream()
+                  .filter(result -> "WARN".equals(result.outcome()))
+                  .filter(result -> !baseline.contains(warningKey(result)))
+                  .map(
+                      result ->
+                          new PlanGenerator.RuleWarning(result.ruleCode(), result.message()))
+                  .toList();
+          return new PlanGenerator.Check(blocked, warnings);
+        };
+    List<PlanGenerator.Assignment> assignments =
+        jdbc.query(
+            "SELECT a.id, a.employee_id, e.first_name || ' ' || e.last_name AS employee_name,"
+                + " a.unit_id, u.code AS unit_code, a.shift_template_id, t.code AS template_code,"
+                + " a.work_date, a.start_at, a.end_at FROM plan_draft_assignment a"
+                + " JOIN employee e ON e.id = a.employee_id JOIN unit u ON u.id = a.unit_id"
+                + " JOIN shift_template t ON t.id = a.shift_template_id"
+                + " WHERE a.draft_id = ? ORDER BY a.start_at, a.employee_id",
+            (rs, row) ->
+                new PlanGenerator.Assignment(
+                    rs.getObject("employee_id", UUID.class),
+                    rs.getString("employee_name"),
+                    rs.getObject("unit_id", UUID.class),
+                    rs.getString("unit_code"),
+                    rs.getObject("shift_template_id", UUID.class),
+                    rs.getString("template_code"),
+                    rs.getDate("work_date").toLocalDate(),
+                    rs.getTimestamp("start_at").toInstant(),
+                    rs.getTimestamp("end_at").toInstant(),
+                    List.of()),
+            id);
+    long started = System.nanoTime();
+    PlanGenerator.Result result =
+        new PlanGenerator()
+            .assess(
+                employees,
+                units,
+                templates,
+                history,
+                (String) draft.get("pattern8h"),
+                verifier,
+                loadLeave(),
+                activeUnits::active,
+                assignments);
+    String scorecardJson = mapper.writeValueAsString(result.scorecard());
+    String warningsJson = mapper.writeValueAsString(warningMaps(result.warnings()));
+    int generatedMs = (int) ((System.nanoTime() - started) / 1_000_000);
+    jdbc.update(
+        "UPDATE plan_draft SET scorecard = ?::jsonb, warnings = ?::jsonb, warning_count = ?,"
+            + " generated_ms = ? WHERE id = ? AND status = 'DRAFT'",
+        scorecardJson,
+        warningsJson,
+        result.warnings().size(),
+        generatedMs,
+        id);
+    jdbc.update("DELETE FROM plan_draft_gap WHERE draft_id = ?", id);
+    if (!result.gaps().isEmpty()) {
+      jdbc.batchUpdate(
+          "INSERT INTO plan_draft_gap (id, draft_id, unit_id, gap_date, block, required, placed,"
+              + " reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          result.gaps().stream()
+              .map(
+                  gap ->
+                      new Object[] {
+                        UUID.randomUUID(),
+                        id,
+                        gap.unitId(),
+                        java.sql.Date.valueOf(gap.date()),
+                        gap.block(),
+                        gap.required(),
+                        gap.placed(),
+                        gap.reason()
+                      })
+              .toList());
+    }
+    return result.scorecard();
+  }
+
   public List<PlannerViews.GapView> gaps(UUID id) {
     requireDraft(id);
     return jdbc.query(
@@ -390,6 +509,7 @@ public class PlannerService {
             : "Switched off";
     String closedReason = closures.isEmpty() ? null : closures.get(0).reason();
 
+    Set<UUID> editedAssignments = new HashSet<>(editedAssignmentIds(id));
     Map<UUID, List<Map<String, Object>>> byOfficer = new LinkedHashMap<>();
     Map<UUID, Map<String, Object>> officerRows = new LinkedHashMap<>();
     for (Map<String, Object> row : planned) {
@@ -429,7 +549,8 @@ public class PlannerService {
                         end.toString(),
                         "ROSTERED",
                         false,
-                        0));
+                        0,
+                        editedAssignments.contains((UUID) shift.get("id"))));
           }
           periodHours = Math.round(periodHours * 100.0) / 100.0;
           String status = periodHours >= 80 ? "IN_OVERTIME" : periodHours >= 72 ? "APPROACHING" : "UNDER";
@@ -1650,6 +1771,11 @@ public class PlannerService {
         "type", type);
   }
 
+  /** The committed history for one officer; used by a draft edit's rule preview. */
+  public List<ShiftFact> historyFor(UUID employeeId, Instant from, Instant to) {
+    return loadHistory(from, to).getOrDefault(employeeId, List.of());
+  }
+
   private Map<UUID, List<ShiftFact>> loadHistory(Instant from, Instant to) {
     // One resolver with the board path (RuleCheckService): the envelope of roster and actual.
     return ruleCheck.history(from, to);
@@ -1709,7 +1835,30 @@ public class PlannerService {
         ((Timestamp) row.get("created_at")).toInstant().toString(),
         (String) row.get("created_by_name"),
         ((Number) row.get("generated_ms")).intValue(),
-        scorecard);
+        scorecard,
+        handEdits((UUID) row.get("id")),
+        editedAssignmentIds((UUID) row.get("id")));
+  }
+
+  private int handEdits(UUID draftId) {
+    Integer count =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM audit_event WHERE action = 'edit_plan_draft'"
+                + " AND after ->> 'draftId' = ?",
+            Integer.class,
+            draftId.toString());
+    return count == null ? 0 : count;
+  }
+
+  private List<UUID> editedAssignmentIds(UUID draftId) {
+    return jdbc.queryForList(
+        "SELECT DISTINCT (a.after ->> 'assignmentId')::uuid FROM audit_event a"
+            + " JOIN plan_draft_assignment d ON d.id = (a.after ->> 'assignmentId')::uuid"
+            + " WHERE a.action = 'edit_plan_draft' AND a.after ->> 'draftId' = ?"
+            + " AND d.draft_id = ?",
+        UUID.class,
+        draftId.toString(),
+        draftId);
   }
 
   private PlannerViews.LastCommitted lastCommitted(Map<String, Object> row) {

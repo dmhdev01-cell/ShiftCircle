@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * The quarter-plan generator (ADR-026): a deterministic constructive heuristic over the next quarter.
@@ -180,6 +181,101 @@ public final class PlanGenerator {
   }
 
   /**
+   * Re-score an existing draft after a hand edit (release 7). It never generates or moves a shift:
+   * the caller supplies the edited assignment list. Warnings, gaps and the scorecard are rebuilt
+   * with the same helpers the generator uses, so an edit cannot invent a second scoring path.
+   */
+  public Result assess(
+      List<Employee> employees,
+      List<Unit> units,
+      Map<String, Template> templates,
+      Map<UUID, List<ShiftFact>> history,
+      String pattern8h,
+      Verifier verifier,
+      Map<UUID, Set<LocalDate>> leave,
+      Availability availability,
+      List<Assignment> assignments) {
+    long started = System.nanoTime();
+    Map<UUID, Employee> employeesById =
+        employees.stream().collect(Collectors.toMap(Employee::id, e -> e));
+    Map<UUID, Unit> unitsById = units.stream().collect(Collectors.toMap(Unit::id, u -> u));
+    Map<UUID, Template> templatesById =
+        templates.values().stream().collect(Collectors.toMap(Template::id, t -> t));
+
+    Map<UUID, List<ShiftFact>> facts = new HashMap<>();
+    history.forEach((employee, shifts) -> facts.put(employee, new ArrayList<>(shifts)));
+    Map<UUID, List<Assignment>> byEmployee = new HashMap<>();
+    List<Assignment> ordered =
+        assignments.stream()
+            .sorted(Comparator.comparing(Assignment::start).thenComparing(Assignment::employeeId))
+            .toList();
+    List<Warning> warnings = new ArrayList<>();
+    Set<String> warningKeys = new LinkedHashSet<>();
+    for (Assignment assignment : ordered) {
+      byEmployee.computeIfAbsent(assignment.employeeId(), key -> new ArrayList<>()).add(assignment);
+      Employee employee = employeesById.get(assignment.employeeId());
+      Unit unit = unitsById.get(assignment.unitId());
+      Template template = templatesById.get(assignment.templateId());
+      if (employee == null || unit == null || template == null) {
+        continue;
+      }
+      List<ShiftFact> current =
+          facts.computeIfAbsent(assignment.employeeId(), key -> new ArrayList<>());
+      Check check = verifier.check(employee, unit, template, assignment.start(), current);
+      for (RuleWarning warning : check.warnings()) {
+        addWarning(
+            warnings,
+            warningKeys,
+            employee.id().toString(),
+            warning,
+            unit.code(),
+            employee.name(),
+            assignment.date(),
+            template.code());
+      }
+      current.add(
+          new ShiftFact(
+              assignment.employeeId() + ":" + assignment.start(),
+              employee.employeeNo(),
+              unit.code(),
+              template.code(),
+              assignment.start(),
+              assignment.end(),
+              ShiftKind.ROSTERED,
+              0,
+              unit.allows12h(),
+              unit.allows16h()));
+    }
+    List<Gap> gaps = recomputeGaps(units, assignments, availability);
+    Map<UUID, List<Employee>> baseStaff = new HashMap<>();
+    employees.forEach(
+        employee ->
+            baseStaff.computeIfAbsent(employee.unitId(), key -> new ArrayList<>()).add(employee));
+    baseStaff.values().forEach(list -> list.sort(Comparator.comparing(Employee::seniority)));
+    Map<String, Object> scorecard =
+        scorecard(
+            employees,
+            units,
+            assignments,
+            byEmployee,
+            gaps,
+            warnings,
+            pattern8h,
+            started,
+            facts,
+            templates,
+            verifier,
+            assignBlocks(units, baseStaff),
+            leave,
+            availability);
+    return new Result(assignments, gaps, warnings, scorecard);
+  }
+
+  /**
+   * The date-aware overload: a unit closed on a day is skipped for that day (no requirement, no
+   * roster, no gaps). With no closures the answer is always true, so the 100/120 plans are
+   * unchanged.
+   */  /**
    * The date-aware overload: a unit closed on a day is skipped for that day (no requirement, no
    * roster, no gaps). With no closures the answer is always true, so the 100/120 plans are
    * unchanged.

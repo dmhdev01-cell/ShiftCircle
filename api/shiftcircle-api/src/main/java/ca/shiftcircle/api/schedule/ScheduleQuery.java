@@ -57,7 +57,7 @@ public class ScheduleQuery {
 
   public record ShiftItem(
       String type, UUID assignmentId, String shiftTemplate, String startAt, String endAt,
-      String kind, boolean worked, int version) {}
+      String kind, boolean worked, int version, boolean edited) {}
 
   public record DayCell(LocalDate date, List<ShiftItem> items) {}
 
@@ -232,7 +232,8 @@ public class ScheduleQuery {
                         format((java.sql.Timestamp) shift.get("end_at")),
                         (String) shift.get("kind"),
                         Boolean.TRUE.equals(shift.get("worked")),
-                        ((Number) shift.get("version")).intValue()));
+                        ((Number) shift.get("version")).intValue(),
+                        false));
           }
           List<DayCell> cells = new ArrayList<>();
           itemsByDay.forEach((date, items) -> cells.add(new DayCell(date, items)));

@@ -1,6 +1,7 @@
 package ca.shiftcircle.api.planner;
 
 import ca.shiftcircle.api.demo.DemoOperationLock;
+import ca.shiftcircle.api.rules.RuleCheckService;
 import ca.shiftcircle.api.schedule.ScheduleQuery;
 import ca.shiftcircle.api.security.ScopeGuard;
 import java.time.LocalDate;
@@ -31,12 +32,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class PlannerController {
 
   private final PlannerService planner;
+  private final PlanDraftEditService draftEdits;
   private final ScopeGuard scopeGuard;
   private final DemoOperationLock demoLock;
 
   public PlannerController(
-      PlannerService planner, ScopeGuard scopeGuard, DemoOperationLock demoLock) {
+      PlannerService planner,
+      PlanDraftEditService draftEdits,
+      ScopeGuard scopeGuard,
+      DemoOperationLock demoLock) {
     this.planner = planner;
+    this.draftEdits = draftEdits;
     this.scopeGuard = scopeGuard;
     this.demoLock = demoLock;
   }
@@ -99,6 +105,69 @@ public class PlannerController {
   }
 
   /** The Roster tab: the same shape as the planning board, built from the draft's own rows. */
+  @PostMapping("/drafts/{id}/assignment-checks")
+  public RuleCheckService.OutcomeView checkDraftAssignment(
+      @PathVariable UUID id, @RequestBody PlanDraftEditService.Input input) {
+    return draftEdits.check(id, input);
+  }
+
+  @PostMapping("/drafts/{id}/assignments")
+  public ResponseEntity<PlanDraftEditService.Result> addDraftAssignment(
+      @PathVariable UUID id,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody PlanDraftEditService.Input input) {
+    if (!demoLock.tryAcquire()) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "The draft is busy (a reset or generate is running). Try again in a moment.");
+    }
+    long token = demoLock.token();
+    try {
+      return ResponseEntity.status(HttpStatus.CREATED)
+          .body(draftEdits.add(id, input, version(ifMatch), scopeGuard.principal()));
+    } finally {
+      demoLock.release(token);
+    }
+  }
+
+  @PutMapping("/drafts/{id}/assignments/{assignmentId}")
+  public PlanDraftEditService.Result moveDraftAssignment(
+      @PathVariable UUID id,
+      @PathVariable UUID assignmentId,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch,
+      @RequestBody PlanDraftEditService.Input input) {
+    if (!demoLock.tryAcquire()) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "The draft is busy (a reset or generate is running). Try again in a moment.");
+    }
+    long token = demoLock.token();
+    try {
+      return draftEdits.move(id, assignmentId, input, version(ifMatch), scopeGuard.principal());
+    } finally {
+      demoLock.release(token);
+    }
+  }
+
+  @org.springframework.web.bind.annotation.DeleteMapping(
+      "/drafts/{id}/assignments/{assignmentId}")
+  public PlanDraftEditService.Result removeDraftAssignment(
+      @PathVariable UUID id,
+      @PathVariable UUID assignmentId,
+      @RequestHeader(value = "If-Match", required = false) String ifMatch) {
+    if (!demoLock.tryAcquire()) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "The draft is busy (a reset or generate is running). Try again in a moment.");
+    }
+    long token = demoLock.token();
+    try {
+      return draftEdits.remove(id, assignmentId, version(ifMatch), scopeGuard.principal());
+    } finally {
+      demoLock.release(token);
+    }
+  }
+
   @GetMapping("/drafts/{id}/schedule")
   public ScheduleQuery.SchedulePayload schedule(
       @PathVariable UUID id,

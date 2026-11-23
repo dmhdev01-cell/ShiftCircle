@@ -22,7 +22,9 @@ public final class PlannerViews {
       String createdAt,
       String createdBy,
       int generatedMs,
-      Map<String, Object> scorecard) {}
+      Map<String, Object> scorecard,
+      int handEdits,
+      List<UUID> editedAssignmentIds) {}
 
   public record LastCommitted(UUID draftId, String at, String by, int shiftsWritten) {}
 
