@@ -108,6 +108,7 @@ public final class PlanGenerator {
       LocalDate date,
       Instant start,
       Instant end,
+      ShiftKind kind,
       List<RuleWarning> warnings) {}
 
   public record RuleWarning(String ruleCode, String message) {}
@@ -241,7 +242,7 @@ public final class PlanGenerator {
               template.code(),
               assignment.start(),
               assignment.end(),
-              ShiftKind.ROSTERED,
+              assignment.kind(),
               0,
               unit.allows12h(),
               unit.allows16h()));
@@ -272,10 +273,6 @@ public final class PlanGenerator {
   }
 
   /**
-   * The date-aware overload: a unit closed on a day is skipped for that day (no requirement, no
-   * roster, no gaps). With no closures the answer is always true, so the 100/120 plans are
-   * unchanged.
-   */  /**
    * The date-aware overload: a unit closed on a day is skipped for that day (no requirement, no
    * roster, no gaps). With no closures the answer is always true, so the 100/120 plans are
    * unchanged.
@@ -363,7 +360,7 @@ public final class PlanGenerator {
             Assignment assignment =
                 new Assignment(
                     chosen.id(), chosen.name(), unit.id(), unit.code(), template.id(),
-                    template.code(), date, start, end, checkedWarnings);
+                    template.code(), date, start, end, ShiftKind.ROSTERED, checkedWarnings);
             assignments.add(assignment);
             byEmployee.computeIfAbsent(chosen.id(), k -> new ArrayList<>()).add(assignment);
             facts
@@ -425,7 +422,7 @@ public final class PlanGenerator {
           Assignment assignment =
               new Assignment(
                   employee.id(), employee.name(), unit.id(), unit.code(), template.id(),
-                  template.code(), date, start, end, check.warnings());
+                  template.code(), date, start, end, ShiftKind.ROSTERED, check.warnings());
           assignments.add(assignment);
           byEmployee.computeIfAbsent(employee.id(), key -> new ArrayList<>()).add(assignment);
           facts
@@ -858,7 +855,7 @@ public final class PlanGenerator {
             already.add(chosen.id());
             Assignment assignment = new Assignment(chosen.id(), chosen.name(), unit.id(),
                 unit.code(), chosenTemplate.id(), chosenTemplate.code(), date, start, end,
-                chosenCheck == null ? List.of() : chosenCheck.warnings());
+                ShiftKind.ROSTERED, chosenCheck == null ? List.of() : chosenCheck.warnings());
             assignments.add(assignment);
             byEmployee.computeIfAbsent(chosen.id(), k -> new ArrayList<>()).add(assignment);
             facts.computeIfAbsent(chosen.id(), k -> new ArrayList<>()).add(
@@ -980,6 +977,7 @@ public final class PlanGenerator {
                     date,
                     start,
                     end,
+                    ShiftKind.ROSTERED,
                     chosenCheck == null ? List.of() : chosenCheck.warnings());
             assignments.add(assignment);
             byEmployee.computeIfAbsent(chosen.id(), ignored -> new ArrayList<>()).add(assignment);

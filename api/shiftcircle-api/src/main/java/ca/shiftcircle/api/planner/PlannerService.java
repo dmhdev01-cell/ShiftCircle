@@ -348,6 +348,9 @@ public class PlannerService {
                     rs.getDate("work_date").toLocalDate(),
                     rs.getTimestamp("start_at").toInstant(),
                     rs.getTimestamp("end_at").toInstant(),
+                    "EXTRA".equals(rs.getString("kind"))
+                        ? ShiftKind.EXTRA
+                        : ShiftKind.ROSTERED,
                     List.of()),
             id);
     long started = System.nanoTime();

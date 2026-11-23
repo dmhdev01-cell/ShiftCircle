@@ -62,6 +62,7 @@ class PlanDraftEditApiTest {
     UUID draft = generate();
     String before = fingerprint(draft);
     int version = version(draft);
+    Map<String, Object> scorecardBefore = scorecard(draft);
 
     Map<String, Object> row = firstAssignment(draft);
     UUID assignmentId = (UUID) row.get("id");
@@ -101,12 +102,24 @@ class PlanDraftEditApiTest {
     assertThat(((Number) addedBody.get("handEdits")).intValue()).isEqualTo(2);
     assertThat(((List<?>) addedBody.get("editedAssignmentIds")).stream().map(Object::toString).toList()).contains(addedId.toString());
     assertThat(fingerprint(draft)).as("remove + add restores the no-edit plan").isEqualTo(before);
+    assertThat(scorecardOf(addedBody))
+        .as("a no-op edit reproduces the generated scorecard")
+        .isEqualTo(scorecardBefore);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM audit_event WHERE action = 'edit_plan_draft'",
                 Integer.class))
         .as("one audit row per edit")
         .isEqualTo(2);
+
+    // Generating again after those edits produces the unedited plan, byte for byte.
+    draft = generate();
+    version = version(draft);
+    assertThat(fingerprint(draft))
+        .as("generate after edits equals the unedited plan")
+        .isEqualTo(before);
+    row = firstAssignment(draft);
+    body = body(row);
 
     // A duplicate (employee, start) is a plain 409.
     HttpResponse<String> duplicate =
@@ -193,6 +206,27 @@ class PlanDraftEditApiTest {
     assertThat(kept.statusCode()).as(kept.body()).isEqualTo(200);
     version = ((Number) json(kept).get("version")).intValue();
 
+    // Reassign is a one-way move to another officer and records REASSIGN.
+    Map<String, Object> reassignRow = firstAssignment(draft);
+    Map<String, Object> reassignBody = findReassignTarget(draft, reassignRow);
+    assertThat(reassignBody).as("a reassignable spare officer exists").isNotNull();
+    HttpResponse<String> reassigned =
+        send(
+            "PUT",
+            "/api/v1/planner/drafts/" + draft + "/assignments/" + reassignRow.get("id"),
+            mapper.writeValueAsString(reassignBody),
+            planner,
+            version);
+    assertThat(reassigned.statusCode()).as(reassigned.body()).isEqualTo(200);
+    version = ((Number) json(reassigned).get("version")).intValue();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM audit_event WHERE action = 'edit_plan_draft'"
+                    + " AND after ->> 'kind' = 'REASSIGN'",
+                Integer.class))
+        .as("one reassign audit row")
+        .isEqualTo(1);
+
     Move blockMove = findBlockMove(draft);
     assertThat(blockMove).as("a blocked move exists").isNotNull();
     HttpResponse<String> blockedMove =
@@ -226,6 +260,44 @@ class PlanDraftEditApiTest {
   }
 
   private record Move(UUID assignmentId, String body) {}
+
+  @SuppressWarnings("unchecked")
+  private Map<String, Object> findReassignTarget(UUID draft, Map<String, Object> row)
+      throws Exception {
+    List<UUID> candidates =
+        jdbc.queryForList(
+            "SELECT e.id FROM employee e WHERE e.active AND e.id <> ?"
+                + " AND NOT EXISTS (SELECT 1 FROM plan_draft_assignment a"
+                + " WHERE a.draft_id = ? AND a.employee_id = e.id)"
+                + " ORDER BY e.employee_no LIMIT 8",
+            UUID.class,
+            row.get("employee_id"),
+            draft);
+    for (UUID candidate : candidates) {
+      Map<String, Object> body = new LinkedHashMap<>();
+      body.put("assignmentId", row.get("id"));
+      body.put("employeeId", candidate);
+      body.put("unitId", row.get("unit_id"));
+      body.put("shiftTemplate", row.get("template_code"));
+      body.put("startAt", ((Timestamp) row.get("start_at")).toInstant().toString());
+      body.put("kind", row.get("kind"));
+      HttpResponse<String> check =
+          send(
+              "POST",
+              "/api/v1/planner/drafts/" + draft + "/assignment-checks",
+              mapper.writeValueAsString(body),
+              planner,
+              null);
+      if (check.statusCode() != 200) continue;
+      List<Map<String, Object>> results =
+          (List<Map<String, Object>>) json(check).get("ruleResults");
+      if (results.stream().noneMatch(result -> "BLOCK".equals(result.get("outcome")))) {
+        body.put("acknowledgeWarnings", true);
+        return body;
+      }
+    }
+    return null;
+  }
 
   @SuppressWarnings("unchecked")
   private Move findBlockMove(UUID draft) throws Exception {
@@ -352,6 +424,29 @@ class PlanDraftEditApiTest {
   private int count(UUID draft) {
     return jdbc.queryForObject(
         "SELECT count(*) FROM plan_draft_assignment WHERE draft_id = ?", Integer.class, draft);
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<String, Object> scorecard(UUID draft) throws Exception {
+    Map<String, Object> body =
+        json(send("GET", "/api/v1/planner/drafts/" + draft, null, planner, null));
+    return scorecardOf(body);
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<String, Object> scorecardOf(Map<String, Object> body) {
+    Map<String, Object> card = new LinkedHashMap<>((Map<String, Object>) body.get("scorecard"));
+    card.remove("generatedMs");
+    Map<String, Object> warnings = (Map<String, Object>) card.get("warnings");
+    if (warnings != null) {
+      List<Map<String, Object>> byRule =
+          new ArrayList<>((List<Map<String, Object>>) warnings.get("byRule"));
+      byRule.sort(java.util.Comparator.comparing(rule -> String.valueOf(rule.get("ruleName"))));
+      Map<String, Object> normalized = new LinkedHashMap<>(warnings);
+      normalized.put("byRule", byRule);
+      card.put("warnings", normalized);
+    }
+    return card;
   }
 
   private String fingerprint(UUID draft) {

@@ -77,7 +77,7 @@ public class PlanDraftEditService {
 
   /** Preview: same rule results as a save, but nothing is written. */
   public RuleCheckService.OutcomeView check(UUID draftId, Input input) {
-    DraftRow draft = draft(draftId);
+    DraftRow draft = draft(draftId, false);
     requireDraft(draft);
     Edit edit = validate(draft, input.assignmentId(), input);
     return ruleCheck.evaluate(edit.proposed(), edit.existing());
@@ -85,7 +85,7 @@ public class PlanDraftEditService {
 
   @Transactional
   public Result add(UUID draftId, Input input, Integer ifMatch, AuthPrincipal principal) {
-    DraftRow draft = draft(draftId);
+    DraftRow draft = draft(draftId, true);
     requireDraft(draft);
     requireVersion(draft, ifMatch);
     Edit edit = validate(draft, null, input);
@@ -116,7 +116,7 @@ public class PlanDraftEditService {
   @Transactional
   public Result move(
       UUID draftId, UUID assignmentId, Input input, Integer ifMatch, AuthPrincipal principal) {
-    DraftRow draft = draft(draftId);
+    DraftRow draft = draft(draftId, true);
     requireDraft(draft);
     requireVersion(draft, ifMatch);
     Map<String, Object> before = assignment(draftId, assignmentId);
@@ -142,14 +142,16 @@ public class PlanDraftEditService {
       throw conflict("That officer already has a draft shift at that start time.");
     }
     bumpVersion(draftId);
-    audit(principal, draftId, assignmentId, "MOVE", before, edit.snapshot());
+    String kind =
+        before.get("employee_id").equals(edit.employeeId()) ? "MOVE" : "REASSIGN";
+    audit(principal, draftId, assignmentId, kind, before, edit.snapshot());
     return result(draftId, assignmentId);
   }
 
   @Transactional
   public Result remove(
       UUID draftId, UUID assignmentId, Integer ifMatch, AuthPrincipal principal) {
-    DraftRow draft = draft(draftId);
+    DraftRow draft = draft(draftId, true);
     requireDraft(draft);
     requireVersion(draft, ifMatch);
     Map<String, Object> before = assignment(draftId, assignmentId);
@@ -180,10 +182,11 @@ public class PlanDraftEditService {
       RuleCheckService.OutcomeView outcome,
       Map<String, Object> snapshot) {}
 
-  private DraftRow draft(UUID id) {
+  private DraftRow draft(UUID id, boolean lock) {
     List<DraftRow> rows =
         jdbc.query(
-            "SELECT id, version, status, pattern8h FROM plan_draft WHERE id = ?",
+            "SELECT id, version, status, pattern8h FROM plan_draft WHERE id = ?"
+                + (lock ? " FOR UPDATE" : ""),
             (rs, row) ->
                 new DraftRow(
                     rs.getObject("id", UUID.class),
