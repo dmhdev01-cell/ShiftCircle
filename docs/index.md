@@ -41,7 +41,8 @@ This page is plain Markdown with relative links. It reads on GitHub as it is. It
 - [Process records](process/):
   - [the brief](process/HANDOFF.md);
   - [AI-assisted development log](process/ai-dev-log.md);
-  - [review and QA rounds](process/review-rounds.md).
+  - [review and QA rounds](process/review-rounds.md);
+  - [release notes](process/release-notes.md).
 
 ## Licence
 
