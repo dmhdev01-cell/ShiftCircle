@@ -37,10 +37,10 @@ test.describe('draft hand edits', () => {
     const units = await planner.get<{ id: string; code: string }[]>('/planner/units');
     const unitEsc = units.find((unit) => unit.code === 'ESC')!;
     await page.getByRole('tab', { name: 'Roster' }).click();
-    await page.getByLabel('Unit').selectOption(unitEsc.id);
+    await page.getByLabel('Unit', { exact: true }).selectOption(unitEsc.id);
     await page.getByRole('button', { name: /for Wade Xu on 2027-01-04/ }).click();
     await page.getByRole('button', { name: 'Change time or unit…' }).click();
-    await page.getByLabel('Shift').selectOption('N8');
+    await page.getByLabel('Shift', { exact: true }).selectOption('N8');
     await page.getByRole('button', { name: 'Check and save' }).click();
     await expect(
       page.getByText(
@@ -54,12 +54,12 @@ test.describe('draft hand edits', () => {
     // The first save is refused as a Warn; keeping it saves with the
     // acknowledgement (dev-build's pinned recipe).
     const unitB = units.find((unit) => unit.code === 'B')!;
-    await page.getByLabel('Unit').selectOption(unitB.id);
+    await page.getByLabel('Unit', { exact: true }).selectOption(unitB.id);
     await page
       .getByRole('button', { name: /for Bram Beaulieu on 2027-01-06/ })
       .click();
     await page.getByRole('button', { name: 'Change time or unit…' }).click();
-    await page.getByLabel('Date').fill('2027-01-05');
+    await page.getByLabel('Date', { exact: true }).fill('2027-01-05');
     await page.getByRole('button', { name: 'Check and save' }).click();
 
     await expect(page.getByText(/U-\d+ · /).first()).toBeVisible();
