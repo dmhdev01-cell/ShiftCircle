@@ -48,7 +48,7 @@ public class DemoDataGenerator implements ApplicationRunner {
   // already averages 84 h per period for the 12-hour crews, 8% absences cannot be covered without
   // pushing overtime past the 3-6% band the same section asks for, so the rates are 2% + 2%:
   // the demo keeps real gaps and real overtime without breaking either target. Recorded in
-  // docs/ai-dev-log.md.
+  // docs/process/ai-dev-log.md.
   static final double SICK_RATE = 0.02;
   static final double VACATION_RATE = 0.02;
   static final Map<String, Integer> OFFICERS_PER_UNIT =

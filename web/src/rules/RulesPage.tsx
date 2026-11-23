@@ -59,7 +59,7 @@ const TABLE_NAMES: Record<string, string> = {
  * Only a rules admin edits and builds a draft; only a rules approver approves
  * and publishes (docs/09-access-control.md §2). The person who edited a
  * change cannot approve it: a second approver reviews the before-and-after and
- * the impact (HANDOFF.md §5.3).
+ * the impact (docs/process/HANDOFF.md §5.3).
  */
 export function RulesPage() {
   const { role, userName } = useRole();

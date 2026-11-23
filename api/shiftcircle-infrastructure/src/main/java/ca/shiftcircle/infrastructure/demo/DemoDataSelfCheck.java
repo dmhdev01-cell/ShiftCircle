@@ -325,8 +325,8 @@ public final class DemoDataSelfCheck {
     // 4-on-4-off crew works 84 h per two-week period, so 4 h is overtime before any absence is
     // covered; the 8-hour staff sit at exactly 80 h, which leaves no spare capacity. Covering the
     // absences with the documented 4-on-4-off rotation therefore lands around 7-8%. The check still
-    // fails loudly if overtime runs away, and the deviation is recorded in docs/ai-dev-log.md and
-    // raised with the orchestrator.
+    // fails loudly if overtime runs away, and the deviation is recorded in
+    // docs/process/ai-dev-log.md and raised with the orchestrator.
     if (ratio < 0.03 || ratio > 0.08) {
       violations.add(String.format("overtime %.2f%% outside the 3-8%% band", ratio * 100));
     }

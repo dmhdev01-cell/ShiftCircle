@@ -19,7 +19,7 @@ function versionSummary(state: ReturnType<typeof useVersion>['state']): string {
 
 /**
  * The footer shown on every screen (docs/ui/README.md §4). The disclaimer line
- * is required verbatim on every screen - see HANDOFF.md §5.8.
+ * is required verbatim on every screen - see docs/process/HANDOFF.md §5.8.
  */
 export function AppFooter() {
   const { state } = useVersion();

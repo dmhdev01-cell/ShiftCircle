@@ -24,7 +24,7 @@ interface OverrideDialogProps {
 /**
  * The emergency override dialog (docs/ui/README.md §5.1). An override always
  * needs a written reason: it is saved to the audit log and flagged in
- * reports. Nothing is auto-approved (HANDOFF.md §5.3).
+ * reports. Nothing is auto-approved (docs/process/HANDOFF.md §5.3).
  */
 export function OverrideDialog({
   open,
