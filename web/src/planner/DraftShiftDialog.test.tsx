@@ -255,6 +255,25 @@ describe('the draft shift dialog', () => {
     expect(onReload).toHaveBeenCalled();
   });
 
+  it('never shows raw error text on a generic failure', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, 'previewPlannerAssignment').mockResolvedValue(pass());
+    vi.spyOn(api, 'updatePlannerAssignment').mockRejectedValue(
+      new ApiError('Internal Server Error', 500, {
+        type: 'about:blank',
+        title: 'Internal Server Error',
+        status: 500,
+      }),
+    );
+    renderDialog();
+
+    await user.click(screen.getByRole('button', { name: 'Change time or unit…' }));
+    await user.click(screen.getByRole('button', { name: 'Check and save' }));
+
+    expect(screen.getByText('The change could not be saved.')).toBeInTheDocument();
+    expect(screen.queryByText('Internal Server Error')).not.toBeInTheDocument();
+  });
+
   it('uses the draft-changed words on a 412 and offers Reload', async () => {
     const user = userEvent.setup();
     vi.spyOn(api, 'previewPlannerAssignment').mockResolvedValue(pass());

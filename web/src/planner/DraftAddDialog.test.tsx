@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from '@mui/material/styles';
 
-import { api } from '../api/client';
+import { api, ApiError } from '../api/client';
 import type { OfficerRow, PlannerAssignmentResult, RuleCheckOutcome } from '../api/types';
 import { theme } from '../theme/theme';
 import { DraftAddDialog } from './DraftAddDialog';
@@ -130,6 +130,24 @@ describe('the add-to-draft dialog', () => {
       3,
       expect.objectContaining({ acknowledgeWarnings: true }),
     );
+  });
+
+  it('never shows raw error text on a generic failure', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, 'previewPlannerAssignment').mockResolvedValue(pass());
+    vi.spyOn(api, 'addPlannerAssignment').mockRejectedValue(
+      new ApiError('Internal Server Error', 500, {
+        type: 'about:blank',
+        title: 'Internal Server Error',
+        status: 500,
+      }),
+    );
+    renderDialog();
+
+    await user.click(screen.getByRole('button', { name: 'Check and save' }));
+
+    expect(screen.getByText('The change could not be saved.')).toBeInTheDocument();
+    expect(screen.queryByText('Internal Server Error')).not.toBeInTheDocument();
   });
 
   it('disables a unit on a day it is closed', async () => {

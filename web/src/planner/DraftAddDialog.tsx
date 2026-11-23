@@ -80,7 +80,7 @@ export function DraftAddDialog({
 
   const failure = (error: unknown) => {
     if (!(error instanceof ApiError)) {
-      setMessage(error instanceof Error ? error.message : SAVE_SENTENCE);
+      setMessage(SAVE_SENTENCE);
       return;
     }
     const problem = error.problem;
@@ -108,7 +108,7 @@ export function DraftAddDialog({
       setMessage(problem?.detail ?? BUSY_SENTENCE);
       return;
     }
-    setMessage(problem?.detail ?? problem?.title ?? error.message);
+    setMessage(problem?.detail ?? SAVE_SENTENCE);
   };
 
   const save = async (input: PlannerAssignmentInput, acknowledge: boolean) => {
