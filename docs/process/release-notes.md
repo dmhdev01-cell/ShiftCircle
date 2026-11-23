@@ -2,7 +2,7 @@
 
 What each release added, and the test counts at the time. These paragraphs used to sit in the README; the README now keeps only the current numbers. The author and review rounds behind each release are in [review-rounds.md](review-rounds.md), and the AI-assisted work in [ai-dev-log.md](ai-dev-log.md).
 
-Each release was built on its own branch, gated by dev-qa on the exact tip (web, API in two class orders, Playwright per viewport on a fresh stack, dataset checksums, payroll golden and plan fingerprints), and only then pushed to `main` by the operator.
+Each release was built on its own branch, gated by an independent QA seat on the exact tip (web, API in two class orders, Playwright per viewport on a fresh stack, dataset checksums, payroll golden and plan fingerprints), and only then pushed to `main` by the operator.
 
 ## Phase 3 final (before release 3)
 
@@ -18,7 +18,7 @@ Both are on `main` and are covered by every later gate.
 
 ## Release 3: unit closures, relief and the staffing estimate
 
-Adds dated unit closures, closed-unit relief and the staffing estimate, then Dataset 150. Authored as **450 = 123 + 27 + 300** in a clean default run before Dataset 150; its two 150 tests were green, web **313**. With no closure rows the 120/100 plan fingerprints and all checksums stayed identical, and 150 has its own pinned checksum and plan. dev-qa's first gate found a wall-display defect at `a0d4f6f`; the release passed at `09ed7ba` (R65, R66).
+Adds dated unit closures, closed-unit relief and the staffing estimate, then Dataset 150. Authored as **450 = 123 + 27 + 300** in a clean default run before Dataset 150; its two 150 tests were green, web **313**. With no closure rows the 120/100 plan fingerprints and all checksums stayed identical, and 150 has its own pinned checksum and plan. the QA seat's first gate found a wall-display defect at `a0d4f6f`; the release passed at `09ed7ba` (R65, R66).
 
 ## Release 4: preference headline, Not rostered, demo lock, U-16
 
@@ -39,3 +39,7 @@ A planner can add, move (time or unit), give to another officer, or remove one s
 ## Release 8: public repository (docs only)
 
 Screenshots from the gated build in the user guide, the repository made public (and renamed `ShiftCircle`), and small documentation corrections: the closure arithmetic behind 1,302, the `acknowledgeWarnings` types, ADR-030's note on `EXTRA` and the re-score, and comment-only path fixes. One test-only fix rode along: two tests (the reports override and the demo-data self-check) used the real clock; from 23 Nov the reports test failed on a clean tip because its override row fell outside the report window. Both now use fixed demo times. No test was added or removed, and no product code changed. Gate: API **464** in both orders, web **341**, Playwright and fixtures unchanged from release 7. Passed at `8b0df25`.
+
+## Release 10: neutral wording (docs only)
+
+The README no longer describes the repository's purpose beyond "a prototype", and the design-canvas sentence and two process-record wordings were reworded. No code, test or data change; counts as at release 9.

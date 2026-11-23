@@ -2,7 +2,7 @@
 
 A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervisors plan 8- and 12-hour shifts (a 16 h day is a 12 h shift plus an extension) against a **configurable rules engine** (rest and hours limits, consecutive shifts, staffing, qualifications, overtime). A planner builds a whole-quarter draft through the same engine, changes single shifts in it by hand, and commits it to the planning board. Employees see their schedule and hours and propose shifts. Time feeds a payroll export, and reports show coverage and overtime as planned vs. actual.
 
-> Built for the AI Solutions Architect screening assessment. **All data is synthetic.** Payroll and sign-on are simulated. The default demo seeds 100 fictional officers over 90 days; the About reset card can also load Dataset 120 and Dataset 150 for the quarter planner.
+> A prototype. **All data is synthetic.** Payroll and sign-on are simulated. The default demo seeds 100 fictional officers over 90 days; the About reset card can also load Dataset 120 and Dataset 150 for the quarter planner.
 
 > **Using it?** [INSTALL.md](INSTALL.md) sets it up and the [user guide](USER-GUIDE.md) explains each role. All documentation starts at [docs/index.md](docs/index.md).
 
@@ -33,13 +33,13 @@ Three containers: **web** (nginx + React) · **api** (Java 21 + Spring Boot 4.x 
 
 The build process is kept apart from the product docs, in [docs/process/](docs/process/):
 - [HANDOFF.md](docs/process/HANDOFF.md) is the brief the team worked from.
-- [ai-dev-log.md](docs/process/ai-dev-log.md) is the AI-assisted development log, an assessment requirement.
+- [ai-dev-log.md](docs/process/ai-dev-log.md) is the AI-assisted development log.
 - [review-rounds.md](docs/process/review-rounds.md) records every independent review and QA round.
 - [release-notes.md](docs/process/release-notes.md) says what each release added, with the test counts at the time.
 
 [BUILD_RECORD.md](BUILD_RECORD.md) is the two-page summary.
 
-**UI design:** six screens (planning board, my schedule, overtime board, rules admin, reports, wall display) are specified in `docs/ui/`. The original design canvas is a private Claude artifact owned by the project lead.
+**UI design:** six screens (planning board, my schedule, overtime board, rules admin, reports, wall display) are specified in `docs/ui/`.
 
 ## Setup (clean clone)
 
