@@ -14,6 +14,7 @@ Three containers: **web** (nginx + React) · **api** (Java 21 + Spring Boot 4.x 
 
 | Doc | What's in it |
 |---|---|
+| [INSTALL.md](INSTALL.md) | Standalone Docker-only install guide: prerequisites, secrets, start, health check, demo datasets and reset, upgrade, removal, troubleshooting |
 | [docs/01-scope-and-plan.md](docs/01-scope-and-plan.md) | Problem, users, outcomes, feature priorities, assumptions, plan, open questions |
 | [docs/02-requirements.md](docs/02-requirements.md) | Screens, functional and non-functional requirements, rules catalogue, data model, test cases |
 | [docs/03-architecture.md](docs/03-architecture.md) | Containers, layers, change flow, frontend, security |
