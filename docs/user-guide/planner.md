@@ -89,7 +89,7 @@ After **Check and save**:
 - **Warn:** nothing is saved yet. Read the warnings, then press **Keep the change with these warnings** if you want it. The shift then counts in **Rule warnings**.
 - **Block:** nothing is saved. In a draft there is no emergency override. Choose another officer or time, or leave the gap.
 
-After each save, the scorecard, gaps, warnings, Qualified staff and Staffing figures are worked out again for the whole draft. A shift you changed or added carries an **Edited** tag on the roster, and the draft note counts your hand edits ("{n} hand edits so far").
+After each save, the scorecard, gaps, warnings, Qualified staff and Staffing figures are worked out again for the whole draft. A shift you changed or added reads "· edited" on the roster, and the draft note counts your hand edits ("{n} hand edits so far").
 
 If you see "The draft changed since you opened it" or "This draft was committed or discarded", reload and try again.
 
