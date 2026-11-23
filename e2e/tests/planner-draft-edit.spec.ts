@@ -29,7 +29,6 @@ test.describe('draft hand edits', () => {
     await signIn(page, 'P. Planner');
     await page.getByRole('button', { name: 'Generate draft' }).click();
     await expect(page.getByText('Coverage gaps')).toBeVisible({ timeout: 60_000 });
-    const warningsBefore = await tileValue(page, 'Rule warnings');
 
     // Block: Wade Xu's D12 on Mon 4 Jan becomes an N8 the same day; the rules
     // refuse it and nothing is saved (dev-build's pinned UI-shaped move).
@@ -72,11 +71,17 @@ test.describe('draft hand edits', () => {
     await expect(page.getByText('1 hand edit so far.')).toBeVisible();
     await expect(page.getByText(/· edited/).first()).toBeVisible();
 
-    // The api's recomputed scorecard replaced the old figures.
+    // The page shows the api's recomputed scorecard, not a stale copy.
+    const current = await planner.get<{
+      draft: { scorecard: { warnings: { total: number }; coverage: { shortBlockDays: number } } };
+    }>('/planner/plan');
     await page.getByRole('tab', { name: 'Scorecard' }).click();
     await expect
       .poll(async () => tileValue(page, 'Rule warnings'))
-      .not.toBe(warningsBefore);
+      .toBe(String(current.draft.scorecard.warnings.total));
+    await expect
+      .poll(async () => tileValue(page, 'Coverage gaps'))
+      .toBe(String(current.draft.scorecard.coverage.shortBlockDays));
 
     // Remove the moved shift: no reason is asked for.
     await page.getByRole('tab', { name: 'Roster' }).click();
