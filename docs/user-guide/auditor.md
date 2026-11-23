@@ -44,7 +44,7 @@ An entry marked **Not allowed** is a refused attempt, for example a role trying 
 ## Planning board, Reports, Rules, Wall display
 
 - **Planning board:** see any unit's week.
-- **Reports:** Coverage, Hours, Overtime and Overrides.
+- **Reports:** Coverage, Hours, Overtime and Overrides, facility-wide by default; **From**, **To** and **Unit** narrow them to any range (up to 366 days) or one unit.
 - **Rules:** the published rules.
 - **Wall display:** what the unit office TV shows.
 

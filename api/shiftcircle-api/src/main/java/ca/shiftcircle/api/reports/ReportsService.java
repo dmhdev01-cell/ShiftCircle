@@ -357,7 +357,9 @@ public class ReportsService {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found");
     }
 
-    boolean facility = employeeRole || principal.hasRole("AUDITOR");
+    // The auditor reads the whole facility unless they pick a unit (FR-60/61/62).
+    boolean facility =
+        employeeRole || (principal.hasRole("AUDITOR") && (unitId == null || unitId.isBlank()));
 
     List<Object> hoursArgs = new ArrayList<>(List.of(from, to));
     if (!facility) {
@@ -640,7 +642,8 @@ public class ReportsService {
     validate(from, to);
 
     Scope scope = scope(principal, unitId);
-    boolean facility = principal.hasRole("AUDITOR");
+    // The auditor reads the whole facility unless they pick a unit (FR-60/61/62).
+    boolean facility = principal.hasRole("AUDITOR") && (unitId == null || unitId.isBlank());
     if (!facility && scope.unitIds().isEmpty()) {
       return List.of();
     }

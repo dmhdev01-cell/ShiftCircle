@@ -91,6 +91,105 @@ test.describe('reports', () => {
     await expect(page.getByText(/no (emergency )?overrides/i)).toBeVisible({ timeout: 5_000 });
   });
 
+  test('a supervisor picks a range and a unit in scope, and the reports and CSV follow', async ({ page }) => {
+    // S1 (FR-60/61/62 "any range"): the screen had no range or unit picker.
+    await signIn(page, 'M. Ellis');
+    await navTo(page, 'Reports');
+    await openTab(page, 'Hours');
+
+    // The inputs open on the report's own default: the last locked pay period.
+    const from = page.getByLabel('From', { exact: true });
+    const to = page.getByLabel('To', { exact: true });
+    await expect(from).toHaveValue('2026-10-26');
+    await expect(to).toHaveValue('2026-11-08');
+
+    // Only the units in M. Ellis's scope (A and B) are offered.
+    const unit = page.getByLabel('Unit', { exact: true });
+    await expect(unit.locator('option')).toHaveCount(3);
+    const labels = await unit.locator('option').allTextContents();
+    expect(labels[0]).toBe('All my units');
+    expect(labels.slice(1).every((label) => /^Unit [AB]\b/.test(label))).toBe(true);
+
+    // A reversed range is refused with a clear message, and nothing is asked.
+    await from.fill('2026-11-14');
+    await to.fill('2026-11-01');
+    await page.getByRole('button', { name: 'Apply' }).click();
+    await expect(page.getByRole('alert')).toHaveText('The To date must be on or after the From date.');
+
+    // A good range and Unit B: every report asks for it, and the CSV too.
+    await from.fill('2026-11-01');
+    await to.fill('2026-11-14');
+    const unitB = labels.find((label) => label.startsWith('Unit B'))!;
+    await unit.selectOption({ label: unitB });
+    const asked = page.waitForRequest(
+      (request) =>
+        request.url().includes('/api/v1/reports/hours?') &&
+        request.url().includes('from=2026-11-01') &&
+        request.url().includes('to=2026-11-14') &&
+        request.url().includes('unitId='),
+    );
+    await page.getByRole('button', { name: 'Apply' }).click();
+    await asked;
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    await expect(
+      page.getByRole('heading', { name: 'Hours by officer · 1 Nov 2026 – 14 Nov 2026' }),
+    ).toBeVisible();
+    await expect(page.getByText(`Every report covers 1 Nov 2026 – 14 Nov 2026 · ${unitB}`)).toBeVisible();
+
+    const exported = page.waitForRequest(
+      (request) =>
+        request.url().includes('/api/v1/reports/hours?') &&
+        request.url().includes('from=2026-11-01') &&
+        request.headers()['accept']?.includes('text/csv') === true,
+    );
+    const lines = await downloadCsv(page, 'Export CSV');
+    await exported;
+    expect(lines.length, 'the ranged hours CSV has a header and rows').toBeGreaterThan(1);
+
+    // Reset goes back to each report's default.
+    await page.getByRole('button', { name: 'Reset' }).click();
+    await expect(page.getByRole('heading', { name: /Hours by officer · pay period/ })).toBeVisible();
+    await expect(from).toHaveValue('2026-10-26');
+  });
+
+  test('the auditor narrows the overrides to a unit and a range', async ({ page }) => {
+    await signIn(page, 'A. Reviewer');
+    await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible();
+    await openTab(page, 'Overrides');
+    const lockdown = page.getByRole('row').filter({ hasText: 'Lockdown, relief unavailable' });
+    await expect(lockdown).toHaveCount(1);
+
+    const unit = page.getByLabel('Unit', { exact: true });
+    const labels = await unit.locator('option').allTextContents();
+    const unitA = labels.find((label) => label.startsWith('Unit A'))!;
+    const unitC = labels.find((label) => label.startsWith('Unit C'))!;
+
+    // The planted lockdown override is on Unit C: picking Unit A leaves it out.
+    await unit.selectOption({ label: unitA });
+    await page.getByRole('button', { name: 'Apply' }).click();
+    await expect(page.getByText(`Each report covers its own default range · ${unitA}`)).toBeVisible();
+    await expect(lockdown).toHaveCount(0);
+
+    // Unit C over 1–19 Nov has it; a range before it does not.
+    await unit.selectOption({ label: unitC });
+    await page.getByLabel('From', { exact: true }).fill('2026-11-01');
+    await page.getByLabel('To', { exact: true }).fill('2026-11-19');
+    await page.getByRole('button', { name: 'Apply' }).click();
+    await expect(lockdown).toHaveCount(1);
+    await page.getByLabel('From', { exact: true }).fill('2026-10-01');
+    await page.getByLabel('To', { exact: true }).fill('2026-10-15');
+    await page.getByRole('button', { name: 'Apply' }).click();
+    await expect(page.getByText('Every report covers 1 Oct 2026 – 15 Oct 2026', { exact: false })).toBeVisible();
+    await expect(lockdown).toHaveCount(0);
+
+    // A range longer than the api allows is refused before asking.
+    await page.getByLabel('From', { exact: true }).fill('2025-01-01');
+    await page.getByRole('button', { name: 'Apply' }).click();
+    await expect(page.getByRole('alert')).toHaveText(
+      'The range can be at most 366 days. Choose a shorter range.',
+    );
+  });
+
   test('the report in the address opens that report', async ({ page }) => {
     // D3 was here: the route is /reports/:tab but the page always opened on
     // Coverage (ReportsPage.tsx ignored the parameter).

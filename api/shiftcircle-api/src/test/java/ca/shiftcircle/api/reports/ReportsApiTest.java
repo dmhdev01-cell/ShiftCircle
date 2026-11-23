@@ -560,6 +560,35 @@ class ReportsApiTest {
         .isEqualTo(404);
   }
 
+  @Test
+  void theAuditorsUnitFilterNarrowsTheHoursAndOverridesReports() throws Exception {
+    // S1: the Reports screen's unit picker. The auditor reads the facility by default, but a
+    // chosen unit has to narrow every report, not only coverage and overtime.
+    String range = "?from=2026-10-01&to=2026-11-19";
+    String token = tokens.get("a.reviewer");
+
+    List<Map<String, Object>> overrides = jsonList(get("/api/v1/reports/overrides" + range, token, null));
+    assertThat(overrides)
+        .anySatisfy(row -> assertThat(row.get("reason")).isEqualTo("Lockdown, relief unavailable"));
+    List<Map<String, Object>> unitC =
+        jsonList(get("/api/v1/reports/overrides" + range + "&unitId=" + unitId("C"), token, null));
+    assertThat(unitC)
+        .isNotEmpty()
+        .allSatisfy(row -> assertThat(row.get("unitName")).isEqualTo("Unit C · Living unit"));
+    List<Map<String, Object>> unitA =
+        jsonList(get("/api/v1/reports/overrides" + range + "&unitId=" + unitId("A"), token, null));
+    assertThat(unitA)
+        .noneSatisfy(row -> assertThat(row.get("reason")).isEqualTo("Lockdown, relief unavailable"));
+
+    Map<String, Object> facility = json(get("/api/v1/reports/hours" + range, token, null));
+    Map<String, Object> unitAHours =
+        json(get("/api/v1/reports/hours" + range + "&unitId=" + unitId("A"), token, null));
+    assertThat(rows(unitAHours, "rows").size())
+        .as("Unit A hours are narrower than the facility")
+        .isLessThan(rows(facility, "rows").size())
+        .isPositive();
+  }
+
   private double queryHours(String sql, Object... args) {
     Map<String, Object> row = jdbc.queryForMap(sql, args);
     Object value = row.values().stream().filter(java.util.Objects::nonNull).findFirst().orElse(0);

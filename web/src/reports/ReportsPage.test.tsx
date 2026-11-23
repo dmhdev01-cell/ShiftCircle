@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
 import { api } from '../api/client';
+import { demoUsers } from '../api/fixtures/demoUsers';
+import { setActingUser } from '../api/session';
+import type { Unit } from '../api/types';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 
@@ -185,5 +188,160 @@ describe('the coverage report against the real api shape', () => {
       'aria-pressed',
       'true',
     );
+  });
+});
+
+describe('the report range and unit (FR-60/61/62)', () => {
+  const unit = (code: string): Unit => ({
+    id: `unit-${code}`,
+    code,
+    name: `Unit ${code}`,
+    kind: 'LIVING',
+    allows_12h: true,
+    allows_16h: false,
+  });
+
+  function withDemoToday() {
+    // The version endpoint carries the demo "today" the defaults count from.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: async () => ({ name: 'shiftcircle-api', asOf: '2026-11-19' }),
+      })),
+    );
+  }
+
+  function signInAs(name: string) {
+    setActingUser(demoUsers.find((user) => user.displayName === name) ?? null);
+  }
+
+  it("shows each report's default range in the inputs and asks for it as before", async () => {
+    withDemoToday();
+    const coverage = vi.spyOn(api, 'getCoverageReport');
+    const user = userEvent.setup();
+    renderReports();
+
+    const from = await screen.findByLabelText('From');
+    const to = screen.getByLabelText('To');
+    await waitFor(() => expect(from).toHaveValue('2026-10-12'));
+    expect(to).toHaveValue('2026-11-29');
+    expect(screen.getByText(/Each report covers its own default range/)).toBeInTheDocument();
+    // No range is sent until the person picks one: the demo numbers stay put.
+    expect(coverage).toHaveBeenCalledWith({ from: undefined, to: undefined, unitId: undefined });
+
+    // The Hours tab shows its own default: the last locked pay period.
+    await user.click(screen.getByRole('button', { name: 'Hours' }));
+    await waitFor(() => expect(from).toHaveValue('2026-10-26'));
+    expect(to).toHaveValue('2026-11-08');
+    await user.click(screen.getByRole('button', { name: 'Overtime' }));
+    expect(from).toHaveValue('2026-10-01');
+    expect(to).toHaveValue('2026-11-19');
+    coverage.mockRestore();
+  });
+
+  it('reads every report and the CSV for the chosen range and unit', async () => {
+    withDemoToday();
+    signInAs('M. Ellis');
+    vi.spyOn(api, 'getUnits').mockResolvedValue([unit('A'), unit('B'), unit('C')]);
+    const coverage = vi.spyOn(api, 'getCoverageReport');
+    const hours = vi.spyOn(api, 'getHoursReport');
+    const overtime = vi.spyOn(api, 'getOvertimeReport');
+    const overrides = vi.spyOn(api, 'getOverrides');
+    const exportCsv = vi.spyOn(api, 'exportReportCsv');
+    const user = userEvent.setup();
+    renderReports('/reports/overtime');
+
+    // The unit picker offers only the units in M. Ellis's scope (A and B).
+    const unitPicker = await screen.findByLabelText('Unit');
+    await waitFor(() =>
+      expect(within(unitPicker).getAllByRole('option').map((option) => option.textContent)).toEqual([
+        'All my units',
+        'Unit A',
+        'Unit B',
+      ]),
+    );
+
+    const from = screen.getByLabelText('From');
+    const to = screen.getByLabelText('To');
+    await user.clear(from);
+    await user.type(from, '2026-11-01');
+    await user.clear(to);
+    await user.type(to, '2026-11-14');
+    await user.selectOptions(unitPicker, 'unit-B');
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+    const wanted = { from: '2026-11-01', to: '2026-11-14', unitId: 'unit-B' };
+    await waitFor(() => expect(coverage).toHaveBeenLastCalledWith(wanted));
+    expect(hours).toHaveBeenLastCalledWith(wanted);
+    expect(overtime).toHaveBeenLastCalledWith(wanted);
+    expect(overrides).toHaveBeenLastCalledWith(wanted);
+    expect(screen.getByText(/Every report covers 1 Nov 2026 – 14 Nov 2026 · Unit B/)).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Overtime 1 Nov 2026 – 14 Nov 2026' }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+    await waitFor(() => expect(exportCsv).toHaveBeenLastCalledWith('overtime', wanted));
+
+    // The chosen range holds on another tab, and Reset goes back to the defaults.
+    await user.click(screen.getByRole('button', { name: 'Hours' }));
+    expect(
+      await screen.findByRole('heading', { name: 'Hours by officer · 1 Nov 2026 – 14 Nov 2026' }),
+    ).toBeInTheDocument();
+    expect(from).toHaveValue('2026-11-01');
+    await user.click(screen.getByRole('button', { name: 'Reset' }));
+    await waitFor(() =>
+      expect(hours).toHaveBeenLastCalledWith({ from: undefined, to: undefined, unitId: undefined }),
+    );
+    await waitFor(() => expect(from).toHaveValue('2026-10-26'));
+    expect(await screen.findByRole('heading', { name: /Hours by officer · pay period/ })).toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+
+  it('refuses a reversed or too long range with a clear message and asks for nothing', async () => {
+    withDemoToday();
+    const coverage = vi.spyOn(api, 'getCoverageReport');
+    const user = userEvent.setup();
+    renderReports();
+
+    const from = await screen.findByLabelText('From');
+    const to = screen.getByLabelText('To');
+    await waitFor(() => expect(from).toHaveValue('2026-10-12'));
+    const callsBefore = coverage.mock.calls.length;
+
+    await user.clear(from);
+    await user.type(from, '2026-12-01');
+    await user.clear(to);
+    await user.type(to, '2026-11-01');
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The To date must be on or after the From date.',
+    );
+    expect(from).toHaveAttribute('aria-invalid', 'true');
+
+    await user.clear(from);
+    await user.type(from, '2025-01-01');
+    await user.clear(to);
+    await user.type(to, '2026-11-01');
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The range can be at most 366 days. Choose a shorter range.',
+    );
+
+    await user.clear(to);
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Choose both a From and a To date.');
+    expect(coverage.mock.calls.length).toBe(callsBefore);
+    coverage.mockRestore();
+  });
+
+  it('has no unit picker for an account with no unit scope', async () => {
+    signInAs('T. Nakamura');
+    renderReports();
+    await screen.findByLabelText('From');
+    expect(screen.queryByLabelText('Unit')).not.toBeInTheDocument();
   });
 });

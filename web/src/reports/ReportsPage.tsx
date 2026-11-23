@@ -1,25 +1,39 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { api } from '../api/client';
+import { getSession, subscribeSession } from '../api/session';
 import type {
   CoverageReport,
   HoursReport,
   OvertimeReport,
   OverrideRow,
+  PayPeriod,
+  ReportQuery,
 } from '../api/types';
+import { useUnits } from '../api/useUnits';
+import { useVersion } from '../api/useVersion';
 import { ScrollShadows } from '../components/ScrollShadows';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
 import { CoverageChart } from './CoverageChart';
 import { OvertimeBars } from './OvertimeBars';
+import { defaultRange, rangeProblem, rangeWords, unitsInScope } from './reportRange';
+import type { DateRange, ReportTab } from './reportRange';
 
-type Tab = 'coverage' | 'hours' | 'overtime' | 'overrides';
+type Tab = ReportTab;
+
+/** What the reports are read for. No range means each report's own default. */
+interface ReportFilter {
+  range?: DateRange;
+  unitId: string;
+}
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'coverage', label: 'Coverage' },
@@ -106,6 +120,83 @@ export function ReportsPage() {
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
+  // FR-60/61/62: any range and any unit in scope. Until the person applies a
+  // range each report keeps its own default, and the inputs show that default.
+  const version = useVersion();
+  const asOf = version.state.status === 'ready' ? version.state.info.asOf : undefined;
+  const unitsState = useUnits();
+  const sessionUser = useSyncExternalStore(subscribeSession, getSession).user;
+  const scopedUnits = unitsInScope(unitsState.kind === 'ready' ? unitsState.units : [], sessionUser);
+  const [payPeriods, setPayPeriods] = useState<PayPeriod[]>([]);
+  const [filter, setFilter] = useState<ReportFilter>({ unitId: '' });
+  const [draftFrom, setDraftFrom] = useState<string | null>(null);
+  const [draftTo, setDraftTo] = useState<string | null>(null);
+  const [draftUnit, setDraftUnit] = useState('');
+  const [rangeError, setRangeError] = useState<string | null>(null);
+  const shownRange = filter.range ?? defaultRange(tab, asOf, payPeriods);
+  const fromValue = draftFrom ?? shownRange?.from ?? '';
+  const toValue = draftTo ?? shownRange?.to ?? '';
+  const query: ReportQuery = {
+    from: filter.range?.from,
+    to: filter.range?.to,
+    unitId: filter.unitId || undefined,
+  };
+  const unitName = scopedUnits.find((unit) => unit.id === filter.unitId)?.name;
+
+  // The hours default is a pay period; the list is only for the inputs, so a
+  // refusal leaves the hours inputs on the fallback range.
+  useEffect(() => {
+    let active = true;
+    api.getPayPeriods().then(
+      (periods) => {
+        if (active) setPayPeriods(periods);
+      },
+      () => undefined,
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // A new range or unit drops the old figures, so a report never shows numbers
+  // for a range other than the one the inputs name.
+  const clearReports = () => {
+    setCoverage(null);
+    setHours(null);
+    setOvertime(null);
+    setOverrides(null);
+  };
+
+  const applyFilter = () => {
+    const touched = draftFrom !== null || draftTo !== null || filter.range !== undefined;
+    if (touched) {
+      const problem = rangeProblem(fromValue, toValue);
+      if (problem) {
+        setRangeError(problem);
+        return;
+      }
+    }
+    setRangeError(null);
+    setMessage(null);
+    setFailed(false);
+    clearReports();
+    setFilter({
+      range: touched ? { from: fromValue, to: toValue } : undefined,
+      unitId: draftUnit,
+    });
+  };
+
+  const resetFilter = () => {
+    setDraftFrom(null);
+    setDraftTo(null);
+    setDraftUnit('');
+    setRangeError(null);
+    setMessage(null);
+    setFailed(false);
+    clearReports();
+    setFilter({ unitId: '' });
+  };
+
   const showTab = (next: Tab) => {
     setMessage(null);
     navigate(`/reports/${next}`, { replace: true });
@@ -123,26 +214,31 @@ export function ReportsPage() {
     const fail = () => {
       if (active) setFailed(true);
     };
-    void api.getCoverageReport({}).then((report) => {
+    const request: ReportQuery = {
+      from: filter.range?.from,
+      to: filter.range?.to,
+      unitId: filter.unitId || undefined,
+    };
+    void api.getCoverageReport(request).then((report) => {
       if (active) setCoverage(report);
     }, fail);
-    void api.getHoursReport({}).then((report) => {
+    void api.getHoursReport(request).then((report) => {
       if (active) setHours(report);
     }, fail);
-    void api.getOvertimeReport({}).then((report) => {
+    void api.getOvertimeReport(request).then((report) => {
       if (active) setOvertime(report);
     }, fail);
-    void api.getOverrides({}).then((rows) => {
+    void api.getOverrides(request).then((rows) => {
       if (active) setOverrides(rows);
     }, fail);
     return () => {
       active = false;
     };
-  }, [attempt]);
+  }, [attempt, filter]);
 
   const exportCsv = async () => {
     try {
-      const file = await api.exportReportCsv(tab, {});
+      const file = await api.exportReportCsv(tab, query);
       downloadCsv(file.fileName, file.content);
       setMessage(`The export ${file.fileName} is downloaded.`);
     } catch (error) {
@@ -223,6 +319,87 @@ export function ReportsPage() {
         </Box>
       </Box>
 
+      <Card>
+        <CardContent
+          component="form"
+          aria-label="Report range and unit"
+          noValidate
+          onSubmit={(event: { preventDefault: () => void }) => {
+            event.preventDefault();
+            applyFilter();
+          }}
+          sx={{ p: 4, display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 3 }}
+        >
+          <TextField
+            label="From"
+            type="date"
+            size="small"
+            value={fromValue}
+            error={rangeError !== null}
+            onChange={(event) => setDraftFrom(event.target.value)}
+            slotProps={{
+              inputLabel: { shrink: true },
+              htmlInput: { 'aria-describedby': rangeError ? 'report-range-error' : undefined },
+            }}
+          />
+          <TextField
+            label="To"
+            type="date"
+            size="small"
+            value={toValue}
+            error={rangeError !== null}
+            onChange={(event) => setDraftTo(event.target.value)}
+            slotProps={{
+              inputLabel: { shrink: true },
+              htmlInput: { 'aria-describedby': rangeError ? 'report-range-error' : undefined },
+            }}
+          />
+          {scopedUnits.length > 0 ? (
+            <TextField
+              select
+              label="Unit"
+              size="small"
+              value={draftUnit}
+              onChange={(event) => setDraftUnit(event.target.value)}
+              slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+              sx={{ minWidth: 200 }}
+            >
+              <option value="">All my units</option>
+              {scopedUnits.map((unit) => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.name}
+                </option>
+              ))}
+            </TextField>
+          ) : null}
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button type="submit" variant="contained" color="primary">
+              Apply
+            </Button>
+            <Button variant="outlined" color="primary" onClick={resetFilter}>
+              Reset
+            </Button>
+          </Box>
+          <Box sx={{ flexBasis: '100%', display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {rangeError ? (
+              <Typography
+                id="report-range-error"
+                role="alert"
+                sx={{ fontSize: 13, fontWeight: 600, color: colour.status.block.text }}
+              >
+                {rangeError}
+              </Typography>
+            ) : null}
+            <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
+              {filter.range
+                ? `Every report covers ${rangeWords(filter.range)}`
+                : "Each report covers its own default range"}
+              {` · ${unitName ?? 'All my units'}`}
+            </Typography>
+          </Box>
+        </CardContent>
+      </Card>
+
       {message ? (
         <Box
           role="status"
@@ -286,7 +463,9 @@ export function ReportsPage() {
           >
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
-                Hours by officer · pay period {hours?.period.label ?? ''}
+                {filter.range
+                  ? `Hours by officer · ${rangeWords(filter.range)}`
+                  : `Hours by officer · pay period ${hours?.period.label ?? ''}`}
               </Typography>
               <Box
                 component="span"
@@ -355,7 +534,12 @@ export function ReportsPage() {
       {tab === 'overtime' && !failed ? (
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'stretch' }}>
           <Box sx={{ flex: '2 1 340px', minWidth: 0 }}>
-            {overtime ? <OvertimeBars report={overtime} title="Overtime this quarter" /> : null}
+            {overtime ? (
+              <OvertimeBars
+                report={overtime}
+                title={filter.range ? `Overtime ${rangeWords(filter.range)}` : 'Overtime this quarter'}
+              />
+            ) : null}
           </Box>
           <Box sx={{ flex: '3 1 520px', minWidth: 0 }}>
             <Box
