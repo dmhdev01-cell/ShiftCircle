@@ -43,7 +43,7 @@ The build process is kept apart from the product docs, in [docs/process/](docs/p
 
 ## Setup (clean clone)
 
-Everything is on `main`: the API, all the screens, the mock sign-in, the quarter planner with draft edits, and the E2E suite. [INSTALL.md](INSTALL.md) is the full install guide; this section is the short version. The install steps were last run from a fresh clone of the public repository at `{R8-TIP}` on 2026-11-23. Anything not run is marked **UNVERIFIED**.
+Everything is on `main`: the API, all the screens, the mock sign-in, the quarter planner with draft edits, and the E2E suite. [INSTALL.md](INSTALL.md) is the full install guide; this section is the short version. The release 8 gate followed the install steps from a fresh clone of the public repository on 23 Nov 2026 (clone, start and health check), and checked the version endpoint on commit `8b0df25`. Anything not run is marked **UNVERIFIED**.
 
 ### Prerequisites
 
