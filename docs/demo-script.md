@@ -1,16 +1,26 @@
 # ShiftCircle demo script (≤ 5 minutes)
 
-**Status:** v0.4 · 2026-11-21 · follows `docs/process/HANDOFF.md` §10.
+**Status:** v0.5 · 2026-11-23 · follows `docs/process/HANDOFF.md` §10.
+
+**The recorded submission video is §1–6 only: 4 min 35 s, within the 5-minute limit.** §7 (the planner) is an **optional, separate walkthrough that is not part of the 5-minute video**; do not record it into the submission video.
+
+- **Wording and data re-checked 2026-11-23** against the current web code, the e2e specs (E1–E4) and the demo data on `main` (`efba3f7`): the Rules button reads **Build and check**; a first edit starts with **Start a draft** and a reason; the live rule set on a fresh stack is **v3**, so a publish makes it **v4**. No step in §1–6 uses **Propose shifts** or needs a draft quarter plan: everything starts from the default seeded data, so changes to the officer's Propose shifts screen and to how open shifts are shown don't alter the walk. Rehearse once after those changes merge.
 - **VERIFIED** means the step was done on the **real api**, in two independent walks by dev-qa. The first was in the browser from a clean clone at `17308b7` (R30). The final one was at the api level from a true clone of the merged `main` `3a4bbbd`, and every step worked. The exact figures below come from that final walk. The Playwright specs drive most of the same steps in a browser.
 - **The panel's wording differs slightly from the quotes here.** Read the words on the screen, not the script's.
 - The time budgets add up to 275 s, almost all of it narration. dev-qa timed the read calls on a warm stack at `3a4bbbd` (Docker Desktop, macOS, two runs each): sign-in 32 / 4 ms, rule-check preview 43 / 7 ms, planning board week 27 / 12 ms, open shifts 9 / 6 ms, the auditor's overrides 13 / 7 ms, 90-day coverage 20 / 15 ms, wall display 15 / 7 ms. The write steps (offer, accept, confirm, build, publish, export) weren't timed. In the walk each one completed interactively.
-- The phase 3 planner segment (§7) is newer: dev-design walked it on candidate 1 `99703a9`, re-walked it on candidate 2 `c2c8dba`, and re-checked steps 3 and 6 on candidate 3 `5d0f810` (its own note is in the mission folder, `P3-FINAL-VISUAL.md`).
+- The optional planner walkthrough (§7, not in the video) is newer: dev-design walked it on candidate 1 `99703a9`, re-walked it on candidate 2 `c2c8dba`, and re-checked steps 3 and 6 on candidate 3 `5d0f810` (its own note is in the mission folder, `P3-FINAL-VISUAL.md`).
 
 Rehearse every step anyway before recording.
 
 **The safeguard story in one line:** PC-01 (Nia) is a Block with **no way around it**. PC-03 (the lockdown) is the **legitimate emergency override**: a different rule whose policy allows one, used with a written reason and audited.
 
-**Setup before recording:** a clean `docker compose down -v` then `docker compose up -d --build --wait` (README § Setup) on the `demo` profile with seed `20261001` and "today" fixed at **Thu 19 Nov 2026**. A browser at `http://localhost:8080` (or `SC_WEB_PORT`) at 1440×900, zoom 100%. A second browser profile or private window keeps two users signed in, which saves sign-in time. Have a text editor ready to open the payroll CSV.
+**Pre-recording checklist** (about 5 minutes, do it before you press record):
+
+- [ ] **Fresh data.** Either a fresh stack (`docker compose down -v` on your own project, then `docker compose up -d --build --wait`, README § Setup) or, signed in as **P. Planner**, **About & version → Reset the demo data** with the default 100 dataset, `RESET`. The demo profile, seed `20261001`, "today" fixed at **Thu 19 Nov 2026**. A used stack has an old rule version and old offers, and the steps below won't match.
+- [ ] **Browser.** `http://localhost:8080` (or `SC_WEB_PORT`), window 1440×900, zoom 100%, notifications off, bookmarks bar hidden.
+- [ ] **Two profiles.** A second browser profile or private window, so **M. Ellis** and **T. Nakamura** are both signed in (§3). The other roles sign in and out in the main window.
+- [ ] **CSV viewer.** A text editor or spreadsheet ready to open the downloaded payroll CSV (§5).
+- [ ] **Rehearse** §1–6 once, reading the words on the screen, and time it.
 
 **Data used:** planted cases from `docs/10-testing.md` §6.6 and scenarios from §4: PC-01/T2, PC-08/T6, PC-03/T9, PC-05/T8. T3 and T7 are tests only and aren't shown on screen. If PC-02 is shown at all, show it only as a rule result (U-01 silent at exactly 8 h, U-02 WARN): its officer is also blocked by U-08 (10 consecutive days in the base roster), so don't try to assign them.
 
@@ -22,8 +32,8 @@ Rehearse every step anyway before recording.
 | 2:30–3:30 | 4. Rules admin: a rule change with no code change |
 | 3:30–4:15 | 5. Time, payroll and reports |
 | 4:15–4:35 | 6. What's real, what's simulated, next steps |
-
-About 25 s of slack is left for transitions.
+| **4:35 total** | **The submission video ends here.** About 25 s of slack to the 5:00 limit is left for transitions. |
+| (not in the video) | 7. Planner walkthrough, about 4 min, recorded separately if at all |
 
 ---
 
@@ -56,9 +66,9 @@ About 25 s of slack is left for transitions.
 
 | Do | Say (outline) | Status |
 |---|---|---|
-| Sign in as **L. Fraser** (Rules admin). Open **Rules → Rest between shifts**. Set **U-03** from **12 h** to **14 h** | A non-technical admin edits a decision table. The sentence below updates: "After a 16-hour shift, an officer must have at least 14 consecutive hours off…" | VERIFIED (E3 runs on the real api) |
-| Click **Build**. The checklist fills in: values checked → compiled by Drools → test scenarios pass → dry-run impact on the published roster. Then **Submit for approval** | It can't go live if any scenario fails. | VERIFIED. Read the real dry-run count off the screen at rehearsal |
-| Sign in as **P. Singh** (Rules approver). The review shows the before/after diff (~~12~~ **14**). Click **Approve**, then **Publish**. The live version goes from **v1 to v2** (on a fresh stack) | Maker/checker: the person who edits can't approve. The API and the database both refuse it. **No code change, no redeploy.** | VERIFIED: the build reported 6/6, L. Fraser approving their own draft gets 403, P. Singh approves and publishes, `/version` says v2 |
+| Sign in as **L. Fraser** (Rules admin). Open **Rules → Rest between shifts**. Set **U-03** (the **Minimum hours off for U-03** field) from **12 h** to **14 h** | A non-technical admin edits a decision table. The sentence below updates: "After a 16 h shift, an officer needs at least 14 hours off…" | VERIFIED (E3 runs on the real api) |
+| If there is no draft yet, enter a reason and click **Start a draft**. Click **Build and check**. The checklist fills in: values checked → compiled by Drools → test scenarios pass → dry-run impact on the published roster. Then **Submit for approval** | It can't go live if any scenario fails. | VERIFIED. Read the real dry-run count off the screen at rehearsal |
+| Sign in as **P. Singh** (Rules approver). The review shows the before/after diff (~~12~~ **14**). Click **Approve**, then **Publish**. The live version goes from **v3 to v4** (on a fresh stack) | Maker/checker: the person who edits can't approve. The API and the database both refuse it. **No code change, no redeploy.** | VERIFIED: the build reported 6/6, L. Fraser approving their own draft gets 403, P. Singh approves and publishes, `/version` reported the new live version (v1 to v2 at that time; v3 to v4 now, since the 8 h night-warning rule set was added) |
 
 ## 5. Time, payroll and reports (45 s) · T8, PC-05, T9, PC-03
 
@@ -83,11 +93,13 @@ Keep to that one sentence. The full list is in `BUILD_RECORD.md`.
 
 ---
 
-## 7. Planner: next quarter in seconds, checked by the same rules (about 4 min) · Phase 3
+## 7. OPTIONAL, NOT PART OF THE 5-MINUTE VIDEO. Planner: next quarter in seconds, checked by the same rules (about 4 min) · Phase 3
+
+> **Not in the submission video.** The recorded video is §1–6 (4:35). This section is a separate walkthrough, for a live demo or a second recording. It needs Dataset 120 and it commits a quarter plan, so run it on its own reset stack, never before or between §1–6 on the same data.
 
 **Status:** v0.4 · 2026-11-21 · dev-design. **Re-walked on candidate 2, p3-cand2 `c2c8dba`** (a clean worktree; my own stack, web 18085; dataset 120; Chromium at 1440×900), after v0.2 on `99703a9`. **Steps 3 and 6 re-checked on candidate 3, p3-cand3 `5d0f810`** (own stack, dataset 120; shots in `/private/tmp/sc-ui-shots/p3-cand3/visual/`). The walk was driven by `e2e/tests/p3-final-walk.spec.ts`, slowed to about human speed (350 ms per action), with a screenshot of every step in `/private/tmp/sc-ui-shots/p3-cand2/walk/`. It is a scripted browser walk, not a person at the keyboard, so rehearse it by hand before recording. Figures below are the ones measured on that walk (two runs).
 
-This is a separate segment after the 5-minute script, or it replaces segments 3–5 when the planner is the subject.
+It runs after the 5-minute script as its own walkthrough, or replaces segments 3–5 in a live session when the planner is the subject. It is not recorded into the submission video.
 
 **What the audience should take away:** a planner builds the whole next quarter in seconds. Every shift in it went through the same rules engine as the planning board. Where the rules and the staffing don't allow a shift, the plan leaves an honest gap rather than bending a rule. Supervisors then fill those gaps with the normal live rule check.
 
