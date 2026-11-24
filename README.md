@@ -139,6 +139,7 @@ GitHub Actions (`.github/workflows/ci.yml`, on pull requests and pushes to `main
 ./scripts/check-ignored-sources.sh
 
 # API: rules boundary tests, repository tests (Testcontainers PostgreSQL), API and authorization tests.
+# Takes about 15 minutes (measured at the release 11 gate); run it in the foreground and wait.
 # Needs the Docker socket; .env must exist because compose reads the whole file.
 # --build is required: compose otherwise reuses an old api-test image and a stale run can
 # report BUILD SUCCESS for a tip that never ran.
@@ -152,12 +153,13 @@ docker run --rm -v "$PWD/web":/app -w /app node:24-alpine \
 # 1. Install the test dependencies in a container (no Node on the host):
 docker run --rm -v "$PWD/e2e":/app -w /app node:24-alpine \
   sh -c "corepack enable && pnpm install --frozen-lockfile"
-# 2. Run the browser in a container. host.docker.internal reaches the host's port 8080 on
+# 2. Run the browser in a container. host.docker.internal reaches the host's web port (8080, or
+#    your SC_WEB_PORT: export it in this shell too, a value only in .env is not seen here) on
 #    Docker Desktop (macOS, Windows); --add-host makes the same name work on Linux.
 #    EXPECT_COMMIT is required: the suite refuses a stack built from any other commit
 #    (use the value you set as SC_GIT_COMMIT, or `git rev-parse --short HEAD`).
 docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
-  -e BASE_URL=http://host.docker.internal:8080 -e EXPECT_COMMIT=<the commit you built> \
+  -e BASE_URL=http://host.docker.internal:${SC_WEB_PORT:-8080} -e EXPECT_COMMIT=<the commit you built> \
   mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop-datasets
 ```
 
@@ -178,17 +180,17 @@ docker compose -p sc-test up -d --build --wait
 # other than the one you name, and refuses port 18080 (kept for a hand-run stack)
 # unless ALLOW_PERSON_STACK=yes.
 docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
-  -e BASE_URL=http://host.docker.internal:8080 -e EXPECT_COMMIT=<the commit you built> \
+  -e BASE_URL=http://host.docker.internal:${SC_WEB_PORT:-8080} -e EXPECT_COMMIT=<the commit you built> \
   mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop-datasets
 
 # tablet: the real-API specs change data, so a fresh stack per viewport
 docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait
 docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
-  -e BASE_URL=http://host.docker.internal:8080 -e EXPECT_COMMIT=<the commit you built> \
+  -e BASE_URL=http://host.docker.internal:${SC_WEB_PORT:-8080} -e EXPECT_COMMIT=<the commit you built> \
   mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project tablet-datasets
 ```
 
-`host.docker.internal` reaches the host from a container on Docker Desktop; the `--add-host` line makes the same name work on Docker Engine (run on macOS; on Linux it is **UNVERIFIED**, and `--network host` with `BASE_URL=http://localhost:8080` is the alternative). `E2E_WORKERS` (default 2) sets parallelism; `tests/screenshots.spec.ts` writes full-page captures and `index.json` to `SHOTS_DIR` (default `/private/tmp/sc-ui-shots/<RUN_ID>`, outside the repository: mount it the same way when the browser runs in Docker); the HTML report is `playwright-report/`. The fixtures-mode web and the `@api` / `@fixtures` tags are in `e2e/README.md`.
+**Port:** the e2e commands read `SC_WEB_PORT` from your shell and fall back to 8080. If you changed the port in `.env`, also `export SC_WEB_PORT=<port>` in the shell where you run them (or edit `BASE_URL`). `host.docker.internal` reaches the host from a container on Docker Desktop; the `--add-host` line makes the same name work on Docker Engine (run on macOS; on Linux it is **UNVERIFIED**, and `--network host` with `BASE_URL=http://localhost:${SC_WEB_PORT:-8080}` is the alternative). `E2E_WORKERS` (default 2) sets parallelism; `tests/screenshots.spec.ts` writes full-page captures and `index.json` to `SHOTS_DIR` (default `/private/tmp/sc-ui-shots/<RUN_ID>`, outside the repository: mount it the same way when the browser runs in Docker); the HTML report is `playwright-report/`. The fixtures-mode web and the `@api` / `@fixtures` tags are in `e2e/README.md`.
 
 **Count:** run on the release 11 tip (`5a3be22`, 24 Nov 2026), on a fresh stack per viewport:
 - API: **470 = 127 rules + 28 infrastructure + 315 api tests**, `mvn verify` green in the default class order, 0 failures/errors/skipped.
