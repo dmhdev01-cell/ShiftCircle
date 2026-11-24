@@ -121,6 +121,7 @@ Commit re-checks every shift, hand edits included, needs the warning list accept
 - L16 is retired: a 16 h shift is a 12 h shift plus an extension, and an old database still renders its history.
 - A late-recorded actual is not re-checked against shifts saved after it.
 - The Dataset 120 preferences headline excludes the 13 shift-less casuals instead of counting their wishes.
+- FR-06 is partial: publishing a period is recorded and shown on the board, but My schedule is not filtered by period status (the demo week is seeded DRAFT); see `docs/07-api-spec.md`.
 
 ### 4. Run the tests
 
