@@ -109,6 +109,8 @@ Reports has four tabs:
 - **Overtime:** overtime hours per officer.
 - **Overrides:** every emergency override, with its reason.
 
+Each tab opens on its own default range, shown in **From** and **To**. To read another range or one of your units, set **From**, **To** and **Unit**, then **Apply**: every tab and every export use that choice until you press **Reset**. To must be on or after From, and at most 366 days after it.
+
 **Export CSV** downloads the table. **Payroll export (CSV)** makes the simulated payroll file.
 
 <!-- No screenshot yet: desktop__supervisor__reports-coverage (no clean capture from the gated build) -->

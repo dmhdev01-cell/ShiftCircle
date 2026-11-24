@@ -444,11 +444,21 @@ class ReportsApiTest {
       "/api/v1/reports/coverage?from=2025-01-01&to=2026-12-31",
       "/api/v1/reports/hours?from=2025-01-01&to=2026-12-31",
       "/api/v1/reports/overtime?from=2025-01-01&to=2026-12-31",
-      "/api/v1/reports/overrides?from=2025-01-01&to=2026-12-31"
+      "/api/v1/reports/overrides?from=2025-01-01&to=2026-12-31",
+      // An expanded ISO year overflowed LocalDate in the range arithmetic and answered 500.
+      "/api/v1/reports/coverage?from=%2B999999999-12-31&to=%2B999999999-12-31",
+      "/api/v1/reports/hours?from=%2B999999999-12-31&to=%2B999999999-12-31",
+      "/api/v1/reports/overtime?from=%2B999999999-12-31&to=%2B999999999-12-31",
+      "/api/v1/reports/overrides?from=%2B999999999-12-31&to=%2B999999999-12-31",
+      "/api/v1/reports/overrides?from=%2B999999999-12-01&to=%2B999999999-12-31",
+      "/api/v1/reports/overrides?from=-999999999-01-01&to=-999999999-01-02"
     };
     for (String path : paths) {
       assertThat(get(path, tokens.get("a.reviewer"), null).statusCode())
           .as(path)
+          .isEqualTo(400);
+      assertThat(get(path, tokens.get("a.reviewer"), "text/csv").statusCode())
+          .as(path + " as CSV")
           .isEqualTo(400);
     }
   }
@@ -558,6 +568,35 @@ class ReportsApiTest {
     assertThat(get(hours + "&employeeId=" + outOfScope, tokens.get("m.ellis"), null).statusCode())
         .as("supervisor employee filter outside their units answers 404")
         .isEqualTo(404);
+  }
+
+  @Test
+  void theAuditorsUnitFilterNarrowsTheHoursAndOverridesReports() throws Exception {
+    // S1: the Reports screen's unit picker. The auditor reads the facility by default, but a
+    // chosen unit has to narrow every report, not only coverage and overtime.
+    String range = "?from=2026-10-01&to=2026-11-19";
+    String token = tokens.get("a.reviewer");
+
+    List<Map<String, Object>> overrides = jsonList(get("/api/v1/reports/overrides" + range, token, null));
+    assertThat(overrides)
+        .anySatisfy(row -> assertThat(row.get("reason")).isEqualTo("Lockdown, relief unavailable"));
+    List<Map<String, Object>> unitC =
+        jsonList(get("/api/v1/reports/overrides" + range + "&unitId=" + unitId("C"), token, null));
+    assertThat(unitC)
+        .isNotEmpty()
+        .allSatisfy(row -> assertThat(row.get("unitName")).isEqualTo("Unit C · Living unit"));
+    List<Map<String, Object>> unitA =
+        jsonList(get("/api/v1/reports/overrides" + range + "&unitId=" + unitId("A"), token, null));
+    assertThat(unitA)
+        .noneSatisfy(row -> assertThat(row.get("reason")).isEqualTo("Lockdown, relief unavailable"));
+
+    Map<String, Object> facility = json(get("/api/v1/reports/hours" + range, token, null));
+    Map<String, Object> unitAHours =
+        json(get("/api/v1/reports/hours" + range + "&unitId=" + unitId("A"), token, null));
+    assertThat(rows(unitAHours, "rows").size())
+        .as("Unit A hours are narrower than the facility")
+        .isLessThan(rows(facility, "rows").size())
+        .isPositive();
   }
 
   private double queryHours(String sql, Object... args) {

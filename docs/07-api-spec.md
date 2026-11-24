@@ -299,9 +299,11 @@ path (`POST /assignments`), so S-04 and the audit event still hold.
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
 | GET | `/reports/coverage?from=&to=&unitId=&groupBy=day\|week` | Required vs scheduled vs actual staff-hours and fill rate; each bucket carries `extraHours` and `extraHoursByBlock` (`DAY`, `EVENING`, `NIGHT`) for assignments of kind `EXTRA` or source `OVERTIME_OFFER`, plus `extraPercent` (the scheduled-percent points made of those hours: `extraHours / requiredHours * 100`, 0 if none), and the CSV adds `extra_hours,extra_day,extra_evening,extra_night`. The axis floor `axisFrom` includes `scheduledPercent - extraPercent` for every week, so the regular part is never clipped. `extraHours` is scheduled extra-shift hours, not payroll overtime | SUPERVISOR, AUDITOR |
-| GET | `/reports/hours?from=&to=&employeeId=` | Scheduled, worked, and hours by pay code per officer | SUPERVISOR, AUDITOR; EMPLOYEE (own only) |
-| GET | `/reports/overtime?from=&to=&top=` | Overtime hours by officer and unit | SUPERVISOR, AUDITOR |
-| GET | `/reports/overrides?from=&to=` | Emergency overrides with reasons | SUPERVISOR, AUDITOR |
+| GET | `/reports/hours?from=&to=&unitId=&employeeId=` | Scheduled, worked, and hours by pay code per officer | SUPERVISOR, AUDITOR; EMPLOYEE (own only) |
+| GET | `/reports/overtime?from=&to=&unitId=&top=` | Overtime hours by officer and unit | SUPERVISOR, AUDITOR |
+| GET | `/reports/overrides?from=&to=&unitId=` | Emergency overrides with reasons | SUPERVISOR, AUDITOR |
+
+A chosen `unitId` narrows every report; a supervisor may pick only a unit in their scope (404 otherwise), and an auditor reads the whole facility when none is given. Without `from`/`to` each report uses its own default range. `to` must not be before `from` and at most 366 days after it, and both must fall in the years 1900–2999; anything else answers 400.
 
 **CSV export:** each report answers `text/csv` on the same path when the request sends `Accept: text/csv`; the web's Export CSV button uses that. Columns: coverage `week, required_hours, scheduled_hours, actual_hours, scheduled_percent, actual_percent, planned`; hours `employee_no, name, scheduled, worked, regular, overtime_15, overtime_20, sick, vacation`; overtime `employee_no, name, overtime_hours`; overrides `at, employee, unit, rule_codes, actor, reason`. Cells are RFC 4180 quoted where needed and a leading `=`, `+`, `-`, `@`, TAB or CR is neutralised with a single quote, so a spreadsheet cannot evaluate a value as a formula.
 
