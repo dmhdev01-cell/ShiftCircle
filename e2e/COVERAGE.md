@@ -1,7 +1,7 @@
 # UI test coverage (Playwright, Chromium only)
 
 What the end-to-end suite covers, screen by role by state, and what it cannot.
-Written for the UI test plan, phase B (2026-11-20) and kept current since (24 Nov 2026: 42 spec files in the real-api run (43 in the folder; `keyboard.spec.ts` is fixtures-only); 110 parallel tests and 14 stack-wide tests (in 12 files) per viewport). Every row names the spec
+Written for the UI test plan, phase B (2026-11-20) and kept current since (24 Nov 2026: 42 spec files in the real-api run (43 in the folder; `keyboard.spec.ts` is fixtures-only); 110 parallel tests and 14 stack-wide tests (in 12 files) per viewport; v1.2 adds `planner-options`, a 15th stack-wide test). Every row names the spec
 that proves it. **Real api** means the compose stack; **fixtures** means the
 fixtures-mode web (tag `@fixtures`). Run against the real api with
 `--grep-invert @fixtures`, **one viewport per fresh stack** (the specs change
@@ -164,6 +164,7 @@ fixtures-only · **—** not coverable, with the reason.
 |---|---|---|---|
 | Generate, read, commit a quarter draft; a supervisor then changes one shift | planner, supervisor | planner | N |
 | Draft hand edits: a Block refuses, a Warn needs acknowledging, remove a shift, then commit | planner | planner-draft-edit (runs on fixtures and the real api) | N |
+| Plan options (v1.2): the landing offers them at their defaults, the draft says what it was made with, Generate again is filled in from the draft, and on Dataset 150 Fill up to FTE leaves less unused part-time capacity; axe on the options and the dialog | planner | planner-options (real api, stack-wide) | N |
 | Landing, scorecard, gaps pass axe; the commit dialog works by keyboard | planner | planner-a11y | N |
 | Committed plan keeps its tabs after a reload, with the FTE bands | planner | planner-committed | N |
 | Planned absences skip the officer and are counted on the scorecard | planner | planner-absences | N |

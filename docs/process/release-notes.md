@@ -74,3 +74,14 @@ Everything merged to `main` after tag `v1.0-submission` (`efba3f7`), through six
 Install-only change on top of v1.1: `install.sh` at the repo root (prerequisite checks, pinned clone, generated secrets never printed, `docker compose up -d --build --wait`, health checks, idempotent re-run, never `down -v`), a Quick install section in README and INSTALL, and a CI step running `bash -n` and shellcheck. No application, rules, data or test change; the v1.1 counts stand. Tag: `v1.1.1-submission`.
 
 **Release step:** after merge, tag the merge commit `v1.1.1-submission` and push the tag, then run `scripts/check-install-pin.sh --remote` and the README one-liner once from an empty directory (free port, own `SHIFTCIRCLE_PROJECT`).
+
+## Release 12 (v1.2, in progress): plan options for the quarter plan
+
+For the next release, not the v1.1.1 submission. The owner asked for "options to tailor the quarter plan. It really is a black box."
+
+**Quarter plan (planner)**
+- **Plan options** (PR-N): **Generate draft** and **Generate again** offer two options, each with one plain sentence. **Staff to include**: full-time officers are always in, and part-time and casual officers (below 1.0 FTE) can be left out. **Part-time fill**: *Fill gaps only (as before)*, or *Fill up to each officer's FTE*, which, after the gaps, gives each part-time officer shifts in their home unit where cover is thinnest, up to FTE × 80 h per pay period, through the same rule check. The API validates them (`400` problem detail naming the field), stores them on the draft (V14) and returns `options` with every draft summary. The draft shows "Made with: …", the part-time capacity line says how part-time officers were filled, and Generate again is filled in from the last draft.
+- **Measured** (seed 20261001): Dataset 150's unused part-time capacity goes from 3,515 h to 496 h with *Fill up to FTE*; gaps stay 100, warnings go from 39 to 77 (all Warn). Dataset 120: 5,472 h to 260 h, gaps 38, warnings 7 to 17. Full-time only: 156 gaps on 120, 687 on 150. Dataset 100 has no part-time officers. The table is in the planner guide §1.
+- **Not built, and why**: *units to plan* (the quarter commits once, so a partial-unit plan would lock the other units out); *honour preferences on/off* (built, measured, removed: no scorecard figure moved on any dataset); part-time and casual relief as separate choices (the data does not tell them apart). See `docs/process/ai-dev-log.md` #116.
+
+**Defaults unchanged:** with the options omitted or sent at their defaults, the 100/120/150 plan fingerprints, warning totals and row counts are identical (`GeneratorCharacterizationTest` now generates both ways). Dataset checksums and the payroll golden are unchanged. Commit, the rules and payroll are untouched.

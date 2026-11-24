@@ -16,7 +16,34 @@ You work in a **draft**. Nobody else sees it until you commit it.
 
 1. Open **Quarter plan**.
 2. Optionally enter a seed (a whole number). The same seed always gives the same plan.
-3. Press **Generate draft**. It takes a few seconds.
+3. Optionally change the **Plan options** (below). The defaults make the same plan as before.
+4. Press **Generate draft**. It takes a few seconds.
+
+### Plan options
+
+Two choices tailor how the plan is built. Each says in one sentence what it does, and the scorecard shows its effect.
+
+| Option | Choices | What it does |
+|---|---|---|
+| **Staff to include** | **Full-time officers** (always on) · **Part-time and casual officers** (on by default) | Untick part-time to see the plan the full-time crews make alone. Part-time officers are anyone below 1.0 FTE; in Datasets 120 and 150 that includes the casual relief pool. |
+| **Part-time fill** | **Fill gaps only (as before)** · **Fill up to each officer's FTE** | As before, a part-time officer gets a shift only where their home unit is still short after the full-time crews. *Fill up to FTE* then also gives each part-time officer shifts in their home unit where cover is thinnest, up to their FTE hours in each pay period, spread evenly through the period. It never takes a shift from a gap, and every shift passes the same rule check. |
+
+Under the status line, **Made with:** says what the draft was made with, for example "Made with: full-time and part-time officers · part-time filled up to FTE". **Generate again** opens with the last draft's options already filled in.
+
+What the options did on the demo data (seed 20261001, measured on 24 Nov 2026):
+
+| Dataset | Options | Gaps | Rule warnings | Unused part-time capacity | Shifts |
+|---|---|---|---|---|---|
+| 120 | defaults | 38 | 7 | 5,472 h | 5,103 |
+| 120 | fill up to FTE | 38 | 17 | 260 h | 5,667 |
+| 120 | full-time only | 156 | 6 | 6,720 h | 4,954 |
+| 150 | defaults | 100 | 39 | 3,515 h | 5,414 |
+| 150 | fill up to FTE | 100 | 77 | 496 h | 5,746 |
+| 150 | full-time only | 687 | 5 | 10,080 h | 4,691 |
+
+*Fill up to FTE* uses almost all part-time hours but does not close the remaining gaps: those are where no part-time officer can go (another unit, a block their crew doesn't cover, or a rule blocks it). The extra shifts add rule warnings, all of them Warn, never Block. Dataset 100 has no part-time officers, so the options change nothing there.
+
+![Plan options on the Quarter plan landing: Staff to include and Part-time fill, each choice with one sentence](img/planner-options-landing.png)
 
 The draft opens with four tabs: **Scorecard**, **Gaps (n)**, **Roster** and **Compare**.
 
@@ -50,7 +77,9 @@ Two of them need a note:
 - **Qualified staff:** this is a warning only. The planner does not enforce qualifications. Qualification start dates are not checked: an officer with a qualification counts as qualified for the whole quarter.
 - **Needed (at least):** a floor. Part-time and casual officers work fewer shifts, so a plan can still have gaps when the floor is met. The draft's own gaps are the real test.
 
-Under the tiles, a yellow **Unused part-time capacity** line says how many part-time hours the plan leaves unused, for example "Unused part-time capacity: 5,472 h. Part-time officers are planned 1,248 h of their 6,720 h target this quarter, while 38 block-days stay short." Part-time hours are not guaranteed: a part-time officer is planned only into shifts still open in their home unit, up to their FTE target.
+Under the tiles, a yellow **Unused part-time capacity** line says how many part-time hours the plan leaves unused, for example "Unused part-time capacity: 5,472 h. Part-time officers are planned 1,248 h of their 6,720 h target this quarter, while 38 block-days stay short." Part-time hours are not guaranteed: with the default fill, a part-time officer is planned only into shifts still open in their home unit, up to their FTE target. The line ends by saying how the draft filled part-time officers; with **Fill up to each officer's FTE** it drops sharply (Dataset 150: 3,515 h to 496 h).
+
+![Dataset 150 scorecard made with Fill up to FTE: Made with line under the status, 100 gaps, 77 warnings, unused part-time capacity 496 h](img/planner-scorecard-up-to-fte.png)
 
 ![Quarter plan scorecard on Dataset 120 with the yellow Unused part-time capacity line under the tiles](img/planner-scorecard-part-time.png)
 
@@ -127,7 +156,9 @@ If you see "The draft changed since you opened it" or "This draft was committed 
 - **Commit plan…** asks "Commit the quarter plan?". Then **Commit plan** writes the whole draft to the planning board, where supervisors and officers see it.
   - Commit checks every shift again, hand edits included.
   - If something changed since the draft was made, commit refuses with a reason ("Not committed: …"), and nothing is written.
-- **Generate again** replaces the draft. Press **Replace draft** to confirm. **Your hand edits are lost**; the confirm text says how many.
+- **Generate again** replaces the draft. The dialog shows the **Plan options** filled in from the current draft; change any, then press **Replace draft**. **Your hand edits are lost**; the confirm text says how many.
+
+![Replace this draft? dialog with the plan options filled in from the draft, Fill up to each officer's FTE chosen](img/planner-generate-again-options.png)
 - **Discard draft…** then **Discard draft** removes the draft and its hand edits. Nothing on the planning board changes.
 
 ![Quarter plan after commit: the Committed badge and a Plan committed box with a button to open each unit on the planning board](img/planner-committed.png)
