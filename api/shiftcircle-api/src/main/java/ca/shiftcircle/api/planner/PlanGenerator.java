@@ -34,6 +34,9 @@ public final class PlanGenerator {
 
   public static final LocalDate FROM = LocalDate.of(2027, 1, 4);
   public static final LocalDate TO = LocalDate.of(2027, 4, 11);
+
+  /** Committed shifts this many days before FROM are the history every proposal is checked against. */
+  public static final int HISTORY_DAYS = 35;
   public static final int PERIODS = 7;
 
   private static final ZoneId REGINA = ZoneId.of("America/Regina");

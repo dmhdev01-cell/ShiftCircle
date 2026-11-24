@@ -30,7 +30,7 @@ An accepted offer becomes your shift once the supervisor confirms it. When nothi
 ## Tell the planner your preferences
 
 The **My preferences** card has three choices:
-- **Shift length**;
+- **Shift length** (8 h, 12 h or no preference; a 16 h day is a 12 h shift plus an extension, so 16 h is not offered, and a 16 h wish saved earlier shows as "16 h (no longer offered)");
 - **Time of day** (pick any);
 - the days you'd like off.
 
