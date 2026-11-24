@@ -22,7 +22,7 @@ These notes don't redesign anything. Section 1 lists the changes the mockups nee
 | `L16` | 20:00–12:00 | `L16` | 16 h (grey, bordered) | "16 h shift" |
 
 - **`ShiftChip` takes the template code.** The three 8 h defaults show a single letter. Every other template, including new ones added on the Shift types table, shows its code. Keep that mapping in one place.
-- **Retired:** `D12`, `N12`, `OT`, `16 h OT`, "12-hour night/day", "16-hour double", "Doubles".
+- **Retired:** the mockups' old `D12`/`N12` meaning (V6 brought `D12` 07–19 and `N12` 19–07 back as real crew templates, with their own chips: deeper yellow and dark indigo), `OT`, `16 h OT`, "12-hour night/day", "16-hour double", "Doubles".
 - **Extra shifts** (`EXTRA`, picked up beyond the roster) show the template chip with `· extra`, for example `E · extra` or `L16 · extra`, styled `support.buffaloGrass`. Overtime is **never** a chip. It's the officer's pay-period status pill: Under, Approaching or In overtime (U-15, P-01).
 - **A double** (a rostered shift plus an extra shift back to back) shows as two chips in the cell, for example `D` then `E · extra`. There is no combined "double" chip.
 

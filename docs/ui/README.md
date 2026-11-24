@@ -48,7 +48,7 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 | `status.pass` | bg `#E3F0E8`, text `#046A38` | Green tint | Pass, eligible, locked/approved |
 | `status.info` | bg `#EEF0F2`, text `#444A50` | — | Info, skipped (neutral), over-staffed |
 | `status.under` | bg `#E8F1F8`, text `#00558C` | — | "Under" overtime threshold, coverage OK |
-| `status.ot` | bg `#E4F2CF`, text `#2F5206` | — | "In overtime" |
+| `status.ot` | bg `#FDE2D4`, text `#8A2C00` | Overtime orange | "In overtime" (and the Overtime board's "Offers sent"). Orange since PR-A (A4): the old green read as "good". |
 
 **Rule from the standard:** Living Skies `#41B6E6` and Canola can't be used together. Because Canola is the main button colour, Living Skies isn't used.
 
@@ -99,10 +99,12 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 ## 5. Screens
 
 ### 5.1 Planning board (supervisor) — `screens/Main.dc.html`
-- **Route:** `/planning?unit=&week=` · **API:** `GET /schedule`, `POST /rule-checks`, `POST/PATCH/DELETE /assignments`, `POST /schedule-periods/{id}/publish`
-- **Header:** title, unit and week, publish state ("Published, 3 unpublished changes"); unit select; Week / 2 weeks toggle; "Check all rules" (white); "Publish 3 changes" (yellow).
-- **KPI tiles:** coverage gaps, officers in overtime, approaching overtime, rule warnings, overrides this period.
-- **Roster grid:** columns = officer (name, rotation, qualifications) · pay-period hours with overtime status pill · 7 days (today highlighted; past days marked "Actual"). Top rows = coverage per block (Days / Evenings / Nights) showing `scheduled / required` plus actual or "gap 1" / "+1 over". Officer rows = shift chips (§3.2). Key/legend below.
+- **Route:** `/planning?unit=&week=&view=&density=` · **API:** `GET /schedule`, `POST /rule-checks`, `POST/PATCH/DELETE /assignments`, `POST /schedule-periods/{id}/publish`
+- **Header:** title, unit and range, publish state ("Published, 3 unpublished changes"); unit select; Previous / Next / Today; Rules help; "Publish period" (yellow).
+- **View and density (A1):** a **Week / Pay period / Month** toggle (`?view=period|month`; Week, the default, writes no param) and **Comfortable / Compact** (`?density=`; a week opens comfortable, a pay period or month compact). `?week=` (a Monday) stays the focus, so switching views keeps the dates and the planner's links still work; a malformed `?week=` falls back to the demo week. Pay periods are 14 days from 12 Oct 2026; a month is at most 31 days (the API limit).
+- **Publishing is per roster period.** The publish state and the Publish button show only when the range on screen is one `schedule_period` (always in Week; in Pay period only where the data has 14-day periods, as a committed 2027 plan does). Otherwise the header says "Spans two roster weeks" / "Spans several roster periods: open the Week view to see and publish each one" instead of a state.
+- **KPI tiles:** coverage gaps, officers in overtime, approaching overtime, rule warnings, overrides this period. Compact shows the same figures as one strip of chips; in Month the overtime note names the pay period of the first day, and overrides read "Overrides in view" (the API counts them over the range).
+- **Roster grid:** columns = officer (name, rotation, qualification badges) · **Shifts · h this view** · pay-period hours with overtime status pill · one column per day (today highlighted; past days marked "Actual"; weekends shaded; a heavier line before each Monday). Top rows = coverage per block (Days / Evenings / Nights) showing `scheduled / required` plus actual or "short 07–12" / "+1 over", as heat: blue met, yellow 1 under, orange 2+ under, grey over (compact shows only `3/5`). Officer rows = shift chips (§3.2); an empty day reads "Off" (compact "·"). Footer row = **On duty · hours** per day (shifts by their start day; offers and blocked proposals not counted). Key/legend below. The quarter planner's Roster tab uses the same grid.
 - **Rules help (button, top of the board):** opens a dialog with what Block / Warn / Info / Pass mean, how to use the rule check, and the main rules with their limits and results read live from the published rule tables (U-01 to U-14 and P-01, plus a link to the Rules screen for the roles that have one). The planner sees the outcomes and the usage line only.
 - **Rule check panel:** shows the selected or proposed change, an overall result banner ("Blocked: 2 rules fail"), each rule result (outcome pill, rule code and name, plain message, source and evidence shift), "9 other rules passed · rule tables v7". Actions: "Find eligible officer" (→ Overtime), Cancel, "Emergency override…" (opens a reason dialog, min 10 characters).
 - **Recent activity:** time-stamped audit lines.

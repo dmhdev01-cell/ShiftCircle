@@ -417,4 +417,117 @@ describe('the planning board', () => {
     ).toBeInTheDocument();
     vi.restoreAllMocks();
   });
+
+  describe('A1: pay period and month views, density and totals', () => {
+    it('keeps the week and the full tiles by default', async () => {
+      stubVersion();
+      renderBoard();
+      expect(await screen.findByText('16 – 22 Nov 2026')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Week' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('button', { name: 'Comfortable' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.queryByRole('list', { name: 'Board figures' })).not.toBeInTheDocument();
+      expect(screen.getByTestId('search').textContent).not.toContain('view=');
+    });
+
+    it('shows the pay period, compact, and walks it by periods', async () => {
+      stubVersion();
+      const schedule = vi.spyOn(api, 'getSchedule');
+      const user = userEvent.setup();
+      renderBoard('/planning?unit=unit-b');
+
+      await user.click(await screen.findByRole('button', { name: 'Pay period' }));
+      expect(await screen.findByText('9 – 22 Nov 2026')).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByTestId('search').textContent).toContain('view=period'));
+      expect(
+        schedule.mock.calls.some(([query]) => query.from === '2026-11-09' && query.to === '2026-11-22'),
+      ).toBe(true);
+      // A longer span opens compact: the figures are one strip of chips.
+      expect(screen.getByRole('button', { name: 'Compact' })).toHaveAttribute('aria-pressed', 'true');
+      const strip = screen.getByRole('list', { name: 'Board figures' });
+      expect(within(strip).getAllByRole('listitem')).toHaveLength(5);
+      expect(within(strip).getByText('Coverage gaps')).toBeInTheDocument();
+      expect(within(strip).getByText('In overtime')).toBeInTheDocument();
+      expect(screen.getByRole('group', { name: 'Pay period' })).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Next period' }));
+      expect(await screen.findByText('23 Nov – 6 Dec 2026')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Today' }));
+      expect(await screen.findByText('9 – 22 Nov 2026')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Today' })).toBeDisabled();
+      vi.restoreAllMocks();
+    });
+
+    it('opens a month from the address, at most 31 days', async () => {
+      stubVersion();
+      const schedule = vi.spyOn(api, 'getSchedule');
+      renderBoard('/planning?view=month&week=2026-12-07');
+
+      expect(await screen.findByText('1 – 31 Dec 2026')).toBeInTheDocument();
+      expect(
+        schedule.mock.calls.some(([query]) => query.from === '2026-12-01' && query.to === '2026-12-31'),
+      ).toBe(true);
+      expect(screen.getByRole('button', { name: 'Previous month' })).toBeInTheDocument();
+      vi.restoreAllMocks();
+    });
+
+    it('keeps a density choice in the address and switches back to the tiles', async () => {
+      stubVersion();
+      const user = userEvent.setup();
+      renderBoard('/planning?view=period');
+
+      await user.click(await screen.findByRole('button', { name: 'Comfortable' }));
+      await waitFor(() =>
+        expect(screen.getByTestId('search').textContent).toContain('density=comfortable'),
+      );
+      expect(screen.queryByRole('list', { name: 'Board figures' })).not.toBeInTheDocument();
+      // Back to the week: its own default density again.
+      await user.click(screen.getByRole('button', { name: 'Week' }));
+      await waitFor(() => expect(screen.getByTestId('search').textContent).not.toContain('density='));
+      expect(screen.getByTestId('search').textContent).not.toContain('view=');
+    });
+
+    it('never says "Not published" for a range that spans several roster periods', async () => {
+      stubVersion();
+      const user = userEvent.setup();
+      renderBoard('/planning?unit=unit-b');
+
+      // The week is one roster period: its state and the Publish action show.
+      expect(await screen.findByText('Not published')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Publish period' })).toBeInTheDocument();
+
+      // The fixture's two-week range is not one period (period: null).
+      await user.click(screen.getByRole('button', { name: 'Pay period' }));
+      expect(await screen.findByText('9 – 22 Nov 2026')).toBeInTheDocument();
+      expect(screen.getByTestId('publish-scope')).toHaveTextContent(
+        'Spans two roster weeks: open the Week view to see and publish each one',
+      );
+      expect(screen.queryByText('Not published')).not.toBeInTheDocument();
+      expect(screen.queryByText('Published')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Publish period' })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Month' }));
+      expect(await screen.findByText('1 – 30 Nov 2026')).toBeInTheDocument();
+      expect(screen.getByTestId('publish-scope')).toHaveTextContent(/^Spans several roster periods/);
+      // The month's figures say what they count.
+      const strip = screen.getByRole('list', { name: 'Board figures' });
+      expect(within(strip).getByText('Overrides in view')).toBeInTheDocument();
+      expect(within(strip).getByText(/pay period 26 Oct – 8 Nov 2026/)).toBeInTheDocument();
+    });
+
+    it('falls back to the demo week when ?week= is not a date', async () => {
+      stubVersion();
+      renderBoard('/planning?week=foo');
+      expect(await screen.findByText('16 – 22 Nov 2026')).toBeInTheDocument();
+    });
+
+    it('adds shifts and hours in view per officer, a day-totals footer and qualification badges', async () => {
+      renderBoard();
+      const roster = await screen.findByRole('region', { name: 'Roster, scrolls sideways' });
+      expect(within(roster).getByRole('columnheader', { name: /Shifts · h/ })).toBeInTheDocument();
+      expect(within(roster).getByRole('rowheader', { name: 'On duty · hours' })).toBeInTheDocument();
+      expect(within(roster).getAllByLabelText(/^\d+ shifts?, \d+(\.\d)? h in this view$/).length).toBeGreaterThan(0);
+      expect(within(roster).getAllByLabelText(/^\d+ on duty, \d+(\.\d)? h$/)).toHaveLength(7);
+      expect(within(roster).getAllByRole('img', { name: /^Qualified: / }).length).toBeGreaterThan(0);
+    });
+  });
 });

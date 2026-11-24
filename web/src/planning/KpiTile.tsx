@@ -11,6 +11,14 @@ interface KpiTileProps {
   tone?: 'warn' | 'pass' | 'block' | 'info';
   /** An optional status pill under the figure (the staffing floor's state). */
   pill?: { tone: 'warn' | 'pass' | 'info' | 'block'; text: string };
+  /**
+   * 'tile' (default) is the full card. 'chip' is the compact board's strip
+   * (A1): the same label, figure and note on one line, about a quarter of the
+   * height, so more roster rows fit above the fold.
+   */
+  variant?: 'tile' | 'chip';
+  /** Chip only: tint the chip as a warning (a gap count above zero). */
+  highlight?: boolean;
 }
 
 /** A KPI tile (docs/ui/README.md §5.1): a label, a figure and a note. */
@@ -21,7 +29,47 @@ const TONE_COLOUR = {
   info: colour.status.info.text,
 } as const;
 
-export function KpiTile({ label, value, note, tone, pill }: KpiTileProps) {
+export function KpiTile({ label, value, note, tone, pill, variant = 'tile', highlight = false }: KpiTileProps) {
+  if (variant === 'chip') {
+    return (
+      <Box
+        title={note ? `${label}: ${note}` : label}
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'baseline',
+          gap: 1,
+          maxWidth: '100%',
+          minHeight: 28,
+          boxSizing: 'border-box',
+          p: '3px 12px',
+          backgroundColor: highlight ? colour.status.warn.bg : colour.bg.surface,
+          border: `1px solid ${highlight ? '#E8CF55' : colour.border.default}`,
+          borderRadius: '999px',
+          fontSize: 12,
+          color: colour.text.secondary,
+        }}
+      >
+        <Box
+          className="num"
+          component="span"
+          sx={{ fontSize: 14, fontWeight: 700, color: tone ? TONE_COLOUR[tone] : colour.text.primary }}
+        >
+          {value}
+        </Box>
+        <Box component="span" sx={{ fontWeight: 600, color: colour.text.primary, whiteSpace: 'nowrap' }}>
+          {label}
+        </Box>
+        {note ? (
+          <Box
+            component="span"
+            sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}
+          >
+            · {note}
+          </Box>
+        ) : null}
+      </Box>
+    );
+  }
   return (
     <Box
       sx={{

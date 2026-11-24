@@ -6,9 +6,12 @@ import type { ReactNode } from 'react';
 import { AbsenceChip, OffChip, ShiftChip } from '../components/ShiftChip';
 import { ScrollShadows } from '../components/ScrollShadows';
 import { StatusPill } from '../components/StatusPill';
+import { qualificationLabel, qualificationShortLabel } from '../api/qualifications';
 import type { Block, CellItem, OfficerRow, SchedulePayload, ShiftItem } from '../api/types';
-import { colour } from '../theme/tokens';
+import { colour, grid } from '../theme/tokens';
 import { CoverageCell } from './CoverageCell';
+import { dayTotals, isWeekend, officerTotals, payPeriodOf, rangeWords } from './rosterView';
+import type { RosterDensity } from './rosterView';
 
 /** A chip and its words stay together when the key wraps. */
 function LegendItem({ children }: { children: ReactNode }) {
@@ -33,6 +36,12 @@ function dayLabel(date: string, today: string): { dow: string; day: string; tag:
   return { dow, day, tag };
 }
 
+function monthShort(date: string): string {
+  return new Intl.DateTimeFormat('en-CA', { month: 'short', timeZone: 'UTC' }).format(
+    new Date(`${date}T00:00:00Z`),
+  );
+}
+
 function overtimeTone(status: OfficerRow['overtimeStatus']) {
   if (status === 'IN_OVERTIME') return 'ot' as const;
   if (status === 'APPROACHING') return 'warn' as const;
@@ -45,7 +54,13 @@ function overtimeText(status: OfficerRow['overtimeStatus']): string {
   return 'Under';
 }
 
-interface RosterGridProps {
+/**
+ * The roster grid's props. PR-B (filters, sort, export) builds on `officers`
+ * and the totals helpers in `rosterView.ts`; everything else is optional and
+ * defaults to the original week board.
+ */
+export interface RosterGridProps {
+  /** The schedule for the days on screen (a week, a pay period or a month, up to 31 days). */
   payload: SchedulePayload;
   /** The demo "today". */
   today: string;
@@ -53,7 +68,19 @@ interface RosterGridProps {
   onEmptyCell?: (officer: OfficerRow, date: string) => void;
   /** Called when a shift chip is picked. */
   onPickChip?: (officer: OfficerRow, item: ShiftItem) => void;
-  /** A rule warning for a chip, shown as a ⚠ beside it (planner draft, A8). */
+  /**
+   * 'comfortable' (default) is the original board. 'compact' fits a pay period
+   * of officers on a laptop: smaller chips, coverage as heat cells, one-line
+   * officer cells and short qualification badges.
+   */
+  density?: RosterDensity;
+  /**
+   * The officer rows to show, in order (a filtered or sorted subset of
+   * `payload.officers`). Defaults to every officer in the payload's order. The
+   * day-totals footer sums the rows shown.
+   */
+  officers?: OfficerRow[];
+  /** A rule warning for a chip, shown as a ⚠ beside it (planner draft, A8; PR-C). */
   chipWarning?: (officer: OfficerRow, item: ShiftItem, date: string) => string | null;
 }
 
@@ -62,12 +89,14 @@ function CellChips({
   officerName,
   date,
   onPick,
+  compact = false,
   warningFor,
 }: {
   items: CellItem[];
   officerName: string;
   date: string;
   onPick?: (item: ShiftItem) => void;
+  compact?: boolean;
   warningFor?: (item: ShiftItem) => string | null;
 }) {
   if (items.length === 0) {
@@ -87,10 +116,11 @@ function CellChips({
               offer={item.offer ?? false}
               proposed={item.proposed ?? false}
               edited={item.edited ?? false}
+              compact={compact}
               onClick={onPick ? () => onPick(item) : undefined}
               context={`for ${officerName} on ${date}`}
             />
-            <ChipWarning message={warningFor?.(item) ?? null} />
+            <ChipWarning message={warningFor?.(item) ?? null} compact={compact} />
           </Fragment>
         ),
       )}
@@ -102,7 +132,7 @@ function CellChips({
  * A rule warning beside a chip: a ⚠ named by its message. It takes focus, and
  * its tooltip opens on focus as well as hover, so a keyboard user can read it.
  */
-function ChipWarning({ message }: { message: string | null }) {
+function ChipWarning({ message, compact = false }: { message: string | null; compact?: boolean }) {
   if (!message) return null;
   return (
     <Tooltip title={message} describeChild>
@@ -114,7 +144,7 @@ function ChipWarning({ message }: { message: string | null }) {
         sx={{
           display: 'inline-flex',
           alignItems: 'center',
-          height: 30,
+          height: compact ? 24 : 30,
           px: 0.5,
           fontSize: 14,
           lineHeight: 1,
@@ -130,68 +160,170 @@ function ChipWarning({ message }: { message: string | null }) {
   );
 }
 
+/** "10 · 100 h": shifts and hours, with up to two decimals only when needed. */
+function hoursWords(hours: number): string {
+  // Up to two decimals, so a quarter hour reads 7.25 h, not 7.3 h.
+  return `${Number.isInteger(hours) ? hours : Number(hours.toFixed(2))} h`;
+}
+
+/** The officer's qualifications as badges (A5), from `OfficerRow.qualifications`. */
+function QualificationBadges({ codes, compact }: { codes: string[]; compact: boolean }) {
+  if (codes.length === 0) return null;
+  return (
+    <Box
+      component="span"
+      sx={{ display: 'inline-flex', flexWrap: 'wrap', gap: 0.5 }}
+      aria-label={`Qualified: ${codes.map(qualificationLabel).join(', ')}`}
+      role="img"
+    >
+      {codes.map((code) => (
+        <Box
+          key={code}
+          component="span"
+          title={qualificationLabel(code)}
+          aria-hidden="true"
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            height: compact ? 16 : 18,
+            px: compact ? 0.75 : 1,
+            border: `1px solid ${colour.border.input}`,
+            borderRadius: '4px',
+            fontSize: compact ? 10 : 11,
+            fontWeight: 600,
+            color: colour.text.secondary,
+            backgroundColor: colour.bg.surface,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {compact ? qualificationShortLabel(code) : qualificationLabel(code)}
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
 /**
  * The roster grid (docs/ui/README.md §5.1): coverage per block above the
- * officer rows, seven day columns, and the shift key below.
+ * officer rows, one column per day on screen, a day-totals footer, and the
+ * shift key below. A1 additions: the density, the per-officer "shifts · h in
+ * this view" column, week separators, weekend shading and qualification
+ * badges. The planner's draft roster uses the same grid.
  */
-export function RosterGrid({ payload, today, onEmptyCell, onPickChip, chipWarning }: RosterGridProps) {
+export function RosterGrid({
+  payload,
+  today,
+  onEmptyCell,
+  onPickChip,
+  density = 'comfortable',
+  officers: shownOfficers,
+  chipWarning,
+}: RosterGridProps) {
+  const officers = shownOfficers ?? payload.officers;
   const threshold = payload.officers[0]?.payPeriodThreshold ?? 80;
+  const compact = density === 'compact';
+  const days = payload.days;
+  // The API reports the pay period that holds the first day. When the span
+  // runs past it (a month), the header names that period.
+  const firstPeriod = days.length > 0 ? payPeriodOf(days[0]) : null;
+  const spansPeriods = firstPeriod !== null && days[days.length - 1] > firstPeriod.to;
+
+  const cellPad = compact ? '2px 3px' : '8px';
+  const border = `1px solid ${colour.border.default}`;
+  const nameWidth = compact ? 150 : 165;
+
+  /** Today's tint, else the weekend shade; and the heavier line before a Monday. */
+  const dayStyle = (date: string, index: number) => ({
+    backgroundColor: date === today ? grid.today : isWeekend(date) ? grid.weekend : undefined,
+    borderLeft:
+      index > 0 && new Date(`${date}T00:00:00Z`).getUTCDay() === 1
+        ? `2px solid ${grid.weekSeparator}`
+        : undefined,
+  });
+
+  const stickyName = {
+    width: nameWidth,
+    minWidth: nameWidth,
+    position: 'sticky' as const,
+    left: 0,
+    zIndex: 1,
+    boxShadow: 'inset -1px 0 0 #E1E3E6',
+  };
+  const headStyle = {
+    padding: compact ? '4px 3px' : 8,
+    fontSize: compact ? 11 : 12,
+    fontWeight: 600,
+    color: colour.text.secondary,
+    backgroundColor: colour.bg.subtle,
+  };
 
   return (
     <Box sx={{ backgroundColor: colour.bg.surface, border: `1px solid ${colour.border.default}`, borderRadius: '10px' }}>
       <ScrollShadows
         label="Roster, scrolls sideways"
-        hint="Scroll sideways to see the rest of the week."
+        hint={
+          days.length <= 7
+            ? 'Scroll sideways to see the rest of the week.'
+            : 'Scroll sideways to see the rest of the days.'
+        }
       >
         <table
+          data-density={density}
           style={{
             width: '100%',
-            minWidth: 860,
+            minWidth: compact ? nameWidth + 150 + days.length * 40 : 860,
             borderCollapse: 'collapse',
-            fontSize: 13,
+            fontSize: compact ? 12 : 13,
           }}
         >
           <thead>
             <tr>
-              <th style={{ width: 165, minWidth: 165, textAlign: 'left', padding: 6, fontSize: 12, fontWeight: 600, color: colour.text.secondary, backgroundColor: colour.bg.subtle, position: 'sticky', left: 0, zIndex: 2, boxShadow: 'inset -1px 0 0 #E1E3E6' }}>
+              <th style={{ ...headStyle, ...stickyName, textAlign: 'left', padding: 6, zIndex: 2 }}>
                 Officer
               </th>
-              <th
-                style={{
-                  textAlign: 'left',
-                  padding: 8,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: colour.text.secondary,
-                  backgroundColor: colour.bg.subtle,
-                  whiteSpace: 'nowrap',
-                }}
-              >
+              <th style={{ ...headStyle, textAlign: 'left', whiteSpace: 'nowrap' }}>
+                Shifts · h
+                <br />
+                <span style={{ fontWeight: 500 }}>this view</span>
+              </th>
+              <th style={{ ...headStyle, textAlign: 'left', whiteSpace: 'nowrap' }}>
                 Pay period
                 <br />
                 <span style={{ fontWeight: 500 }}>
-                  of {threshold} h
+                  {spansPeriods && firstPeriod
+                    ? `${rangeWords(firstPeriod.from, firstPeriod.to)} · of ${threshold} h`
+                    : `of ${threshold} h`}
                 </span>
               </th>
-              {payload.days.map((date) => {
+              {days.map((date, index) => {
                 const label = dayLabel(date, today);
-                const isToday = date === today;
                 return (
                   <th
                     key={date}
                     style={{
-                      textAlign: 'left',
-                      padding: 8,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: colour.text.secondary,
-                      backgroundColor: isToday ? '#EAF3F9' : colour.bg.subtle,
+                      ...headStyle,
+                      textAlign: compact ? 'center' : 'left',
+                      ...dayStyle(date, index),
+                      backgroundColor: date === today ? grid.today : isWeekend(date) ? grid.weekend : colour.bg.subtle,
                     }}
                   >
-                    <span style={{ display: 'block', color: colour.text.primary }}>
-                      {label.dow} {label.day}
-                    </span>
-                    <span style={{ fontWeight: 500 }}>{label.tag}</span>
+                    {compact ? (
+                      <>
+                        <span style={{ display: 'block', color: colour.text.primary }}>{label.dow}</span>
+                        <span>
+                          {Number(label.day)}
+                          {index === 0 || label.day === '01' ? ` ${monthShort(date)}` : ''}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ display: 'block', color: colour.text.primary }}>
+                          {label.dow} {label.day}
+                          {days.length > 7 && (index === 0 || label.day === '01') ? ` ${monthShort(date)}` : ''}
+                        </span>
+                        <span style={{ fontWeight: 500 }}>{label.tag}</span>
+                      </>
+                    )}
                   </th>
                 );
               })}
@@ -207,31 +339,21 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip, chipWarnin
                 <tr key={block}>
                   <td
                     style={{
-                      width: 165,
-                      minWidth: 165,
+                      ...stickyName,
                       fontWeight: 600,
-                      padding: 8,
+                      padding: compact ? '3px 6px' : 8,
                       backgroundColor: colour.bg.subtle,
-                      borderBottom: `1px solid ${colour.border.default}`,
-                      position: 'sticky',
-                      left: 0,
-                      zIndex: 1,
-                      boxShadow: 'inset -1px 0 0 #E1E3E6',
+                      borderBottom: border,
                     }}
                   >
                     {label}
-                    <br />
-                    <span style={{ fontWeight: 500, fontSize: 12, color: colour.text.secondary }}>
+                    {compact ? ' ' : <br />}
+                    <span style={{ fontWeight: 500, fontSize: compact ? 11 : 12, color: colour.text.secondary }}>
                       needs {requirement}
                     </span>
                   </td>
-                  <td
-                    style={{
-                      backgroundColor: colour.bg.subtle,
-                      borderBottom: `1px solid ${colour.border.default}`,
-                    }}
-                  />
-                  {payload.days.map((date) => {
+                  <td colSpan={2} style={{ backgroundColor: colour.bg.subtle, borderBottom: border }} />
+                  {days.map((date, index) => {
                     const entry = payload.coverage.find(
                       (item) => item.block === block && item.date === date,
                     );
@@ -239,12 +361,13 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip, chipWarnin
                       <td
                         key={date}
                         style={{
-                          padding: 8,
-                          borderBottom: `1px solid ${colour.border.default}`,
-                          backgroundColor: date === today ? '#EAF3F9' : undefined,
+                          padding: cellPad,
+                          borderBottom: border,
+                          textAlign: compact ? 'center' : undefined,
+                          ...dayStyle(date, index),
                         }}
                       >
-                        {entry ? <CoverageCell block={entry} today={today} /> : null}
+                        {entry ? <CoverageCell block={entry} today={today} compact={compact} /> : null}
                       </td>
                     );
                   })}
@@ -252,109 +375,205 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip, chipWarnin
               );
             })}
 
-            {payload.officers.map((officer) => (
-              <tr key={officer.employeeId}>
-                <td
-                  style={{
-                    padding: 8,
-                    borderBottom: `1px solid ${colour.border.default}`,
-                    position: 'sticky',
-                    left: 0,
-                    zIndex: 1,
-                    backgroundColor: colour.bg.surface,
-                    boxShadow: 'inset -1px 0 0 #E1E3E6',
-                  }}
-                >
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Box component="span" sx={{ fontWeight: 600 }}>
-                      {officer.name}
-                    </Box>
-                    <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
-                      {officer.rotation}
-                    </Box>
-                  </Box>
-                </td>
-                <td style={{ padding: 8, borderBottom: `1px solid ${colour.border.default}` }}>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-start' }}>
-                    <Box className="num" sx={{ fontWeight: 600 }}>
-                      {officer.payPeriodHours} h
-                    </Box>
-                    <StatusPill tone={overtimeTone(officer.overtimeStatus)}>
-                      {overtimeText(officer.overtimeStatus)}
-                    </StatusPill>
-                  </Box>
-                </td>
-                {payload.days.map((date) => {
-                  const cell = officer.cells.find((entry) => entry.date === date);
-                  const items = cell?.items ?? [];
-                  const isToday = date === today;
-                  // A shift cannot be added to a day that has happened.
-                  const canAssign = date >= today && onEmptyCell !== undefined;
-                  return (
-                    <td
-                      key={date}
-                      data-officer-id={officer.employeeId}
-                      data-date={date}
-                      style={{
-                        padding: 8,
-                        borderBottom: `1px solid ${colour.border.default}`,
-                        backgroundColor: isToday ? '#EAF3F9' : undefined,
+            {officers.map((officer) => {
+              const totals = officerTotals(officer);
+              return (
+                <tr key={officer.employeeId}>
+                  <td
+                    style={{
+                      ...stickyName,
+                      padding: compact ? '2px 6px' : 8,
+                      borderBottom: border,
+                      backgroundColor: colour.bg.surface,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        flexDirection: compact ? 'row' : 'column',
+                        flexWrap: 'wrap',
+                        alignItems: compact ? 'center' : 'flex-start',
+                        columnGap: 1,
+                        rowGap: 0.5,
                       }}
                     >
-                      {items.length === 0 ? (
-                        // A day with nothing on it reads 'Off', and only a day
-                        // that has not happened yet can be assigned.
+                      <Box component="span" sx={{ fontWeight: 600, whiteSpace: compact ? 'nowrap' : undefined }}>
+                        {officer.name}
+                      </Box>
+                      {officer.rotation ? (
                         <Box
-                          component="button"
-                          type="button"
-                          disabled={!canAssign}
-                          onClick={() => onEmptyCell?.(officer, date)}
-                          aria-label={`Off - assign a shift to ${officer.name} on ${date}`}
-                          title={
-                            canAssign
-                              ? 'Assign a shift'
-                              : 'This day has already happened'
-                          }
+                          component="span"
                           sx={{
-                            minHeight: 30,
-                            px: 2,
-                            border: `1px dashed ${
-                              canAssign ? colour.border.input : 'transparent'
-                            }`,
-                            borderRadius: '6px',
-                            backgroundColor: 'transparent',
-                            color: colour.text.muted,
-                            fontFamily: 'inherit',
-                            fontSize: 12,
-                            cursor: canAssign ? 'pointer' : 'default',
-                            '&:hover, &:focus-visible': canAssign
-                              ? {
-                                  backgroundColor: colour.bg.linkHover,
-                                  borderColor: colour.brand.link,
-                                  color: colour.text.secondary,
-                                }
-                              : {},
+                            fontSize: compact ? 11 : 12,
+                            color: colour.text.secondary,
+                            ...(compact
+                              ? { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }
+                              : {}),
                           }}
+                          title={compact ? officer.rotation : undefined}
                         >
-                          Off
+                          {officer.rotation}
                         </Box>
-                      ) : (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                          <CellChips
-                            items={items}
-                            officerName={officer.name}
-                            date={date}
-                            onPick={onPickChip ? (item) => onPickChip(officer, item) : undefined}
-                            warningFor={chipWarning ? (item) => chipWarning(officer, item, date) : undefined}
-                          />
-                        </Box>
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+                      ) : null}
+                      <QualificationBadges codes={officer.qualifications ?? []} compact={compact} />
+                    </Box>
+                  </td>
+                  <td
+                    className="num"
+                    style={{ padding: compact ? '2px 6px' : 8, borderBottom: border, whiteSpace: 'nowrap', fontWeight: 600 }}
+                    aria-label={`${totals.shifts} ${totals.shifts === 1 ? 'shift' : 'shifts'}, ${hoursWords(totals.hours)} in this view`}
+                  >
+                    {totals.shifts} · {hoursWords(totals.hours)}
+                  </td>
+                  <td style={{ padding: compact ? '2px 6px' : 8, borderBottom: border }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        flexDirection: compact ? 'row' : 'column',
+                        gap: 1,
+                        alignItems: compact ? 'center' : 'flex-start',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <Box className="num" sx={{ fontWeight: 600 }}>
+                        {officer.payPeriodHours} h
+                      </Box>
+                      <StatusPill tone={overtimeTone(officer.overtimeStatus)} small={compact}>
+                        {overtimeText(officer.overtimeStatus)}
+                      </StatusPill>
+                    </Box>
+                  </td>
+                  {days.map((date, index) => {
+                    const cell = officer.cells.find((entry) => entry.date === date);
+                    const items = cell?.items ?? [];
+                    // A shift cannot be added to a day that has happened.
+                    const canAssign = date >= today && onEmptyCell !== undefined;
+                    return (
+                      <td
+                        key={date}
+                        data-officer-id={officer.employeeId}
+                        data-date={date}
+                        style={{
+                          padding: cellPad,
+                          borderBottom: border,
+                          textAlign: compact ? 'center' : undefined,
+                          ...dayStyle(date, index),
+                        }}
+                      >
+                        {items.length === 0 ? (
+                          // One Off style (A4): muted "Off" (a dot when compact)
+                          // on every empty day, past or future. A day that has
+                          // not happened yet is a button and shows its outline
+                          // on hover and focus.
+                          <Box
+                            component="button"
+                            type="button"
+                            disabled={!canAssign}
+                            onClick={() => onEmptyCell?.(officer, date)}
+                            aria-label={`Off - assign a shift to ${officer.name} on ${date}`}
+                            title={
+                              canAssign
+                                ? 'Assign a shift'
+                                : onEmptyCell
+                                  ? 'This day has already happened'
+                                  : 'Off'
+                            }
+                            sx={{
+                              // At least 24 × 24 px, the WCAG 2.2 target size.
+                              minHeight: compact ? 24 : 30,
+                              minWidth: compact ? 28 : undefined,
+                              px: compact ? 0.5 : 2,
+                              border: '1px solid transparent',
+                              borderRadius: '6px',
+                              backgroundColor: 'transparent',
+                              color: colour.text.muted,
+                              fontFamily: 'inherit',
+                              fontSize: 12,
+                              cursor: canAssign ? 'pointer' : 'default',
+                              '&:hover, &:focus-visible': canAssign
+                                ? {
+                                    backgroundColor: colour.bg.linkHover,
+                                    borderColor: colour.brand.link,
+                                    borderStyle: 'dashed',
+                                    color: colour.text.secondary,
+                                  }
+                                : {},
+                            }}
+                          >
+                            {compact ? '·' : 'Off'}
+                          </Box>
+                        ) : (
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: 0.5,
+                              justifyContent: compact ? 'center' : undefined,
+                              // A one-letter compact chip stays a readable block.
+                              ...(compact ? { '& > :not([role="img"])': { minWidth: 28 } } : {}),
+                            }}
+                          >
+                            <CellChips
+                              items={items}
+                              officerName={officer.name}
+                              date={date}
+                              compact={compact}
+                              onPick={onPickChip ? (item) => onPickChip(officer, item) : undefined}
+                              warningFor={chipWarning ? (item) => chipWarning(officer, item, date) : undefined}
+                            />
+                          </Box>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
+
+          <tfoot>
+            <tr>
+              <th
+                scope="row"
+                style={{
+                  ...headStyle,
+                  ...stickyName,
+                  textAlign: 'left',
+                  padding: compact ? '3px 6px' : 8,
+                  color: colour.text.primary,
+                  borderTop: `2px solid ${colour.border.default}`,
+                }}
+              >
+                On duty · hours
+              </th>
+              <td
+                colSpan={2}
+                style={{ ...headStyle, borderTop: `2px solid ${colour.border.default}` }}
+              />
+              {days.map((date, index) => {
+                const totals = dayTotals(officers, date);
+                return (
+                  <td
+                    key={date}
+                    className="num"
+                    aria-label={`${totals.onDuty} on duty, ${hoursWords(totals.hours)}`}
+                    style={{
+                      ...headStyle,
+                      textAlign: compact ? 'center' : 'left',
+                      borderTop: `2px solid ${colour.border.default}`,
+                      ...dayStyle(date, index),
+                      backgroundColor: date === today ? grid.today : isWeekend(date) ? grid.weekend : colour.bg.subtle,
+                    }}
+                  >
+                    <span style={{ display: 'block', color: colour.text.primary, fontWeight: 700 }}>
+                      {totals.onDuty}
+                    </span>
+                    <span style={{ fontWeight: 500, whiteSpace: 'nowrap' }}>{hoursWords(totals.hours)}</span>
+                  </td>
+                );
+              })}
+            </tr>
+          </tfoot>
         </table>
       </ScrollShadows>
 
@@ -406,7 +625,10 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip, chipWarnin
         <LegendItem>
           <AbsenceChip absenceType="VACATION" /> <span>Vacation</span>
         </LegendItem>
+        <span>{compact ? '· = off' : 'Off = no shift'}</span>
+        {compact ? <span>Ctl = Control · Esc = Escort · FA = First aid</span> : null}
         <span>✓ = worked (actual recorded)</span>
+        <span>Coverage: blue met · yellow 1 short · orange 2+ under · grey over</span>
         <span>Overtime = pay-period hours over {threshold} h (status pill)</span>
       </Box>
     </Box>

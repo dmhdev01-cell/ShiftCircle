@@ -51,8 +51,42 @@ export const colour = {
     pass: { bg: '#E3F0E8', text: '#046A38', border: undefined },
     info: { bg: '#EEF0F2', text: '#444A50', border: undefined },
     under: { bg: '#E8F1F8', text: '#00558C', border: undefined },
-    ot: { bg: '#E4F2CF', text: '#2F5206', border: undefined },
+    /** "In overtime": the overtime (orange) tone, so it never reads as a good green (A4). */
+    ot: { bg: '#FDE2D4', text: '#8A2C00', border: undefined },
   },
+} as const;
+
+/**
+ * Keyboard focus rings (WCAG 1.4.11, 3:1 against what they sit on). The
+ * theme's global ring is `onLight`; a ring drawn inside a dark (selected)
+ * control uses `onDark`.
+ */
+export const focusRing = {
+  /** Midnight Sky on white: 7.5:1. */
+  onLight: '#00558C',
+  /** Canola on Midnight Sky: 5.8:1. */
+  onDark: '#FBDD40',
+} as const;
+
+/**
+ * The roster grid's own surfaces (A1): today's column, weekend shading and the
+ * heavier line between weeks.
+ */
+export const grid = {
+  today: '#EAF3F9',
+  weekend: '#F1F2F4',
+  weekSeparator: '#9AA3AB',
+} as const;
+
+/**
+ * Coverage heat (A1): met, one short, two or more short, over. Text always
+ * carries the count as well, so status is never colour alone.
+ */
+export const coverageTones = {
+  ok: { bg: colour.status.under.bg, text: colour.status.under.text },
+  gap: { bg: colour.status.warn.bg, text: colour.status.warn.text },
+  gap2: { bg: '#F6B26B', text: '#3D2200' },
+  over: { bg: colour.status.info.bg, text: '#333333' },
 } as const;
 
 export interface ChipStyle {
@@ -80,6 +114,10 @@ export const shiftChipStyles: Record<string, ChipStyle> = {
   P12: { bg: '#D5E8F3', text: '#00558C' },
   /** 16 h 20:00-12:00, rostered. */
   L16: { bg: '#E1E3E6', text: '#333333', border: '#8E959C', borderStyle: 'solid' },
+  /** Day 12 h 07:00-19:00: a deeper yellow than the 8 h day (A4). */
+  D12: { bg: '#FBE08A', text: '#333333' },
+  /** Night 12 h 19:00-07:00: dark like the other nights, so day and night crews differ (A4). */
+  N12: { bg: '#2B3A67', text: '#FFFFFF' },
 };
 
 /** An extra shift picked up beyond the roster. */
