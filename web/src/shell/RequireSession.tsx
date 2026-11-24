@@ -8,9 +8,9 @@ import { getSession, subscribeSession } from '../api/session';
 /**
  * A protected route needs a session.
  *
- * The token lives in memory only (no localStorage: where a token is kept is a
- * decision the project has not made), so a full page reload or a deep link
- * arrives with no session. Without this guard the screens rendered and asked
+ * On prod-like the token lives in memory only (ADR-025), so a full page reload
+ * or a deep link arrives with no session; the demo profile keeps it in
+ * sessionStorage (ADR-025 amendment), so only a new tab or a signed-out visit does. Without this guard the screens rendered and asked
  * the api for data with no token: four 401s and page errors instead of the
  * sign-in screen (D11).
  *

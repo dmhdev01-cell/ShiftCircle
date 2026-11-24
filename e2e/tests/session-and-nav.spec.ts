@@ -197,7 +197,7 @@ test.describe('session and navigation', () => {
     ['Reports', '/reports/coverage', 'Reports'],
     ['Planning board', '/planning', 'Planning board'],
   ] as const) {
-    test(`a reload on ${path} lands on sign-in with a notice and no page errors`, async ({ page }) => {
+    test(`with no saved session, a reload on ${path} lands on sign-in with a notice and no page errors`, async ({ page }) => {
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
       await signIn(page, 'M. Ellis');
@@ -218,7 +218,7 @@ test.describe('session and navigation', () => {
 
     // M. Ellis lands on /planning anyway, so only another route can show a return.
     if (path === '/planning') continue;
-    test(`after a reload on ${path}, signing in returns to that screen`, async ({ page }) => {
+    test(`with no saved session, after a reload on ${path}, signing in returns to that screen`, async ({ page }) => {
       await signIn(page, 'M. Ellis');
       await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: link }).click();
       await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible();

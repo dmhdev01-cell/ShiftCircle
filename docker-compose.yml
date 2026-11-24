@@ -49,7 +49,11 @@ services:
     networks: [shiftcircle]
 
   web:
-    build: ./web
+    build:
+      context: ./web
+      args:
+        # ADR-025 amendment: set to false to build without demo session persistence.
+        VITE_PERSIST_DEMO_SESSION: ${VITE_PERSIST_DEMO_SESSION:-}
     ports:
       # Host port is configurable because the reviewer's machine may already use 8080.
       # Loopback only: the demo has mock sign-in and a destructive reset, so it must not be

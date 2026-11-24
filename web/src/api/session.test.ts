@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   enableSessionPersistence,
@@ -15,6 +15,14 @@ const user = { id: 'u1', displayName: 'M. Ellis', username: 'm.ellis', roles: ['
 
 describe('session persistence (ADR-025 amendment)', () => {
   beforeEach(() => resetSession());
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('the build-time kill switch keeps it memory-only even on the demo', () => {
+    vi.stubEnv('VITE_PERSIST_DEMO_SESSION', 'false');
+    enableSessionPersistence();
+    setSession('t1', user);
+    expect(window.sessionStorage.getItem(KEY)).toBeNull();
+  });
 
   it('stays memory-only unless the demo profile enabled persistence', () => {
     setSession('t1', user);

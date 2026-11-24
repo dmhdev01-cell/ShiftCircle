@@ -52,7 +52,7 @@ one transaction (ADR-026).
 - **Honest limits:**
   - **No human reviewed the rule boundary tests:** the lead waived guardrail 4 on 2026-11-20 and AI verifiers reviewed them (R4–R7).
   - **Locked periods:** time entries are guarded by the api and a trigger, but shifts only by the api: a raw SQL `UPDATE` can still cancel one (R38); the audit table is append-only by trigger. Rule ranges are sanity bounds: 280 of 297 hostile values were refused, but a legal wrong value (e.g. a 0.5 h overtime threshold) is caught only by maker/checker, the scenarios and the dry run (R40).
-  - **Tokens and scope:** 8 h, no revocation, memory-only (ADR-025); mock issuer; nginx root. **Not built:** Excel round-trip, employee planner/proposals, offer withdrawal, payroll-clerk role, arrow-key nav, OpenAPI (docs/10).
+  - **Tokens and scope:** 8 h, no revocation, memory-only on prod-like, sessionStorage on the demo (ADR-025); mock issuer; nginx root. **Not built:** Excel round-trip, employee planner/proposals, offer withdrawal, payroll-clerk role, arrow-key nav, OpenAPI (docs/10).
   - **Planner:** qualifications warn-only (Release 6 card); no leave seeded (the absence input is a read-only skip); overtime per period (P-01); a late actual not re-checked; 14 of 20 zero-shift casuals read MET and 5 PARTLY (dev-qa; candidate 4 not built); the commit audit stores the warning count, not the list (F8); U-14 passes at exactly 60.00 h (docs/05, docs/10).
 
 ## 6. Next steps (pilot)
