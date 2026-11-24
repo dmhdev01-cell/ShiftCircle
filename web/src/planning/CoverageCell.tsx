@@ -75,6 +75,7 @@ export function CoverageCell({ block, today, compact = false }: CoverageCellProp
         component="span"
         className="num"
         title={title}
+        role="img"
         aria-label={`${lowest} of ${block.required}. ${title}`}
         sx={{
           display: 'inline-block',

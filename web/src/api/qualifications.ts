@@ -17,11 +17,11 @@ export const qualificationShortNames: Record<string, string> = {
 };
 
 export function qualificationLabel(code: string): string {
-  return qualificationNames[code] ?? code;
+  return Object.hasOwn(qualificationNames, code) ? qualificationNames[code] : code;
 }
 
 export function qualificationShortLabel(code: string): string {
-  return qualificationShortNames[code] ?? code;
+  return Object.hasOwn(qualificationShortNames, code) ? qualificationShortNames[code] : code;
 }
 
 /** The qualifications of an officer, in words. */
