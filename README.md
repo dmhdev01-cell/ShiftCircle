@@ -190,13 +190,13 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
 
 `host.docker.internal` reaches the host from a container on Docker Desktop; the `--add-host` line makes the same name work on Docker Engine (run on macOS; on Linux it is **UNVERIFIED**, and `--network host` with `BASE_URL=http://localhost:8080` is the alternative). `E2E_WORKERS` (default 2) sets parallelism; `tests/screenshots.spec.ts` writes full-page captures and `index.json` to `SHOTS_DIR` (default `/private/tmp/sc-ui-shots/<RUN_ID>`, outside the repository: mount it the same way when the browser runs in Docker); the HTML report is `playwright-report/`. The fixtures-mode web and the `@api` / `@fixtures` tags are in `e2e/README.md`.
 
-**Count:** the last full independent gate was at `8b0df25` (Release 8, 23 Nov 2026), **before** PRs #4 to #8, so the counts below are stale and will be re-gated at the release candidate (the API and web suites have grown since; Playwright has not been re-run since):
-- API: **464 = 127 rules + 28 infrastructure + 309 api tests**, green in two class orders, 0 failures/errors/skipped.
-- Web unit tests: **341**.
-- Playwright against the real API, whole suite, a fresh stack per viewport: desktop **105 passed**; tablet **104 passed and 1 skipped** (the TV-size check runs on desktop only); no failures on either.
-- Fixtures: **43 passed**, no failures.
+**Count:** run on the release 11 tip (`5a3be22`, 24 Nov 2026), on a fresh stack per viewport:
+- API: **470 = 127 rules + 28 infrastructure + 315 api tests**, `mvn verify` green in the default class order, 0 failures/errors/skipped.
+- Web unit tests: **463** in 51 files; lint 0 errors (4 warnings); `tsc -b` clean.
+- Playwright against the real API, whole suite per viewport (`--project desktop-datasets` and `--project tablet-datasets`, which run the parallel specs and then the stack-wide specs one at a time): desktop **124 passed**; tablet **123 passed and 1 skipped** (the TV-size check runs on desktop only); no failures on either.
+- Fixtures: **23 passed**, 79 skipped (they need the real API), no failures.
 
-The dataset checksums, the payroll golden and the plan fingerprints were exact. Earlier counts, release by release, are in [docs/process/release-notes.md](docs/process/release-notes.md); each round is in `docs/process/review-rounds.md`.
+The dataset checksums, the payroll golden and the plan fingerprints are unchanged (no migration or generator change since release 8). Earlier counts, release by release, are in [docs/process/release-notes.md](docs/process/release-notes.md); each round is in `docs/process/review-rounds.md`.
 
 **One viewport per fresh stack; dataset specs last.** `--project desktop-datasets` runs the parallel `desktop` specs first, then the twelve stack-wide specs (dataset resets, quarter-plan generate/commit/discard, the E4 pay-period lock) one at a time, because they would corrupt each other in parallel (`e2e/README.md`). The real-API specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop-datasets`, then `docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait`, then `--project tablet-datasets`. The web unit tests write `web/node_modules` with Linux binaries.
 

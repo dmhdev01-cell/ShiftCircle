@@ -18,6 +18,8 @@
 
 **Shift times changed after the mockups were drawn:** the mockups show 12 h shifts as 07–19 / 19–07 (`D12` / `N12`); the defaults are now 00–12 / 12–24 (`A12` / `P12`) and 16 h shifts (20:00–12:00) are regular shifts (ADR-015). Overtime is a pay-period status, not a shift type (ADR-016), so the mockups' "OT" chips should read "extra". Use the new times and chip codes when building. The sample data in these screens is **illustrative**. Where it differs from the generator configuration in `docs/10-testing.md` (e.g. unit staffing numbers), the generator configuration wins.
 
+**Screenshots of the built screens** (planning board views, filters, export and gap panel; quarter plan readability and the planned-leave dialog) are in [`docs/user-guide/img/`](../user-guide/img/), taken at 1440×900 from the demo stack on 24 Nov 2026 and used in the supervisor and planner guides.
+
 ## 2. Design basis: Government of Saskatchewan digital standard
 
 Colours, font and button conventions follow the Government of Saskatchewan's published digital design standard for saskatchewan.ca ("Saskatchewan.ca Elements" v4.0, 2021). **No government logo, wheat sheaf or coat of arms is used**, because those would present the prototype as an official service. Every screen's footer says "Not an official Government of Saskatchewan service · fictional, synthetic data only". A pilot would get the approved header and logo from the ministry's digital team.

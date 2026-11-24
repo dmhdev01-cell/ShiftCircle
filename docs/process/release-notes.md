@@ -44,14 +44,27 @@ Screenshots from the gated build in the user guide, the repository made public (
 
 The README no longer describes the repository's purpose beyond "a prototype", and the design-canvas sentence and two process-record wordings were reworded. No code, test or data change; counts as at release 8.
 
-## After the v1.0-submission tag (on `main`, before the next release entry)
+## Release 11 (v1.1): the board as a scheduling grid, a readable quarter plan, planned leave
 
-Merged through pull requests on 23 November 2026, after tag `v1.0-submission` (`efba3f7`). Product changes, each with its own tests:
-- **Demo session survives a refresh (S11, PR #4).** On the `demo` profile the web keeps the mock sign-in in `sessionStorage` (ADR-025 amendment); `VITE_PERSIST_DEMO_SESSION=false` at build time turns it off; `prod-like` is unchanged and memory-only.
-- **Not-available states (M1, M3, PR #5).** *Propose shifts* checks the rules but says sending a proposal is not available and makes no request to the missing endpoint; *Find eligible officer* on a slot with no open shift says so instead of opening another shift's list.
-- **Dataset notice and the Other absence (S6, S8, PR #7).** The Quarter plan says Dataset 100 is under-staffed for nights and links to About & version; `/api/v1/version` reports `activeDataset`; the Other absence code is recorded and labelled.
-- **Reports range and unit pickers (S1, PR #8).** From, To and Unit on every report and its CSV, with plain refusals for a reversed or over-long range.
-- **CI and loopback ports (PR #1).** GitHub Actions runs the check scripts, the web checks and the API `mvn verify`; the dev override publishes the api and database on `127.0.0.1` only.
-- **Documentation:** FR-06 is stated as partial (PR #6), the build record and demo script were re-walked (PRs #2, #3), and the documentation audit (this release's docs PR) corrected install, settings, API, access-control, test-count and traceability statements against the code.
+Everything merged to `main` after tag `v1.0-submission` (`efba3f7`), through sixteen pull requests (#1 to #16) on 23 and 24 November 2026. Gate: the tip `5a3be22`, from a fresh stack per viewport (counts at the end).
 
-Counts on `main`: API **468 = 127 rules + 28 infrastructure + 313 api** `@Test` methods (464 at release 8, plus four: `DemoActiveDatasetTest` ×3 and one in `ReportsApiTest`); web unit tests **368** in 44 files (run on 23 Nov 2026); Playwright lists **114** real-api tests per viewport. The dataset checksums, payroll golden and plan fingerprints are unchanged (no migration or generator change).
+**Planning board (supervisor)**
+- **Week, Pay period and Month views, Comfortable and Compact density** (#11): totals per officer and per day, a strip of figures in the compact density, coverage heat cells and qualification badges. Week and Comfortable stay the defaults, so the demo walk is unchanged. A pay period or a month says it spans several roster weeks and offers no publish.
+- **Find, filter, sort and export** (#16): name search, Overtime, Rotation, Works and Qualification filters, sorts, CSV for Excel (this view or the whole unit, with a formula guard), copy for a spreadsheet, and a landscape print that keeps the footer line.
+- **Fill a gap from the board** (#15): a short coverage cell or a gap word opens the free officers, ranked by pay-period hours with rest and overtime hints, and *Check & assign* runs the normal rule check.
+- **Honest publish and menu** (#14): the publish message no longer claims the officers see the roster as final (FR-06 stays partial); Reports is hidden from the planner, whom the API refuses; Employee view only appears for an account linked to an officer.
+
+**Quarter plan (planner)**
+- **Readable plan** (#10): a week picker with gap counts, gaps grouped into runs under a weeks-by-units strip, the all-units table collapsed, a warning marker on flagged shifts, and a line for unused part-time capacity.
+- **Planned leave** (#12): leave shows on the draft roster as Vac, Sick or Other, and the planner enters it in a dialog (one audited absence per day, type only). Dataset 150's seeded leave now reads as leave, with relief officers covering it.
+
+**Also in this release**
+- **Demo session survives a refresh** on the demo profile, with a build-time kill switch `VITE_PERSIST_DEMO_SESSION=false` (#4); the not-available states for sending a proposal and finding an officer on a slot with no open shift (#5); a dataset notice on the Quarter plan, `activeDataset` on `/api/v1/version`, and the Other absence code (#7); date range and unit pickers on every report (#8).
+- **CI** on every pull request (check scripts, web checks, API `mvn verify`) and loopback-only dev ports (#1).
+- **Documentation:** the truth pass on architecture, rule defects (U-03 and U-11 dormant) and known limits, with a new roadmap (#9); the audit against the code, an architecture diagram and a documentation map (#13); FR-06 stated as partial (#6); the build record and the demo script re-walked (#2, #3); fresh screenshots and the traceability and coverage rows for all of the above (this release's docs PR).
+
+**No migration, no generator change.** The dataset checksums (100, 120, 150), the payroll golden and the plan fingerprints are unchanged.
+
+**Counts at the gate:** API **470 = 127 rules + 28 infrastructure + 315 api** (`mvn verify`, `BUILD SUCCESS`, default class order, 0 failures, errors or skipped); web unit tests **463** in 51 files, lint 4 warnings and 0 errors, `tsc -b` clean; Playwright against the real API, a fresh stack per viewport: `desktop-datasets` (the whole desktop suite) **124 passed**, `tablet-datasets` **123 passed and 1 skipped** (the TV-size check is desktop-only), 0 failed; fixtures-mode web (`--grep-invert @api`): **23 passed**, 79 skipped (the real-API specs), 0 failed. The parallel projects list 110 tests per viewport and the stack-wide specs add 14 (`e2e/README.md`).
+
+**Still not built** (unchanged, `docs/10-testing.md` §8 and `docs/roadmap.md`): the Excel round-trip, sending a proposal and the proposals inbox, offer withdrawal, OpenAPI, and the rule corrections on the roadmap (U-03 and U-11 re-keyed, L-01, U-13). The planner's `403` cells have no automated test.

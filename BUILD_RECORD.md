@@ -41,7 +41,7 @@ A change is previewed, then saved, refused with plain reasons, or acknowledged o
 | T8 | Payroll export, locked period | equals the golden file | byte-identical |
 | T9 | 17 h cover in a lockdown | Block; with a written reason it saves, audited | pinned by tests |
 
-**Last full gate (`8b0df25`, 2026-11-23, before PRs #4 to #8):** API 464 tests, web 341, Playwright desktop 105 passed, tablet 104 passed and 1 skipped; re-gated at release. Checksums, golden and plan fingerprints are exact. No human has walked the demo.
+**Last full gate (`5a3be22`, 24 Nov 2026):** API 470 tests, web 463, Playwright desktop 124 passed, tablet 123 passed and 1 skipped, 0 failed; checksums, golden and plan fingerprints unchanged. No human has walked the demo.
 
 ## 5. Governance and ministry suitability
 
@@ -59,5 +59,4 @@ A change is previewed, then saved, refused with plain reasons, or acknowledged o
 1. **Restore human review:** a practitioner reviews the rule boundary tests and validates the MOCK values.
 2. Government SSO with short-lived tokens; a payroll-clerk role; separate database roles with insert-only audit and a locked-period shift guard (ADR-018); non-root containers, TLS, secrets, CI scanning (`docs/08` §9).
 
-**Since v1.0-submission:** limits stated honestly, demo script re-walked, docs matched to the code (`docs/roadmap.md`).
-<!-- TODO(PR-E, end of sprint): when PRs A-D land, update this line and the "Last full gate" counts in section 4 (API, web, Playwright) and README section 4 "Count" from the final CI and e2e runs; then re-check it still fits 2 pages at Letter 11pt with 1.38 line height (it has little spare). -->
+**Since v1.0-submission (release 11):** board views, filters, export and an inline gap panel; a readable quarter plan and planned leave; CI; limits stated honestly and docs matched to the code (`docs/process/release-notes.md`, `docs/roadmap.md`).
