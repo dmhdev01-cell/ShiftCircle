@@ -42,6 +42,24 @@ The build process is kept apart from the product docs, in [docs/process/](docs/p
 
 **UI design:** six screens (planning board, my schedule, overtime board, rules admin, reports, wall display) are specified in `docs/ui/`.
 
+## Quick install
+
+One command. It needs a bash shell (macOS, Linux, or Git Bash/WSL on Windows), `curl`, `git`, Docker with Compose v2, a running Docker daemon and a free port. It clones into `./ShiftCircle`, creates `.env` with freshly generated random secrets that it never prints, runs `docker compose up -d --build --wait`, checks `/healthz` and `/api/v1/version`, and prints the URL:
+
+```sh
+curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.1.1-submission/install.sh && bash install.sh
+```
+
+A failed download stops at the `curl` step with a non-zero exit. (`curl -fsSL <url> | bash` also works, because the script does nothing until it has all been read, but the pipe reports bash's exit status, so a failed download looks like success.) The safest way is to read it first:
+
+```sh
+curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.1.1-submission/install.sh
+less install.sh
+bash install.sh
+```
+
+Overrides (environment variables, put them before `bash install.sh`): `SC_WEB_PORT` (host port, 1-65535, default 8080, for example `SC_WEB_PORT=9090 bash install.sh`), `SHIFTCIRCLE_PROJECT` (compose project name, default `shiftcircle`; a `COMPOSE_PROJECT_NAME` already in your shell is ignored on purpose), `SHIFTCIRCLE_REF` (tag or branch to install, default the release tag), `SHIFTCIRCLE_DIR` (default `./ShiftCircle`), and, advanced, `SHIFTCIRCLE_REPO` (clone URL). The port and project name are saved in `.env` (`SC_WEB_PORT`, `COMPOSE_PROJECT_NAME`). It refuses to touch an existing non-empty directory that is not a ShiftCircle checkout; re-running in the same place skips the clone and keeps the `.env` (it only fills a blank secret). It never runs `docker compose down`. The manual steps are below.
+
 ## Setup (clean clone)
 
 Everything is on `main`: the API, all the screens, the mock sign-in, the quarter planner with draft edits, and the E2E suite. [INSTALL.md](INSTALL.md) is the full install guide; this section is the short version. The steps below were re-run on 24 Nov 2026 from a fresh `git clone` of the branch for this docs pass (own compose project, `SC_WEB_PORT` set): `docker compose up -d --build --wait` built and became healthy in 50 s with warm caches, `/healthz` returned `ok`, `/api/v1/version` returned the commit, rule set v3, demo profile and Dataset 100, and the eight demo users in §3 match `GET /api/v1/auth/demo-users`. Anything not run is marked **UNVERIFIED**.
