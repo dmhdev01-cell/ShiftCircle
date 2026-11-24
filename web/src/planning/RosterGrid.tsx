@@ -34,6 +34,12 @@ function dayLabel(date: string, today: string): { dow: string; day: string; tag:
   return { dow, day, tag };
 }
 
+function monthShort(date: string): string {
+  return new Intl.DateTimeFormat('en-CA', { month: 'short', timeZone: 'UTC' }).format(
+    new Date(`${date}T00:00:00Z`),
+  );
+}
+
 function overtimeTone(status: OfficerRow['overtimeStatus']) {
   if (status === 'IN_OVERTIME') return 'ot' as const;
   if (status === 'APPROACHING') return 'warn' as const;
@@ -116,7 +122,8 @@ function CellChips({
 
 /** "10 · 100 h": shifts and hours, with up to two decimals only when needed. */
 function hoursWords(hours: number): string {
-  return `${Number.isInteger(hours) ? hours : hours.toFixed(1)} h`;
+  // Up to two decimals, so a quarter hour reads 7.25 h, not 7.3 h.
+  return `${Number.isInteger(hours) ? hours : Number(hours.toFixed(2))} h`;
 }
 
 /** The officer's qualifications as badges (A5), from `OfficerRow.qualifications`. */
@@ -256,18 +263,22 @@ export function RosterGrid({
                       ...headStyle,
                       textAlign: compact ? 'center' : 'left',
                       ...dayStyle(date, index),
-                      backgroundColor: date === today ? grid.today : isWeekend(date) ? '#ECEEF1' : colour.bg.subtle,
+                      backgroundColor: date === today ? grid.today : isWeekend(date) ? grid.weekend : colour.bg.subtle,
                     }}
                   >
                     {compact ? (
                       <>
                         <span style={{ display: 'block', color: colour.text.primary }}>{label.dow}</span>
-                        <span>{Number(label.day)}</span>
+                        <span>
+                          {Number(label.day)}
+                          {index === 0 || label.day === '01' ? ` ${monthShort(date)}` : ''}
+                        </span>
                       </>
                     ) : (
                       <>
                         <span style={{ display: 'block', color: colour.text.primary }}>
                           {label.dow} {label.day}
+                          {days.length > 7 && (index === 0 || label.day === '01') ? ` ${monthShort(date)}` : ''}
                         </span>
                         <span style={{ fontWeight: 500 }}>{label.tag}</span>
                       </>
@@ -427,7 +438,8 @@ export function RosterGrid({
                                   : 'Off'
                             }
                             sx={{
-                              minHeight: compact ? 22 : 30,
+                              // At least 24 × 24 px, the WCAG 2.2 target size.
+                              minHeight: compact ? 24 : 30,
                               minWidth: compact ? 28 : undefined,
                               px: compact ? 0.5 : 2,
                               border: '1px solid transparent',
@@ -508,7 +520,7 @@ export function RosterGrid({
                       textAlign: compact ? 'center' : 'left',
                       borderTop: `2px solid ${colour.border.default}`,
                       ...dayStyle(date, index),
-                      backgroundColor: date === today ? grid.today : colour.bg.subtle,
+                      backgroundColor: date === today ? grid.today : isWeekend(date) ? grid.weekend : colour.bg.subtle,
                     }}
                   >
                     <span style={{ display: 'block', color: colour.text.primary, fontWeight: 700 }}>
@@ -572,8 +584,9 @@ export function RosterGrid({
           <AbsenceChip absenceType="VACATION" /> <span>Vacation</span>
         </LegendItem>
         <span>{compact ? '· = off' : 'Off = no shift'}</span>
+        {compact ? <span>Ctl = Control · Esc = Escort · FA = First aid</span> : null}
         <span>✓ = worked (actual recorded)</span>
-        <span>Coverage: blue met · yellow 1 short · orange 2+ short · grey over</span>
+        <span>Coverage: blue met · yellow 1 short · orange 2+ under · grey over</span>
         <span>Overtime = pay-period hours over {threshold} h (status pill)</span>
       </Box>
     </Box>

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import type { OfficerRow, ShiftItem } from '../api/types';
-import { shiftChipStyles, colour } from '../theme/tokens';
+import { shiftChipStyles, colour, focusRing } from '../theme/tokens';
 import {
   dayTotals,
+  isIsoDate,
   isWeekend,
   monthOf,
   officerTotals,
@@ -137,5 +138,35 @@ describe('the colour fixes (A4)', () => {
   it('shows In overtime in the overtime tone, not the pass green', () => {
     expect(colour.status.ot.bg).not.toBe(colour.status.pass.bg);
     expect(colour.status.ot.text).toBe('#8A2C00');
+  });
+});
+
+describe('the ?week= guard', () => {
+  it('accepts only a real calendar day', () => {
+    expect(isIsoDate('2026-11-16')).toBe(true);
+    expect(isIsoDate('foo')).toBe(false);
+    expect(isIsoDate('2026-13-01')).toBe(false);
+    expect(isIsoDate('2026-02-30')).toBe(false);
+    expect(isIsoDate('2026-11-16T00:00')).toBe(false);
+  });
+});
+
+function luminance(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrast(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+describe('the focus ring (WCAG 1.4.11)', () => {
+  it('has 3:1 on white and on the selected blue', () => {
+    expect(contrast(focusRing.onLight, colour.bg.surface)).toBeGreaterThanOrEqual(3);
+    expect(contrast(focusRing.onDark, colour.brand.link)).toBeGreaterThanOrEqual(3);
   });
 });
