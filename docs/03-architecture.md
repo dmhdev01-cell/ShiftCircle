@@ -56,14 +56,14 @@ shiftcircle-api            → the Spring Boot app. Feature-sliced packages (ass
                              @RestController, its service and its JdbcTemplate SQL. Also Spring Security, the JWT filter, error mapping
 shiftcircle-rules          → Drools rule templates, fact builders (rest gaps, rolling hours, consecutive runs), rule-base compiler and
                              publish pipeline; no Spring dependency, unit-tested on its own
-shiftcircle-infrastructure → shared plumbing (health, the demo seed generator)
+shiftcircle-infrastructure → Flyway migrations, health, the demo seed generator
 shiftcircle-domain         → empty placeholder (a package-info only)
 shiftcircle-application    → empty placeholder (a package-info only)
 tests                      → JUnit 5 + AssertJ for the rules boundary tests; Spring Boot tests with Testcontainers PostgreSQL for
                              the api and repositories
 ```
 
-**What is real, and what isn't.** The design started with a layered `domain` / `application` / `infrastructure` split (entities in `domain`, use cases in `application`). The build did not follow it: each feature is a vertical slice in `shiftcircle-api` (controller → service → SQL), and only the rules engine is a separate module, because it has no Spring dependency and is tested by itself. The `domain` and `application` modules are **kept as empty placeholders** so the module list stays stable; they hold no code, and nothing depends on them for behaviour. Extracting a real domain layer is a roadmap item (`docs/roadmap.md`, package 10), not a prototype goal.
+**What is real, and what isn't.** The design started with a layered `domain` / `application` / `infrastructure` split (entities in `domain`, use cases in `application`). The build did not follow it: each feature is a vertical slice in `shiftcircle-api` (controller → service → SQL), and the only module with its own behaviour is `shiftcircle-rules`, which has no Spring dependency and is tested by itself (`shiftcircle-infrastructure` holds only the Flyway migrations, the health check and the demo seed generator). The `domain` and `application` modules are **kept as empty placeholders** so the module list stays stable; they hold no code, and nothing depends on them for behaviour. Extracting a real domain layer is a roadmap item (`docs/roadmap.md`, package 10), not a prototype goal.
 
 **Persistence is explicit SQL, not an ORM.** Every query is a `JdbcTemplate` call with parameters (`?`/named), which keeps the data access visible and reviewable (and the audit and locked-period triggers live in the schema, not in entity callbacks). There is **no JPA/Hibernate, no springdoc/OpenAPI and no Bean Validation** in the build: request checks are written in the services, and `web/src/api/types.ts` is kept in step with the API by hand (NFR-09 and the generated contract are roadmap items).
 
@@ -74,7 +74,7 @@ Rule tables are data, not code. A new rule version goes through maker/checker an
 ```mermaid
 flowchart LR
     A[Rules admin<br/>edits rows in the app] --> B[Draft version<br/>rule rows in PostgreSQL]
-    B --> C[Scenarios T1-T9<br/>+ dry run on the roster]
+    B --> C[Scenarios T1-T6<br/>+ dry run on the roster]
     C --> D[Submit for approval]
     D --> E{Rules approver<br/>a different person}
     E -->|approve and publish| F[Compile rows to<br/>Drools KieBase<br/>shiftcircle-rules]
@@ -109,7 +109,7 @@ Write operations take a "preview" flag, so the UI can show rule results live bef
 
 ## 4. Frontend
 
-- **React + TypeScript + Vite**, with **MUI** as the design system and **MUI X Data Grid / Charts** (free MIT tiers). TanStack Query handles API state.
+- **React + TypeScript + Vite**, with **MUI** (`@mui/material`) as the design system and `react-router-dom` for routing. The roster grid and the coverage chart are built in-house (a CSS grid and MUI `Box`); a small `fetch` wrapper (`web/src/api/http.ts`) handles API calls, with no query library and no MUI X.
 - **Responsive layouts:** a side navigation on desktop; a collapsible navigation and touch-sized targets on tablet; and `/display` as a TV route with no navigation, large type, the high-contrast theme and a 60-second auto-refresh.
 - **Role-aware routing:** the employee and supervisor areas are separate, and the API enforces the same boundaries.
 

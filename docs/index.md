@@ -23,7 +23,7 @@ This page is plain Markdown with relative links. It reads on GitHub as it is. It
 |---|---|
 | [Scope and plan](01-scope-and-plan.md) | Problem, users, outcomes, priorities, assumptions |
 | [Requirements](02-requirements.md) | Screens, functional and non-functional requirements, rules catalogue |
-| [Architecture](03-architecture.md) | Containers, layers, change flow, security |
+| [Architecture](03-architecture.md) | Containers, feature slices, JdbcTemplate persistence, change flow, security |
 | [Rules engine](04-rules-engine.md) | Drools decision tables an admin can edit, and the publish pipeline |
 | [Union rules](05-union-rules.md) | The mock collective-agreement rule set, with sources |
 | [Data model](06-data-model.md) | PostgreSQL tables, constraints, migrations and seed |
@@ -32,7 +32,6 @@ This page is plain Markdown with relative links. It reads on GitHub as it is. It
 | [Access control](09-access-control.md) | Roles, permission matrix, mock sign-in, privacy |
 | [Testing](10-testing.md) | Test layers, rule boundary matrix, scenarios, end-to-end flows |
 | [Traceability](traceability.md) | Each requirement mapped to the test that proves it |
-| [Roadmap and known limits](roadmap.md) | What isn't built, staffing findings, the ordered post-submission roadmap |
 | [Decisions](decisions.md) | The decision log (ADRs) |
 | [UI specification](ui/README.md) | Design tokens, components and every screen |
 

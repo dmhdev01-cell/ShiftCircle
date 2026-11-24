@@ -116,13 +116,11 @@ Before committing, the planner can **change single shifts in the draft**: move o
 Commit re-checks every shift, hand edits included, needs the warning list accepted once, and refuses a stale draft or a locked period. On Dataset 120 the measured draft is 38 gaps of 1,764 (all Escort evening), 7 warnings, zero Block, and 5,103 shifts on commit. The demo script in [`docs/demo-script.md`](docs/demo-script.md) §7 walks it.
 
 **Known limits**, stated on the scorecard and in [`BUILD_RECORD.md`](BUILD_RECORD.md):
-- **Rules (mock values, known defects):** U-03 and U-11 are dormant, because they key on the retired L16 template, so a 12 h shift plus an extension is guarded only by U-04 (Warn) and U-05 (Block). L-01 still lists 16 h as a regular length (a 16 h day is 12 h + extension). P-01's 80 h per-period threshold makes 4-on/4-off 12 h crews built-in overtime, because U-13 cycle averaging is not built.
-- **Planner:** qualifications are not used for placement; part-timers get no floor or fair share (casuals fill leftovers, home unit only, newest-first); seniority orders nights and overtime but not the casual pool; the quarter window is fixed and a plan commits once.
-- **Leave and sick:** leave is skipped by the planner but not shown on the board, with no request, approval or limits; sick is recorded after the fact, with no call-out flow.
+- **Rules (mock values, known defects):** U-03 and U-11 are dormant, because they key on the retired L16 template, so no new shift can trigger them. A 12 h + extension day is still bounded by U-02 and U-04 (Warn), U-01 and U-05 (Block); only the dedicated 12 h-rest Block is missing. L-01 still lists 16 h as a regular length (a 16 h day is 12 h + extension). P-01's 80 h per-period threshold makes 4-on/4-off 12 h crews built-in overtime, because U-13 cycle averaging is not built.
+- **Planner:** qualifications are not used for placement (the Qualified staff card only reports them and does not read start dates); part-timers get no floor or fair share (casuals fill leftovers, home unit only, newest-first); seniority orders nights and overtime but not the casual pool; the quarter window is fixed and a plan commits once.
+- **Leave and sick:** leave is skipped by the planner but not shown on the board, with no request, approval or limits (the only entry is `POST /api/v1/planner/absences`, PLANNER only, a read-only skip, and the demo plan has none unless you add it); sick is recorded after the fact, with no call-out flow.
 - **Staffing:** Dataset 150 has enough people (138 FTE against about 123 needed); its gaps come from the part-time fill order, and Unit C has only 4 first-aiders for four 12 h crews. Dataset 100 is deliberately tight. See [`docs/roadmap.md`](docs/roadmap.md) for the findings and the ordered roadmap.
-- The planner does not enforce qualifications; the Qualified staff card only reports them, and it does not read qualification start dates.
-- The demo plan has no leave unless you enter it with `POST /api/v1/planner/absences` (PLANNER only, a read-only skip, no approval flow).
-- Payroll overtime stays per pay period (P-01).
+- Payroll overtime stays per pay period (P-01); a weekly threshold is refused by the validator.
 - L16 is retired: a 16 h shift is a 12 h shift plus an extension, and an old database still renders its history.
 - A late-recorded actual is not re-checked against shifts saved after it.
 - The Dataset 120 preferences headline excludes the 13 shift-less casuals instead of counting their wishes.
@@ -190,7 +188,7 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
 
 `host.docker.internal` reaches the host from a container on Docker Desktop; the `--add-host` line makes the same name work on Docker Engine (run on macOS; on Linux it is **UNVERIFIED**, and `--network host` with `BASE_URL=http://localhost:8080` is the alternative). `E2E_WORKERS` (default 2) sets parallelism; `tests/screenshots.spec.ts` writes full-page captures and `index.json` to `SHOTS_DIR` (default `/private/tmp/sc-ui-shots/<RUN_ID>`, outside the repository: mount it the same way when the browser runs in Docker); the HTML report is `playwright-report/`. The fixtures-mode web and the `@api` / `@fixtures` tags are in `e2e/README.md`.
 
-**Count:** the latest independent gate, on the tip that became the current `main`:
+**Count:** the last full independent gate was at `8b0df25` (Release 8, 23 Nov 2026), **before** PRs #4 to #8, so the counts below are stale and will be re-gated at the release candidate (the API and web suites have grown since; Playwright has not been re-run since):
 - API: **464 = 127 rules + 28 infrastructure + 309 api tests**, green in two class orders, 0 failures/errors/skipped.
 - Web unit tests: **341**.
 - Playwright against the real API, whole suite, a fresh stack per viewport: desktop **105 passed**; tablet **104 passed and 1 skipped** (the TV-size check runs on desktop only); no failures on either.
