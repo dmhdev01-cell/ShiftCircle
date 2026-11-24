@@ -72,3 +72,5 @@ Everything merged to `main` after tag `v1.0-submission` (`efba3f7`), through six
 ## Release 11.1 (v1.1.1): one-line install
 
 Install-only change on top of v1.1: `install.sh` at the repo root (prerequisite checks, pinned clone, generated secrets never printed, `docker compose up -d --build --wait`, health checks, idempotent re-run, never `down -v`), a Quick install section in README and INSTALL, and a CI step running `bash -n` and shellcheck. No application, rules, data or test change; the v1.1 counts stand. Tag: `v1.1.1-submission`.
+
+**Release step:** after merge, tag the merge commit `v1.1.1-submission` and push the tag, then run `scripts/check-install-pin.sh --remote` and the README one-liner once from an empty directory (free port, own `SHIFTCIRCLE_PROJECT`).

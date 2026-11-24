@@ -57,7 +57,8 @@ gen_secret() { # $1 = number of random bytes (hex output is twice as long)
 
 # set_env KEY VALUE: replace the first KEY= line (or a commented "# KEY=" one) in .env, or
 # append. Pure bash: the value is never on a command line. The temp file is created by
-# mktemp (mode 600) and the umask is 077, so .env is never readable by others.
+# mktemp (mode 600), so .env is never readable by others. (No global umask: the clone must
+# keep the caller's umask, or the web image ships 0600 files nginx cannot serve.)
 set_env() {
   local key="$1" val="$2" line found=0
   TMP_ENV="$(mktemp .env.XXXXXX)"
@@ -78,8 +79,8 @@ set_env() {
   TMP_ENV=""
 }
 
-env_get() { # env_get KEY: the last KEY= value in .env (empty if none)
-  { grep -E "^$1=" .env || true; } | tail -n 1 | cut -d= -f2-
+env_get() { # env_get KEY: the first KEY= value (the one set_env replaces) in .env (empty if none)
+  { grep -E "^$1=" .env || true; } | head -n 1 | cut -d= -f2-
 }
 
 valid_port() {
@@ -89,7 +90,6 @@ valid_port() {
 valid_project() { [[ "$1" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; }
 
 main() {
-  umask 077
   trap cleanup EXIT
 
   # --- 0. validate every override before anything is written -----------------
@@ -143,7 +143,7 @@ main() {
     say "Found an existing .env; keeping it (only blank secrets are filled)."
   else
     [ -f .env.example ] || die 17 ".env.example is missing from the checkout."
-    cp .env.example .env
+    (umask 077 && cp .env.example .env)
     say "Created .env from .env.example."
   fi
   chmod 600 .env || die 17 "could not set .env to mode 600."
@@ -163,7 +163,7 @@ main() {
       set_env "$key" "$cur"
       filled=1
     elif [ "${#cur}" -lt "$min" ]; then
-      die 17 "$key in $dir/.env is shorter than $min characters and the API would refuse to start. Make it longer, or blank it and run again to have one generated."
+      die 17 "$key in $dir/.env is shorter than $min characters and the API would refuse to start. Make it longer. (To have one generated instead, blank it and run again; for POSTGRES_PASSWORD that only works on a first install, because an existing database volume keeps its old password.)"
     fi
   done
   cur=""

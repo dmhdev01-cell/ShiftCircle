@@ -27,6 +27,8 @@ done
 echo "OK: install pin $pin matches README.md and INSTALL.md"
 
 if [ "${1:-}" = "--remote" ]; then
+  git remote get-url origin >/dev/null 2>&1 ||
+    { echo "no 'origin' remote here; run this inside a clone of the repo" >&2; exit 1; }
   git ls-remote --exit-code --tags origin "refs/tags/$pin" >/dev/null ||
     { echo "tag $pin does not exist on origin yet" >&2; exit 1; }
   echo "OK: tag $pin exists on origin"
