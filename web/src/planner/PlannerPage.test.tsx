@@ -311,8 +311,115 @@ describe('the quarter plan', () => {
     await user.click(screen.getByRole('button', { name: 'Generate draft' }));
 
     await screen.findByText('Coverage gaps');
-    expect(create).toHaveBeenCalledWith({ seed: 20261001 });
+    // The plan options go with it at their defaults, which make the same plan as before.
+    expect(create).toHaveBeenCalledWith({
+      seed: 20261001,
+      staffTypes: ['FULL_TIME', 'PART_TIME'],
+      partTimeFill: 'AFTER_FULL_TIME',
+      preferences: 'ON',
+    });
     expect(create.mock.calls[0][0]).not.toHaveProperty('pattern8h');
+    vi.restoreAllMocks();
+  });
+
+  it('offers the plan options on the landing, each with one plain sentence, and sends the choice', async () => {
+    const user = userEvent.setup();
+    const create = vi.spyOn(api, 'createPlannerDraft');
+    renderPlanner();
+    await asPlanner(user);
+
+    const group = await screen.findByRole('group', { name: 'Plan options' });
+    // Full-time is always in; the defaults are today's plan.
+    expect(within(group).getByRole('checkbox', { name: /Full-time officers/ })).toBeDisabled();
+    expect(within(group).getByRole('checkbox', { name: /Full-time officers/ })).toBeChecked();
+    expect(within(group).getByRole('checkbox', { name: /Part-time and casual officers/ })).toBeChecked();
+    expect(within(group).getByRole('radio', { name: /Fill gaps only \(as before\)/ })).toBeChecked();
+    expect(within(group).getByRole('radio', { name: /Honour time-of-day wishes \(as before\)/ })).toBeChecked();
+    expect(
+      within(group).getByText(
+        'After the gaps, part-time officers also get shifts where cover is thinnest, up to their FTE hours, so less capacity goes unused.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(group).getByText(
+        'Seniority alone decides who works days or evenings; the Preferences met tile shows what that costs.',
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(within(group).getByRole('radio', { name: /Fill up to each officer's FTE/ }));
+    await user.click(within(group).getByRole('radio', { name: /Ignore time-of-day wishes/ }));
+    await user.click(screen.getByRole('button', { name: 'Generate draft' }));
+
+    await screen.findByText('Coverage gaps');
+    expect(create).toHaveBeenCalledWith({
+      seed: 20261001,
+      staffTypes: ['FULL_TIME', 'PART_TIME'],
+      partTimeFill: 'UP_TO_FTE',
+      preferences: 'OFF',
+    });
+    // The draft says what it was made with, and the part-time line says how it was filled.
+    expect(screen.getByTestId('plan-options-used')).toHaveTextContent(
+      'Made with: full-time and part-time officers · part-time filled up to FTE · time-of-day wishes ignored',
+    );
+    expect(await screen.findByRole('note', { name: 'Unused part-time capacity' })).toHaveTextContent(
+      /filled part-time officers up to their FTE target/,
+    );
+    vi.restoreAllMocks();
+  });
+
+  it('turns part-time fill off with the part-time officers, and sends the fill as before', async () => {
+    const user = userEvent.setup();
+    const create = vi.spyOn(api, 'createPlannerDraft');
+    renderPlanner();
+    await asPlanner(user);
+
+    const group = await screen.findByRole('group', { name: 'Plan options' });
+    await user.click(within(group).getByRole('radio', { name: /Fill up to each officer's FTE/ }));
+    await user.click(within(group).getByRole('checkbox', { name: /Part-time and casual officers/ }));
+    expect(within(group).getByRole('radio', { name: /Fill up to each officer's FTE/ })).toBeDisabled();
+    expect(within(group).getByText('Include part-time officers to choose how they are filled.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Generate draft' }));
+    await screen.findByText('Coverage gaps');
+    expect(create).toHaveBeenCalledWith({
+      seed: 20261001,
+      staffTypes: ['FULL_TIME'],
+      partTimeFill: 'AFTER_FULL_TIME',
+      preferences: 'ON',
+    });
+    expect(screen.getByTestId('plan-options-used')).toHaveTextContent(
+      'Made with: full-time officers only · time-of-day wishes honoured',
+    );
+    vi.restoreAllMocks();
+  });
+
+  it('prefills Generate again with the options the last draft was made with', async () => {
+    const user = userEvent.setup();
+    const create = vi.spyOn(api, 'createPlannerDraft');
+    renderPlanner();
+    await asPlanner(user);
+
+    const group = await screen.findByRole('group', { name: 'Plan options' });
+    await user.click(within(group).getByRole('radio', { name: /Fill up to each officer's FTE/ }));
+    await user.click(screen.getByRole('button', { name: 'Generate draft' }));
+    await screen.findByText('Coverage gaps');
+
+    await user.click(screen.getByRole('button', { name: 'Generate again' }));
+    const replace = await screen.findByRole('dialog');
+    const again = within(replace).getByRole('group', { name: 'Plan options' });
+    expect(within(again).getByRole('radio', { name: /Fill up to each officer's FTE/ })).toBeChecked();
+    expect(within(again).getByRole('radio', { name: /Honour time-of-day wishes/ })).toBeChecked();
+    expect(within(again).getByRole('checkbox', { name: /Part-time and casual officers/ })).toBeChecked();
+
+    await user.click(within(again).getByRole('radio', { name: /Ignore time-of-day wishes/ }));
+    await user.click(within(replace).getByRole('button', { name: 'Replace draft' }));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
+    expect(create.mock.calls[1][0]).toEqual({
+      seed: 20261001,
+      staffTypes: ['FULL_TIME', 'PART_TIME'],
+      partTimeFill: 'UP_TO_FTE',
+      preferences: 'OFF',
+    });
     vi.restoreAllMocks();
   });
 

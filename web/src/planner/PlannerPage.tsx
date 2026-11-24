@@ -24,6 +24,7 @@ import type {
   PlannerScorecard,
   PlannerWarningGroup,
   PlannerCompare,
+  PlanOptions,
   StaffingReport,
   FlaggedShift,
 } from '../api/types';
@@ -36,6 +37,8 @@ import { FlaggedShiftsCard } from './FlaggedShiftsCard';
 import { GapStrip } from './GapStrip';
 import { gapRuns, partTimeCapacity, quarterWeeks, reasonWords, shortWords, staffedWords } from './quarterPlan';
 import { DatasetBanner } from './DatasetBanner';
+import { PlanOptionsFields } from './PlanOptionsFields';
+import { DEFAULT_PLAN_OPTIONS, draftOptions, optionsForRequest, planOptionsWords } from './planOptions';
 import { useRole } from '../shell/nav';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
@@ -118,6 +121,17 @@ function windowWords(from: string, to: string): string {
   return `${day(start)} ${month(start)} – ${day(end)} ${month(end)} ${year(end)}`;
 }
 
+/** The scorecard's part-time line ends with how this draft filled part-time officers. */
+function fillWords(options: PlanOptions): string {
+  if (!options.staffTypes.includes('PART_TIME')) {
+    return 'This draft was made with full-time officers only, so no part-time hours were planned.';
+  }
+  if (options.partTimeFill === 'UP_TO_FTE') {
+    return 'This draft filled part-time officers up to their FTE target in their home unit where the rules allowed, after the gaps.';
+  }
+  return 'Part-time hours are not guaranteed: each part-time officer is planned only into shifts still open in their home unit, up to their FTE target.';
+}
+
 /** "1.4 s" for a millisecond figure. */
 function seconds(ms: number): string {
   return `${(ms / 1000).toFixed(1)} s`;
@@ -167,6 +181,7 @@ export function PlannerPage() {
     setSearchParams(params, { replace: true });
   };
   const [seed, setSeed] = useState('');
+  const [options, setOptions] = useState<PlanOptions>(DEFAULT_PLAN_OPTIONS);
   const [busy, setBusy] = useState<null | 'generate' | 'commit' | 'discard'>(null);
   const [explain, setExplain] = useState<string | null>(null);
   const [explainGroup, setExplainGroup] = useState<string | null>(null);
@@ -329,6 +344,7 @@ export function PlannerPage() {
     try {
       const created = await api.createPlannerDraft({
         seed: seedValue,
+        ...optionsForRequest(options),
       });
       setPlan({ ...plan, draft: created, state: 'DRAFT' });
       setTab('scorecard');
@@ -500,6 +516,11 @@ export function PlannerPage() {
               {status.line}
             </Typography>
           </Box>
+          {planDraft ? (
+            <Typography data-testid="plan-options-used" sx={{ fontSize: 13, color: colour.text.secondary }}>
+              Made with: {planOptionsWords(draftOptions(planDraft))}
+            </Typography>
+          ) : null}
         </Box>
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 2.5 }}>
@@ -526,7 +547,11 @@ export function PlannerPage() {
                 variant="outlined"
                 color="primary"
                 disabled={busy !== null || !seedOk}
-                onClick={() => setReplaceOpen(true)}
+                onClick={() => {
+                  // Start from what the last draft was made with.
+                  setOptions(draftOptions(draft));
+                  setReplaceOpen(true);
+                }}
               >
                 Generate again
               </Button>
@@ -663,6 +688,14 @@ export function PlannerPage() {
               Generate a draft to see coverage, rule warnings, preferences and fairness before
               anything changes. A draft never reaches the planning board until you commit it.
             </Typography>
+            <Typography component="h2" sx={{ m: 0, mt: 1, fontSize: 15, fontWeight: 700 }}>
+              Plan options
+            </Typography>
+            <Typography sx={{ fontSize: 13, color: colour.text.secondary, mt: -1 }}>
+              The defaults make the same plan as before. The scorecard shows the effect of each
+              choice.
+            </Typography>
+            <PlanOptionsFields value={options} onChange={setOptions} disabled={busy !== null} />
           </CardContent>
         </Card>
       ) : null}
@@ -812,9 +845,8 @@ export function PlannerPage() {
                     </Box>{' '}
                     Part-time officers are planned {hours(partTime.planned)} of their {hours(partTime.target)} target
                     this quarter, while {scorecard.coverage.shortBlockDays.toLocaleString('en-CA')} block-day
-                    {scorecard.coverage.shortBlockDays === 1 ? ' stays' : 's stay'} short. Part-time hours are not
-                    guaranteed: each part-time officer is planned only into shifts still open in their home unit, up to
-                    their FTE target.
+                    {scorecard.coverage.shortBlockDays === 1 ? ' stays' : 's stay'} short.{' '}
+                    {fillWords(draftOptions(planDraft))}
                   </Box>
                 );
               })()}
@@ -1383,7 +1415,7 @@ export function PlannerPage() {
         </>
       ) : null}
 
-      <Dialog open={replaceOpen} onClose={() => setReplaceOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog open={replaceOpen} onClose={() => setReplaceOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontSize: 18, fontWeight: 700 }}>
           {(draft?.handEdits ?? 0) > 0 ? 'Generate a new draft?' : 'Replace this draft?'}
         </DialogTitle>
@@ -1399,6 +1431,18 @@ export function PlannerPage() {
               changes.
             </Typography>
           )}
+          <Typography component="h3" sx={{ m: 0, mt: 2.5, mb: 1, fontSize: 15, fontWeight: 700 }}>
+            Plan options
+          </Typography>
+          <Typography sx={{ fontSize: 13, color: colour.text.secondary, mb: 1.5 }}>
+            Filled in from this draft. Change any of them, then generate.
+          </Typography>
+          <PlanOptionsFields
+            value={options}
+            onChange={setOptions}
+            disabled={busy !== null}
+            idPrefix="plan-options-again"
+          />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
           <Button variant="outlined" color="primary" onClick={() => setReplaceOpen(false)}>

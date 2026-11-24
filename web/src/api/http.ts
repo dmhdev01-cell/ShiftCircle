@@ -1,5 +1,6 @@
 import type {
   CoverageReport,
+  PlannerDraftCreation,
   DemoUser,
   HoursReport,
   MockLoginResult,
@@ -229,7 +230,7 @@ export function createHttpApi(): ShiftCircleApi {
     getPlannerPlan(): Promise<PlannerPlan> {
       return request<PlannerPlan>('/planner/plan');
     },
-    createPlannerDraft(body: { seed: number; pattern8h?: string }): Promise<PlannerDraft> {
+    createPlannerDraft(body: PlannerDraftCreation): Promise<PlannerDraft> {
       return request<PlannerDraft>('/planner/drafts', {
         method: 'POST',
         body: JSON.stringify(body),

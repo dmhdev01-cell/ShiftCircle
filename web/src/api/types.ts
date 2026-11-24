@@ -830,6 +830,24 @@ export interface PlannerDraft {
   /** Release 7: shifts edited by hand in this draft. */
   handEdits?: number;
   editedAssignmentIds?: string[];
+  /** v1.2: the options this draft was made with (absent on an older api). */
+  options?: PlanOptions;
+}
+
+/**
+ * The quarter plan's tailoring options (v1.2). The names are shared with the
+ * Plan inputs panel: staffTypes, partTimeFill, preferences.
+ */
+export interface PlanOptions {
+  /** FULL_TIME always; PART_TIME = officers below 1.0 FTE (part-time and casual). */
+  staffTypes: ('FULL_TIME' | 'PART_TIME')[];
+  partTimeFill: 'AFTER_FULL_TIME' | 'UP_TO_FTE';
+  preferences: 'ON' | 'OFF';
+}
+
+export interface PlannerDraftCreation extends Partial<PlanOptions> {
+  seed: number;
+  pattern8h?: string;
 }
 
 export interface PlannerPlan {
@@ -1125,7 +1143,7 @@ export interface ShiftCircleApi {
 
   /** Quarter planner (PLANNER role): plan, drafts, gaps, warnings, commit. */
   getPlannerPlan(): Promise<PlannerPlan>;
-  createPlannerDraft(body: { seed: number; pattern8h?: string }): Promise<PlannerDraft>;
+  createPlannerDraft(body: PlannerDraftCreation): Promise<PlannerDraft>;
   /** POST /planner/absences: the planner records one day of planned leave (PR-D, fit-gap A9). */
   planAbsence(input: PlannedAbsenceInput): Promise<PlannedAbsence>;
   /** PUT /planner/preferences/{employeeId}/pattern: the planner sets an 8 h officer's pattern. */

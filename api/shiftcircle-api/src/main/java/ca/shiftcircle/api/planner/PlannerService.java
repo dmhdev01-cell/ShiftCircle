@@ -115,6 +115,7 @@ public class PlannerService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "pattern8h must be ROTATING_5_2, 5_ON_2_OFF or 7_ON_3_OFF");
     }
+    PlannerViews.PlanOptions options = planOptions(creation);
     Map<String, Object> committed =
         jdbc.queryForList(
                 "SELECT d.id, d.committed_at, u.display_name FROM plan_draft d"
@@ -197,7 +198,8 @@ public class PlannerService {
                 seed,
                 verifier,
                 leave,
-                activeUnits::active);
+                activeUnits::active,
+                generatorOptions(options));
     operationalCards(result.scorecard(), result.assignments());
     int generatedMs = (int) ((System.nanoTime() - before) / 1_000_000);
 
@@ -206,9 +208,10 @@ public class PlannerService {
     String warningsJson = mapper.writeValueAsString(warningMaps(result.warnings()));
     jdbc.update(
         "INSERT INTO plan_draft (id, from_date, to_date, seed, pattern8h, status, version,"
-            + " created_by, generated_ms, scorecard, warnings, warning_count)"
+            + " created_by, generated_ms, scorecard, warnings, warning_count,"
+            + " staff_types, part_time_fill, preferences)"
             + " VALUES (?, ?, ?, ?, ?, 'DRAFT', 0, (SELECT id FROM app_user WHERE username = ?),"
-            + " ?, ?::jsonb, ?::jsonb, ?)",
+            + " ?, ?::jsonb, ?::jsonb, ?, ?::text[], ?, ?)",
         id,
         FROM,
         TO,
@@ -218,7 +221,10 @@ public class PlannerService {
         generatedMs,
         scorecardJson,
         warningsJson,
-        result.warnings().size());
+        result.warnings().size(),
+        "{" + String.join(",", options.staffTypes()) + "}",
+        options.partTimeFill(),
+        options.preferences());
     List<Object[]> assignmentRows = new ArrayList<>();
     for (PlanGenerator.Assignment assignment : result.assignments()) {
       assignmentRows.add(
@@ -254,7 +260,17 @@ public class PlannerService {
             + " reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         gapRows);
 
-    audit(principal, "generate_plan", "plan_draft", id, Map.of("assignments", result.assignments().size(), "gaps", result.gaps().size(), "warnings", result.warnings().size(), "seed", seed, "pattern8h", pattern == null ? "PER_OFFICER" : pattern, "generatedMs", generatedMs));
+    Map<String, Object> generated = new LinkedHashMap<>();
+    generated.put("assignments", result.assignments().size());
+    generated.put("gaps", result.gaps().size());
+    generated.put("warnings", result.warnings().size());
+    generated.put("seed", seed);
+    generated.put("pattern8h", pattern == null ? "PER_OFFICER" : pattern);
+    generated.put("generatedMs", generatedMs);
+    generated.put("staffTypes", options.staffTypes());
+    generated.put("partTimeFill", options.partTimeFill());
+    generated.put("preferences", options.preferences());
+    audit(principal, "generate_plan", "plan_draft", id, generated);
 
     Map<String, Object> row =
         jdbc.queryForMap(
@@ -262,6 +278,60 @@ public class PlannerService {
                 + " LEFT JOIN app_user u ON u.id = d.created_by WHERE d.id = ?",
             id);
     return draftSummary(row);
+  }
+
+  private static final List<String> STAFF_TYPES = List.of("FULL_TIME", "PART_TIME");
+  private static final List<String> PART_TIME_FILLS = List.of("AFTER_FULL_TIME", "UP_TO_FTE");
+  private static final List<String> PREFERENCES = List.of("ON", "OFF");
+
+  /**
+   * The tailoring options, validated (PR-N). Omitted values take the defaults; anything else that
+   * is not one of the documented values is a 400 problem detail naming the field.
+   */
+  static PlannerViews.PlanOptions planOptions(PlannerViews.DraftCreation creation) {
+    PlannerViews.PlanOptions defaults = PlannerViews.PlanOptions.DEFAULT;
+    List<String> staffTypes = defaults.staffTypes();
+    if (creation.staffTypes() != null) {
+      Set<String> chosen = new HashSet<>();
+      for (String value : creation.staffTypes()) {
+        if (value == null || !STAFF_TYPES.contains(value)) {
+          throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST, "staffTypes may contain only FULL_TIME and PART_TIME");
+        }
+        chosen.add(value);
+      }
+      if (!chosen.contains("FULL_TIME")) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "staffTypes must include FULL_TIME: the full-time crews are the plan");
+      }
+      staffTypes = STAFF_TYPES.stream().filter(chosen::contains).toList();
+    }
+    String partTimeFill =
+        creation.partTimeFill() == null ? defaults.partTimeFill() : creation.partTimeFill();
+    if (!PART_TIME_FILLS.contains(partTimeFill)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "partTimeFill must be AFTER_FULL_TIME or UP_TO_FTE");
+    }
+    if ("UP_TO_FTE".equals(partTimeFill) && !staffTypes.contains("PART_TIME")) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "partTimeFill UP_TO_FTE needs PART_TIME in staffTypes: there is no one to fill");
+    }
+    String preferences =
+        creation.preferences() == null ? defaults.preferences() : creation.preferences();
+    if (!PREFERENCES.contains(preferences)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "preferences must be ON or OFF");
+    }
+    return new PlannerViews.PlanOptions(staffTypes, partTimeFill, preferences);
+  }
+
+  private static PlanGenerator.Options generatorOptions(PlannerViews.PlanOptions options) {
+    return new PlanGenerator.Options(
+        options.staffTypes().contains("PART_TIME"),
+        "UP_TO_FTE".equals(options.partTimeFill()),
+        "ON".equals(options.preferences()));
   }
 
   public PlannerViews.DraftSummary draft(UUID id) {
@@ -1946,7 +2016,22 @@ public class PlannerService {
         ((Number) row.get("generated_ms")).intValue(),
         scorecard,
         handEdits((UUID) row.get("id")),
-        editedAssignmentIds((UUID) row.get("id")));
+        editedAssignmentIds((UUID) row.get("id")),
+        storedOptions(row));
+  }
+
+  /** The options a stored draft was made with; a row from before V14 reads as the defaults. */
+  private PlannerViews.PlanOptions storedOptions(Map<String, Object> row) {
+    PlannerViews.PlanOptions defaults = PlannerViews.PlanOptions.DEFAULT;
+    Object types = row.get("staff_types");
+    List<String> staffTypes =
+        types instanceof Array array ? daysOff(array) : defaults.staffTypes();
+    Object fill = row.get("part_time_fill");
+    Object preferences = row.get("preferences");
+    return new PlannerViews.PlanOptions(
+        staffTypes.isEmpty() ? defaults.staffTypes() : staffTypes,
+        fill == null ? defaults.partTimeFill() : fill.toString(),
+        preferences == null ? defaults.preferences() : preferences.toString());
   }
 
   private int handEdits(UUID draftId) {

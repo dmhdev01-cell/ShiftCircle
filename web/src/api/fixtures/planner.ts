@@ -9,6 +9,7 @@
 
 import type {
   Block,
+  PlanOptions,
   OfficerPattern,
   PlannerCommitPreview,
   PlannerCompare,
@@ -24,6 +25,7 @@ import type {
   SchedulePayload,
 } from '../types';
 import { PATTERN_WORDS } from '../../planner/patternWords';
+import { DEFAULT_PLAN_OPTIONS } from '../../planner/planOptions';
 import { scheduleForRange } from './schedule';
 
 export const PLANNER_WINDOW = { from: '2027-01-04', to: '2027-04-11', periods: 7 };
@@ -164,7 +166,11 @@ export function plannerPlan(): PlannerPlan {
   };
 }
 
-export function generatePlannerDraft(seed: number, pattern8h?: string): PlannerDraft {
+export function generatePlannerDraft(
+  seed: number,
+  pattern8h?: string,
+  options: Partial<PlanOptions> = {},
+): PlannerDraft {
   draft = {
     id: `draft-${seed}`,
     version: 1,
@@ -175,6 +181,7 @@ export function generatePlannerDraft(seed: number, pattern8h?: string): PlannerD
     createdBy: 'P. Planner',
     generatedMs: 2400,
     scorecard: scorecard(seed),
+    options: { ...DEFAULT_PLAN_OPTIONS, ...options },
   };
   return draft;
 }

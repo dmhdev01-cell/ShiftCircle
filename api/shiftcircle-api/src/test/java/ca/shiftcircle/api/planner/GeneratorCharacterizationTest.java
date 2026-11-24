@@ -72,6 +72,7 @@ class GeneratorCharacterizationTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   void theGeneratorOutputAndPinnedDataAreUnchanged() throws Exception {
     String planner = loginToken("p.planner");
     String supervisor = loginToken("m.ellis");
@@ -96,6 +97,23 @@ class GeneratorCharacterizationTest {
       assertThat(fingerprint(draft))
           .as(dataset + " plan fingerprint")
           .isEqualTo(PLAN_FINGERPRINTS.get(dataset));
+
+      // PR-N: the tailoring options sent explicitly at their defaults are the same plan.
+      UUID withDefaults =
+          generate(
+              planner,
+              "{\"seed\":20261001,\"staffTypes\":[\"FULL_TIME\",\"PART_TIME\"],"
+                  + "\"partTimeFill\":\"AFTER_FULL_TIME\",\"preferences\":\"ON\"}");
+      assertThat(fingerprint(withDefaults))
+          .as(dataset + " plan fingerprint with the default options sent")
+          .isEqualTo(PLAN_FINGERPRINTS.get(dataset));
+      Map<String, Object> defaultsBody =
+          mapper.readValue(
+              send("GET", "/api/v1/planner/drafts/" + withDefaults, null, planner).body(),
+              Map.class);
+      assertThat(((Map<String, Object>) defaultsBody.get("scorecard")).get("warnings"))
+          .as(dataset + " warnings with the default options sent")
+          .isEqualTo(warnings);
 
       if ("100".equals(dataset)) {
         List<Map<String, Object>> periods =
@@ -138,8 +156,11 @@ class GeneratorCharacterizationTest {
   }
 
   private UUID generate(String token) throws Exception {
-    HttpResponse<String> generated =
-        send("POST", "/api/v1/planner/drafts", "{\"seed\":20261001}", token);
+    return generate(token, "{\"seed\":20261001}");
+  }
+
+  private UUID generate(String token, String body) throws Exception {
+    HttpResponse<String> generated = send("POST", "/api/v1/planner/drafts", body, token);
     assertThat(generated.statusCode()).as(generated.body()).isEqualTo(201);
     return UUID.fromString((String) mapper.readValue(generated.body(), Map.class).get("id"));
   }
