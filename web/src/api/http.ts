@@ -17,6 +17,8 @@ import type {
   AuditActorChoice,
   DemoResetStatus,
   MyPreferencesInput,
+  PlannedAbsence,
+  PlannedAbsenceInput,
   PlannerPreferenceRow,
   PlannerUnit,
   UnitClosure,
@@ -336,6 +338,12 @@ export function createHttpApi(): ShiftCircleApi {
       return request<{ leaveAllowance: number }>('/planner/settings/leave-allowance', {
         method: 'PUT',
         body: JSON.stringify({ percent, reason }),
+      });
+    },
+    planAbsence(input: PlannedAbsenceInput): Promise<PlannedAbsence> {
+      return request<PlannedAbsence>('/planner/absences', {
+        method: 'POST',
+        body: JSON.stringify(input),
       });
     },
     setPlannerOfficerPattern(employeeId: string, pattern: string): Promise<PlannerPreferenceRow> {

@@ -124,7 +124,7 @@ It runs after the 5-minute script as its own walkthrough, or replaces segments 3
 
 > **Known limits (say plainly if asked; they are also in the scorecard text and BUILD_RECORD)**
 > - **The planner does not check qualifications yet.** It doesn't place shifts by qualification, for example Control or Escort certification at night, so a plan can be short of qualified officers even when the head count is met.
-> - **The demo plan has no leave or absences.** Every officer is available all quarter, which is why the casual relief pool gets few hours in the plan. In real use casuals cover leave and gaps.
+> - **The demo plan has no leave or absences** unless the planner adds some (**Preferences → Add planned leave**; Dataset 150 seeds 20%). Every officer is available all quarter, which is why the casual relief pool gets few hours in the plan. In real use casuals cover leave and gaps.
 > - **Hours are balanced over a cycle, but payroll overtime stays per pay period** (P-01). A full-timer's 84 h period on 4 on / 4 off is paid as 4 h overtime even when the cycle averages out. Real averaging arrangements need a rule change.
 > - **Recorded extensions count in rule checks.** An officer kept on about 4 h after a 12 h shift counts for rest and hours on the next shift. But a time entry recorded late is not re-checked against shifts already saved after it.
 > - **Rule set v2 (the D12/N12 rows) and v3 (the 8 h night warning) were published by database migrations** as baselines, like v1. It did not go through the maker/checker approval that every later change uses.

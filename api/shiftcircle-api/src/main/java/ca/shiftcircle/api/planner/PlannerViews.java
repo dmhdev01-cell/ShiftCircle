@@ -104,6 +104,13 @@ public final class PlannerViews {
   /** A planned absence and whether this call created it (false = the same absence already existed). */
   public record PlannedAbsenceResult(Map<String, Object> body, boolean created) {}
 
+  /**
+   * Planned leave on the draft roster (fit-gap B1-lite): {@code {"type":"ABSENCE",
+   * "absenceType":"VACATION"}}, the same item shape as My schedule, so the grid shows a Vac, Sick
+   * or Other chip instead of Off.
+   */
+  public record LeaveItem(String type, String absenceType) {}
+
   public record DraftCreation(long seed, String pattern8h) {}
 
   public record CommitInput(Integer acceptedWarningCount) {}

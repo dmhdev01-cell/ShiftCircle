@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Checkbox from '@mui/material/Checkbox';
@@ -10,6 +11,7 @@ import { api } from '../api/client';
 import type { PlannerPreferenceRow } from '../api/types';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
+import { PlannedLeaveDialog } from './PlannedLeaveDialog';
 import { EIGHT_HOUR_PATTERNS, PATTERN_WORDS } from './patternWords';
 import { daysOffWords, sinceYear } from './preferenceWords';
 
@@ -41,6 +43,8 @@ export function PlannerPreferencesPage() {
   const [find, setFind] = useState('');
   const [notMetOnly, setNotMetOnly] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaveSaved, setLeaveSaved] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -89,13 +93,51 @@ export function PlannerPreferencesPage() {
 
   return (
     <>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <Typography variant="h1">Officer preferences</Typography>
-        <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
-          What officers asked for, and whether the current draft meets it. Read-only: officers
-          change their own on My schedule.
-        </Typography>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Typography variant="h1">Officer preferences</Typography>
+          <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
+            What officers asked for, and whether the current draft meets it. Read-only: officers
+            change their own on My schedule.
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          disabled={!rows || rows.length === 0}
+          onClick={() => {
+            setLeaveSaved(null);
+            setLeaveOpen(true);
+          }}
+          sx={{ minHeight: 44 }}
+        >
+          Add planned leave
+        </Button>
       </Box>
+      {leaveSaved ? (
+        <Box
+          role="status"
+          sx={{
+            p: '10px 12px',
+            borderRadius: '8px',
+            backgroundColor: colour.status.pass.bg,
+            color: colour.status.pass.text,
+            fontSize: 14,
+            fontWeight: 600,
+          }}
+        >
+          {leaveSaved}
+        </Box>
+      ) : null}
+      {leaveOpen && rows ? (
+        <PlannedLeaveDialog
+          officers={rows}
+          onClose={() => setLeaveOpen(false)}
+          onSaved={(words) => {
+            setLeaveOpen(false);
+            setLeaveSaved(words);
+          }}
+        />
+      ) : null}
 
       <Card>
         <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>

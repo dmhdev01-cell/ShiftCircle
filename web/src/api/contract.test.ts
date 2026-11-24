@@ -116,4 +116,69 @@ describe('the api contract the web parses', () => {
     expect(init.method).toBe('POST');
     expect(JSON.parse(String(init.body)).change.type).toBe('EXTRA');
   });
+
+  it('posts one planned absence to /planner/absences in the shape PlannerController reads', async () => {
+    // PlannerService.absenceBody: id, employeeId, date, type (201 new, 200 already recorded).
+    const fetchMock = stubFetch(
+      { id: 'absence-id', employeeId: 'employee-id', date: '2027-02-08', type: 'VACATION' },
+      201,
+    );
+
+    const saved = await createHttpApi().planAbsence({
+      employeeId: 'employee-id',
+      date: '2027-02-08',
+      type: 'VACATION',
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('/api/v1/planner/absences');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(String(init.body))).toEqual({
+      employeeId: 'employee-id',
+      date: '2027-02-08',
+      type: 'VACATION',
+    });
+    expect(saved.id).toBe('absence-id');
+  });
+
+  it('reads planned leave on the draft roster as ABSENCE items (PlannerViews.LeaveItem)', async () => {
+    // A leave-only row and a shift + sick day, as PlannerService.schedule sends them.
+    stubFetch({
+      unit: { id: 'unit-b', name: 'Unit B', closedFrom: null, closedTo: null, closedLabel: null, closedReason: null, closedDates: [] },
+      from: '2027-02-08',
+      to: '2027-02-09',
+      days: ['2027-02-08', '2027-02-09'],
+      asOf: '2026-11-19',
+      coverage: [],
+      officers: [
+        {
+          employeeId: 'away',
+          name: 'Away Officer',
+          rotation: 'On leave',
+          qualifications: [],
+          payPeriodHours: 0,
+          payPeriodThreshold: 80,
+          overtimeStatus: 'UNDER',
+          cells: [
+            { date: '2027-02-08', items: [{ type: 'ABSENCE', absenceType: 'VACATION' }] },
+            { date: '2027-02-09', items: [{ type: 'ABSENCE', absenceType: 'VACATION' }] },
+          ],
+        },
+      ],
+      warningCount: 0,
+      blockCount: 0,
+      publishedState: { published: false, unpublishedChanges: null },
+      period: null,
+    });
+
+    const payload = await createHttpApi().getPlannerSchedule('draft-id', {
+      unitId: 'unit-b',
+      from: '2027-02-08',
+      to: '2027-02-09',
+    });
+
+    const item = payload.officers[0].cells[0].items[0];
+    expect(item.type).toBe('ABSENCE');
+    expect(item.type === 'ABSENCE' ? item.absenceType : null).toBe('VACATION');
+  });
 });
