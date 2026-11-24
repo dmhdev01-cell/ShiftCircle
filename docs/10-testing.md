@@ -44,14 +44,14 @@ the NFR limits, so a regression fails the build rather than being noticed in the
 
 **Definition of done for any feature:** its rule and use-case tests pass, its endpoints have authorization tests, and the demo flow touching it passes in Playwright.
 
-### Current counts (`5a38580`, 24 Nov 2026)
+### Current counts (API and Playwright at `5a38580`, web unit tests at `8ae4bbd`, 24 Nov 2026)
 
 The sections after this one are the **history** of how the counts grew, release by release; read this block for today's numbers. Counting method: `@Test` methods on their own line (no parameterised tests), and each suite's own runner. Every number below was run on `5a38580` (release 11 `5a3be22` plus the docs PRs and the PR-H rules-wording fix), on a fresh stack per viewport; the API suite ran in GitHub CI (`mvn verify` on PR #19, the same command).
 
 | Suite | Result | How it was obtained |
 |---|---|---|
 | API (Maven, Testcontainers) | **470 = 127 rules + 28 infrastructure + 315 api**, 0 failures, errors or skipped | `docker compose --profile test run --rm --build api-test` (`mvn -B verify`), `BUILD SUCCESS`, default class order (locally on `5a3be22`; in CI on `5a38580`). The `@Test` count in the three modules agrees. The release 8 gate was 464 in both class orders; reverse and random order were not re-run for this tip |
-| Web unit tests (Vitest) | **514 passed** in 53 files | `pnpm test` in Docker. `pnpm lint`: 4 warnings, 0 errors. `tsc -b` clean |
+| Web unit tests (Vitest) | **532 passed** in 54 files (at `8ae4bbd`, PR #22's head) | `pnpm test` in Docker. `pnpm lint`: 4 warnings, 0 errors. `tsc -b` clean |
 | Playwright, real api, desktop | `desktop-datasets`: **124 passed**, 0 failed | The whole desktop suite: the parallel `desktop` project (108 tests) then the stack-wide specs one at a time (16 more, E3 among them). Fresh stack, `EXPECT_COMMIT=5a38580` |
 | Playwright, real api, tablet | `tablet-datasets`: **123 passed, 1 skipped**, 0 failed | The same on a second fresh stack; the TV-size check is desktop-only |
 | Playwright, fixtures-mode web | **23 passed**, 79 skipped, 0 failed | `--grep-invert @api --project desktop-datasets` against the fixtures build; the skipped tests need the real api |
