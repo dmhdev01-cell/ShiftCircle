@@ -456,6 +456,8 @@ export function RosterGrid({
                               flexWrap: 'wrap',
                               gap: 0.5,
                               justifyContent: compact ? 'center' : undefined,
+                              // A one-letter compact chip stays a readable block.
+                              ...(compact ? { '& > *': { minWidth: 28 } } : {}),
                             }}
                           >
                             <CellChips
