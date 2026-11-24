@@ -1,6 +1,15 @@
 # Build progress (working note)
 
-Internal note for the team; remove before submission (step 13) or fold into the build record.
+Internal working note, kept as a historical log of the build. **It is not the current status**: for that, read the block below, then `docs/process/release-notes.md` and `docs/10-testing.md` ("Current counts"). Older paragraphs quote the counts of their day.
+
+## Current state (24 Nov 2026, `main` at `a38e452`)
+
+- **Everything in `docs/process/HANDOFF.md` §6 is built** except what `docs/10-testing.md` §8 lists as not built (Excel round-trip, the proposals send and inbox, offer withdrawal, OpenAPI, and the rest).
+- **Counts:** API 468 = 127 rules + 28 infrastructure + 313 api; web 368; Playwright 114 real-api tests per viewport. Details and how each was obtained: `docs/10-testing.md`.
+- **Since the `v1.0-submission` tag:** demo session persistence with a build-time kill switch, the M1/M3 not-available states, the dataset notice and Other absence, the Reports range and unit pickers, and GitHub Actions CI (`docs/process/release-notes.md`).
+- **Known gaps found by the docs audit** (not fixed by it): the planner's side menu lists Reports, but the API refuses the planner every report (`docs/09-access-control.md`); the "Published. The officers see this roster as final." message overstates FR-06, which is partial.
+- Also found: the supervisors' **Employee view** menu item opens My schedule, which says "No employee record for this user" for both demo supervisors (they have no linked officer).
+- **Where the docs live:** `docs/index.md` has a map by question.
 
 ## Start here: exact commands
 

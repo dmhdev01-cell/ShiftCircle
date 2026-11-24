@@ -1,12 +1,12 @@
 # ShiftCircle — Access Control
 
-**Status:** Draft v1.0 · 2026-11-19
+**Status:** v1.0, checked against the API on `main` (23 Nov 2026, each cell probed with a signed-in token)
 
 ## 1. Roles
 
 | Role | Who | Purpose |
 |---|---|---|
-| `EMPLOYEE` | Correctional officer | Own schedule, hours, offers and proposals |
+| `EMPLOYEE` | Correctional officer | Own schedule, hours, offers and preferences (proposals are not built) |
 | `SUPERVISOR` | Shift supervisor / scheduler | Plans and changes schedules **for the units in their scope**; overtime; actuals; pay-period lock; payroll export |
 | `RULES_ADMIN` | HR / labour relations analyst | Edits rule tables in drafts and builds them; **can't approve or publish** |
 | `RULES_APPROVER` | Senior labour relations or a manager | Approves, rejects and publishes rule versions; **can't edit drafts they approve** |
@@ -15,35 +15,37 @@
 
 A user can hold several roles (e.g. a supervisor is usually also an employee). Separation of duties is enforced per action, not per person: the same person can't both create and approve the same rule version.
 
-**PLANNER (ADR-026, added 2026-11-21) is facility-wide.** A planner generates, reads, commits and discards quarter drafts; reads every officer's preferences; and reads the planning board and the schedule/report screens like the auditor (read-only, all units). A planner cannot edit a supervisor's board, save an assignment, lock a pay period, change a rule or approve one. Units, dated closures, flagged shifts and staffing (allocated headcount, leave allowance) are PLANNER-only; supervisors and officers get 403. Supervisors stay unit-scoped. An officer edits only their own preferences through `/me/preferences`; `/planner/preferences` answers only to PLANNER.
+**PLANNER (ADR-026, added 2026-11-21) is facility-wide.** A planner generates, reads, commits and discards quarter drafts; reads every officer's preferences; and reads the planning board like the auditor (read-only, all units). **A planner has no access to the reports, the audit log, the rules or time and attendance** (every one answers `403`), although the planner's side menu still lists *Reports*. A planner can add, move, reassign or remove single shifts in an uncommitted draft (ADR-030) but cannot edit a supervisor's board, save an assignment, lock a pay period, change a rule or approve one. Units, dated closures, flagged shifts and staffing (allocated headcount, leave allowance) are PLANNER-only; supervisors and officers get 403. Supervisors stay unit-scoped. An officer edits only their own preferences through `/me/preferences`; `/planner/preferences` answers only to PLANNER.
 
 ## 2. Permission matrix
 
 ✓ = allowed · **own** = only their own records · **scope** = only units in `user_unit_scope` · — = denied
 
+**"Own" needs a linked officer.** `/me/schedule`, `/me/offers` and `/me/preferences` answer for the officer linked to the signed-in account. In the demo only **T. Nakamura** has one; the other demo accounts, including the two supervisors, get `404` (schedule) or `403` (preferences) there, whatever the matrix says about "own".
+
 | Capability | EMPLOYEE | SUPERVISOR | RULES_ADMIN | RULES_APPROVER | AUDITOR | PLANNER | DISPLAY |
 |---|---|---|---|---|---|---|---|
 | View own schedule, hours, offers | own | own | own | own | — | own | — |
-| View unit roster (names and shifts) | own unit, shifts only | scope | — | — | ✓ | ✓ | — |
-| View others' hours, absences, overtime totals | — | scope | — | — | ✓ | ✓ | — |
-| Absence **type** (sick/vacation) for others | — | scope | — | — | ✓ | ✓ | — |
+| View unit roster (names and shifts) | — (not built: an officer sees only their own schedule; `GET /schedule` is `403`) | scope | — | — | ✓ | ✓ (read-only) | — |
+| View others' hours, absences, overtime totals | — | scope | — | — | ✓ | — (the board only; the reports are `403`) | — |
+| Absence **type** (sick/vacation) for others | — | scope | — | — | ✓ | ✓ (on the board and in the draft) | — |
 | Assign, move or cancel shifts | — | scope (the target unit; the officer may come from any unit: cross-unit cover, ADR-024) | — | — | — | — | — |
 | Emergency override of a Block rule whose policy allows one (U-01, U-03, U-05; ADR-023) | — | scope (reason required) | — | — | — | — | — |
 | Publish a schedule period | — | scope | — | — | — | — | — |
 | Create open shifts, send offers, assign overtime | — | scope | — | — | — | — | — |
 | Accept or decline an overtime offer | own | own | own | own | — | own | — |
-| Submit shift proposals | own | own | — | — | — | — | — |
-| Decide on proposals | — | scope | — | — | — | — | — |
+| Submit shift proposals | not built | not built | — | — | — | — | — |
+| Decide on proposals | — | not built | — | — | — | — | — |
 | Record actuals | — | scope | — | — | — | — | — |
 | Lock a pay period | — | facility-wide (any supervisor with at least one unit in scope; audited), ADR-022 | — | — | — | — | — |
 | Unlock a pay period | — | facility-wide (reason required; audited), ADR-022 | — | — | — | — | — |
 | Payroll export | — | facility-wide (audited with file hash), ADR-022 | — | — | — | — | — |
-| Reports | own hours only | scope | — | — | ✓ | ✓ | — |
+| Reports | own hours only | scope | — | — | ✓ | — (`403`) | — |
 | View rule tables and versions | — | read | ✓ | ✓ | ✓ | — | — |
 | Edit draft rule tables, build, submit | — | — | ✓ | — | — | — | — |
 | Approve, reject, publish rule versions | — | — | — | ✓ (not own drafts) | — | — | — |
 | View audit log (`GET /audit-events`) | — | scope: events on shifts, open shifts, time entries, offers and pay periods in their units; **no rule-change (`rule_set_version`) events** | — (works from the rules screens; rule-change audit is the auditor's) | — (same) | ✓ facility-wide | — | — |
-| Quarter planner: generate, read, discard and commit a draft | — | — | — | — | — | ✓ facility-wide, drafts only | — |
+| Quarter planner: generate, read, edit single draft shifts, discard and commit a draft | — | — | — | — | — | ✓ facility-wide, drafts only | — |
 | Read every officer's preferences | own | own | own | own | — | ✓ (read); own edit | — |
 | Reset the demo data (demo profile only) | — | — | — | — | — | ✓ | — |
 | Wall display counts | — | ✓ | — | — | ✓ | — | ✓ |

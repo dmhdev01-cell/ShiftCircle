@@ -1,6 +1,6 @@
 # ShiftCircle — Requirements
 
-**Status:** Draft v0.3 · 2026-11-19 · IDs are stable; edit the text freely. Priorities: M = Must, S = Should, C = Could.
+**Status:** v0.3 requirements, with the **prototype status** of each item marked where it is not fully built (checked 24 Nov 2026; the proof for each is in [traceability.md](traceability.md), the list of what is not built in [10-testing.md §8](10-testing.md#8-intentionally-not-built)) · IDs are stable. Priorities: M = Must, S = Should, C = Could.
 
 ## 1. Screens
 
@@ -9,9 +9,9 @@
 | S-01 | Sign-in (mock user/role picker) | All | M |
 | S-02 | **Planning board**: grid of 1 or 2 weeks; rows = officers (or switch to posts); cells = shift blocks; coverage bar per post and block (required / scheduled / actual); overtime badges; violations panel | Supervisor | M |
 | S-03 | **My Schedule**: calendar; hours this pay period, month and quarter; overtime status; upcoming overtime | Employee | M |
-| S-04 | **Shift planner**: draft preferred shifts on a copy of the roster, check against the rules, submit as a recommendation with a note | Employee | S |
+| S-04 | **Shift planner**: draft preferred shifts on a copy of the roster, check against the rules, submit as a recommendation with a note. **Prototype status: partial.** *Propose shifts* checks a shift against the rules for the officer; sending it is **not built** | Employee | S |
 | S-05 | ~~Trades~~ | Employee | Future |
-| S-06 | **Requests inbox**: proposals and overtime acceptances waiting for approval, each with its rule results | Supervisor | M |
+| S-06 | **Requests inbox**: proposals and overtime acceptances waiting for approval, each with its rule results. **Prototype status: partial.** Overtime acceptances are handled on the Overtime board (Confirm); the proposals inbox is **not built** (placeholder page) | Supervisor | M |
 | S-07 | **Overtime board**: open shifts, eligible officers in fair-distribution order, offers and responses | Supervisor (employees respond from S-03) | M |
 | S-08 | **Time and attendance**: confirm actual vs. scheduled, absence codes, pay-period lock, payroll export | Supervisor | M |
 | S-09 | **Reports**: date-range filters, tables and charts, CSV export | Both (employees see only their own data) | M |
@@ -31,7 +31,7 @@
 | FR-04 | The planning board shows **required vs. scheduled vs. actual** per post and block, with gaps and surpluses highlighted (not by colour alone). | M |
 | FR-05 | Each officer's **overtime status** is shown live (under threshold / approaching / in overtime) for the current period. | M |
 | FR-06 | The supervisor can **publish** a schedule period, which makes it visible to employees. **Prototype status: partial.** Publishing is recorded (one-way, audited) and shown on the planning board, but My schedule is not yet filtered by period status (the demo day's week is seeded DRAFT); see docs/07. | M |
-| FR-07 | Changes made after publishing are checked for notice (R-07) and flagged as "changed" on the affected officers' schedules. | M |
+| FR-07 | Changes made after publishing are checked for notice (R-07) and flagged as "changed" on the affected officers' schedules. **Prototype status: partial.** The board shows a real count of shifts changed after the period was published; there is no notice rule and no per-officer marker (docs/10 §8) | M |
 
 ### Trades — future work
 FR-10 to FR-13 (trade request, colleague acceptance, supervisor approval, monthly/quarterly limits) are reserved for a later phase.
@@ -47,8 +47,8 @@ FR-10 to FR-13 (trade request, colleague acceptance, supervisor approval, monthl
 ### Employee proposals
 | ID | Requirement | P |
 |---|---|---|
-| FR-30 | An employee drafts preferred shifts in a sandbox copy of the roster. Rule results show live. | S |
-| FR-31 | The employee submits the draft as a recommendation. The supervisor sees the difference from the current roster and can accept all, accept some, or decline. | S |
+| FR-30 | An employee drafts preferred shifts in a sandbox copy of the roster. Rule results show live. **Prototype status: partial** (the rule check of one shift at a time on My schedule; no sandbox roster). | S |
+| FR-31 | The employee submits the draft as a recommendation. The supervisor sees the difference from the current roster and can accept all, accept some, or decline. **Not built** (no `/proposals` endpoint, no inbox). | S |
 
 ### Notifications — future work
 FR-40 and FR-41 (email/SMS outbox, message templates) are reserved for a later phase. Until then, changes and offers are visible in the app only.
@@ -91,9 +91,9 @@ FR-40 and FR-41 (email/SMS outbox, message templates) are reserved for a later p
 | NFR-04 | Accessible: keyboard navigation, labelled controls, status never shown by colour alone (aiming toward WCAG 2.1 AA). |
 | NFR-05 | Fast: planning board for 100 officers × 14 days loads in under 1 s locally; 90-day reports in under 2 s; a rule check returns in under 200 ms. |
 | NFR-06 | Rules engine is deterministic and unit-tested, with boundary tests for each rule type. |
-| NFR-07 | **No secrets in the repo.** `.env.example` with local-only defaults; real values come from the environment. |
+| NFR-07 | **No secrets in the repo.** `.env.example` ships with no committed password or signing key: `POSTGRES_PASSWORD` and `SC_JWT_SECRET` are empty and the stack refuses to start until you set them. |
 | NFR-08 | Synthetic data only, clearly labelled as fictional in the UI footer. |
-| NFR-09 | The API is documented with OpenAPI (Swagger UI in dev). |
+| NFR-09 | The API is documented with OpenAPI (Swagger UI in dev). **Not built:** `docs/07-api-spec.md` is the written contract. |
 | NFR-10 | Role-based access is enforced in the API, not just hidden in the UI (simulated identity, real authorization checks). |
 
 ## 4. Rules catalogue (initial values; collective-agreement values are placeholders)

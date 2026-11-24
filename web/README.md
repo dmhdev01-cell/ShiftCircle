@@ -1,16 +1,21 @@
 # ShiftCircle web
 
 React + TypeScript + Vite + MUI. `pnpm install`, then `pnpm dev` for the dev server on http://localhost:5173.
-`pnpm build` type-checks and builds to `dist/`, and `pnpm test` runs the Vitest suite.
+`pnpm build` type-checks and builds to `dist/`, `pnpm lint` runs oxlint (4 warnings, 0 errors is the baseline), `pnpm exec tsc -b` type-checks on its own, and `pnpm test` runs the Vitest suite (368 tests in 44 files on `main`, 24 Nov 2026). CI runs lint, `tsc -b`, the tests and the build.
+`VITE_API_MODE=fixtures pnpm dev` runs the screens on built-in fixtures with no api (what the `@fixtures` Playwright specs use).
 The api is called through `/api/` - proxied to `http://localhost:8081` in dev and to the api container by nginx in Docker.
 `docker build .` builds the image: nginx serves `dist/` on port 80 and proxies `/api/` to `http://api:8081`, with `/healthz` for the health check.
+
+## Demo session kill switch
+
+On the `demo` profile the web keeps the mock sign-in in `sessionStorage` so a refresh does not sign you out (ADR-025 amendment, `src/api/session.ts`). Build with `VITE_PERSIST_DEMO_SESSION=false` to turn that off: the `web/Dockerfile` takes it as a build argument, and `docker-compose.yml` passes it from `.env`, so set it there and run `docker compose up -d --build --wait`. Only the exact string `false` switches it off. `prod-like` never persists.
 
 ## Contract samples
 
 `src/api/contract-samples/` holds the api's own answers, captured from a running stack:
 
 ```sh
-./scripts/capture-contract-samples.sh http://localhost:8080
+./scripts/capture-contract-samples.sh http://localhost:8080   # from the repository root
 ```
 
 The fixtures and the api drift apart: the api sends `null` for a field the

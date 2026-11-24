@@ -12,7 +12,7 @@ To install and start it, see [INSTALL.md](INSTALL.md). This guide is about using
 |---|---|---|
 | An officer (Employee) | My schedule | [Officer guide](docs/user-guide/officer.md) |
 | A unit supervisor | Planning board, Overtime, Reports, Rules, Audit log, Wall display, Employee view, Time & attendance | [Supervisor guide](docs/user-guide/supervisor.md) |
-| The facility planner | Quarter plan, Preferences, Units, Planning board, Reports | [Planner guide](docs/user-guide/planner.md) |
+| The facility planner | Quarter plan, Preferences, Units, Planning board, Reports (listed, but the planner is not allowed to load them in this build) | [Planner guide](docs/user-guide/planner.md) |
 | An auditor | Planning board, Reports, Rules, Audit log, Wall display | [Auditor guide](docs/user-guide/auditor.md) |
 | A rules admin or rules approver | Rules | [Rules admin and approver guide](docs/user-guide/admin.md) |
 
@@ -36,8 +36,9 @@ Everyone also has **About & version**. The unit office TV uses the **Wall displa
 - **Gap:** a shift block (Day, Evening or Night) in a unit with fewer officers than its minimum.
 - **Block-day:** one block on one day, for example "Unit A, Night, Tue 9 Feb".
 - **Pay period:** two weeks.
-  - A supervisor publishes a period so officers see it as final.
-  - A supervisor locks a period after its time is recorded.
+  - A supervisor locks a pay period after its time is recorded, then exports it to payroll.
+- **Roster week:** one unit's Monday-to-Sunday schedule.
+  - A supervisor publishes a roster week to mark it final. The prototype records and shows this; it does not hide an unpublished week from officers (FR-06 is partial).
 - **Draft and committed:**
   - The planner's quarter plan starts as a draft that only the planner sees.
   - Committing writes it to the planning board, where supervisors and officers see it.

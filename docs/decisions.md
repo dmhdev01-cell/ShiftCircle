@@ -34,7 +34,7 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Alternatives:** Microsoft RulesEngine (JSON expressions), Drools (Java), or a domain-specific language. Rejected for the prototype because they're harder for non-developers to change safely and harder to test exhaustively.
 
 ## ADR-008 — Simulated integrations kept inside the three containers
-**Status:** Proposed
+**Status:** Accepted, and built (checked 24 Nov 2026): the payroll CSV export and the mock sign-in live inside the api and db containers; there is no fourth container.
 **Decision:** Payroll CSV export and mock identity live inside the existing containers. No extra containers, so we stay within the three-container constraint.
 
 ## ADR-009 — Scope: scheduling prototype for a correctional centre
@@ -65,7 +65,7 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Status:** Accepted (2026-11-19)
 **Decision:** Required staffing is defined per unit per block (Day 07–15, Evening 15–23, Night 23–07), optionally with a qualification minimum. **Revised the same day:** coverage is measured hourly: each block's requirement applies to every hour in it, and a block is covered when every hour meets it. (The first version, "a shift counts toward a block if it covers half of it", double-counted 12-hour shifts; see ai-dev-log #10.)
 **Alternatives:** headcount per shift only (too coarse for qualification checks); named posts (most realistic, but much more setup). Named posts remain a future extension of `unit_requirement`.
-**Status note:** to be confirmed against real practice.
+**Status note:** still to be confirmed against real practice (open question 1 in `docs/process/HANDOFF.md` §8); the prototype uses the hourly by-unit-and-block model throughout.
 
 ## ADR-014 — API conventions: REST, Problem Details, rule results in 422
 **Status:** Accepted (2026-11-19)
@@ -91,7 +91,7 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 1. **Coverage cells show the lowest hourly count and the short hours.** `GET /schedule` and `GET /display/today` return, per block, `lowestHourly`, `shortHours` and `covered` (`07-api-spec.md` §4.2). The wall display stays counts only.
 2. **A pay period can't be locked while any shift in it that has ended lacks an actual** (a time entry or an absence). The API refuses with `409 missing-actuals`; the UI disables "Lock pay period" and says how many are missing. The demo generator must give every past shift an actual (self-check 8).
 3. **The rule version review shows dry-run impact as counts** by rule, unit and date, never names, because `RULES_APPROVER` has no roster access (`09-access-control.md` §2).
-4. **Proposals are decided with an explicit Accept or Decline per item**, sent once; accepted items re-run the rules and follow the normal 422 / acknowledge / override contract.
+4. **Proposals are decided with an explicit Accept or Decline per item**, sent once; accepted items re-run the rules and follow the normal 422 / acknowledge / override contract. *(Not built: the proposals feature itself is not in the prototype, docs/10 §8; items 1 to 3 are built.)*
 **Why:** (1) with hourly coverage (ADR-013) a single block number can read `5 / 5` while two hours are short; (2) exporting a period with unrecorded shifts would put wrong figures into payroll; (3) keeps the permission matrix true on every screen; (4) "not yet decided" must stay visible, and nothing auto-approves (HANDOFF guardrail 3).
 **Consequences:** extra fields in two endpoints; one new problem type; boundary test and scenario T14 in `10-testing.md`; generator self-check 8.
 

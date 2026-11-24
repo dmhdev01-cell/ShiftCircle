@@ -1,6 +1,17 @@
 # ShiftCircle — requirement-to-proof traceability
 
-**Derived from the test sources, not from the prose.** Checked on 2026-11-21 against `main` at
+**Current status (24 Nov 2026, `main` at `a38e452`).** Every test class and method named in this
+file was re-checked against the sources on that date (all of them exist). Counts today: API
+**468 = 127 rules + 28 infrastructure + 313 api** (a source count; the last verified green run was 464
+at release 8), web unit tests **368** (run), Playwright **114** real-api tests per viewport (listed).
+The sources for each number, and the history behind them, are in `docs/10-testing.md` ("Current
+counts"). Rows added since the first derivation cover the not-built states (FR-30/31, M1, M3), the
+Reports pickers (S1), the dataset notice and Other absence (S6, S8), the demo session (S11) and CI.
+Two requirements stay **PARTIAL**: **FR-06** (publishing is recorded and shown on the board, but My
+schedule is not filtered by period status) and **FR-07** (a real changed-since-publish count, no
+notice rule). The older paragraphs below keep the counts of their day.
+
+**First derived from the test sources, not from the prose.** Checked on 2026-11-21 against `main` at
 `5d0f810` by grepping `@Test`, Playwright `test(...)` titles and the Flyway migrations. The
 sources hold **123 rules + 27 infrastructure + 272 api = 422 tests**, counted as `@Test` methods
 on their own line (no parameterised tests). dev-qa's independent run at `5d0f810` is **422 green,
@@ -159,6 +170,12 @@ reaches; E1 also calls `expectDisclaimer`. E2–E5 rely on the web shell test fo
 | FR-05 overtime status live | `ScheduleApiTest#overtimeStatusChangesAtThePayPeriodThresholdBoundaries`; `#overtimeStatusUsesThePeriodThatContainsTheBoardDateAndCountsAMidnightCrossing`; `PlanningPage.test.tsx#shows the officer pay-period hours with the overtime status pill` | PASS |
 | FR-06 publish a period | `SchedulePublishApiTest#publishingIsScopedAuditedAndOneWay`, `#aDraftWeekReadsAsUnpublishedUntilItIsPublished`; `SchedulePeriodSeedApiTest#publishingASeededPeriodWorksOnAFreshDataset` (publishes a **generated** period, no planted row), `#theBoardCarriesThePeriodItReadsSoTheWebCanPublish` (the board hands over the id), `#theBoardCountsTheShiftsChangedAfterThePublication`, `#aPastWeekIsAlreadyPublishedAndCannotBePublishedAgain` | PASS |
 | FR-07 notice check and per-officer "changed" flag after publishing | The board counts the shifts changed after the publication (`publishedState.unpublishedChanges`, from the audit trail) and names the period; there is no P-05/S-01 rule row and no per-officer changed marker | **PARTIAL** — the count is real; the notice rule and the per-officer flag are not built (`docs/10` §8) |
+| FR-30/31 employee proposals: sandbox, submit, supervisor decision | **Not built.** There is no `/proposals` endpoint or inbox. What is proved is the honest "not available" state: `MySchedulePage.test.tsx#M1: says sending a proposal is not available, and sends nothing`, `#M1: neither api offers a proposal call to reach the missing endpoint`; e2e `not-built-states.spec.ts` (M1: the card checks the rules and makes no request to `/proposals`) | **NOT BUILT** (`docs/10` §8); the rule check of one shift is PASS |
+| M3: Find eligible officer on a slot with no open shift | `OvertimePage.test.tsx#M3: says a slot has no open shift instead of opening a different one`, `#M3: an unknown shift id also says so, and a picked shift still opens`; e2e `not-built-states.spec.ts` (M3, `@api`). No screen creates an open shift; the API does (`OvertimeApiTest#creatingAnOpenShiftIsSupervisorOnlyAndAudited`) | PASS (the state), creation in the UI **not built** |
+| Reports: date range and unit pickers (S1) | `ReportsApiTest#theAuditorsUnitFilterNarrowsTheHoursAndOverridesReports`, `#authorizationAndScopeCells`; `ReportsPage.test.tsx` (default range, ranged read and CSV, refused reversed/over-long range, auditor sees all units, no picker without a scope); `reportRange.test.ts` (defaults per report, 366-day limit); e2e `reports.spec.ts` (a supervisor picks a range and unit; the auditor narrows the overrides) | PASS |
+| The quarter plan names an under-staffed dataset (S6) and the Other absence code is recorded (S8) | `DemoActiveDatasetTest` (3 methods: the active dataset read once, 100 when no reset row exists, database error not cached); `Demo120ResetApiTest`; `PlannerPage.test.tsx#says Dataset 100 is under-staffed for nights and links to About & version`, `#stays quiet on Dataset 120`; `TimeAttendancePage.test.tsx#records and reopens the Other absence code (FR-51)`; `AbsenceChip.test.tsx#names each absence code the api sends (FR-51)`; e2e `s6-s8-dataset-notice-other-absence.spec.ts` | PASS |
+| The demo session survives a refresh, and a build switch turns that off (S11, ADR-025 amendment) | `session.test.ts` (six tests: memory-only unless the demo profile enabled it, restore after a reload, no restore on `prod-like`, cleared on sign-out and `401`, corrupt value ignored, the `VITE_PERSIST_DEMO_SESSION=false` kill switch); e2e `session-and-nav.spec.ts` (demo: refresh keeps the session; sign-out and `401` clear it) | PASS |
+| CI runs the checks on every pull request | `.github/workflows/ci.yml` (check scripts, web lint/`tsc -b`/tests/build, API `mvn verify`); Playwright is not in CI | PROCESS (runs on GitHub, not provable from the repository) |
 | One open shift is filled once, and one unlock is audited once | `OvertimePayrollConcurrencyApiTest#threeDifferentOfficersCannotFillOneOpenShift`, `#twoAcceptedOffersForOneShiftConfirmOnlyOnce`, `#twoShiftsAndTwoOfficersAssignInParallelWithoutDeadlock`, `#concurrentUnlocksWriteOneAuditRow` (all over HTTP, real threads) | PASS (dev-qa, `c0dcaf3`) |
 | The employee roster without a unit filter is scoped | `AuthorizationMatrixTest#theEmployeeListIsScopedWhenNoUnitIsGiven` (ellis A/B, chen ADM/CTL/ESC, auditor all, out-of-scope unit 404) | PASS (dev-qa, `c0dcaf3`) |
 | A rules-admin row edit is saved or refused, and a stored bad value is a validation error, not a 500 | `RuleRowEditApiTest#aRawAfterShiftKindEditIsSavedInsteadOfDropped`, `#aFriendlyAfterLabelStillMapsToTheStoredPattern`, `#aHostileAfterShiftKindIsRefusedAndNothingIsSaved`, `#anUnknownParamsKeyIsRefusedNamingIt`, `#aStringInANumericColumnIsRefusedNamingTheColumn`, `#aStringInTheExtensionColumnIsRefusedNamingTheColumn`, `#aStringAllowedLengthsIsRefused`, `#aNullAllowedLengthsIsRefused`, `#aHugeAllowedLengthsListIsRefusedAtTheCap`, `#minRestHoursOutsideTheRangeIsRefused`, `#anUnsafeRuleCodeIsRefusedInPlainWords`, `#aBuildWithAStoredWrongTypeAnswersValidationNotAFiveHundred`, `#aBuildWithAStoredAllowedLengthsStringAnswersValidationNotAFiveHundred`, `#aBuildWithAStoredAllowedLengthsNullAnswersValidationNotAFiveHundred`, `#aBuildRefusesAStoredRestAboveTheCeiling`, `#aBuildDoesNotReturnThousandsOfErrorsForOneHugeList`, `#aBuildCapsTheNumberOfErrorsItReturns` (all over HTTP); `RuleRowValidatorTest` (27 tests: null/empty/string/5/true params roots and the numeric bounds), `RuleRowEditApiTest` (31 @Test: the whole PUT refusal contract, including unknown top-level fields, the after conflict, the numeric ranges and the new-row extension column) | PASS (dev-qa, `c0dcaf3`) |
@@ -215,7 +232,7 @@ The suite in `e2e/tests` covers every screen by role and state at desktop 1440×
 768×1024, runs axe WCAG 2.1 AA on every screen reached (a serious or critical finding fails), and
 runs E1 and E3 by keyboard only. The whole matrix, the captures and the defects found are in
 [`e2e/COVERAGE.md`](../e2e/COVERAGE.md). Results below are dev-qa's independent real-api run at
-`5d0f810`: desktop 101 passed / 0 failed, tablet 100 + 1 skipped / 0 failed (the TV-size check is
+`5d0f810` (a first-pass record; current counts are in `docs/10-testing.md`): desktop 101 passed / 0 failed, tablet 100 + 1 skipped / 0 failed (the TV-size check is
 desktop-only); fixtures 22 passed and 21.
 
 **Phase 3 specs added to the same matrix:** `planner`, `planner-absences`, `planner-committed`,
@@ -236,6 +253,8 @@ time-grid refresh.
 | `planning-override` | an emergency-only Block saves with a reason; a warning saves after acknowledgement; the board shows the saved shift without leaving the screen (D9) | PASS |
 | `reports` | all four reports and their CSV export; an empty report says so (D2); the report named in the address opens (D3); the planted override is visible | PASS |
 | `routes-and-errors` | not-built/not-found wording; the api-unreachable panel and Try again; the error panel for broken data (D4); a wrong role gets plain words | PASS |
+| `not-built-states` | M1: *Propose shifts* checks the rules and makes no request to `/proposals`; M3: *Find eligible officer* on a slot with no open shift says so and returns to that week | PASS |
+| `s6-s8-dataset-notice-other-absence` | the Quarter plan names Dataset 100 and links to About & version; a supervisor records the Other absence code | PASS |
 | `rules-refusals` | the floor and 24 h refusals in plain words; the approver cannot edit; the sentence is words, with no `.*` or bare enum (D6) | PASS |
 | `screenshots` | 40 full-page captures per viewport plus `index.json` | PASS |
 | `session-and-nav` | sign-in and the seven demo users, landing and nav per role, TV with no nav, sign-out, the 401 notice, the top-bar demo date (D1), no supervisor nav when signed out (D8), and the requested route after sign-in (D11) | PASS |

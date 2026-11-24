@@ -15,7 +15,7 @@ Everything here uses the shared layout (README §4), the Saskatchewan tokens (RE
 | Item | Value |
 |---|---|
 | Role | New `PLANNER`: facility-wide, all six units. Supervisors stay unit-scoped. The planner's nav is Quarter plan, Preferences, Units, Planning board, Reports. |
-| Nav (PLANNER) | **Quarter plan** (`/planner`) · **Preferences** (`/planner/preferences`) · **Planning board** (`/planning`, read-only, §11 Q1) · **Reports** (`/reports/coverage`) · About & version |
+| Nav (PLANNER) | **Quarter plan** (`/planner`) · **Preferences** (`/planner/preferences`) · **Planning board** (`/planning`, read-only, §11 Q1) · **Reports** (`/reports/coverage`; *as built, the api refuses the planner every report, so the screen says it could not load them: `docs/09-access-control.md`*) · About & version |
 | Nav (EMPLOYEE, and supervisors' Employee view) | no new item: preferences are a card on **My schedule** (§8) |
 | Sign-in landing | PLANNER → `/planner` (add to the build-notes §2.1 list) |
 | Role chip | "Planner · <name> (mock sign-in)" |
