@@ -27,7 +27,7 @@
 # 17 .env/secrets failed, 18 start or health check failed, 19 curl missing.
 set -euo pipefail
 
-DEFAULT_REF="v1.2-submission"
+DEFAULT_REF="v1.1.1-submission"
 REF="${SHIFTCIRCLE_REF:-$DEFAULT_REF}"
 DIR="${SHIFTCIRCLE_DIR:-ShiftCircle}"
 REPO="${SHIFTCIRCLE_REPO:-https://github.com/dmhdev01-cell/ShiftCircle.git}"

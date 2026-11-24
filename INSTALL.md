@@ -14,13 +14,13 @@ the host.
 One command (needs git, Docker with Compose v2, a running Docker daemon and a free port; it clones into `./ShiftCircle`, creates `.env` with freshly generated random secrets that it never prints, runs `docker compose up -d --build --wait`, and prints the URL):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.2-submission/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.1.1-submission/install.sh | bash
 ```
 
 Prefer to read it first? Download, read, then run:
 
 ```sh
-curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.2-submission/install.sh
+curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.1.1-submission/install.sh
 less install.sh
 bash install.sh
 ```
