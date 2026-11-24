@@ -74,3 +74,19 @@ Everything merged to `main` after tag `v1.0-submission` (`efba3f7`), through six
 Install-only change on top of v1.1: `install.sh` at the repo root (prerequisite checks, pinned clone, generated secrets never printed, `docker compose up -d --build --wait`, health checks, idempotent re-run, never `down -v`), a Quick install section in README and INSTALL, and a CI step running `bash -n` and shellcheck. No application, rules, data or test change; the v1.1 counts stand. Tag: `v1.1.1-submission`.
 
 **Release step:** after merge, tag the merge commit `v1.1.1-submission` and push the tag, then run `scripts/check-install-pin.sh --remote` and the README one-liner once from an empty directory (free port, own `SHIFTCIRCLE_PROJECT`).
+
+## v1.3 (in progress)
+
+### Shift proposals, P1: the officer API
+
+The first of five proposal PRs (P1 to P5; plan `v1.2-proposals`, owner answers Q1 to Q5 approved). **P1 is the API for the officer side only; there is no screen yet.** An officer can preview a multi-item proposal (each item rule-checked with the earlier items as extra facts, so rest between two drafts shows), send it (a Block can't be sent, a Warn can), list their own proposals, and withdraw one while every item still waits. A waiting item expires when its shift starts, on every read and withdraw and by an hourly sweep. Nothing creates a shift: the inbox and the decision are P2, so until then a sent proposal stays Waiting and then Expires.
+
+- **Migration V18** reshapes the unused V1 `proposal` and `proposal_item` tables in place (status and decision sets, decider, comment, snapshots, a note-length check, a decline-needs-a-comment check, an ADD-needs-the-whole-shift check, and a unique index so one officer can't have the same shift waiting twice). The number is V18 because PR-N takes V14 and the supervisors' S1 to S3 reserve V15 to V17; if a lower number is still free at merge time it must be renamed **before** merging, since Flyway refuses an out-of-order version on an existing database.
+- **Audit:** three new action codes, `submit_proposal`, `withdraw_proposal` and `expire_proposal_item`, and one entity type, `proposal`; the web labels and `check-audit-codes.sh` agree (**54** codes, was 50: the script counts actions and entity types together). `decide_proposal_item` follows in P2.
+- **`SelfActionGuard`** (`ca.shiftcircle.api.security`) is the shared "not your own record" predicate. P2's decision endpoint and the supervisors' S5 self-edit guard use it, so neither feature owns it. P1 only adds it and its unit test.
+- **`RuleCheckService`** gains `evaluateWithExtras(change, extraShifts, snapshot)` and `factOf(change, id)`; the existing overloads are unchanged. (The plan called this an `evaluate(change, extraFacts)` overload, but that signature is already the planner seam.)
+- Scope and limits: the proposer is always the caller (an `employeeId` in the body is a 400), at most 10 items per proposal and 20 waiting per officer, dates from now to 11 Apr 2027, any active unit.
+- **Pins:** no dataset checksum, payroll golden or plan fingerprint reads the new columns; none moved.
+
+Tests: +23 API (20 in `ProposalApiTest`: V18 constraints 3, preview 3, send 5, withdraw 4, expiry 2, scope 3, plus the 20-waiting limit and the list filter; 3 in `SelfActionGuardTest`). Web: the audit labels only. Counts for the whole release are measured once at the end of v1.3.
+

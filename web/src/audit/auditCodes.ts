@@ -48,6 +48,9 @@ export const API_AUDIT_ACTIONS = [
   'discard_plan',
   'edit_plan_draft',
   'demo_reset',
+  'submit_proposal',
+  'withdraw_proposal',
+  'expire_proposal_item',
 ] as const;
 
 /** Every entity type the api writes to audit_event.entity_type. */
@@ -66,6 +69,7 @@ export const API_AUDIT_ENTITIES = [
   'schedule_period',
   'demo',
   'plan_draft',
+  'proposal',
 ] as const;
 
 /** Plain words for each action code. */
@@ -106,6 +110,9 @@ export const ACTION_LABELS: Record<string, string> = {
   rule_set_publish: 'Rule set published',
   publish_schedule_period: 'Period published',
   generate_demo_dataset: 'Demo data generated',
+  submit_proposal: 'Shifts proposed',
+  withdraw_proposal: 'Proposal withdrawn',
+  expire_proposal_item: 'Proposed shift expired',
 };
 
 /** Plain words for each entity type. */
@@ -124,6 +131,7 @@ export const ENTITY_LABELS: Record<string, string> = {
   schedule_period: 'Schedule period',
   demo: 'Demo',
   plan_draft: 'Quarter plan draft',
+  proposal: 'Shift proposal',
 };
 
 /** One filter choice per entity type, so the filter cannot fall out of step. */

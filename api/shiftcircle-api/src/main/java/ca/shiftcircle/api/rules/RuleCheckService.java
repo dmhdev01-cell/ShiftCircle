@@ -112,6 +112,35 @@ public class RuleCheckService {
     return evaluateFacts(shifts, published.snapshot());
   }
 
+  /**
+   * The same evaluation with extra shifts the caller holds in memory added to the officer's real
+   * ones: the other drafts of a multi-item proposal, so rest, hours and runs between them show up
+   * (v1.3 proposals). The extras are facts only; nothing is read for them and nothing is saved.
+   */
+  public OutcomeView evaluateWithExtras(
+      Change change, List<ShiftFact> extraShifts, PublishedRuleSet.Snapshot live) {
+    List<ShiftFact> shifts = new ArrayList<>(existingShifts(change.employeeId(), change.startAt(), null));
+    shifts.addAll(extraShifts);
+    shifts.add(factFor(change));
+    return evaluateFacts(shifts, live);
+  }
+
+  /** The fact for a change, under a caller-chosen id (a draft shift that is not saved). */
+  public ShiftFact factOf(Change change, String factId) {
+    ShiftFact proposed = factFor(change);
+    return new ShiftFact(
+        factId,
+        proposed.employeeId(),
+        proposed.unitCode(),
+        proposed.templateCode(),
+        proposed.start(),
+        proposed.end(),
+        proposed.kind(),
+        proposed.extensionMinutes(),
+        proposed.unitAllows12h(),
+        proposed.unitAllows16h());
+  }
+
   private ShiftFact factFor(Change change) {
     Map<String, Object> employee =
         jdbc.queryForMap(

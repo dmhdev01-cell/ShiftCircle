@@ -267,16 +267,41 @@ offer-time snapshot does not need a second answer, but a **new** warning is refu
 `422 warnings-need-acknowledgement`. The assignment is created through the normal rules/override
 path (`POST /assignments`), so S-04 and the audit event still hold.
 
-### 4.4 Proposals (employee shift planner) — **not built**
+### 4.4 Proposals (employee shift planner) — officer side built (v1.3 P1); inbox and decision not built
 
-**None of these endpoints exist in the prototype** (each answers `404`). The web's *Propose shifts* card only rule-checks a shift for the officer through `POST /rule-checks` and says that sending a proposal is not available (M1); there is no proposals inbox. Kept as the design for a later release; see docs/10 §8.
+An officer proposes **extra shifts to add**; a supervisor in scope will approve or decline each one (P2). Only the officer side exists so far: preview, send, list, withdraw and expiry. **The inbox and the decision endpoints are not built** (`GET /proposals`, `GET /proposals/{id}`, `POST /proposals/{id}/decision` answer `404`), so a sent proposal stays *Waiting* until its shift starts and then expires. The web's *Propose shifts* card is unchanged until P3. Design: owner answers Q1 to Q5 (overtime-order acknowledgement, add-only, no sending Blocked drafts, any active unit with supervisors in scope deciding and the planner as fallback, paid like an accepted overtime offer).
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
-| POST | `/proposals` | Submit `{ "note", "items": [...] }`; each item is rule-checked and the results stored | EMPLOYEE |
-| GET | `/me/proposals` | My proposals and their status | EMPLOYEE |
-| GET | `/proposals?unitId=&status=SUBMITTED` | Supervisor inbox | SUPERVISOR |
-| POST | `/proposals/{id}/decision` | `{ "items": [ { "id", "accept": true } ] }`; accepted items become assignments (rules re-run) | SUPERVISOR |
+| POST | `/proposals/preview` | `{ "items": [ { "unitId", "shiftTemplate", "startAt" } ] }`. Each item is rule-checked as an `EXTRA` shift **with the items that start before it as extra facts**, so rest and hours between two drafts show. Saves nothing. Returns `{ outcome, canSend, items: [ { index, unit, shiftTemplate, startAt, endAt, outcome, ruleSetVersion, ruleResults, problem, problemCode } ] }`; `problem` is a plain-words `409`-type reason (locked period, closed unit, already waiting) | EMPLOYEE (own) |
+| POST | `/proposals` | `{ "note", "items": [...] }`. Re-checks server-side and stores the proposal and its items (`201`, the proposal view). The warn codes are kept in each item's `rule_snapshot`. Audit `submit_proposal` (the note's length, never its text) | EMPLOYEE (own) |
+| GET | `/me/proposals?status=` | The caller's proposals, newest first (at most 200), with item outcomes, decider name and comment. `status` is `ALL` (default), `WAITING`, `APPROVED`, `PARTLY_APPROVED`, `DECLINED`, `WITHDRAWN` or `EXPIRED`. Expiry is applied first | EMPLOYEE (own) |
+| POST | `/proposals/{id}/withdraw` | `If-Match: "<version>"`. Allowed only while **every** item is still waiting. `200` with the proposal view. Audit `withdraw_proposal` | EMPLOYEE (own) |
+
+**The proposer is always the caller.** The account must be linked to an officer (`404` otherwise, as for `/me/schedule`). The body is strict: an `employeeId` anywhere in it is `400`, so nobody proposes for someone else. Someone else's proposal is `404` on withdraw, and never appears in `/me/proposals`. AUDITOR, RULES_* and DISPLAY get `403`.
+
+**Order of checks (send):** role (`403`) → linked officer (`404`) → body (`400`) → state (`409`) → rules (`422`).
+
+| Status | When |
+|---|---|
+| `400` | No items; more than 10 items; two items that overlap in time; a missing field or unknown unit; an inactive or retired shift type (L16); a start that is not in the future, or after the end of the planned quarter (11 Apr 2027); a note over 500 characters; an unknown field (including `employeeId`) |
+| `409` | `pay-period-locked`; `unit-closed` (the unit's hard switch is off or `unit_active_on` is false that day); `duplicate-waiting-item` (the officer already has a waiting item overlapping that time); `too-many-waiting` (more than 20 waiting items for the officer) |
+| `422` | `blocked-by-rules`: **any item is a Block**. Warn items can be sent. The body carries `items[]` with each item's `outcome` and `ruleResults` |
+| withdraw | `428` no `If-Match`; `400` not a number; `412` stale version; `409 not-withdrawable` once any item is decided, expired or the proposal is withdrawn already |
+
+**Proposal view:** `{ id, status (WAITING, DECIDED, WITHDRAWN, EXPIRED), displayState, note, submittedAt, withdrawnAt, version, canWithdraw, items: [ { id, unitId, unit, unitName, shiftTemplate, startAt, endAt, workDate, decision (PENDING, ACCEPTED, DECLINED, WITHDRAWN, EXPIRED), outcomeAtSubmit, ruleAtSubmit, decidedBy, decidedAt, comment } ] }`. `displayState` is derived: Waiting while any item is pending; then Approved (all accepted), Partly approved, Declined (all declined) or Expired.
+
+**Expiry.** A waiting item expires when its shift starts (`start_at <= now`, the business clock, demo day 19 Nov 2026). It is applied inside every read and withdraw of a proposal and by an hourly sweep, so nobody acts on a shift that has started. Each expiry writes `expire_proposal_item` once, with no actor (the system).
+
+**Limits.** At most 10 items per proposal and 20 waiting items per officer; dates from now to the end of the planned quarter. An officer may propose in any active unit (not only the home unit); the rules and qualifications decide eligibility. The officer's per-officer advisory lock is taken on send and withdraw, the same lock the board uses.
+
+**Not yet (P2):**
+
+| Method | Path | Purpose | Roles |
+|---|---|---|---|
+| GET | `/proposals?status=WAITING\|ALL&unitId=` | Supervisor inbox, items whose unit is in scope (the planner sees all) | SUPERVISOR, PLANNER |
+| GET | `/proposals/{id}` | Detail with the rule result as submitted and now | SUPERVISOR, PLANNER |
+| POST | `/proposals/{id}/decision` | Accept or decline each item; an accepted item becomes an `EXTRA` / `PROPOSAL` assignment after a fresh rule check (a Block refuses, no override); no self-approval | SUPERVISOR, PLANNER |
 
 ### 4.5 Time and payroll
 
