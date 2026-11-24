@@ -182,6 +182,13 @@ supervisor has a period to publish on a fresh stack. `GET /schedule` returns the
 `POST /schedule-periods/{id}/publish` takes. The status column is `DRAFT` or `PUBLISHED`; there is
 no `UNPUBLISHED` status in the schema.
 
+**Employees see only published rosters (FR-06).** `GET /me/schedule` leaves out the signed-in
+officer's shifts (and their `nextShift`) that fall in a `DRAFT` period on or after `asOf`; weeks
+that are already past, and shifts with no period row, stay visible. `GET /me/offers` is not gated
+by the period: an offer is a direct message from a supervisor about an open shift, and the demo's
+Sat 21 Nov offer sits in a draft week. A confirmed extra shift appears on `/me/schedule` once its
+week is published.
+
 **Move and cancel (`PATCH` / `DELETE /assignments/{id}`): the exact contract** (decided 2026-11-20 so the builder doesn't have to guess):
 
 | Topic | Rule |

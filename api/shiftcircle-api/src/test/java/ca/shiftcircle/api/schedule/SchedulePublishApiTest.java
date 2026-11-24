@@ -175,4 +175,60 @@ class SchedulePublishApiTest {
     Map<String, Object> publishedState = (Map<String, Object>) after.get("publishedState");
     assertThat(publishedState.get("published")).isEqualTo(true);
   }
+
+  @Test
+  @Order(3)
+  @SuppressWarnings("unchecked")
+  void anEmployeeSeesADraftWeekOnlyAfterItIsPublished() throws Exception {
+    UUID periodC = UUID.fromString("99999999-9999-9999-9999-000000000033");
+    LocalDate weekC = LocalDate.of(2027, 1, 18);
+    UUID employee = UUID.fromString("33333333-3333-3333-3333-0000000000c1");
+    period(periodC, weekC);
+    jdbc.update(
+        "INSERT INTO employee (id, employee_no, first_name, last_name, home_unit_id, seniority_date)"
+            + " VALUES (?, 'E-PUB', 'Publish', 'Officer', ?, DATE '2020-01-01')"
+            + " ON CONFLICT DO NOTHING",
+        employee,
+        UNIT_A);
+    jdbc.update(
+        "INSERT INTO shift_assignment (id, employee_id, unit_id, shift_template_id, start_at,"
+            + " end_at, work_date, kind, source) SELECT"
+            + " '66666666-6666-6666-6666-0000000000c1', ?, ?, t.id,"
+            + " TIMESTAMPTZ '2027-01-19 07:00:00-06', TIMESTAMPTZ '2027-01-19 15:00:00-06',"
+            + " DATE '2027-01-19', 'ROSTERED', 'ROTATION' FROM shift_template t WHERE t.code = 'D8'"
+            + " ON CONFLICT DO NOTHING",
+        employee,
+        UNIT_A);
+    jdbc.update("UPDATE app_user SET employee_id = ? WHERE username = 't.nakamura'", employee);
+    tokens.put("t.nakamura", login("t.nakamura"));
+    try {
+      String mine =
+          "/api/v1/me/schedule?from=" + weekC + "&to=" + weekC.plusDays(6);
+      assertThat(shiftCount(json(get(mine, "t.nakamura"))))
+          .as("a draft week is not visible to the employee")
+          .isZero();
+      assertThat(json(get(mine, "t.nakamura")).get("nextShift"))
+          .as("nor is it their next shift")
+          .isNull();
+
+      assertThat(post("/api/v1/schedule-periods/" + periodC + "/publish", "m.ellis").statusCode())
+          .isEqualTo(200);
+
+      Map<String, Object> after = json(get(mine, "t.nakamura"));
+      assertThat(shiftCount(after)).as("visible once published").isEqualTo(1);
+      assertThat(after.get("nextShift")).isNotNull();
+    } finally {
+      jdbc.update("UPDATE app_user SET employee_id = NULL WHERE username = 't.nakamura'");
+      tokens.put("t.nakamura", login("t.nakamura"));
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private static long shiftCount(Map<String, Object> payload) {
+    return ((java.util.List<Map<String, Object>>) payload.get("shifts"))
+        .stream()
+            .flatMap(day -> ((java.util.List<Map<String, Object>>) day.get("items")).stream())
+            .filter(item -> "SHIFT".equals(item.get("type")))
+            .count();
+  }
 }

@@ -106,7 +106,11 @@ public class MyScheduleQuery {
             + "   AND te.absence_type IS NULL) AS worked"
             + " FROM shift_assignment s JOIN shift_template t ON t.id = s.shift_template_id"
             + " WHERE s.employee_id = ? AND s.status <> 'CANCELLED'"
-            + " AND s.work_date BETWEEN ? AND ? ORDER BY s.start_at",
+            + " AND s.work_date BETWEEN ? AND ?"
+            + " AND NOT (s.work_date >= ? AND EXISTS (SELECT 1 FROM schedule_period sp"
+            + "   WHERE sp.unit_id = s.unit_id AND s.work_date BETWEEN sp.start_date AND sp.end_date"
+            + "   AND sp.status = 'DRAFT'))"
+            + " ORDER BY s.start_at",
         (org.springframework.jdbc.core.RowCallbackHandler)
             resultSet -> {
               LocalDate date = resultSet.getDate("work_date").toLocalDate();
@@ -125,7 +129,8 @@ public class MyScheduleQuery {
             },
         employeeId,
         first,
-        last);
+        last,
+        java.sql.Date.valueOf(asOf));
 
     jdbc.query(
         "SELECT type, start_at FROM absence WHERE employee_id = ?"
@@ -177,6 +182,9 @@ public class MyScheduleQuery {
                 + " JOIN shift_template t ON t.id = s.shift_template_id"
                 + " JOIN unit u ON u.id = s.unit_id"
                 + " WHERE s.employee_id = ? AND s.status <> 'CANCELLED' AND s.start_at >= ?"
+                + " AND NOT (s.work_date >= ? AND EXISTS (SELECT 1 FROM schedule_period sp"
+                + "   WHERE sp.unit_id = s.unit_id AND s.work_date BETWEEN sp.start_date"
+                + "   AND sp.end_date AND sp.status = 'DRAFT'))"
                 + " ORDER BY s.start_at LIMIT 1",
             (resultSet, rowNum) ->
                 new NextShiftView(
@@ -187,7 +195,8 @@ public class MyScheduleQuery {
                     new UnitView(
                         (UUID) resultSet.getObject("unit_id"), resultSet.getString("unit_name"))),
             employeeId,
-            java.sql.Timestamp.from(now));
+            java.sql.Timestamp.from(now),
+            java.sql.Date.valueOf(asOf));
     return shifts.isEmpty() ? null : shifts.get(0);
   }
 
