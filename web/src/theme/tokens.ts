@@ -57,6 +57,18 @@ export const colour = {
 } as const;
 
 /**
+ * Keyboard focus rings (WCAG 1.4.11, 3:1 against what they sit on). The
+ * theme's global ring is `onLight`; a ring drawn inside a dark (selected)
+ * control uses `onDark`.
+ */
+export const focusRing = {
+  /** Midnight Sky on white: 7.5:1. */
+  onLight: '#00558C',
+  /** Canola on Midnight Sky: 5.8:1. */
+  onDark: '#FBDD40',
+} as const;
+
+/**
  * The roster grid's own surfaces (A1): today's column, weekend shading and the
  * heavier line between weeks.
  */
@@ -71,10 +83,10 @@ export const grid = {
  * carries the count as well, so status is never colour alone.
  */
 export const coverageTones = {
-  ok: { bg: '#E8F1F8', text: '#00558C' },
-  gap: { bg: '#FDF1B0', text: '#5A4500' },
+  ok: { bg: colour.status.under.bg, text: colour.status.under.text },
+  gap: { bg: colour.status.warn.bg, text: colour.status.warn.text },
   gap2: { bg: '#F6B26B', text: '#3D2200' },
-  over: { bg: '#EEF0F2', text: '#333333' },
+  over: { bg: colour.status.info.bg, text: '#333333' },
 } as const;
 
 export interface ChipStyle {

@@ -16,7 +16,7 @@ import type { Block, BlockCoverage, OfficerRow, ShiftItem, Unit } from '../api/t
 import { useUnits } from '../api/useUnits';
 import { useVersion } from '../api/useVersion';
 import { useRole } from '../shell/nav';
-import { colour } from '../theme/tokens';
+import { colour, focusRing } from '../theme/tokens';
 import { addDays, weekdayDateWords } from '../planner/unitDates';
 import { GAP_PANEL_HEADING_ID, GapFillPanel } from './GapFillPanel';
 import { BLOCK_TEMPLATES, dayWords, isFillable } from './gapFill';
@@ -27,6 +27,8 @@ import {
   parseDensity,
   parseView,
   rangeFor,
+  isIsoDate,
+  payPeriodOf,
   rangeWords,
   stepFocus,
 } from './rosterView';
@@ -90,7 +92,12 @@ function Segmented<T extends string>({
               color: selected ? colour.text.onDark : colour.brand.link,
               backgroundColor: selected ? colour.brand.link : colour.bg.surface,
               '&:hover': selected ? {} : { backgroundColor: colour.bg.linkHover },
-              '&:focus-visible': { outline: `3px solid ${colour.brand.accent}`, outlineOffset: '-3px' },
+              // The ring sits inside the group (which clips), so it needs 3:1
+              // against both the white and the selected blue (WCAG 1.4.11).
+              '&:focus-visible': {
+                outline: `3px solid ${selected ? focusRing.onDark : focusRing.onLight}`,
+                outlineOffset: '-5px',
+              },
             }}
           >
             {option.label}
@@ -144,7 +151,10 @@ export function PlanningPage() {
   // the focus, so switching views keeps the same place in time.
   const view = parseView(searchParams.get('view'));
   const density = parseDensity(searchParams.get('density'), view);
-  const weekParam = searchParams.get('week');
+  // A malformed ?week= (a hand-edited or truncated link) falls back to the
+  // demo week instead of throwing on an Invalid Date.
+  const rawWeek = searchParams.get('week');
+  const weekParam = rawWeek && isIsoDate(rawWeek) ? rawWeek : null;
   const asOf = version.state.status === 'ready' ? version.state.info.asOf : undefined;
   const demoMonday = asOf ? mondayOf(asOf) : undefined;
   const focus = weekParam ? mondayOf(weekParam) : demoMonday;
@@ -304,22 +314,26 @@ export function PlanningPage() {
 
   const gapBlocks = payload.coverage.filter((block) => !block.covered);
   // A week names the weekday; a longer span adds the date so "Sat" is not two days.
-  const gapNote = gapBlocks
-    .map((block) =>
-      payload.days.length > 7
-        ? `${weekday(block.date)} ${Number(block.date.slice(8, 10))} ${BLOCK_LABEL[block.block]}`
-        : `${weekday(block.date)} ${BLOCK_LABEL[block.block]}`,
-    )
-    .join(', ');
+  const gapWords = gapBlocks.map((block) =>
+    payload.days.length > 7
+      ? `${weekday(block.date)} ${Number(block.date.slice(8, 10))} ${BLOCK_LABEL[block.block]}`
+      : `${weekday(block.date)} ${BLOCK_LABEL[block.block]}`,
+  );
+  // A long span can have dozens of gaps: name the first three and count the rest.
+  const gapNote =
+    payload.days.length > 7 && gapWords.length > 3
+      ? `${gapWords.slice(0, 3).join(', ')} and ${gapWords.length - 3} more`
+      : gapWords.join(', ');
   // A2: the gap words become buttons that open the fill panel (a supervisor,
   // today or later); past gaps stay words.
   const canFill = (block: BlockCoverage) => !readOnly && isFillable(block, today);
-  const gapNoteContent = gapBlocks.some(canFill)
-    ? gapBlocks.map((block, index) => {
-        const words =
-          payload.days.length > 7
-            ? `${weekday(block.date)} ${Number(block.date.slice(8, 10))} ${BLOCK_LABEL[block.block]}`
-            : `${weekday(block.date)} ${BLOCK_LABEL[block.block]}`;
+  // A long span names the same first three as the plain note and counts the
+  // rest, so no button is clipped out of sight in the compact chip.
+  const namedGaps = payload.days.length > 7 && gapWords.length > 3 ? 3 : gapWords.length;
+  const gapNoteContent = gapBlocks.slice(0, namedGaps).some(canFill)
+    ? [
+        ...gapBlocks.slice(0, namedGaps).map((block, index) => {
+        const words = gapWords[index];
         return (
           <Fragment key={`${block.date}-${block.block}`}>
             {index > 0 ? ', ' : ''}
@@ -340,7 +354,7 @@ export function PlanningPage() {
                   textDecoration: 'underline',
                   cursor: 'pointer',
                   '&:hover': { color: colour.brand.linkHover },
-                  '&:focus-visible': { outline: `3px solid ${colour.brand.accent}`, outlineOffset: '1px' },
+                  '&:focus-visible': { outline: `3px solid ${focusRing.onLight}`, outlineOffset: '1px' },
                 }}
               >
                 {words}
@@ -350,7 +364,9 @@ export function PlanningPage() {
             )}
           </Fragment>
         );
-      })
+      }),
+        namedGaps < gapWords.length ? ` and ${gapWords.length - namedGaps} more` : null,
+      ]
     : undefined;
   const inOvertime = payload.officers.filter((officer) => officer.overtimeStatus === 'IN_OVERTIME');
   const approaching = payload.officers.filter((officer) => officer.overtimeStatus === 'APPROACHING');
@@ -362,7 +378,20 @@ export function PlanningPage() {
     ? changes + ' ' + (changes === 1 ? 'change' : 'changes') + ' since publishing'
     : '';
 
+  // Publication is per roster period (a week in the 2026 demo data, two weeks
+  // in a committed 2027 plan). The API names the period only when the range
+  // on screen sits inside one; otherwise the board says so instead of
+  // claiming "Not published" for weeks that may well be published.
+  const onePeriod = payload.period != null || view === 'week';
+
   const compactKpis = density === 'compact';
+  // The API reports overtime for the pay period of the first day on screen,
+  // and counts overrides over the days on screen; the notes say exactly that.
+  const firstPayPeriod = payload.days.length > 0 ? payPeriodOf(payload.days[0]) : null;
+  const overtimeNote =
+    view === 'month' && firstPayPeriod
+      ? `pay period ${rangeWords(firstPayPeriod.from, firstPayPeriod.to)}`
+      : 'this pay period';
   const kpis: {
     label: string;
     value: number;
@@ -377,10 +406,16 @@ export function PlanningPage() {
       highlight: gapBlocks.length > 0,
       noteContent: gapNoteContent,
     },
-    { label: 'In overtime', value: inOvertime.length, note: 'this pay period' },
+    { label: 'In overtime', value: inOvertime.length, note: overtimeNote },
     { label: 'Approaching overtime', value: approaching.length, note: `within 8 h of ${threshold} h` },
-    { label: 'Rule warnings', value: payload.warnings, note: 'on the published week' },
-    { label: 'Overrides this period', value: payload.overridesThisPeriod, note: 'emergency, with reason' },
+    {
+      label: 'Rule warnings',
+      value: payload.warnings,
+      note: view === 'week' ? 'on the published week' : 'on published weeks',
+    },
+    view === 'week'
+      ? { label: 'Overrides this period', value: payload.overridesThisPeriod, note: 'emergency, with reason' }
+      : { label: 'Overrides in view', value: payload.overridesThisPeriod, note: 'emergency, with reason' },
   ];
 
   const warnCodes =
@@ -592,10 +627,19 @@ export function PlanningPage() {
           <Typography variant="h1">Planning board</Typography>
           <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
             {payload.unit.name} ·{' '}
-            <strong style={{ color: colour.text.primary }}>
-              {payload.publishedState.published ? 'Published' : 'Not published'}
-            </strong>
-            {changesPhrase ? ', ' + changesPhrase : ''}
+            {onePeriod ? (
+              <>
+                <strong style={{ color: colour.text.primary }}>
+                  {payload.publishedState.published ? 'Published' : 'Not published'}
+                </strong>
+                {changesPhrase ? ', ' + changesPhrase : ''}
+              </>
+            ) : (
+              <span data-testid="publish-scope">
+                {view === 'month' ? 'Spans several roster periods' : 'Spans two roster weeks'}: open the
+                Week view to see and publish each one
+              </span>
+            )}
           </Typography>
         </Box>
 
@@ -746,7 +790,9 @@ export function PlanningPage() {
       {payload.officers.every((officer) => officer.cells.every((cell) => cell.items.length === 0)) ? (
         <Typography role="note" sx={{ fontSize: 13, color: colour.text.secondary }}>
           {view === 'week' ? 'No shifts on this week yet.' : `No shifts in this ${STEP_NOUN[view]} yet.`}
-          {canPublish ? ' Assign a shift from an empty cell, or commit a quarter plan for this week.' : ''}
+          {canPublish
+            ? ` Assign a shift from an empty cell, or commit a quarter plan for this ${STEP_NOUN[view]}.`
+            : ''}
         </Typography>
       ) : null}
 

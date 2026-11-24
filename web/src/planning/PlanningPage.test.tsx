@@ -622,6 +622,40 @@ describe('the planning board', () => {
       expect(screen.getByTestId('search').textContent).not.toContain('view=');
     });
 
+    it('never says "Not published" for a range that spans several roster periods', async () => {
+      stubVersion();
+      const user = userEvent.setup();
+      renderBoard('/planning?unit=unit-b');
+
+      // The week is one roster period: its state and the Publish action show.
+      expect(await screen.findByText('Not published')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Publish period' })).toBeInTheDocument();
+
+      // The fixture's two-week range is not one period (period: null).
+      await user.click(screen.getByRole('button', { name: 'Pay period' }));
+      expect(await screen.findByText('9 – 22 Nov 2026')).toBeInTheDocument();
+      expect(screen.getByTestId('publish-scope')).toHaveTextContent(
+        'Spans two roster weeks: open the Week view to see and publish each one',
+      );
+      expect(screen.queryByText('Not published')).not.toBeInTheDocument();
+      expect(screen.queryByText('Published')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Publish period' })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Month' }));
+      expect(await screen.findByText('1 – 30 Nov 2026')).toBeInTheDocument();
+      expect(screen.getByTestId('publish-scope')).toHaveTextContent(/^Spans several roster periods/);
+      // The month's figures say what they count.
+      const strip = screen.getByRole('list', { name: 'Board figures' });
+      expect(within(strip).getByText('Overrides in view')).toBeInTheDocument();
+      expect(within(strip).getByText(/pay period 26 Oct – 8 Nov 2026/)).toBeInTheDocument();
+    });
+
+    it('falls back to the demo week when ?week= is not a date', async () => {
+      stubVersion();
+      renderBoard('/planning?week=foo');
+      expect(await screen.findByText('16 – 22 Nov 2026')).toBeInTheDocument();
+    });
+
     it('adds shifts and hours in view per officer, a day-totals footer and qualification badges', async () => {
       renderBoard();
       const roster = await screen.findByRole('region', { name: 'Roster, scrolls sideways' });

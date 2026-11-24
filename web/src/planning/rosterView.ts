@@ -35,7 +35,10 @@ export function parseDensity(value: string | null, view: BoardView): RosterDensi
  * A Monday that starts a pay period. Pay periods are 14 days, Monday to
  * Sunday, and every dataset seeds them on this cadence (26 Oct – 8 Nov and
  * 9 – 22 Nov 2026; the planner's 4 – 17 Jan 2027). The board only uses it to
- * choose what to show; the hours and overtime still come from the API.
+ * choose what to show and to label the pay-period column; the hours and
+ * overtime still come from the API. If a dataset ever seeds another cadence,
+ * this is the one constant to change (the API has no "covering pay period"
+ * field yet).
  */
 export const PAY_PERIOD_ANCHOR = '2026-10-12';
 export const PAY_PERIOD_DAYS = 14;
@@ -56,6 +59,13 @@ export function addDays(date: string, days: number): string {
 
 export function daysBetween(from: string, to: string): number {
   return Math.round((toTime(to) - toTime(from)) / DAY_MS);
+}
+
+/** True for a real calendar day written YYYY-MM-DD (guards a hand-edited ?week=). */
+export function isIsoDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const time = Date.parse(`${value}T00:00:00Z`);
+  return !Number.isNaN(time) && fromTime(time) === value;
 }
 
 /** The Monday of the week a date falls in. */

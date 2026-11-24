@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { shiftTemplates } from '../api/shiftTemplates';
 import type { BlockCoverage, OfficerRow, SchedulePayload } from '../api/types';
 import { StatusPill } from '../components/StatusPill';
-import { colour, coverageTones } from '../theme/tokens';
+import { colour, coverageTones, focusRing } from '../theme/tokens';
 import { BLOCK_TEMPLATES, BLOCK_WORDS, dayWords, gapCandidates } from './gapFill';
 
 export const GAP_PANEL_HEADING_ID = 'gap-fill-heading';
@@ -178,7 +178,10 @@ export function GapFillPanel({
                       color: selected ? colour.text.onDark : colour.brand.link,
                       backgroundColor: selected ? colour.brand.link : colour.bg.surface,
                       '&:hover': selected ? {} : { backgroundColor: colour.bg.linkHover },
-                      '&:focus-visible': { outline: `3px solid ${colour.brand.accent}`, outlineOffset: '-3px' },
+                      '&:focus-visible': {
+                        outline: `3px solid ${selected ? focusRing.onDark : focusRing.onLight}`,
+                        outlineOffset: '-3px',
+                      },
                     }}
                   >
                     {code} {option.start.slice(0, 2)}–{option.end.slice(0, 2)}

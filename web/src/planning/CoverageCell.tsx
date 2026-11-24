@@ -1,7 +1,7 @@
 import Box from '@mui/material/Box';
 
 import type { BlockCoverage, ShortHourRange } from '../api/types';
-import { colour, coverageTones } from '../theme/tokens';
+import { colour, coverageTones, focusRing } from '../theme/tokens';
 
 function shortRangeLabel(range: ShortHourRange): string {
   const from = range.from.endsWith(':00') ? range.from.slice(0, -3) : range.from;
@@ -135,7 +135,7 @@ export function CoverageCell({
         textDecoration: 'underline',
         textUnderlineOffset: '2px',
         '&:hover': { boxShadow: `inset 0 0 0 1px ${tone.text}` },
-        '&:focus-visible': { outline: `3px solid ${colour.brand.accent}`, outlineOffset: '1px' },
+        '&:focus-visible': { outline: `3px solid ${focusRing.onLight}`, outlineOffset: '1px' },
       }
     : {};
 
@@ -145,6 +145,7 @@ export function CoverageCell({
         component="span"
         className="num"
         title={title}
+        role="img"
         aria-label={`${lowest} of ${block.required}. ${title}`}
         {...fillProps}
         sx={{

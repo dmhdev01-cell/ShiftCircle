@@ -52,6 +52,10 @@ test.describe('the planning board views', () => {
     await expect(page).toHaveURL(/view=period/);
     await expect(page.getByRole('group', { name: 'Pay period' })).toContainText('9 – 22 Nov 2026');
     await expect(page.getByRole('button', { name: 'Compact' })).toHaveAttribute('aria-pressed', 'true');
+    // The 2026 demo publishes week by week: two weeks are never called "Not published".
+    await expect(page.getByTestId('publish-scope')).toContainText('Spans two roster weeks');
+    await expect(page.getByText('Not published', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Publish period' })).toHaveCount(0);
     const strip = page.getByRole('list', { name: 'Board figures' });
     await expect(strip.getByRole('listitem')).toHaveCount(5);
     // 14 day columns after Officer, Shifts · h and Pay period.
@@ -69,6 +73,7 @@ test.describe('the planning board views', () => {
     await page.getByRole('button', { name: 'Month', exact: true }).click();
     await settled(page);
     await expect(page.getByRole('group', { name: 'Month' })).toContainText('1 – 30 Nov 2026');
+    await expect(page.getByTestId('publish-scope')).toContainText('Spans several roster periods');
     await expect(roster.getByLabel(/^\d+ on duty, /)).toHaveCount(30);
     await expectNoPageScroll(page);
     await expectAccessible(page, testInfo, 'planning-month-compact');
@@ -82,6 +87,9 @@ test.describe('the planning board views', () => {
     await page.getByRole('button', { name: 'Week', exact: true }).click();
     await expect(page.getByRole('group', { name: 'Week' })).toContainText('16 – 22 Nov 2026');
     await expect(page).not.toHaveURL(/view=|density=/);
+    // Back on a week, the state and the action return.
+    await expect(page.getByText('Not published', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Publish period' })).toBeVisible();
   });
 
   test('shows qualification badges and keeps the demo week figures', async ({ page }) => {
@@ -92,6 +100,14 @@ test.describe('the planning board views', () => {
     // Demo §2 reads these off the tiles; the week view keeps them as tiles.
     await expect(page.getByText('Coverage gaps', { exact: true })).toBeVisible();
     await expect(page.getByText('In overtime', { exact: true }).first()).toBeVisible();
+  });
+
+  test('falls back to the demo week for a malformed ?week=', async ({ page }) => {
+    await signIn(page, 'M. Ellis');
+    await settled(page);
+    await page.goto('/planning?week=not-a-date');
+    await settled(page);
+    await expect(page.getByRole('group', { name: 'Week' })).toContainText('16 – 22 Nov 2026');
   });
 
   test('fits a phone: the page never scrolls sideways', async ({ page }, testInfo) => {
