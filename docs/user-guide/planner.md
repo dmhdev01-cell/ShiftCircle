@@ -30,7 +30,7 @@ The **Plan inputs** card sits above the scorecard (and on the empty quarter befo
 
 The line under it gives the Generate options (before a draft, the **default seed**; with a draft, the seed it used), the 8 h pattern ("8 h officers on their own pattern" unless one pattern was forced for everyone, in which case the table groups the 8 h officers under that pattern too), any other option the draft was made with, the rule set version, the planned leave days and how many officers have preferences on file.
 
-"About … needed" is the **Staffing by unit** floor. When no unit closes in the quarter it covers the whole quarter. When a closure splits the quarter into stretches, the headline gives the busiest stretch and its dates, for example "about 127 needed at the busiest (4 Jan – 14 Feb)".
+"About … needed" is the **Staffing by unit** floor. When no unit closes in the quarter it covers the whole quarter. When a closure splits the quarter into stretches, the headline gives the stretch that needs the most officers and its dates, for example "about 127 needed for the stretch that needs the most (4 Jan – 14 Feb)". If two stretches need the same number, it names the earlier one.
 
 **Show plan inputs** opens the detail:
 - **Officers by unit:** full-time and part-time or casual officers, their FTE and their shift patterns (12 h day or night crew, 8 h day or evening crew, an 8 h rotation, or the relief pool with no fixed rotation), and each unit's minimum for night, day and evening. A closed-days column appears when a unit is closed for part of the quarter.

@@ -185,7 +185,7 @@ export function MyPreferencesCard() {
                         }}
                         slotProps={{
                           input: {
-                            'aria-label': length === 16 ? '16 h, no longer offered' : `${length} h`,
+                            'aria-label': length === 16 ? '16 h (no longer offered)' : `${length} h`,
                           },
                         }}
                       />

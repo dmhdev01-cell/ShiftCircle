@@ -191,12 +191,11 @@ export function PlannerPage() {
   // Only the planner may call the planner api: another role sees the refusal card and fires no
   // request that would answer 403 (UI test L-4).
   const isPlanner = role.id === 'PLANNER';
-  // Bumped whenever what Generate would use may have changed (a generate, discard, commit or
-  // staffing change), so the live inputs the card compares against are never stale.
+  // Bumped only by the events that change what Generate would use (a generate, discard, commit or
+  // staffing change), so the live inputs are fetched once on mount and again after each of them.
   const [inputsVersion, setInputsVersion] = useState(0);
 
   const load = useCallback(async () => {
-    setInputsVersion((value) => value + 1);
     try {
       const next = await api.getPlannerPlan();
       setPlan(next);
@@ -431,6 +430,7 @@ export function PlannerPage() {
       );
       setCommitted(result);
       setCommitOpen(false);
+      setInputsVersion((value) => value + 1);
       await load();
     } catch (error) {
       setCommitOpen(false);
@@ -476,6 +476,7 @@ export function PlannerPage() {
       setDiscardOpen(false);
       setCommitted(null);
       setMessage('The draft was discarded. Nothing on the planning board changed.');
+      setInputsVersion((value) => value + 1);
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'The draft could not be discarded.');

@@ -39,7 +39,9 @@ describe('plan inputs words', () => {
       inputsHeadline(
         inputs({ neededFte: 123, neededFrom: '2027-01-04', neededTo: '2027-02-14', neededPeriods: 2 }),
       ),
-    ).toContain('112 FTE against about 123 needed at the busiest (4 Jan – 14 Feb) · 4 Jan – 11 Apr 2027');
+    ).toContain(
+      '112 FTE against about 123 needed for the stretch that needs the most (4 Jan – 14 Feb) · 4 Jan – 11 Apr 2027',
+    );
   });
 
   it('drops the part-time words when everyone is full-time, and the estimate when there is none', () => {
@@ -165,7 +167,8 @@ describe('plan inputs on the quarter plan', () => {
     expect(await screen.findByText('No plan for this quarter yet.')).toBeInTheDocument();
     expect(await screen.findByText('Plan inputs · what Generate will use')).toBeInTheDocument();
     expect(screen.getByTestId('plan-inputs-headline')).toHaveTextContent(/^Planning 120 officers in 6 units/);
-    expect(live).toHaveBeenCalled();
+    // Fetched once on mount, not once per load (re-check nit 1).
+    expect(live).toHaveBeenCalledTimes(1);
 
     await user.click(screen.getByRole('button', { name: 'Generate draft' }));
     expect(await screen.findByText('Coverage gaps')).toBeInTheDocument();

@@ -1838,25 +1838,8 @@ public class PlannerService {
     options.put("seed", seed);
     // null: every 8 h officer works their own pattern (the one-release override is not sent).
     options.put("pattern8h", pattern8h);
-    // The staffing floor over the whole quarter: the stretch (between unit closures) that needs
-    // the most officers. One stretch when no unit closes, so it is then the whole quarter.
-    List<ca.shiftcircle.api.units.UnitsViews.StaffingPeriod> periods =
-        unitsService.staffingPeriods();
-    ca.shiftcircle.api.units.UnitsViews.StaffingPeriod busiest =
-        periods.stream()
-            .max(
-                Comparator.comparingInt(
-                        (ca.shiftcircle.api.units.UnitsViews.StaffingPeriod period) ->
-                            period.totals().needed())
-                    .thenComparing(
-                        ca.shiftcircle.api.units.UnitsViews.StaffingPeriod::from,
-                        Comparator.reverseOrder()))
-            .orElse(null);
-    PlanInputs.Needed needed =
-        busiest == null
-            ? null
-            : new PlanInputs.Needed(
-                busiest.totals().needed(), busiest.from(), busiest.to(), periods.size());
+    // The staffing floor over the whole quarter (PlanInputs.needed: the neediest stretch).
+    PlanInputs.Needed needed = PlanInputs.needed(unitsService.staffingPeriods());
     return PlanInputs.build(
         FROM,
         TO,

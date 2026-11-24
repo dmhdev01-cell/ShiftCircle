@@ -107,11 +107,10 @@ describe('preferences', () => {
     renderAt('/me/schedule');
     await screen.findByRole('heading', { name: 'My preferences' });
 
-    const sixteen = await screen.findByRole('radio', { name: '16 h, no longer offered' });
+    const sixteen = await screen.findByRole('radio', { name: '16 h (no longer offered)' });
     expect(sixteen).toBeChecked();
     expect(sixteen).toBeDisabled();
-    expect(screen.getByText('16 h (no longer offered)')).toBeInTheDocument();
-    expect(
+        expect(
       screen.getByText(/16-hour shifts are no longer offered: a 16-hour day is a 12-hour shift plus an extension/),
     ).toBeInTheDocument();
     vi.restoreAllMocks();

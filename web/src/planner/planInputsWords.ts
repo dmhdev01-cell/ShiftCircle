@@ -26,15 +26,16 @@ function stretchWords(from: string, to: string): string {
 
 /**
  * The staffing floor in words. One stretch (no unit closes): "about 127 needed".
- * Several stretches: the busiest one, with its dates, so the figure is never
- * passed off as the whole quarter.
+ * Several stretches (a unit closes part-way): the stretch that needs the most
+ * officers, with its dates, so the figure is never passed off as the whole
+ * quarter. On a tie the api keeps the earliest stretch.
  */
 export function neededWords(inputs: PlanInputs): string | null {
   const { officers } = inputs;
   if (officers.neededFte === null || officers.neededFte === undefined) return null;
   const base = `about ${count(officers.neededFte)} needed`;
   if ((officers.neededPeriods ?? 1) > 1 && officers.neededFrom && officers.neededTo) {
-    return `${base} at the busiest (${stretchWords(officers.neededFrom, officers.neededTo)})`;
+    return `${base} for the stretch that needs the most (${stretchWords(officers.neededFrom, officers.neededTo)})`;
   }
   return base;
 }
@@ -92,6 +93,7 @@ function valueWords(key: string, value: unknown): string {
   }
   if (Array.isArray(value)) return value.map((item) => humanize(String(item)).toLowerCase()).join(', ');
   if (typeof value === 'string') return VALUE_WORDS[key]?.[value] ?? humanize(value).toLowerCase();
+  if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
 }
 

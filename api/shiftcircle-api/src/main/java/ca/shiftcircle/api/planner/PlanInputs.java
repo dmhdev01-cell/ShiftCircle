@@ -29,9 +29,24 @@ final class PlanInputs {
 
   /**
    * The staffing floor for the quarter: the stretch between unit closures that needs the most
-   * officers ({@code periods} stretches in all; one when no unit closes).
+   * officers, the earliest such stretch on a tie ({@code periods} stretches in all; one when no
+   * unit closes, so it is then the whole quarter).
    */
   record Needed(int fte, LocalDate from, LocalDate to, int periods) {}
+
+  /** Picks {@link Needed} from the Staffing card's untruncated periods; null when there are none. */
+  static Needed needed(List<ca.shiftcircle.api.units.UnitsViews.StaffingPeriod> periods) {
+    ca.shiftcircle.api.units.UnitsViews.StaffingPeriod neediest = null;
+    for (ca.shiftcircle.api.units.UnitsViews.StaffingPeriod period : periods) {
+      int more = neediest == null ? 1 : period.totals().needed() - neediest.totals().needed();
+      if (more > 0 || (more == 0 && period.from().isBefore(neediest.from()))) {
+        neediest = period;
+      }
+    }
+    return neediest == null
+        ? null
+        : new Needed(neediest.totals().needed(), neediest.from(), neediest.to(), periods.size());
+  }
 
   static Map<String, Object> build(
       LocalDate from,
@@ -209,9 +224,10 @@ final class PlanInputs {
 
   /**
    * The generator's real order (PlanGenerator.generate, casualPool, reliefPool), in plain words,
-   * for the options the draft was generated with. This is the one place the order is worded: an
-   * option that changes how shifts are filled adds or replaces its step here, keyed on its value
-   * in {@code options}. Keep in step with the code and docs/user-guide/planner.md.
+   * for the options the draft was generated with. This is the one place the order is worded. No
+   * option changes the order yet, so {@code options} is not read; the Generate options (PR-N)
+   * add or replace their steps here, keyed on their values. Keep in step with the code and
+   * docs/user-guide/planner.md.
    */
   static List<String> fillOrder(int ruleSetVersion, Map<String, Object> options) {
     List<String> steps = new ArrayList<>();
