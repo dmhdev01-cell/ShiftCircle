@@ -33,6 +33,8 @@ import { QualifiedStaffCard } from './QualifiedStaffCard';
 import { StaffingPanel } from './StaffingPanel';
 import { staffingFloorLine, staffingHelp, staffingTile } from './staffingWords';
 import { FlaggedShiftsCard } from './FlaggedShiftsCard';
+import { GapStrip } from './GapStrip';
+import { gapRuns, partTimeCapacity, quarterWeeks, reasonWords, shortWords, staffedWords } from './quarterPlan';
 import { DatasetBanner } from './DatasetBanner';
 import { useRole } from '../shell/nav';
 import { StatusPill } from '../components/StatusPill';
@@ -44,6 +46,22 @@ const BLOCK_WORDS: Record<string, string> = {
   EVENING: 'Evening 15–23',
   NIGHT: 'Night 23–07',
 };
+
+const RUN_BLOCK_WORDS: Record<string, string> = {
+  DAY: 'Days 07–15',
+  EVENING: 'Evenings 15–23',
+  NIGHT: 'Nights 23–07',
+};
+
+/** "Wed 13 Jan", or "Wed 13 – Sun 17 Jan" for a run of days. */
+function runDays(from: string, to: string): string {
+  if (from === to) return shortDay(from);
+  const format = (date: string, options: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat('en-CA', { ...options, timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`));
+  const start = `${format(from, { weekday: 'short' })} ${format(from, { day: 'numeric' })}`;
+  const sameMonth = from.slice(0, 7) === to.slice(0, 7);
+  return `${start}${sameMonth ? '' : ` ${format(from, { month: 'short' })}`} – ${shortDay(to)}`;
+}
 
 const TILE_HELP: Record<string, string> = {
   Staffing:
@@ -773,6 +791,34 @@ export function PlannerPage() {
                 </Typography>
               ) : null}
 
+              {(() => {
+                const partTime = partTimeCapacity(scorecard);
+                if (!partTime) return null;
+                const hours = (value: number) => `${value.toLocaleString('en-CA')} h`;
+                return (
+                  <Box
+                    role="note"
+                    aria-label="Unused part-time capacity"
+                    sx={{
+                      p: '10px 12px',
+                      borderRadius: '8px',
+                      backgroundColor: partTime.unused > 0 ? colour.status.warn.bg : colour.bg.subtle,
+                      color: partTime.unused > 0 ? colour.status.warn.text : colour.text.secondary,
+                      fontSize: 13,
+                    }}
+                  >
+                    <Box component="span" sx={{ fontWeight: 700 }}>
+                      Unused part-time capacity: {hours(partTime.unused)}.
+                    </Box>{' '}
+                    Part-time officers are planned {hours(partTime.planned)} of their {hours(partTime.target)} target
+                    this quarter, while {scorecard.coverage.shortBlockDays.toLocaleString('en-CA')} block-day
+                    {scorecard.coverage.shortBlockDays === 1 ? ' stays' : 's stay'} short. Part-time hours are not
+                    guaranteed: each part-time officer is planned only into shifts still open in their home unit, up to
+                    their FTE target.
+                  </Box>
+                );
+              })()}
+
               {explain && (TILE_HELP[explain] || (explain === 'Needed (at least)' && staffing)) ? (
                 <Box
                   id="planner-tile-help"
@@ -1096,6 +1142,19 @@ export function PlannerPage() {
                     {gaps.length} block-days are short. The planner left them open rather than break a
                     blocking rule.
                   </Typography>
+                  {gaps.length > 0 ? (
+                    <GapStrip
+                      weeks={quarterWeeks(plan.window.from, plan.window.to)}
+                      units={units}
+                      // The strip follows the Unit and Block filters, like the runs below.
+                      gaps={gaps
+                        .filter((gap) => (gapUnit ? gap.unitName === gapUnit : true))
+                        .filter((gap) => (gapBlock ? gap.block === gapBlock : true))}
+                      onPick={(unitId, week) =>
+                        navigate(`/planner?tab=roster&unit=${encodeURIComponent(unitId)}&week=${encodeURIComponent(week)}`)
+                      }
+                    />
+                  ) : null}
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                     <Box component="label" sx={{ display: 'flex', flexDirection: 'column', gap: 1, fontSize: 12, fontWeight: 600, color: colour.text.secondary }}>
                       Unit
@@ -1128,55 +1187,80 @@ export function PlannerPage() {
                       </Box>
                     </Box>
                   </Box>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead>
-                      <tr>
-                        {['Unit', 'Date', 'Block', 'Staffed / needed', 'Why', ''].map((heading) => (
-                          <th
-                            key={heading}
-                            style={{
-                              textAlign: 'left',
-                              padding: '6px 8px',
-                              fontSize: 12,
-                              fontWeight: 600,
-                              color: colour.text.secondary,
-                              borderBottom: `1px solid ${colour.border.default}`,
-                            }}
-                          >
-                            {heading}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {gaps
+                  {(() => {
+                    const runs = gapRuns(
+                      gaps
                         .filter((gap) => (gapUnit ? gap.unitName === gapUnit : true))
-                        .filter((gap) => (gapBlock ? gap.block === gapBlock : true))
-                        .map((gap) => (
-                        <tr key={`${gap.unitId}-${gap.date}-${gap.block}`}>
-                          <td style={{ padding: '6px 8px', fontWeight: 600 }}>{gap.unitName}</td>
-                          <td style={{ padding: '6px 8px' }}>{shortDay(gap.date)}</td>
-                          <td style={{ padding: '6px 8px' }}>{BLOCK_WORDS[gap.block] ?? gap.block}</td>
-                          <td className="num" style={{ padding: '6px 8px' }}>
-                            {gap.placed} / {gap.required}
-                          </td>
-                          <td style={{ padding: '6px 8px', color: colour.text.secondary }}>
-                            {gap.reason ?? '—'}
-                          </td>
-                          <td style={{ padding: '6px 8px' }}>
-                            <Button
-                              variant="outlined"
-                              color="primary"
-                              aria-label={`Show week of ${gap.date} for ${gap.unitName}`}
-                              onClick={() => navigate(`/planner?tab=roster&unit=${gap.unitId}&week=${gap.date}`)}
-                            >
-                              Show week
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                        .filter((gap) => (gapBlock ? gap.block === gapBlock : true)),
+                    );
+                    if (runs.length === 0) return null;
+                    const days = runs.reduce((sum, run) => sum + run.gaps.length, 0);
+                    return (
+                      <>
+                        <Typography sx={{ fontSize: 13, color: colour.text.secondary }}>
+                          {days} short block-day{days === 1 ? '' : 's'} in {runs.length} run
+                          {runs.length === 1 ? '' : 's'}: the same unit and block on days in a row.
+                        </Typography>
+                        <Box sx={{ overflowX: 'auto' }}>
+                          <table aria-label="Gaps grouped into runs" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                            <thead>
+                              <tr>
+                                {['Unit', 'Days', 'Block', 'Staffed / needed', 'Short by', 'Why', ''].map((heading) => (
+                                  <th
+                                    key={heading}
+                                    style={{
+                                      textAlign: 'left',
+                                      padding: '6px 8px',
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      color: colour.text.secondary,
+                                      borderBottom: `1px solid ${colour.border.default}`,
+                                    }}
+                                  >
+                                    {heading}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {runs.map((run) => (
+                                <tr key={`${run.unitId}-${run.block}-${run.from}`}>
+                                  <td style={{ padding: '6px 8px', fontWeight: 600 }}>{run.unitName}</td>
+                                  <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                                    {runDays(run.from, run.to)}
+                                    <Box component="span" sx={{ display: 'block', fontSize: 12, color: colour.text.secondary }}>
+                                      {run.gaps.length} day{run.gaps.length === 1 ? '' : 's'}
+                                    </Box>
+                                  </td>
+                                  <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                                    {RUN_BLOCK_WORDS[run.block] ?? BLOCK_WORDS[run.block] ?? run.block}
+                                  </td>
+                                  <td className="num" style={{ padding: '6px 8px' }}>
+                                    {staffedWords(run)}
+                                  </td>
+                                  <td className="num" style={{ padding: '6px 8px' }}>
+                                    {shortWords(run)}
+                                  </td>
+                                  <td style={{ padding: '6px 8px', color: colour.text.secondary }}>{reasonWords(run)}</td>
+                                  <td style={{ padding: '6px 8px' }}>
+                                    <Button
+                                      variant="outlined"
+                                      color="primary"
+                                      aria-label={`Show week of ${run.from} for ${run.unitName}`}
+                                      onClick={() => navigate(`/planner?tab=roster&unit=${encodeURIComponent(run.unitId)}&week=${encodeURIComponent(run.from)}`)}
+                                      sx={{ whiteSpace: 'nowrap' }}
+                                    >
+                                      Show week
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </Box>
+                      </>
+                    );
+                  })()}
                   {gaps.length === 0 ? (
                     <Typography sx={{ fontSize: 14, color: colour.status.pass.text }}>
                       No coverage gaps. Every hour of every block meets its staffing.
@@ -1278,6 +1362,7 @@ export function PlannerPage() {
                 window={plan.window}
                 gaps={gaps}
                 units={units}
+                warnings={warnings}
                 version={planDraft.version}
                 handEdits={draft?.handEdits ?? 0}
                 editable={Boolean(draft)}

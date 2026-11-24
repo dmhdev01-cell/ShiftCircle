@@ -1,4 +1,6 @@
 import Box from '@mui/material/Box';
+import Tooltip from '@mui/material/Tooltip';
+import { Fragment } from 'react';
 import type { ReactNode } from 'react';
 
 import { AbsenceChip, OffChip, ShiftChip } from '../components/ShiftChip';
@@ -51,6 +53,8 @@ interface RosterGridProps {
   onEmptyCell?: (officer: OfficerRow, date: string) => void;
   /** Called when a shift chip is picked. */
   onPickChip?: (officer: OfficerRow, item: ShiftItem) => void;
+  /** A rule warning for a chip, shown as a ⚠ beside it (planner draft, A8). */
+  chipWarning?: (officer: OfficerRow, item: ShiftItem, date: string) => string | null;
 }
 
 function CellChips({
@@ -58,11 +62,13 @@ function CellChips({
   officerName,
   date,
   onPick,
+  warningFor,
 }: {
   items: CellItem[];
   officerName: string;
   date: string;
   onPick?: (item: ShiftItem) => void;
+  warningFor?: (item: ShiftItem) => string | null;
 }) {
   if (items.length === 0) {
     return <OffChip />;
@@ -73,17 +79,19 @@ function CellChips({
         item.type === 'ABSENCE' ? (
           <AbsenceChip key={`absence-${item.absenceType}`} absenceType={item.absenceType} />
         ) : (
-          <ShiftChip
-            key={item.assignmentId}
-            template={item.shiftTemplate}
-            extra={item.kind === 'EXTRA'}
-            worked={item.worked}
-            offer={item.offer ?? false}
-            proposed={item.proposed ?? false}
-            edited={item.edited ?? false}
-            onClick={onPick ? () => onPick(item) : undefined}
-            context={`for ${officerName} on ${date}`}
-          />
+          <Fragment key={item.assignmentId}>
+            <ShiftChip
+              template={item.shiftTemplate}
+              extra={item.kind === 'EXTRA'}
+              worked={item.worked}
+              offer={item.offer ?? false}
+              proposed={item.proposed ?? false}
+              edited={item.edited ?? false}
+              onClick={onPick ? () => onPick(item) : undefined}
+              context={`for ${officerName} on ${date}`}
+            />
+            <ChipWarning message={warningFor?.(item) ?? null} />
+          </Fragment>
         ),
       )}
     </>
@@ -91,10 +99,42 @@ function CellChips({
 }
 
 /**
+ * A rule warning beside a chip: a ⚠ named by its message. It takes focus, and
+ * its tooltip opens on focus as well as hover, so a keyboard user can read it.
+ */
+function ChipWarning({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <Tooltip title={message} describeChild>
+      <Box
+        component="span"
+        role="img"
+        tabIndex={0}
+        aria-label={`Rule warning: ${message}`}
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          height: 30,
+          px: 0.5,
+          fontSize: 14,
+          lineHeight: 1,
+          color: colour.status.warn.text,
+          cursor: 'help',
+          borderRadius: '4px',
+          '&:focus-visible': { outline: `2px solid ${colour.brand.link}`, outlineOffset: 1 },
+        }}
+      >
+        ⚠
+      </Box>
+    </Tooltip>
+  );
+}
+
+/**
  * The roster grid (docs/ui/README.md §5.1): coverage per block above the
  * officer rows, seven day columns, and the shift key below.
  */
-export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGridProps) {
+export function RosterGrid({ payload, today, onEmptyCell, onPickChip, chipWarning }: RosterGridProps) {
   const threshold = payload.officers[0]?.payPeriodThreshold ?? 80;
 
   return (
@@ -305,6 +345,7 @@ export function RosterGrid({ payload, today, onEmptyCell, onPickChip }: RosterGr
                             officerName={officer.name}
                             date={date}
                             onPick={onPickChip ? (item) => onPickChip(officer, item) : undefined}
+                            warningFor={chipWarning ? (item) => chipWarning(officer, item, date) : undefined}
                           />
                         </Box>
                       )}

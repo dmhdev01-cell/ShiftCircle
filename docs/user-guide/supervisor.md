@@ -9,7 +9,7 @@ You run your unit's roster week to week. Your menu has these screens:
 - **Rules**
 - **Audit log**
 - **Wall display**
-- **Employee view**
+- **Employee view** (only when your account is linked to an officer; the demo supervisors are not, so they don't see it)
 - **Time & attendance**
 
 ## Planning board
@@ -57,7 +57,7 @@ You must write the reason as a real sentence. It goes to the audit log, and the 
 
 ### Publish a pay period
 
-**Publish period** tells the officers in your unit that the roster is final. Your name and the time are recorded.
+**Publish period** records your unit's roster for the period as published, and the board marks it so. Your name and the time are recorded. In this prototype publishing is a recorded state, not an access gate: My schedule does not yet filter by period status (docs/02 FR-06, partial).
 
 Publishing is one-way in this prototype: a later correction is a further assignment, and the board marks it as unpublished.
 

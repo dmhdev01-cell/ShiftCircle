@@ -4,6 +4,7 @@ import type { APIRequestContext, Page } from '@playwright/test';
 
 import { apiAs, isFixtures } from './api';
 import { navTo, selectUnit, signIn, signOut } from './support';
+import { checkQuarterPlanReadability } from './quarterPlanChecks';
 
 /**
  * Dataset 120 (100 full-time crews + ~20 part-time casuals; the person chose
@@ -230,7 +231,7 @@ test.describe('dataset 120', () => {
   test('@api shows the gaps, carries D12/N12, fills one, and refuses a fifth 12 h day', async ({
     page,
     request,
-  }) => {
+  }, testInfo) => {
     test.setTimeout(300000);
     await resetTo(request, '120');
     const draftId = await commitPlan(request);
@@ -267,6 +268,9 @@ test.describe('dataset 120', () => {
     await expect(gapsTab).toBeVisible();
     const count = Number((await gapsTab.textContent())?.match(/Gaps \((\d+)\)/)?.[1] ?? 0);
     expect(count, 'the Gaps tab counts the short block-days').toBeGreaterThan(20);
+    // Quarter plan readability (A6–A8 and the part-time line) on this plan.
+    await page.getByRole('tab', { name: 'Scorecard' }).click();
+    await checkQuarterPlanReadability(page, request, testInfo);
     await signOut(page, 'P. Planner');
 
     // A supervisor opens the committed plan. The crews live in specific units,
