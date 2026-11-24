@@ -371,7 +371,7 @@ same validation as the grid (R24/R28: rule values are code input).
 | GET | `/display/today` | Counts per unit and block, open shifts and overtime counts. **No names.** | DISPLAY, SUPERVISOR (own units), AUDITOR |
 | GET | `/audit-events?entityType=&entityId=&from=&to=` | Audit trail | AUDITOR, SUPERVISOR (own units) |
 | GET | `/audit-events/actors` | The actors whose events the caller can see, for the filter dropdown (same scope as the trail) | AUDITOR, SUPERVISOR (own units) |
-| GET | `/version` | Build version, git commit, live rule set version, and `asOf` (the server's "today", so the web's clock shows the demo day) | any |
+| GET | `/version` | Build version, git commit, live rule set version, `asOf` (the server's "today", so the web's clock shows the demo day), and on the demo profile `demoMode`, the reset `datasets` and `activeDataset` (the dataset loaded now; the Quarter plan warns when it is 100) | any |
 | GET | `/actuator/health` | Liveness and readiness. Internal only, not proxied by nginx. | container network |
 
 ### 4.9 Quarter planner (ADR-026)

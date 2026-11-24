@@ -56,6 +56,8 @@ public class DemoResetService {
   private final ObjectMapper mapper = new ObjectMapper();
 
   private volatile Status status = IDLE;
+  /** The live dataset once known; null until the first read or after a failed reset. */
+  private volatile String activeDataset;
 
   public DemoResetService(
       DataSource dataSource,
@@ -85,22 +87,34 @@ public class DemoResetService {
   }
 
   /**
-   * The dataset the database holds now, durably: the dataset of the last {@code demo_reset} audit
-   * row (a reset erases the history and writes that row first), or "100" when there is none (a
-   * fresh boot seeds Dataset 100). While a reset runs it is the dataset being generated. The web
-   * reads it to warn the planner that Dataset 100 is under-staffed for nights (S6).
+   * The dataset the database holds now (S6): the web warns the planner that Dataset 100 is
+   * under-staffed for nights. Kept in memory so the public {@code /version} never queries the
+   * database on every call: a finished reset sets it, and the first call after a boot reads the
+   * last {@code demo_reset} audit row once (a reset erases the history and writes that row first;
+   * none means a fresh boot, which seeds Dataset 100). While a reset runs it is the dataset being
+   * generated. A database error never fails {@code /version}: the answer is then "100", uncached.
    */
   public String activeDataset() {
     Status current = status;
     if ("RUNNING".equals(current.state())) {
       return current.dataset();
     }
-    List<String> rows =
-        jdbc.queryForList(
-            "SELECT after->>'dataset' FROM audit_event WHERE action = 'demo_reset'"
-                + " ORDER BY id DESC LIMIT 1",
-            String.class);
-    return rows.isEmpty() || rows.get(0) == null ? "100" : rows.get(0);
+    String cached = activeDataset;
+    if (cached != null) {
+      return cached;
+    }
+    try {
+      List<String> rows =
+          jdbc.queryForList(
+              "SELECT after->>'dataset' FROM audit_event WHERE action = 'demo_reset'"
+                  + " ORDER BY id DESC LIMIT 1",
+              String.class);
+      String found = rows.isEmpty() || rows.get(0) == null ? "100" : rows.get(0);
+      activeDataset = found;
+      return found;
+    } catch (RuntimeException unreadable) {
+      return "100";
+    }
   }
 
   public Status status() {
@@ -180,6 +194,7 @@ public class DemoResetService {
       // Release before publishing DONE: a caller that polls the status and immediately starts the
       // next reset must not race the lock release. The same is true of FAILED below.
       lock.release(token);
+      activeDataset = provider.dataset();
       status = new Status("DONE", "done", status.startedAt(),
           java.time.Duration.between(Instant.parse(status.startedAt()), Instant.now()).toMillis(),
           checksum, provider.dataset(), null);
@@ -188,6 +203,7 @@ public class DemoResetService {
       // RUNNING: the interceptor answers 409 to everything else and the reset says "already
       // running" until the process restarts (P3-5). The detail goes to the log only; a planner
       // must not receive raw SQL or Flyway text.
+      activeDataset = null;
       status =
           new Status(
               "FAILED",

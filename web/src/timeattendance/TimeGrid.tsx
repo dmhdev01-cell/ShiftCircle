@@ -115,9 +115,16 @@ export function TimeCell({ entry, locked, onPick }: TimeCellProps) {
           px: 1,
           padding: '0 8px',
           borderRadius: '6px',
-          backgroundColor: entry.absence === 'VACATION' ? '#E3F0E8' : '#FFFFFF',
-          color: entry.absence === 'VACATION' ? colour.brand.primary : '#9A3412',
-          border: entry.absence === 'VACATION' ? 'none' : '1px dashed #C2410C',
+          // The chip styles of the key (absenceChipStyles): Vac, Other, Sick.
+          backgroundColor:
+            entry.absence === 'VACATION' ? '#E3F0E8' : entry.absence === 'OTHER' ? '#EEF0F2' : '#FFFFFF',
+          color:
+            entry.absence === 'VACATION'
+              ? colour.brand.primary
+              : entry.absence === 'OTHER'
+                ? '#444A50'
+                : '#9A3412',
+          border: entry.absence === 'SICK' ? '1px dashed #C2410C' : 'none',
           fontFamily: 'inherit',
           fontSize: 12,
           fontWeight: 600,

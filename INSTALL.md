@@ -103,11 +103,12 @@ curl -fsS http://localhost:8080/api/v1/version
 ```
 
 The version response names the api build, the commit baked into the image, the live
-rule-set version, the active profile, the demo date and the available datasets, for
+rule-set version, the active profile, the demo date, the available datasets and the
+dataset loaded now (`activeDataset`), for
 example:
 
 ```json
-{"name":"shiftcircle-api","version":"0.1.0-SNAPSHOT","gitCommit":"<commit>","ruleSetVersion":"v3","profiles":"demo","asOf":"2026-11-19","demoMode":true,"datasets":["100","120","150"]}
+{"name":"shiftcircle-api","version":"0.1.0-SNAPSHOT","gitCommit":"<commit>","ruleSetVersion":"v3","profiles":"demo","asOf":"2026-11-19","demoMode":true,"datasets":["100","120","150"],"activeDataset":"100"}
 ```
 
 `gitCommit` reads `unknown` when `SC_GIT_COMMIT` was not set before the build; set it

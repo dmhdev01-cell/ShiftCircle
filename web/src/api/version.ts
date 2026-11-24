@@ -3,7 +3,8 @@
  *
  * The response shape is the api's `VersionResponse` record
  * (`api/shiftcircle-api/.../version/VersionResponse.java`):
- * `{ name, version, buildTime, gitCommit, ruleSetVersion, profiles }`.
+ * `{ name, version, buildTime, gitCommit, ruleSetVersion, profiles, asOf, demoMode,
+ * datasets, activeDataset }`.
  * The field names are read exactly as the api sends them. If the api answers
  * with a different shape the reader keeps the raw payload so the screen can
  * show it, rather than showing a blank.

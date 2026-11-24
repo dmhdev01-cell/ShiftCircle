@@ -147,7 +147,7 @@ export interface ShiftItem {
 
 export interface AbsenceItem {
   type: 'ABSENCE';
-  absenceType: 'SICK' | 'VACATION';
+  absenceType: 'SICK' | 'VACATION' | 'OTHER';
 }
 
 export type CellItem = ShiftItem | AbsenceItem;
