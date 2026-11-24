@@ -52,7 +52,7 @@ A change is previewed, then saved, refused with plain reasons, or acknowledged o
   - **Locked periods:** shifts are guarded by the api only (R38). A legal but wrong rule value is caught only by maker/checker and the dry run (R40).
   - **Tokens:** 8 h, no revocation; memory-only on prod-like, sessionStorage on the demo (ADR-025). **Not built:** Excel round-trip, offer withdrawal, payroll-clerk role, OpenAPI (docs/10).
   - **Rules:** U-03, U-11 dormant (retired L16 key); L-01 still lists 16 h; P-01 makes 4-on/4-off crews built-in overtime (no U-13).
-  - **Planner:** qualifications warn-only; no part-time floor; leave not on the board; Unit C has 4 first-aiders (`docs/roadmap.md`); a late actual is not re-checked.
+  - **Planner:** qualifications warn-only; no part-time floor; leave entered by the planner and shown on the draft roster, not on the live board; Unit C has 4 first-aiders (`docs/roadmap.md`); a late actual is not re-checked.
 
 ## 6. Next steps (pilot)
 

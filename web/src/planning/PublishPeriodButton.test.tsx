@@ -31,7 +31,9 @@ describe('the publish period action', () => {
 
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveTextContent('Publish the roster for 16 – 22 Nov 2026');
-    expect(dialog).toHaveTextContent('the roster is final');
+    expect(dialog).toHaveTextContent("records this unit's roster for the period as published");
+    expect(dialog).toHaveTextContent('My schedule does not yet filter by period status');
+    expect(dialog).not.toHaveTextContent(/final/);
     expect(dialog).toHaveTextContent('one-way');
     expect(dialog).toHaveTextContent('audit log');
     expect(publish).not.toHaveBeenCalled();
@@ -51,7 +53,7 @@ describe('the publish period action', () => {
 
     await waitFor(() => expect(publish).toHaveBeenCalledWith('period-1'));
     expect(onPublished).toHaveBeenCalled();
-    expect(await screen.findByText('Published. The officers see this roster as final.')).toBeInTheDocument();
+    expect(await screen.findByText('Published. The period is recorded as published.')).toBeInTheDocument();
   });
 
   it('says the period is already published when the api answers 409', async () => {

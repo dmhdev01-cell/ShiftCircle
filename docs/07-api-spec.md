@@ -157,8 +157,8 @@ Content-Type: application/problem+json
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
-| GET | `/schedule?unitId=&from=&to=` | **Planning board payload:** days, coverage per block (required / scheduled / actual, each with the lowest hourly count and the short hour ranges, see below), officer rows with assignments, overtime status per officer, warnings, `overridesThisPeriod`, `asOf` and `publishedState` (see below) | SUPERVISOR, AUDITOR |
-| GET | `/me/schedule?from=&to=` | My shifts, hours this pay period, overtime this quarter, next shift, `asOf` (the server's "today", as on `GET /schedule`) | EMPLOYEE |
+| GET | `/schedule?unitId=&from=&to=` | **Planning board payload:** days, coverage per block (required / scheduled / actual, each with the lowest hourly count and the short hour ranges, see below), officer rows with assignments, overtime status per officer, warnings, `overridesThisPeriod`, `asOf` and `publishedState` (see below) | SUPERVISOR, AUDITOR, PLANNER |
+| GET | `/me/schedule?from=&to=` | My shifts, hours this pay period, overtime this quarter, next shift, `asOf` (the server's "today", as on `GET /schedule`) | any account linked to an officer (404 otherwise) |
 | POST | `/rule-checks` | Preview any change (§3) | SUPERVISOR; EMPLOYEE for own proposals |
 | POST | `/assignments` | Assign a shift (§3 rules apply) | SUPERVISOR |
 | PATCH | `/assignments/{id}` | Move or change a shift (`If-Match`) | SUPERVISOR |
@@ -383,7 +383,7 @@ same validation as the grid (R24/R28: rule values are code input).
 | GET | `/planner/plan` | Window (4 Jan – 11 Apr 2027, 7 periods), default seed, the 8 h patterns, current draft and last committed plan | PLANNER |
 | POST | `/planner/drafts` | `{seed, pattern8h?}` → generate a draft over the whole quarter; replaces the open draft. With no `pattern8h`, every 8 h officer uses their own `employee.shift_pattern` (the normal call); a sent `pattern8h` is the one-release facility override and the draft summary keeps that code. If the window already has a committed plan, `409` problem+json with `reason: ALREADY_COMMITTED_WINDOW` and a plain sentence naming the commit date/author and pointing at Reset the demo data | PLANNER |
 | GET | `/planner/drafts/{id}` | Draft summary and scorecard | PLANNER |
-| GET | `/planner/drafts/{id}/schedule?unitId&from&to` | The Roster tab: the draft's shifts in the same `SchedulePayload` shape as the planning board (`rotation` says the pattern in words; `publishedState` is false; `period` null) | PLANNER |
+| GET | `/planner/drafts/{id}/schedule?unitId&from&to` | The Roster tab: the draft's shifts in the same `SchedulePayload` shape as the planning board (`rotation` says the pattern in words; `publishedState` is false; `period` null). Planned leave (absence rows with no shift assignment) is added to a cell as `{type: "ABSENCE", absenceType: "VACATION"\|"SICK"\|"OTHER"}`, the My schedule item shape; an active officer of this home unit on leave with no draft shift in the range gets a leave-only row (`rotation` "On leave", 0 h). `GET /schedule` (the live board) does not carry planned leave (PR-D, fit-gap i-7) | PLANNER |
 | GET | `/planner/drafts/{id}/coverage?from&to` | One entry per unit with its `BlockCoverage[]` (same hourly shape as the board) | PLANNER |
 | GET | `/planner/drafts/{id}/gaps` | Short block-days with unit, date, block, required and placed | PLANNER |
 | GET | `/planner/drafts/{id}/warnings` | All warnings, grouped by plain rule name | PLANNER |

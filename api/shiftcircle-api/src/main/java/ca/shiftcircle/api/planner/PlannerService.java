@@ -524,7 +524,12 @@ public class PlannerService {
       officerRows.putIfAbsent(employeeId, row);
       byOfficer.computeIfAbsent(employeeId, key -> new ArrayList<>()).add(row);
     }
-    Map<UUID, List<String>> qualifications = qualifications(officerRows.keySet());
+    // Planned leave (fit-gap B1-lite): shown as Vac/Sick/Other chips instead of Off. Officers of
+    // this unit who are on leave and have no draft shift anywhere in the range get a leave-only row.
+    PlannedLeave leave = plannedLeave(id, unitId, from, to, officerRows.keySet());
+    Set<UUID> rowIds = new HashSet<>(officerRows.keySet());
+    rowIds.addAll(leave.leaveOnlyNames().keySet());
+    Map<UUID, List<String>> qualifications = qualifications(rowIds);
     String pattern = (String) draft.get("pattern8h");
     LocalDate periodStart =
         ((java.sql.Date) draft.get("from_date")).toLocalDate()
@@ -534,8 +539,7 @@ public class PlannerService {
     List<ca.shiftcircle.api.schedule.ScheduleQuery.OfficerRow> officers = new ArrayList<>();
     officerRows.forEach(
         (employeeId, row) -> {
-          Map<LocalDate, List<ca.shiftcircle.api.schedule.ScheduleQuery.ShiftItem>> cells =
-              new LinkedHashMap<>();
+          Map<LocalDate, List<Object>> cells = new LinkedHashMap<>();
           days.forEach(day -> cells.put(day, new ArrayList<>()));
           double periodHours = 0;
           for (Map<String, Object> shift : byOfficer.getOrDefault(employeeId, List.of())) {
@@ -559,6 +563,7 @@ public class PlannerService {
                         0,
                         editedAssignments.contains((UUID) shift.get("id"))));
           }
+          leave.addTo(employeeId, cells);
           periodHours = Math.round(periodHours * 100.0) / 100.0;
           String status = periodHours >= 80 ? "IN_OVERTIME" : periodHours >= 72 ? "APPROACHING" : "UNDER";
           List<ca.shiftcircle.api.schedule.ScheduleQuery.DayCell> dayCells = new ArrayList<>();
@@ -576,6 +581,28 @@ public class PlannerService {
                   status,
                   dayCells));
         });
+    leave.leaveOnlyNames()
+        .forEach(
+            (employeeId, name) -> {
+              Map<LocalDate, List<Object>> cells = new LinkedHashMap<>();
+              days.forEach(day -> cells.put(day, new ArrayList<>()));
+              leave.addTo(employeeId, cells);
+              List<ca.shiftcircle.api.schedule.ScheduleQuery.DayCell> dayCells = new ArrayList<>();
+              cells.forEach(
+                  (date, items) ->
+                      dayCells.add(
+                          new ca.shiftcircle.api.schedule.ScheduleQuery.DayCell(date, items)));
+              officers.add(
+                  new ca.shiftcircle.api.schedule.ScheduleQuery.OfficerRow(
+                      employeeId,
+                      name,
+                      "On leave",
+                      qualifications.getOrDefault(employeeId, List.of()),
+                      0.0,
+                      80.0,
+                      "UNDER",
+                      dayCells));
+            });
     return new ca.shiftcircle.api.schedule.ScheduleQuery.SchedulePayload(
         new ca.shiftcircle.api.schedule.ScheduleQuery.UnitView(
             unitId,
@@ -651,6 +678,81 @@ public class PlannerService {
         (RowCallbackHandler) rs -> required.put(rs.getString("block"), rs.getInt("min_staff")),
         unitId);
     return required;
+  }
+
+  /** Planned leave in a draft roster range: employee -> date -> absence types, plus leave-only rows. */
+  private record PlannedLeave(
+      Map<UUID, Map<LocalDate, Set<String>>> byOfficer, Map<UUID, String> leaveOnlyNames) {
+    void addTo(UUID employeeId, Map<LocalDate, List<Object>> cells) {
+      byOfficer
+          .getOrDefault(employeeId, Map.of())
+          .forEach(
+              (date, types) -> {
+                List<Object> items = cells.get(date);
+                if (items != null) {
+                  types.forEach(type -> items.add(new PlannerViews.LeaveItem("ABSENCE", type)));
+                }
+              });
+    }
+  }
+
+  /**
+   * Absences with no shift assignment (planned leave: the planner's POST /planner/absences and the
+   * Dataset 150 seed) that overlap the range, in Regina days. An officer already on the roster gets
+   * chips on their row; an active officer whose home unit is this unit, with no draft shift in any
+   * unit in the range, gets a leave-only row so a full week of leave is visible, not missing.
+   */
+  private PlannedLeave plannedLeave(
+      UUID draftId, UUID unitId, LocalDate from, LocalDate to, Set<UUID> onRoster) {
+    Map<UUID, Map<LocalDate, Set<String>>> byOfficer = new HashMap<>();
+    Map<UUID, String> leaveOnly = new LinkedHashMap<>();
+    Map<UUID, String> names = new HashMap<>();
+    jdbc.query(
+        "SELECT a.employee_id, a.type, a.start_at, a.end_at,"
+            + " e.first_name || ' ' || e.last_name AS employee_name,"
+            + " (e.active AND e.home_unit_id = ? AND NOT EXISTS (SELECT 1 FROM plan_draft_assignment d"
+            + "   WHERE d.draft_id = ? AND d.employee_id = a.employee_id"
+            + "   AND d.work_date BETWEEN ? AND ?)) AS leave_only"
+            + " FROM absence a JOIN employee e ON e.id = a.employee_id"
+            + " WHERE a.shift_assignment_id IS NULL AND a.start_at < ? AND a.end_at > ?"
+            + " ORDER BY a.start_at",
+        (RowCallbackHandler)
+            rs -> {
+              UUID employeeId = rs.getObject("employee_id", UUID.class);
+              if (!onRoster.contains(employeeId) && !rs.getBoolean("leave_only")) {
+                return;
+              }
+              if (!onRoster.contains(employeeId)) {
+                names.put(employeeId, rs.getString("employee_name"));
+              }
+              Instant start = rs.getTimestamp("start_at").toInstant();
+              Instant end = rs.getTimestamp("end_at").toInstant();
+              LocalDate endDate = end.atZone(REGINA).toLocalDate();
+              if (end.equals(endDate.atStartOfDay(REGINA).toInstant())) {
+                endDate = endDate.minusDays(1);
+              }
+              for (LocalDate date = start.atZone(REGINA).toLocalDate();
+                  !date.isAfter(endDate);
+                  date = date.plusDays(1)) {
+                if (!date.isBefore(from) && !date.isAfter(to)) {
+                  byOfficer
+                      .computeIfAbsent(employeeId, key -> new java.util.TreeMap<>())
+                      .computeIfAbsent(date, key -> new java.util.LinkedHashSet<>())
+                      .add(rs.getString("type"));
+                }
+              }
+            },
+        unitId,
+        draftId,
+        from,
+        to,
+        Timestamp.from(to.plusDays(1).atStartOfDay(REGINA).toInstant()),
+        Timestamp.from(from.atStartOfDay(REGINA).toInstant()));
+    names.entrySet().stream()
+        .filter(entry -> byOfficer.containsKey(entry.getKey()))
+        .sorted(Map.Entry.comparingByValue())
+        .forEach(entry -> leaveOnly.put(entry.getKey(), entry.getValue()));
+    return new PlannedLeave(byOfficer, leaveOnly);
   }
 
   private List<Map<String, Object>> plannedForUnit(

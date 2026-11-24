@@ -71,7 +71,6 @@ test.describe('the quarter plan', () => {
       'Preferences',
       'Units',
       'Planning board',
-      'Reports',
       'About & version',
     ]);
 
