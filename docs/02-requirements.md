@@ -106,7 +106,7 @@ FR-40 and FR-41 (email/SMS outbox, message templates) are reserved for a later p
 | R-02 | Maximum hours in a window | `MaxHoursInWindow` | 16 h in any 24 h | Block (emergency override) | Sask. employment standards guidance |
 | R-03 | Post minimum staffing | `MinStaffing` | per post/block config | Block for the supervisor; shown as a warning on proposals | Synthetic facility |
 | R-04 | Required qualification | `RequiredQualification` | per post config | Block | Synthetic facility |
-| R-05 | Overtime threshold | `HoursThreshold` | hours beyond **80 h per 2-week pay period** (weekly 40 h selectable) | Info (marks hours as overtime) | Lead's direction (period-based) |
+| R-05 | Overtime threshold | `HoursThreshold` | hours beyond **80 h per 2-week pay period** (a weekly 40 h threshold is not selectable in the prototype: the rule-row validator refuses it) | Info (marks hours as overtime) | Lead's direction (period-based) |
 | R-06 | Consecutive long shifts | `MaxConsecutive` | at most 4 consecutive 12 h overnight (00–12) shifts; at most 1 shift of 16 h in a row | Warn | Placeholder (CBA / fatigue policy) |
 | R-07 | Change notice | `MinNotice` | 48 h (temporary change) | Warn | Placeholder (CBA) |
 | R-08 | Trade limit | `MaxCountInPeriod` | — | — | Future (with trades) |

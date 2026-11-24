@@ -80,7 +80,7 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 
 ## ADR-016 — Overtime is based on hours in the pay period, not on shift length
 **Status:** Accepted (2026-11-19)
-**Decision:** Overtime = hours worked beyond the threshold for the period (default 80 h per 2-week pay period; weekly 40 h selectable), in time order. Rostered 8, 12 and 16-hour shifts are regular hours. Shifts carry `ROSTERED` / `EXTRA`, not "overtime". Default rate: 1.5× for all overtime hours, with an optional higher band (MOCK). Day-of-rest double time (P-02) is off by default pending confirmation.
+**Decision:** Overtime = hours worked beyond the threshold for the period (default 80 h per 2-week pay period; a weekly 40 h threshold is **not** selectable in the prototype, the validator refuses it), in time order. Rostered 8, 12 and 16-hour shifts are regular hours. Shifts carry `ROSTERED` / `EXTRA`, not "overtime". Default rate: 1.5× for all overtime hours, with an optional higher band (MOCK). Day-of-rest double time (P-02) is off by default pending confirmation.
 **Why:** the lead's direction; matches averaging arrangements for long-shift rotations.
 **Governance note:** the Saskatchewan Employment Act's default overtime is daily/weekly; period averaging relies on a modified work arrangement or collective agreement provisions. Recorded as an assumption to confirm.
 **Consequences:** pay codes are recalculated for the whole period after any change and frozen on lock; the overtime ranking still uses overtime hours this quarter.

@@ -5,7 +5,7 @@
 ## 1. Goals
 
 1. Prove every rule behaves correctly **at its limits** (the most likely place for bugs, and what labour relations will ask about).
-2. Prove the safeguards: an emergency-override Block (U-01, U-03, U-05) can't be bypassed without a reason, and any other Block (e.g. U-08, U-09, U-14) can't be bypassed at all (ADR-023); maker/checker can't be skipped; locked pay periods can't change; employees can't see others' data.
+2. Prove the safeguards: an emergency-override Block (U-01, U-05, and U-03, which is dormant outside test fixtures: its row keys on the retired L16 template) can't be bypassed without a reason, and any other Block (e.g. U-08, U-09, U-14) can't be bypassed at all (ADR-023); maker/checker can't be skipped; locked pay periods can't change; employees can't see others' data.
 3. Give the demo and the build record **repeatable** data and scenarios.
 4. Produce 2–5 clear test cases (expected vs actual, including a failure or boundary case) for the build record.
 
@@ -100,7 +100,7 @@ Each line is at least three tests: just under, exactly at, just over. Times are 
 |---|---|---|---|
 | U-01 min 8 h rest in 24 h | 7 h 59 m rest → **BLOCK** | 8 h 00 m → **PASS** (inclusive) | 8 h 01 m → PASS |
 | U-02 target 12 h between regular shifts | 11 h 59 m → **WARN** | 12 h → PASS | 13 h → PASS |
-| U-03 12 h after a 16 h shift | 11 h 59 m → **BLOCK** | 12 h → PASS | — |
+| U-03 12 h after a 16 h shift (**fixture-only**: the row keys on the retired L16 template, so it does not fire on live data) | 11 h 59 m → **BLOCK** | 12 h → PASS | — |
 | U-04 10 h after OT extension ≥ 4 h | extension 4 h + rest 9 h 59 m → **WARN**; extension 3 h 59 m + rest 8 h → PASS (rule not triggered) | 10 h → PASS | — |
 | U-05 max 16 h in any 24 h | rostered 16 h shift (exactly 16 h) → PASS | 16 h shift + 15 min extension → **BLOCK** (emergency override only) | — |
 | U-08 max 7 consecutive work days (8 h) | 7 → PASS | 8th day scheduled → **BLOCK**; 8th day via overtime → **WARN** | — |
@@ -133,7 +133,7 @@ These are the verification cases. Pick 2–5 for the build record (recommended: 
 | T1 | Assign a day shift to a rested, qualified officer under the threshold | Saved; all rules PASS |
 | T2 | 12 h shift Fri 12:00–24:00; assign a Day 8 h shift Sat 07:00 (7 h rest; 17 h in 24 h) (planted **PC-01**) | **BLOCK** U-01 and U-05; message names both shifts; nothing saved. U-14 also blocks when the proposal takes the week over the 60 h ceiling (it does for the demo's Nia: 64 h), and U-08 blocks because the proposal makes 8 consecutive work days |
 | T3 | **Boundary:** Night 8 h ends 07:00; Evening starts 15:00 (exactly 8 h) (planted **PC-02**) | U-01 PASS; U-02 WARN; saves after acknowledgement |
-| T4 | A 16 h shift 20:00–12:00, then a shift starting 20:00 the same day (8 h rest) | U-01 PASS (exactly 8 h), **BLOCK** U-03 (needs 12 h after a 16 h shift) |
+| T4 | A 16 h shift 20:00–12:00, then a shift starting 20:00 the same day (8 h rest) | U-01 PASS (exactly 8 h), **BLOCK** U-03 (needs 12 h after a 16 h shift; **fixture-only**: an L16 row is inserted, no live data has one) |
 | T5 | Fifth consecutive 12 h overnight 19–07 shift (planted **PC-04**) | WARN U-10; saves after acknowledgement |
 | T6 | Overtime candidates for planted open shift **PC-08** | Order matches fewest-OT-then-seniority; an officer with insufficient rest is SKIPPED and keeps their place; unqualified officer UNAVAILABLE for Control (**PC-09**) |
 | T7 | Rules admin lowers U-10 from 4 to 3 nights; build + dry run | Dry run lists the existing 4-night runs (**PC-06**) as new warnings; after approval and publish, the same check now warns; **no code change** |
