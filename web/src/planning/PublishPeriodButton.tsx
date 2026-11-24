@@ -21,8 +21,9 @@ interface PublishPeriodButtonProps {
 /**
  * The supervisor's publish action (docs/07 §4.2).
  *
- * Publishing tells the officers the roster is final. It is one-way in the
- * prototype: a correction is a further assignment, and the board shows it as an
+ * Publishing records the period as published (FR-06, partial): it is not an
+ * access gate, since My schedule does not yet filter by period status. It is
+ * one-way in the prototype: a correction is a further assignment, and the board shows it as an
  * unpublished change. The publication is written to the audit log, and the api
  * refuses a second publish with a conflict.
  */
@@ -41,7 +42,7 @@ export function PublishPeriodButton({ period, onPublished }: PublishPeriodButton
       await api.publishSchedulePeriod(period.id);
       setOpen(false);
       setTone('pass');
-      setMessage('Published. The officers see this roster as final.');
+      setMessage('Published. The period is recorded as published.');
       onPublished();
     } catch (error) {
       setOpen(false);
@@ -106,8 +107,9 @@ export function PublishPeriodButton({ period, onPublished }: PublishPeriodButton
             </StatusPill>
           </Box>
           <Typography sx={{ fontSize: 14, mb: 2 }}>
-            Publishing tells the officers in this unit that the roster is final. The board keeps
-            showing later changes as unpublished.
+            Publishing records this unit&apos;s roster for the period as published, and the board
+            marks it so. My schedule does not yet filter by period status. The board keeps showing
+            later changes as unpublished.
           </Typography>
           <Typography sx={{ fontSize: 13, color: colour.text.secondary, mb: 1 }}>
             In this prototype publishing is one-way: it cannot be undone. A correction is a further

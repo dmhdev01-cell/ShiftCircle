@@ -1,6 +1,14 @@
 # ShiftCircle — Scope and Plan
 
-**Status:** Draft v0.3 · 2026-11-19 · for iteration
+**Status:** v0.3, the **original plan** (2026-11-19). It is kept as written; this box says where the build differs (checked 23 Nov 2026).
+
+> **Where the build differs from this plan**
+> - **Built:** F1, F2, F3, F5, F7, F8, F10 and F11 (Must, plus the wall display and audit viewer). Added after this plan: the **quarter planner** with draft edits (ADR-026, ADR-030), D12/N12 crews and datasets 120 and 150 (ADR-027, ADR-028), dated unit closures and staffing (release 3).
+> - **Partly built:** F9, the employee shift planner. *Propose shifts* checks one shift against the rules; **sending a proposal and the supervisor's inbox are not built** (`10-testing.md` §8).
+> - **Future work, as planned:** F4 trades, F6 notifications, F12 drag and drop, F13.
+> - **Changed:** the 16 h shift is **retired as a template** (ADR-029). A "16 h shift" is a 12 h shift plus an extension of about 4 h, worked as overtime. §8 and the rotations row in §13 below show the original defaults, not what the demo seeds; the 100-officer demo has no 16 h rows.
+> - **The seven-day plan (§9) is superseded** by `process/HANDOFF.md` §6 and what was built; see [release notes](process/release-notes.md).
+> - Names, counts and ports now in use are in [INSTALL.md](../INSTALL.md) and `10-testing.md` §6.
 **Changes:** v0.2 widened scope to a full scheduling prototype, removed AI from runtime, and set up three containers. v0.3 moves trades and notifications to future work, and sizes the simulation at 100 officers over 90 days.
 
 ---
@@ -83,7 +91,7 @@ The assessment notes that extra features don't automatically earn higher marks, 
 |---|---|---|
 | 8 h | Days / Evenings / Nights | 07:00–15:00 · 15:00–23:00 · 23:00–07:00 |
 | 12 h | Overnight-morning / Afternoon-evening | 00:00–12:00 · 12:00–24:00 |
-| 16 h | Long shift (regular, where the unit allows it) | 20:00–12:00 (next day) |
+| 16 h | Long shift (regular, where the unit allows it). **Retired as a template (ADR-029).** | 20:00–12:00 (next day) |
 
 ## 9. Seven-day plan
 

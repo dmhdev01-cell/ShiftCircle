@@ -18,19 +18,20 @@ interface Landing {
 }
 
 // docs/ui/build-notes.md §2.1 destinations and shell/roles.ts nav, as the
-// person sees them (About & version is on every role's nav).
+// person sees them (About & version is on every role's nav). The demo
+// supervisors have no linked officer, so Employee view is not offered (PR-G).
 const LANDINGS: Landing[] = [
   {
     user: 'M. Ellis',
     topBar: 'Supervisor · M. Ellis',
     heading: 'Planning board',
-    nav: ['Planning board', 'Overtime', 'Reports', 'Rules', 'Audit log', 'Wall display', 'Employee view', 'Time & attendance', 'About & version'],
+    nav: ['Planning board', 'Overtime', 'Reports', 'Rules', 'Audit log', 'Wall display', 'Time & attendance', 'About & version'],
   },
   {
     user: 'J. Chen',
     topBar: 'Supervisor · J. Chen',
     heading: 'Planning board',
-    nav: ['Planning board', 'Overtime', 'Reports', 'Rules', 'Audit log', 'Wall display', 'Employee view', 'Time & attendance', 'About & version'],
+    nav: ['Planning board', 'Overtime', 'Reports', 'Rules', 'Audit log', 'Wall display', 'Time & attendance', 'About & version'],
   },
   {
     user: 'T. Nakamura',

@@ -22,7 +22,19 @@ export interface NavItem {
   to: string;
   /** The screen has no design yet (docs/ui/README.md §6) - shown muted. */
   muted?: boolean;
+  /**
+   * The item is shown only when the signed-in user can use the screen:
+   * 'reports' needs one of REPORTS_ROLES, 'employeeRecord' a linked officer.
+   */
+  requires?: 'reports' | 'employeeRecord';
 }
+
+/**
+ * The roles the api lets read the reports: ReportsController's coverage,
+ * overtime and overrides endpoints are hasAnyRole('SUPERVISOR','AUDITOR')
+ * (docs/09-access-control.md §2). Keep the two in step.
+ */
+export const REPORTS_ROLES: readonly string[] = ['SUPERVISOR', 'AUDITOR'];
 
 export interface RoleDescriptor {
   id: Role;
@@ -62,11 +74,11 @@ export const roles: RoleDescriptor[] = [
     nav: [
       { label: 'Planning board', to: '/planning' },
       { label: 'Overtime', to: '/overtime' },
-      { label: 'Reports', to: '/reports/coverage' },
+      { label: 'Reports', to: '/reports/coverage', requires: 'reports' },
       { label: 'Rules', to: '/rules/7/rest-between-shifts' },
       { label: 'Audit log', to: '/audit' },
       { label: 'Wall display', to: '/display' },
-      { label: 'Employee view', to: '/me/schedule' },
+      { label: 'Employee view', to: '/me/schedule', requires: 'employeeRecord' },
       { label: 'Time & attendance', to: '/time' },
     ],
   },
@@ -100,7 +112,7 @@ export const roles: RoleDescriptor[] = [
     user: 'A. Reviewer',
     nav: [
       { label: 'Planning board', to: '/planning' },
-      { label: 'Reports', to: '/reports/coverage' },
+      { label: 'Reports', to: '/reports/coverage', requires: 'reports' },
       { label: 'Rules', to: '/rules' },
       { label: 'Audit log', to: '/audit' },
       { label: 'Wall display', to: '/display' },
@@ -123,10 +135,26 @@ export const roles: RoleDescriptor[] = [
       { label: 'Preferences', to: '/planner/preferences' },
       { label: 'Units', to: '/planner/units' },
       { label: 'Planning board', to: '/planning' },
-      { label: 'Reports', to: '/reports/coverage' },
+      { label: 'Reports', to: '/reports/coverage', requires: 'reports' },
     ],
   },
 ];
+
+/**
+ * The role's nav items this user can use. The planner holds no reports role,
+ * so the api answers 403 and the Reports item only led to an error; an account
+ * with no linked officer gets 404 from My schedule, so Employee view led to
+ * "No employee record for this user". `user` is null in the fixtures demo,
+ * which acts as the role alone and keeps the employee view.
+ */
+export function navFor(role: RoleDescriptor, user: DemoUser | null): NavItem[] {
+  const heldRoles = user ? user.roles : [role.id];
+  return role.nav.filter((item) => {
+    if (item.requires === 'reports') return heldRoles.some((id) => REPORTS_ROLES.includes(id));
+    if (item.requires === 'employeeRecord') return user === null || Boolean(user.employeeId);
+    return true;
+  });
+}
 
 /** Reachable from every role; hosts the build/version display. */
 export const aboutNavItem: NavItem = { label: 'About & version', to: '/about' };

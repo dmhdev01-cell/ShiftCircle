@@ -1,6 +1,6 @@
 # ShiftCircle — API Specification
 
-**Status:** Draft v1.0 · 2026-11-19 · REST + JSON · this document is the contract (no generated OpenAPI document exists in the prototype; docs/10 §8)
+**Status:** v1.0, checked against the controllers on `main` (23 Nov 2026) · REST + JSON · this document is the contract (no generated OpenAPI document exists in the prototype; docs/10 §8)
 
 ## 1. Conventions
 
@@ -11,8 +11,8 @@
 | Auth | `Authorization: Bearer <token>` from mock sign-in (see `09-access-control.md`) |
 | IDs | UUID strings |
 | Time | Instants as ISO-8601 with offset (`2026-11-21T07:00:00-06:00`); dates as `YYYY-MM-DD`; all in `America/Regina` |
-| Lists | `?page=0&size=50`; response `{ "items": [...], "page": 0, "size": 50, "total": 123 }` |
-| Concurrency | Editable resources return `ETag: "<version>"`; updates require `If-Match`. A stale version gets `412 Precondition Failed`. **In the prototype this is built for assignment move and cancel only (§4.2).** Rule-table drafts are protected by the build fingerprint and the maker/checker states instead. |
+| Lists | Plain JSON arrays; the prototype has no `page`/`size` paging. The one long list, `GET /audit-events`, is keyset-paged: `?limit=` (default 50, at most 200) and `?beforeId=`, answering `{ "items": [...], "nextBeforeId": <id or null> }` |
+| Concurrency | Editable resources return `ETag: "<version>"`; updates require `If-Match`. A stale version gets `412 Precondition Failed`. **In the prototype this is built for assignment move and cancel (§4.2) and for the planner's draft edits and commit (§4.9) only.** Rule-table drafts are protected by the build fingerprint and the maker/checker states instead. |
 | Errors | RFC 9457 Problem Details (`application/problem+json`), with a `ruleResults` extension when rules decide (see §3) |
 | CSV | Report and export endpoints also answer `Accept: text/csv` |
 | Correlation | `X-Correlation-Id` is accepted or generated, echoed back, and written to logs and audit |
@@ -27,7 +27,7 @@
 | `404` | Not found, or outside the caller's scope (we don't reveal what exists) |
 | `409` | State conflict (e.g. pay period locked, offer already answered, lock refused because past shifts lack actuals) |
 | `412` | Stale `If-Match` version |
-| `428` | `If-Match` missing where it is required (assignment move and cancel, §4.2) |
+| `428` | `If-Match` missing where it is required (assignment move and cancel, §4.2; planner draft edits and commit, §4.9) |
 | `422` | **A rule blocked the change** (body includes `ruleResults`), or Warn results need acknowledgement |
 
 ### 2.1 Database conflicts (problem types)
@@ -146,20 +146,20 @@ Content-Type: application/problem+json
 | GET | `/auth/demo-users` | List users for the mock sign-in picker | public (demo profile only) |
 | POST | `/auth/mock-login` | `{ "userId" }` → `{ "token", "expiresAt", "user" }` | public (demo profile only) |
 | GET | `/me` | Current user, roles, unit scope, linked employee (`employeeId` is an empty string when the account has no officer) | any |
-| GET | `/units` | Units (filtered to scope for supervisors) | any |
-| GET | `/units/{id}/requirements` | Required staff per block | SUPERVISOR, AUDITOR |
-| GET | `/shift-templates` | 8, 12 and 16-hour templates | any |
+| GET | `/units` | Active units (`id, code, name, kind, allows_12h, allows_16h, active`); a supervisor sees only the units in scope | any |
+| GET | `/units/{id}/requirements` | **Not built.** The unit requirements are used by the board, coverage and planner payloads; there is no endpoint of their own (answers `404`) | — |
+| GET | `/shift-templates` | The **active** templates only: A12, D12, D8, P12, E8, N12, N8 (`code, label, start, duration_minutes, regular_allowed, chip_style`). L16 is retired and not listed (ADR-029) | any |
 | GET | `/qualifications` | Qualification list | any |
 | GET | `/employees?unitId=` | Officers in scope | SUPERVISOR, AUDITOR |
-| GET | `/employees/{id}` | Officer detail, qualifications, rotation | SUPERVISOR, AUDITOR, self |
+| GET | `/employees/{id}` | **Not built** (answers `404`); `/employees?unitId=` carries what the screens need | — |
 
 ### 4.2 Schedule (planning board and My schedule)
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
-| GET | `/schedule?unitId=&from=&to=` | **Planning board payload:** days, coverage per block (required / scheduled / actual, each with the lowest hourly count and the short hour ranges, see below), officer rows with assignments, overtime status per officer, warnings, `overridesThisPeriod`, `asOf` and `publishedState` (see below) | SUPERVISOR, AUDITOR |
-| GET | `/me/schedule?from=&to=` | My shifts, hours this pay period, overtime this quarter, next shift, `asOf` (the server's "today", as on `GET /schedule`) | EMPLOYEE |
-| POST | `/rule-checks` | Preview any change (§3) | SUPERVISOR; EMPLOYEE for own proposals |
+| GET | `/schedule?unitId=&from=&to=` | **Planning board payload:** days, coverage per block (required / scheduled / actual, each with the lowest hourly count and the short hour ranges, see below), officer rows with assignments, overtime status per officer, warnings, `overridesThisPeriod`, `asOf` and `publishedState` (see below) | SUPERVISOR (own units), AUDITOR, PLANNER (read-only, all units) |
+| GET | `/me/schedule?from=&to=` | My shifts, hours this pay period, overtime this quarter, next shift, `asOf` (the server's "today", as on `GET /schedule`) | any account linked to an officer (404 otherwise) |
+| POST | `/rule-checks` | Preview any change (§3) | SUPERVISOR; EMPLOYEE for their own shifts (the *Propose shifts* check) |
 | POST | `/assignments` | Assign a shift (§3 rules apply) | SUPERVISOR |
 | PATCH | `/assignments/{id}` | Move or change a shift (`If-Match`) | SUPERVISOR |
 | DELETE | `/assignments/{id}` | Cancel (sets `CANCELLED`; never hard-deletes) | SUPERVISOR |
@@ -267,7 +267,9 @@ offer-time snapshot does not need a second answer, but a **new** warning is refu
 `422 warnings-need-acknowledgement`. The assignment is created through the normal rules/override
 path (`POST /assignments`), so S-04 and the audit event still hold.
 
-### 4.4 Proposals (employee shift planner)
+### 4.4 Proposals (employee shift planner) — **not built**
+
+**None of these endpoints exist in the prototype** (each answers `404`). The web's *Propose shifts* card only rule-checks a shift for the officer through `POST /rule-checks` and says that sending a proposal is not available (M1); there is no proposals inbox. Kept as the design for a later release; see docs/10 §8.
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
@@ -303,7 +305,7 @@ path (`POST /assignments`), so S-04 and the audit event still hold.
 | GET | `/reports/overtime?from=&to=&unitId=&top=` | Overtime hours by officer and unit | SUPERVISOR, AUDITOR |
 | GET | `/reports/overrides?from=&to=&unitId=` | Emergency overrides with reasons | SUPERVISOR, AUDITOR |
 
-A chosen `unitId` narrows every report; a supervisor may pick only a unit in their scope (404 otherwise), and an auditor reads the whole facility when none is given. Without `from`/`to` each report uses its own default range. `to` must not be before `from` and at most 366 days after it, and both must fall in the years 1900–2999; anything else answers 400.
+`employeeId` is read by the hours report only (an officer is always limited to their own row); the overtime and overrides reports answer `400` if it is sent. A chosen `unitId` narrows every report; a supervisor may pick only a unit in their scope (404 otherwise), and an auditor reads the whole facility when none is given. Without `from`/`to` each report uses its own default range. `to` must not be before `from` and at most 366 days after it, and both must fall in the years 1900–2999; anything else answers 400.
 
 **CSV export:** each report answers `text/csv` on the same path when the request sends `Accept: text/csv`; the web's Export CSV button uses that. Columns: coverage `week, required_hours, scheduled_hours, actual_hours, scheduled_percent, actual_percent, planned`; hours `employee_no, name, scheduled, worked, regular, overtime_15, overtime_20, sick, vacation`; overtime `employee_no, name, overtime_hours`; overrides `at, employee, unit, rule_codes, actor, reason`. Cells are RFC 4180 quoted where needed and a leading `=`, `+`, `-`, `@`, TAB or CR is neutralised with a single quote, so a spreadsheet cannot evaluate a value as a formula.
 
@@ -371,9 +373,9 @@ same validation as the grid (R24/R28: rule values are code input).
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
 | GET | `/display/today` | Counts per unit and block, open shifts and overtime counts. **No names.** | DISPLAY, SUPERVISOR (own units), AUDITOR |
-| GET | `/audit-events?entityType=&entityId=&from=&to=` | Audit trail | AUDITOR, SUPERVISOR (own units) |
+| GET | `/audit-events?actor=&action=&entityType=&entityId=&from=&to=&beforeId=&limit=` | Audit trail, newest first, keyset-paged (§1 Lists) | AUDITOR, SUPERVISOR (own units) |
 | GET | `/audit-events/actors` | The actors whose events the caller can see, for the filter dropdown (same scope as the trail) | AUDITOR, SUPERVISOR (own units) |
-| GET | `/version` | Build version, git commit, live rule set version, `asOf` (the server's "today", so the web's clock shows the demo day), and on the demo profile `demoMode`, the reset `datasets` and `activeDataset` (the dataset loaded now; the Quarter plan warns when it is 100) | any |
+| GET | `/version` | Build `name`, `version` and `buildTime`, `gitCommit`, live rule set version (`ruleSetVersion`, e.g. `v3`), `profiles`, `asOf` (the server's "today", so the web's clock shows the demo day), and on the demo profile `demoMode`, the reset `datasets` (`["100","120","150"]`) and `activeDataset` (the dataset loaded now; the Quarter plan warns when it is 100) | any |
 | GET | `/actuator/health` | Liveness and readiness. Internal only, not proxied by nginx. | container network |
 
 ### 4.9 Quarter planner (ADR-026)
@@ -383,7 +385,7 @@ same validation as the grid (R24/R28: rule values are code input).
 | GET | `/planner/plan` | Window (4 Jan – 11 Apr 2027, 7 periods), default seed, the 8 h patterns, current draft and last committed plan | PLANNER |
 | POST | `/planner/drafts` | `{seed, pattern8h?}` → generate a draft over the whole quarter; replaces the open draft. With no `pattern8h`, every 8 h officer uses their own `employee.shift_pattern` (the normal call); a sent `pattern8h` is the one-release facility override and the draft summary keeps that code. If the window already has a committed plan, `409` problem+json with `reason: ALREADY_COMMITTED_WINDOW` and a plain sentence naming the commit date/author and pointing at Reset the demo data | PLANNER |
 | GET | `/planner/drafts/{id}` | Draft summary and scorecard | PLANNER |
-| GET | `/planner/drafts/{id}/schedule?unitId&from&to` | The Roster tab: the draft's shifts in the same `SchedulePayload` shape as the planning board (`rotation` says the pattern in words; `publishedState` is false; `period` null) | PLANNER |
+| GET | `/planner/drafts/{id}/schedule?unitId&from&to` | The Roster tab: the draft's shifts in the same `SchedulePayload` shape as the planning board (`rotation` says the pattern in words; `publishedState` is false; `period` null). Planned leave (absence rows with no shift assignment) is added to a cell as `{type: "ABSENCE", absenceType: "VACATION"\|"SICK"\|"OTHER"}`, the My schedule item shape; an active officer of this home unit on leave with no draft shift in the range gets a leave-only row (`rotation` "On leave", 0 h). `GET /schedule` (the live board) does not carry planned leave (PR-D, fit-gap i-7) | PLANNER |
 | GET | `/planner/drafts/{id}/coverage?from&to` | One entry per unit with its `BlockCoverage[]` (same hourly shape as the board) | PLANNER |
 | GET | `/planner/drafts/{id}/gaps` | Short block-days with unit, date, block, required and placed | PLANNER |
 | GET | `/planner/drafts/{id}/warnings` | All warnings, grouped by plain rule name | PLANNER |
@@ -475,7 +477,7 @@ its seven 14-day pay periods and each unit's schedule periods, so it can be lock
 | GET | `/demo/reset/status` | `{ state: IDLE\|RUNNING\|DONE\|FAILED, step, startedAt, elapsedMs, checksum, dataset, error }`; `dataset` is the one that ran | PLANNER |
 
 The endpoints exist only on the **demo** profile (`/version` carries `demoMode` and the
-`datasets` list `["100","120"]` so the web shows the selector there). The reset is asynchronous: it clean-migrates the schema, re-runs the
+`datasets` list `["100","120","150"]` so the web shows the selector there). The reset is asynchronous: it clean-migrates the schema, re-runs the
 same deterministic `DemoDataGenerator`, reloads the live rule base, and returns the dataset checksum.
 While it runs, every other API call answers `409` (status and version stay reachable), and the first
 audit event afterwards is `demo_reset`, so it is visible that the previous history was erased. User
@@ -486,7 +488,7 @@ ids are stable, so a signed-in planner stays signed in.
 | Screen (UI canvas) | Main calls |
 |---|---|
 | Planning board | `GET /schedule`, `POST /rule-checks`, `POST/PATCH/DELETE /assignments`, `POST /schedule-periods/{id}/publish` |
-| My schedule | `GET /me/schedule`, `GET /me/offers`, `POST /offers/{id}/accept`, `POST /rule-checks`, `POST /proposals` |
+| My schedule | `GET /me/schedule`, `GET /me/offers`, `POST /offers/{id}/accept`, `POST /rule-checks` (the proposal send, `POST /proposals`, is not built) |
 | Overtime board | `GET /open-shifts`, `GET /open-shifts/{id}/candidates`, `POST /open-shifts/{id}/offers`, `POST /open-shifts/{id}/assign` |
 | Rules | `GET /rule-sets…`, `PUT …/rows`, `POST …/build`, `…/submit`, `…/approve`, `…/publish` (Excel export/import: not built) |
 | Reports | `GET /reports/*`, `GET /pay-periods/{id}/payroll-export` |

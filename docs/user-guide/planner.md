@@ -9,7 +9,6 @@ Your menu has these screens:
 - **Preferences**
 - **Units**
 - **Planning board** (read-only for you)
-- **Reports**
 
 You work in a **draft**. Nobody else sees it until you commit it.
 
@@ -122,6 +121,8 @@ If you see "The draft changed since you opened it" or "This draft was committed 
 
 **Preferences** lists every officer's wishes by unit. **Not met only** narrows the list to the wishes the current plan misses.
 
+**Add planned leave** records leave for one officer: pick the officer, the first and last day (inside the plan quarter, up to 31 days) and the type (Vacation, Sick or Other). Only the type is kept, never a reason. Each day is saved and audited as "Absence recorded". The draft roster shows those days as **Vac**, **Sick** or **Other** instead of Off. **Generate** again so the plan rosters someone else on those days. A day that already has another type of leave is not changed; the dialog lists it.
+
 ## 9. Units
 
 **Units** shows each unit:
@@ -154,9 +155,9 @@ The **Staffing by unit** card shows, for each unit and period:
 
 **How** shows the formula. **Change…** sets the leave allowance used in the sums. A closed unit needs no one while it is closed.
 
-## 11. Planning board and Reports
+## 11. Planning board
 
-You can read every unit's live roster on the planning board, but not change it: "Read-only: the facility planner sees every unit's roster. Supervisors change their own." Reports are the same as the supervisor's.
+You can read every unit's live roster on the planning board, but not change it: "Read-only: the facility planner sees every unit's roster. Supervisors change their own." Reports are for supervisors and auditors, so your menu has no Reports item.
 
 ## 12. Reset the demo
 

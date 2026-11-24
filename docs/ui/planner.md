@@ -14,8 +14,8 @@ Everything here uses the shared layout (README §4), the Saskatchewan tokens (RE
 
 | Item | Value |
 |---|---|
-| Role | New `PLANNER`: facility-wide, all six units. Supervisors stay unit-scoped. The planner's nav is Quarter plan, Preferences, Units, Planning board, Reports. |
-| Nav (PLANNER) | **Quarter plan** (`/planner`) · **Preferences** (`/planner/preferences`) · **Planning board** (`/planning`, read-only, §11 Q1) · **Reports** (`/reports/coverage`) · About & version |
+| Role | New `PLANNER`: facility-wide, all six units. Supervisors stay unit-scoped. The planner's nav is Quarter plan, Preferences, Units, Planning board (no Reports: the reports api is supervisor/auditor only, docs/09 §2). |
+| Nav (PLANNER) | **Quarter plan** (`/planner`) · **Preferences** (`/planner/preferences`) · **Units** (`/planner/units`) · **Planning board** (`/planning`, read-only, §11 Q1) · About & version |
 | Nav (EMPLOYEE, and supervisors' Employee view) | no new item: preferences are a card on **My schedule** (§8) |
 | Sign-in landing | PLANNER → `/planner` (add to the build-notes §2.1 list) |
 | Role chip | "Planner · <name> (mock sign-in)" |
@@ -148,20 +148,22 @@ A discarded draft shows as No draft; the discard is in the audit log, not here.
 ### 4.1 Gaps tab
 
 - Intro: **"37 block-days are short. The planner left them open rather than break a blocking rule."**
-- Filters: Unit (All + six) · Block (All, Days, Evenings, Nights). Local state.
-- Table (header cells, sticky header, scrolls inside the card on tablet):
+- **Gaps by week and unit** (H2, fit-gap i-6 / planux A7): a strip with weeks across (the 14 Mondays, "4 Jan" … "5 Apr") and units down. Each cell is the unit's short block-days that week. It always shows the number, with the colour as a second cue: 0 subtle, 1–2 warn tint, 3+ block tint. A cell with gaps is a button (`aria-label="Escort & transport, week of 11 Jan: 5 gaps. Show week"`) that opens that unit and week on the Roster tab. The strip follows the Unit and Block filters and scrolls sideways inside the card on tablet.
+- Filters: Unit (All + six) · Block (All, Days, Evenings, Nights). Local state. They filter the strip and the runs.
+- A summary line: "38 short block-days in 7 runs: the same unit and block on days in a row."
+- **Runs table** (`aria-label="Gaps grouped into runs"`): one row per run of the same unit and block on consecutive days.
 
 | Column | Example | Notes |
 |---|---|---|
-| Unit | Control | |
-| Date | Sat 16 Jan | build-notes §1.2 |
-| Block | Night 23–07 | |
-| Staffed / needed | `2 / 3` | lowest hourly count / required, as `CoverageCell` |
-| Short hours | "short 23–07" | the api's ranges |
-| Why | "No officer with Control training had enough rest" | the api's plain reason; "—" if none |
-| | **Show week** | white button, `aria-label="Show week of 11 Jan for Control"` |
+| Unit | Escort & transport | |
+| Days | Wed 13 – Sun 17 Jan · "5 days" | one day reads "Sat 16 Jan" |
+| Block | Evenings 15–23 | |
+| Staffed / needed | `2–3 / 4` | a range when the run's days differ |
+| Short by | `1–2` | needed − staffed, as a range |
+| Why | "No eligible officer was free without breaking a blocking rule. A supervisor fills it on the planning board." | The api's one generic reason ("No eligible officer left without a Block rule…") in plain words. It claims no cause the api did not record. Any other reason is shown as sent; "—" if none |
+| | **Show week** | white button on the run's first day, `aria-label="Show week of 2027-01-13 for Escort & transport"` |
 
-- Sort: date, then unit (A, B, C, Admissions, Control, Escort), then block (Day, Evening, Night).
+- Sort: the run's first date, then unit, then block (Day, Evening, Night).
 - **Show week** opens the Roster tab with `unit` and `week` (that date's Monday) in the URL, scrolls to the grid, moves focus to the roster heading, and outlines that day's coverage cell for 3 s (2 px Midnight Sky; no animation under `prefers-reduced-motion`).
 - Empty: **"No coverage gaps. Every hour of every block meets its staffing."** (pass tint).
 
@@ -169,10 +171,10 @@ A discarded draft shows as No draft; the discard is in the audit log, not here.
 
 The draft week by week, all units, read-only. Reuse `RosterGrid` and the board's week navigation (dev-build2, `98e6788`).
 
-- **Controls:** Unit select (default: the first unit with a gap in the shown week, else Unit A) · **Previous week** · "4 – 10 Jan 2027" · **Next week** · **First week** (in place of "Today", which is outside the window). Previous is disabled on the first week ("Start of the plan"), Next on the last ("End of the plan").
-- **All-units coverage strip** (card above the grid, H2 "All units · 4 – 10 Jan"): rows = 6 units × 3 blocks (unit name spans its rows), columns = 7 days, cells = `CoverageCell` (lowest/required, "short 15–17", tooltip with hourly counts). Each unit name is a button that sets the Unit select.
+- **Controls:** Unit select (default: the first unit with a gap in the shown week, else Unit A). Its options read "Escort & transport · 5 gaps this week, 38 in the quarter", or "· no gaps this week" for a unit with none in the quarter. Then **Go to week**: a select of the 14 weeks, "Week 2 · 11 – 17 Jan 2027 · 5 gaps in all units". Then **Previous week** · "4 – 10 Jan 2027" · **Next week** · **First week** (in place of "Today", which is outside the window). A week across two months names both ("29 Mar – 4 Apr 2027"). Previous is disabled on the first week ("Start of the plan"), Next on the last ("End of the plan").
+- **All-units coverage strip** (H2 "All units · 4 – 10 Jan 2027" with a **Show all units** / **Hide all units** text button, `aria-expanded`). The table is **collapsed by default** (planux Q3). When open: rows = 6 units × 3 blocks (unit name spans its rows), columns = 7 days, cells = `CoverageCell` (lowest/required, "short 15–17", tooltip with hourly counts). Each unit name is a button that sets the Unit select.
 - **Note above the grid** (`role="note"`, info tint): **"Draft · not on the planning board yet. Officers and supervisors can't see it until it's committed."**
-- **Grid:** `RosterGrid` with the draft payload (§10.4), read-only (no `onEmptyCell`, no `onPickChip`; chips keep their time tooltip). Officer column shows the officer's own pattern in words (§1), not one facility pattern. Pay-period column shows the draft's hours and the overtime pill. Day tags read **"Plan"**.
+- **Grid:** `RosterGrid` with the draft payload (§10.4), read-only (no `onEmptyCell`, no `onPickChip`; chips keep their time tooltip). A chip whose officer, date and shift code appear in `/planner/drafts/{id}/warnings` has a **⚠** after it (planux A8): `role="img"`, named "Rule warning: Week over 48 hours: 62 hours this week". It takes focus, and its tooltip opens on focus and on hover. The api keeps one warning per officer per rule, so only that shift is marked. Officer column shows the officer's own pattern in words (§1), not one facility pattern. Pay-period column shows the draft's hours and the overtime pill. Day tags read **"Plan"**.
 - **Look-back days:** the first week's rest and consecutive-day checks read the committed days before 4 Jan (amendment 2), but the grid shows only window days. Under the grid: "Rest and consecutive days at the start of the plan count the shifts already committed for late December."
 - **Legend** (the board's key): `D` Day 8 h · `E` Evening 8 h · `N` Night 8 h · `A12` 12 h 00–12 · `P12` 12 h 12–24 · `L16` 16 h 20:00–12:00 · `Off` · "Night shifts: N, A12, L16" · coverage "4 / 5 short 15–17 = fewest officers in any hour / needed" · "Overtime = pay-period hours over 80 h (status pill)". No extra, offer, sick or vac chips: a draft has none.
 
@@ -267,6 +269,7 @@ There is no override here. Emergency overrides stay one shift at a time on the p
 - Sort: unit order, then seniority (oldest first). No sortable headers.
 - Empty filter: "No officers match."
 - Who: PLANNER only; others 403 (§11 Q2).
+- **Add planned leave** (PR-D, fit-gap A9): an outlined button by the H1 opens a dialog: Officer (select, "Name · Unit", sorted by name), First day and Last day (date inputs bounded by the plan quarter), Type (radios Vacation · Sick · Other, each with its chip), the line "Type only: no reason or medical detail is recorded (privacy)" and a live summary ("Vacation for Nia Thompson: Mon 8 Feb 2027 – Sun 14 Feb 2027 (7 days)"). Checks before any call: an officer, both days, last ≥ first, inside the quarter, at most 31 days. Save sends one `POST /planner/absences` per day in order ("Saving day 3 of 7…"). All saved: the dialog closes and a pass status line says what was recorded, that each day is in the audit log as "Absence recorded", and to generate again. A day already recorded as another type (409) is skipped and listed ("Saved 6 of 7 days. Not saved: …"); a server failure stops and says how many days were saved. The draft roster then shows Vac, Sick or Other chips on those days.
 
 ---
 
@@ -308,8 +311,8 @@ Success → `role="status"`; errors → `role="alert"`.
 
 1. Tab from the nav to **Seed**, then **Generate draft**; Enter.
 2. The status is announced and focus lands on the status line; Tab to the tiles; Enter on **What this means** for Night fairness; Esc.
-3. Tab to the tab list; → to **Gaps**; Tab into the table; Enter on a **Show week** → Roster, focus on its heading.
-4. Tab to Unit, change it; Tab to Previous / Next week.
+3. Tab to the tab list; → to **Gaps**; Tab through the strip's cell buttons (only cells with gaps take focus), then the Unit and Block filters, then the runs table; Enter on a **Show week** → Roster, focus on its heading.
+4. Tab to Unit, change it; Tab to **Go to week**, pick a week; Tab to Previous / Next / First week; Tab to **Show all units**, Enter; Tab into the grid, where each ⚠ takes focus and opens its tooltip.
 5. Back to the tab list; → **Compare**.
 6. Tab to **Commit plan…**; Enter → dialog, focus on Cancel; Tab into the warnings list (arrow keys scroll it), Tab to the checkbox, Space; Tab to **Commit plan**; Enter.
 7. Focus on "Plan committed"; Tab to **Open Unit B on the planning board**; Enter.
@@ -397,7 +400,7 @@ Figures are examples; use the measured ones from the verified tip.
 
 Scorecard tiles, explanations and panels as §2 · one yellow per screen in every state · status in words, not colour · tabs in the URL · "Show week" lands on the right unit and week with focus · Roster read-only with the "not on the planning board yet" note and each officer's pattern words · each officer's pattern visible in words (Preferences select for 8 h, read-only 4 on/4 off for 12 h; no pattern select beside Generate) · Compare uses the api's direction · commit dialog lists every warning and needs the one checkbox · stale (412), blocked (422) and locked (409) refusals say "Nothing was written" and keep the draft · success links open the board on the right unit and week · preferences save and clear with confirmation, pattern save with its own confirmation, disabled lengths explained · no rule codes anywhere · states as §9.1 · keyboard path §9.2 end to end · axe clean at 1440 and 768 px · footer line, no logo.
 
-- The Roster tab's unit picker shows each unit's gap count for the visible week (`no gaps`, `1 gap`, `2 gaps`) and the selected unit's name heads its grid; the All-units strip stays clickable.
+- The Roster tab's unit picker shows each unit's gaps for the visible week and the quarter (`no gaps this week`, `1 gap this week, 5 in the quarter`), and the selected unit's name heads its grid. The Go to week picker lists 14 weeks with their gaps in all units. The All-units table starts collapsed and its unit names stay clickable once it is open.
 
 - Preferences (planner): the **Pattern** column is a picker for 8-hour officers (Rotating 5 on 2 off / Fixed 5 on 2 off / 7 on 3 off) and read-only words for 12-hour officers ('4 on, 4 off'). A change applies to the next generate.
 - Scorecard **Shift patterns**: the note plus a scrollable table of every officer's pattern in words (officer, unit, pattern).

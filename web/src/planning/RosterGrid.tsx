@@ -1,4 +1,6 @@
 import Box from '@mui/material/Box';
+import Tooltip from '@mui/material/Tooltip';
+import { Fragment } from 'react';
 import type { ReactNode } from 'react';
 
 import { AbsenceChip, OffChip, ShiftChip } from '../components/ShiftChip';
@@ -82,6 +84,8 @@ export interface RosterGridProps {
   onFillGap?: (block: BlockCoverage) => void;
   /** A2: the gap the fill panel shows, outlined in the grid. */
   selectedGap?: { date: string; block: Block } | null;
+  /** A rule warning for a chip, shown as a ⚠ beside it (planner draft, A8; PR-C). */
+  chipWarning?: (officer: OfficerRow, item: ShiftItem, date: string) => string | null;
 }
 
 function CellChips({
@@ -90,12 +94,14 @@ function CellChips({
   date,
   onPick,
   compact = false,
+  warningFor,
 }: {
   items: CellItem[];
   officerName: string;
   date: string;
   onPick?: (item: ShiftItem) => void;
   compact?: boolean;
+  warningFor?: (item: ShiftItem) => string | null;
 }) {
   if (items.length === 0) {
     return <OffChip />;
@@ -106,21 +112,55 @@ function CellChips({
         item.type === 'ABSENCE' ? (
           <AbsenceChip key={`absence-${item.absenceType}`} absenceType={item.absenceType} />
         ) : (
-          <ShiftChip
-            key={item.assignmentId}
-            template={item.shiftTemplate}
-            extra={item.kind === 'EXTRA'}
-            worked={item.worked}
-            offer={item.offer ?? false}
-            proposed={item.proposed ?? false}
-            edited={item.edited ?? false}
-            compact={compact}
-            onClick={onPick ? () => onPick(item) : undefined}
-            context={`for ${officerName} on ${date}`}
-          />
+          <Fragment key={item.assignmentId}>
+            <ShiftChip
+              template={item.shiftTemplate}
+              extra={item.kind === 'EXTRA'}
+              worked={item.worked}
+              offer={item.offer ?? false}
+              proposed={item.proposed ?? false}
+              edited={item.edited ?? false}
+              compact={compact}
+              onClick={onPick ? () => onPick(item) : undefined}
+              context={`for ${officerName} on ${date}`}
+            />
+            <ChipWarning message={warningFor?.(item) ?? null} compact={compact} />
+          </Fragment>
         ),
       )}
     </>
+  );
+}
+
+/**
+ * A rule warning beside a chip: a ⚠ named by its message. It takes focus, and
+ * its tooltip opens on focus as well as hover, so a keyboard user can read it.
+ */
+function ChipWarning({ message, compact = false }: { message: string | null; compact?: boolean }) {
+  if (!message) return null;
+  return (
+    <Tooltip title={message} describeChild>
+      <Box
+        component="span"
+        role="img"
+        tabIndex={0}
+        aria-label={`Rule warning: ${message}`}
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          height: compact ? 24 : 30,
+          px: 0.5,
+          fontSize: 14,
+          lineHeight: 1,
+          color: colour.status.warn.text,
+          cursor: 'help',
+          borderRadius: '4px',
+          '&:focus-visible': { outline: `2px solid ${colour.brand.link}`, outlineOffset: 1 },
+        }}
+      >
+        ⚠
+      </Box>
+    </Tooltip>
   );
 }
 
@@ -183,6 +223,7 @@ export function RosterGrid({
   officers: shownOfficers,
   onFillGap,
   selectedGap = null,
+  chipWarning,
 }: RosterGridProps) {
   const officers = shownOfficers ?? payload.officers;
   const threshold = payload.officers[0]?.payPeriodThreshold ?? 80;
@@ -491,7 +532,7 @@ export function RosterGrid({
                               gap: 0.5,
                               justifyContent: compact ? 'center' : undefined,
                               // A one-letter compact chip stays a readable block.
-                              ...(compact ? { '& > *': { minWidth: 28 } } : {}),
+                              ...(compact ? { '& > :not([role="img"])': { minWidth: 28 } } : {}),
                             }}
                           >
                             <CellChips
@@ -500,6 +541,7 @@ export function RosterGrid({
                               date={date}
                               compact={compact}
                               onPick={onPickChip ? (item) => onPickChip(officer, item) : undefined}
+                              warningFor={chipWarning ? (item) => chipWarning(officer, item, date) : undefined}
                             />
                           </Box>
                         )}

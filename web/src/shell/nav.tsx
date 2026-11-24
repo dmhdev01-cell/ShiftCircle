@@ -5,7 +5,7 @@ import { usingFixtures } from '../api/client';
 import { demoUsers } from '../api/fixtures/demoUsers';
 import { getSession, setActingUser, subscribeSession } from '../api/session';
 import type { DemoUser } from '../api/types';
-import { aboutNavItem, DEMO_USER_FOR_ROLE, roleForUser, roles } from './roles';
+import { aboutNavItem, DEMO_USER_FOR_ROLE, navFor, roleForUser, roles } from './roles';
 import type { NavItem, Role, RoleDescriptor } from './roles';
 
 interface RoleContextValue {
@@ -42,6 +42,9 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     // gets no role navigation: the demo switch that falls back to SUPERVISOR is
     // a fixtures-only convenience (D8).
     const signedOut = session.user === null && !usingFixtures;
+    // The fixtures demo serves every screen from fixtures, and its users carry
+    // no officer link, so it filters by the role alone.
+    const navUser = usingFixtures ? null : session.user;
     return {
       role,
       userName: session.user?.displayName ?? role.user,
@@ -49,7 +52,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         setChosenRoleId(next);
         if (usingFixtures) setActingUser(demoUserFor(next));
       },
-      nav: signedOut ? [] : [...role.nav, aboutNavItem],
+      nav: signedOut ? [] : [...navFor(role, navUser), aboutNavItem],
     };
   }, [chosenRoleId, session.user]);
 
