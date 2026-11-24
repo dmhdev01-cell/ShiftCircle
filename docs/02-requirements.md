@@ -30,7 +30,7 @@
 | FR-03 | Each post has a required staff count per block, and required qualifications. | M |
 | FR-04 | The planning board shows **required vs. scheduled vs. actual** per post and block, with gaps and surpluses highlighted (not by colour alone). | M |
 | FR-05 | Each officer's **overtime status** is shown live (under threshold / approaching / in overtime) for the current period. | M |
-| FR-06 | The supervisor can **publish** a schedule period: the period is marked `PUBLISHED` (one-way, audited), and the planning board shows it as published. **Prototype scope:** publishing is a recorded state, not an access gate; employees' *My schedule* reads their assignments directly, so it is not filtered by period status. | M |
+| FR-06 | The supervisor can **publish** a schedule period, which makes it visible to employees. **Prototype status: partial.** Publishing is recorded (one-way, audited) and shown on the planning board, but My schedule is not yet filtered by period status (the demo day's week is seeded DRAFT); see docs/07. | M |
 | FR-07 | Changes made after publishing are checked for notice (R-07) and flagged as "changed" on the affected officers' schedules. | M |
 
 ### Trades — future work
