@@ -212,7 +212,7 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
 
 **Count:** run on `5a38580` (24 Nov 2026: release 11 plus the PR-H rules-wording fix), on a fresh stack per viewport (the API suite in GitHub CI, `mvn verify` on PR #19):
 - API: **470 = 127 rules + 28 infrastructure + 315 api tests**, `mvn verify` green in the default class order, 0 failures/errors/skipped.
-- Web unit tests: **521** in 53 files; lint 0 errors (4 warnings); `tsc -b` clean.
+- Web unit tests: **532** in 54 files; lint 0 errors (4 warnings); `tsc -b` clean.
 - Playwright against the real API, whole suite per viewport (`--project desktop-datasets` and `--project tablet-datasets`, which run the parallel specs and then the stack-wide specs one at a time): desktop **124 passed**; tablet **123 passed and 1 skipped** (the TV-size check runs on desktop only); no failures on either.
 - Fixtures: **23 passed**, 79 skipped (they need the real API), no failures.
 

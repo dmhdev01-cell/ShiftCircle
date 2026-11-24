@@ -51,7 +51,7 @@ The sections after this one are the **history** of how the counts grew, release 
 | Suite | Result | How it was obtained |
 |---|---|---|
 | API (Maven, Testcontainers) | **470 = 127 rules + 28 infrastructure + 315 api**, 0 failures, errors or skipped | `docker compose --profile test run --rm --build api-test` (`mvn -B verify`), `BUILD SUCCESS`, default class order (locally on `5a3be22`; in CI on `5a38580`). The `@Test` count in the three modules agrees. The release 8 gate was 464 in both class orders; reverse and random order were not re-run for this tip |
-| Web unit tests (Vitest) | **521 passed** in 53 files | `pnpm test` in Docker. `pnpm lint`: 4 warnings, 0 errors. `tsc -b` clean |
+| Web unit tests (Vitest) | **532 passed** in 54 files | `pnpm test` in Docker. `pnpm lint`: 4 warnings, 0 errors. `tsc -b` clean |
 | Playwright, real api, desktop | `desktop-datasets`: **124 passed**, 0 failed | The whole desktop suite: the parallel `desktop` project (108 tests) then the stack-wide specs one at a time (16 more, E3 among them). Fresh stack, `EXPECT_COMMIT=5a38580` |
 | Playwright, real api, tablet | `tablet-datasets`: **123 passed, 1 skipped**, 0 failed | The same on a second fresh stack; the TV-size check is desktop-only |
 | Playwright, fixtures-mode web | **23 passed**, 79 skipped, 0 failed | `--grep-invert @api --project desktop-datasets` against the fixtures build; the skipped tests need the real api |
