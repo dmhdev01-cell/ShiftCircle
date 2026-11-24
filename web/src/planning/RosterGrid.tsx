@@ -80,6 +80,11 @@ export interface RosterGridProps {
    * day-totals footer sums the rows shown.
    */
   officers?: OfficerRow[];
+  /**
+   * True when `officers` is a filtered subset (A3): the footer then says it
+   * sums the officers shown, and the coverage rows say they are the whole unit.
+   */
+  filtered?: boolean;
   /** A rule warning for a chip, shown as a ⚠ beside it (planner draft, A8; PR-C). */
   chipWarning?: (officer: OfficerRow, item: ShiftItem, date: string) => string | null;
 }
@@ -217,6 +222,7 @@ export function RosterGrid({
   onPickChip,
   density = 'comfortable',
   officers: shownOfficers,
+  filtered = false,
   chipWarning,
 }: RosterGridProps) {
   const officers = shownOfficers ?? payload.officers;
@@ -350,6 +356,7 @@ export function RosterGrid({
                     {compact ? ' ' : <br />}
                     <span style={{ fontWeight: 500, fontSize: compact ? 11 : 12, color: colour.text.secondary }}>
                       needs {requirement}
+                      {filtered ? ' · whole unit' : ''}
                     </span>
                   </td>
                   <td colSpan={2} style={{ backgroundColor: colour.bg.subtle, borderBottom: border }} />
@@ -378,7 +385,7 @@ export function RosterGrid({
             {officers.map((officer) => {
               const totals = officerTotals(officer);
               return (
-                <tr key={officer.employeeId}>
+                <tr key={officer.employeeId} data-officer-name={officer.name}>
                   <td
                     style={{
                       ...stickyName,
@@ -545,6 +552,11 @@ export function RosterGrid({
                 }}
               >
                 On duty · hours
+                {filtered ? (
+                  <span style={{ display: 'block', fontWeight: 500, color: colour.text.secondary }}>
+                    officers shown
+                  </span>
+                ) : null}
               </th>
               <td
                 colSpan={2}

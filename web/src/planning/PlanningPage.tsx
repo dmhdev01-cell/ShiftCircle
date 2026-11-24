@@ -8,13 +8,16 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import GlobalStyles from '@mui/material/GlobalStyles';
 import Typography from '@mui/material/Typography';
 
+import { qualificationLabel } from '../api/qualifications';
 import { assignableTemplates, shiftTemplates } from '../api/shiftTemplates';
 import type { OfficerRow, ShiftItem, Unit } from '../api/types';
 import { useUnits } from '../api/useUnits';
 import { useVersion } from '../api/useVersion';
 import { useRole } from '../shell/nav';
+import { boardPrintStyles } from '../theme/print';
 import { colour, focusRing } from '../theme/tokens';
 import { addDays, weekdayDateWords } from '../planner/unitDates';
 import { KpiTile } from './KpiTile';
@@ -32,6 +35,19 @@ import {
 import type { BoardView, RosterDensity } from './rosterView';
 import { OverrideDialog } from './OverrideDialog';
 import { PublishPeriodButton } from './PublishPeriodButton';
+import { copyText, downloadCsv, exportFileName, rosterRows, toCsv, toTsv } from './exportRoster';
+import { RosterFilters } from './RosterFilters';
+import {
+  applyRosterFilters,
+  effectiveFilters,
+  filterWords,
+  isFiltered,
+  parseFilters,
+  qualificationOptions,
+  rotationOptions,
+  writeFilters,
+} from './filterRoster';
+import type { RosterFilterState } from './filterRoster';
 import { RosterGrid } from './RosterGrid';
 import { RuleCheckPanel } from './RuleCheckPanel';
 import { RulesHelpDialog } from './RulesHelpDialog';
@@ -169,6 +185,7 @@ export function PlanningPage() {
   const [proposal, setProposal] = useState<{ officer: OfficerRow; item: ShiftItem } | null>(null);
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [exportStatus, setExportStatus] = useState('');
   const lastFocus = useRef<HTMLElement | null>(null);
 
   // Only a supervisor publishes a roster; the api refuses everyone else.
@@ -334,13 +351,57 @@ export function PlanningPage() {
       )
       .map((result) => result.ruleCode) ?? [];
 
+  // A3: find, filter and sort the rows already loaded. The address keeps the
+  // choice (q, ot, rot, works, qual, sort); with none, the board is unchanged.
+  // A rotation or qualification no row here has (a bookmark, another unit)
+  // reads as All rather than an empty select and an empty board.
+  const filters = effectiveFilters(parseFilters(searchParams), payload.officers);
+  const filtered = isFiltered(filters);
+  const shownOfficers = applyRosterFilters(payload.officers, filters);
+  const qualificationCodes = qualificationOptions(payload.officers);
+  const rotationChoices = rotationOptions(payload.officers);
+  // A month is too wide for one landscape page; a week or a pay period fits.
+  const printable = payload.days.length <= 14;
+
+  const changeFilters = (next: RosterFilterState) => {
+    setExportStatus('');
+    setSearchParams(writeFilters(searchParams, next), { replace: true });
+  };
+
+  const officersWord = (count: number) => `${count} ${count === 1 ? 'officer' : 'officers'}`;
+
+  const exportView = () => {
+    downloadCsv(exportFileName(payload, filtered), toCsv(rosterRows(payload, shownOfficers, filtered)));
+    setExportStatus(`CSV saved: ${officersWord(shownOfficers.length)}, ${payload.days.length} days`);
+  };
+
+  const exportUnit = () => {
+    downloadCsv(exportFileName(payload, false), toCsv(rosterRows(payload, payload.officers)));
+    setExportStatus(`CSV saved: all ${payload.officers.length} officers, ${payload.days.length} days`);
+  };
+
+  const copyView = () => {
+    const text = toTsv(rosterRows(payload, shownOfficers, filtered));
+    void copyText(text).then((copied) =>
+      setExportStatus(
+        copied
+          ? `Copied ${officersWord(shownOfficers.length)} × ${payload.days.length} days; paste into a spreadsheet`
+          : 'Could not copy here; use the CSV instead',
+      ),
+    );
+  };
+
   /** Write the focus week (a Monday), the unit, the view and the density into the address. */
   const writeParams = (
     weekFrom: string | undefined,
     unit: string | undefined,
     next: { view?: BoardView; density?: RosterDensity } = {},
   ) => {
+    setExportStatus('');
     const params = new URLSearchParams(searchParams);
+    // Another unit has its own officers: a qualification picked here may
+    // match no one there, so it is reset (the other filters still read).
+    if (unit !== activeUnitId) params.delete('qual');
     if (weekFrom) params.set('week', weekFrom);
     else params.delete('week');
     if (unit) params.set('unit', unit);
@@ -469,6 +530,7 @@ export function PlanningPage() {
       <Box
         component="a"
         href="#roster"
+        data-print="hide"
         sx={{
           alignSelf: 'flex-start',
           display: 'inline-flex',
@@ -510,6 +572,11 @@ export function PlanningPage() {
               </span>
             )}
           </Typography>
+          <Typography data-print="only" sx={{ display: 'none', fontSize: 12, color: colour.text.secondary }}>
+            {filtered
+              ? `Printed: ${shownOfficers.length} of ${payload.officers.length} officers (${filterWords(filters, qualificationLabel)})`
+              : `Printed: all ${payload.officers.length} officers`}
+          </Typography>
         </Box>
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 2.5 }}>
@@ -521,31 +588,35 @@ export function PlanningPage() {
             aria-label={GROUP_LABEL[view]}
             sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}
           >
-            <Button variant="outlined" color="primary" onClick={() => changeWeek(-1)}>
+            <Button variant="outlined" color="primary" data-print="hide" onClick={() => changeWeek(-1)}>
               Previous {STEP_NOUN[view]}
             </Button>
             <Box component="span" className="num" sx={{ fontSize: 13, fontWeight: 700, minWidth: 150, textAlign: 'center' }}>
               {rangeWords(range.from, range.to)}
             </Box>
-            <Button variant="outlined" color="primary" onClick={() => changeWeek(1)}>
+            <Button variant="outlined" color="primary" data-print="hide" onClick={() => changeWeek(1)}>
               Next {STEP_NOUN[view]}
             </Button>
             <Button
               variant="outlined"
               color="primary"
               disabled={showsToday}
+              data-print="hide"
               onClick={() => changeWeek(0)}
             >
               Today
             </Button>
           </Box>
-          <Button variant="outlined" color="primary" onClick={() => setHelpOpen(true)}>
+          <Button variant="outlined" color="primary" data-print="hide" onClick={() => setHelpOpen(true)}>
             Rules help
           </Button>
           {canPublish && payload.period ? (
-            <PublishPeriodButton period={payload.period} onPublished={reload} />
+            <Box data-print="hide">
+              <PublishPeriodButton period={payload.period} onPublished={reload} />
+            </Box>
           ) : null}
           <Box
+            data-print="hide"
             sx={{
               display: 'flex',
               flexDirection: 'column',
@@ -591,7 +662,10 @@ export function PlanningPage() {
         </Box>
       </Box>
 
+      <GlobalStyles styles={boardPrintStyles} />
+
       <Box
+        data-print="hide"
         sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 3 }}
       >
         <Segmented label="View" options={BOARD_VIEWS} value={view} onChange={changeView} />
@@ -601,6 +675,7 @@ export function PlanningPage() {
       {/* A1: the compact board shows the same figures as a one-line strip of
           chips, so a pay period of officers fits above the fold. */}
       <Box
+        data-print="hide"
         role={compactKpis ? 'list' : undefined}
         aria-label={compactKpis ? 'Board figures' : undefined}
         sx={
@@ -665,6 +740,27 @@ export function PlanningPage() {
         </Typography>
       ) : null}
 
+      <RosterFilters
+        filters={filters}
+        onChange={changeFilters}
+        qualificationCodes={qualificationCodes}
+        rotationOptions={rotationChoices}
+        printable={printable}
+        shown={shownOfficers.length}
+        total={payload.officers.length}
+        onExportView={exportView}
+        onExportUnit={exportUnit}
+        onPrint={() => window.print()}
+        onCopy={copyView}
+        exportStatus={exportStatus}
+      />
+
+      {filtered && shownOfficers.length === 0 ? (
+        <Typography role="note" sx={{ fontSize: 13, color: colour.text.secondary }}>
+          No officer on this board matches these filters. Clear the filters to see everyone.
+        </Typography>
+      ) : null}
+
       <Box
         component="section"
         id="roster"
@@ -676,6 +772,8 @@ export function PlanningPage() {
           payload={payload}
           today={today}
           density={density}
+          officers={shownOfficers}
+          filtered={filtered}
           {...(readOnly ? {} : { onEmptyCell: startChoose, onPickChip: pickChip })}
         />
       </Box>
@@ -686,6 +784,7 @@ export function PlanningPage() {
         <Box
           role="region"
           aria-label="Rule check"
+          data-print="hide"
           sx={{
             position: 'fixed',
             left: { xs: 0, md: '220px' },
