@@ -326,7 +326,7 @@ export function RosterGrid({
             {officers.map((officer) => {
               const totals = officerTotals(officer);
               return (
-                <tr key={officer.employeeId}>
+                <tr key={officer.employeeId} data-officer-name={officer.name}>
                   <td
                     style={{
                       ...stickyName,

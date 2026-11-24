@@ -496,4 +496,121 @@ describe('the planning board', () => {
       expect(within(roster).getAllByRole('img', { name: /^Qualified: / }).length).toBeGreaterThan(0);
     });
   });
+  describe('A3: find, filter, sort and export', () => {
+    function officerNames(): string[] {
+      const roster = screen.getByRole('region', { name: 'Roster, scrolls sideways' });
+      return within(roster)
+        .getAllByRole('row')
+        .map((row) => row.getAttribute('data-officer-name'))
+        .filter((name): name is string => name !== null);
+    }
+
+    it('shows every officer in the board order by default', async () => {
+      renderBoard();
+      await screen.findByText('Coverage gaps');
+      expect(screen.getByText(/^Showing all \d+ officers$/)).toBeInTheDocument();
+      expect(officerNames()[0]).toBe('Tara Nakamura');
+      expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
+      expect(screen.getByTestId('search').textContent).not.toMatch(/[?&](q|ot|rot|works|qual|sort)=/);
+    });
+
+    it('finds an officer by name and keeps it in the address', async () => {
+      const user = userEvent.setup();
+      renderBoard();
+      await screen.findByText('Coverage gaps');
+      await user.type(screen.getByRole('searchbox', { name: 'Find officer' }), 'nia');
+      await waitFor(() => expect(officerNames()).toEqual(['Nia Thompson']));
+      expect(screen.getByText(/^Showing 1 of \d+ officers · name has "nia"$/)).toBeInTheDocument();
+      expect(screen.getByTestId('search').textContent).toContain('q=nia');
+
+      await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+      await waitFor(() => expect(officerNames().length).toBeGreaterThan(1));
+      expect(screen.getByTestId('search').textContent).not.toContain('q=');
+    });
+
+    it('filters by overtime and qualification, sorts by hours, from the address too', async () => {
+      const user = userEvent.setup();
+      renderBoard('/planning?ot=IN_OVERTIME&sort=hours-asc');
+      await screen.findByText('Coverage gaps');
+      const inOvertime = officerNames();
+      expect(inOvertime.length).toBeGreaterThan(0);
+      expect(inOvertime).toContain('Nia Thompson');
+      const roster = screen.getByRole('region', { name: 'Roster, scrolls sideways' });
+      const rows = roster.querySelectorAll('tr[data-officer-name]');
+      expect(rows).toHaveLength(inOvertime.length);
+      rows.forEach((row) => expect(row).toHaveTextContent('In overtime'));
+      expect(screen.getByText(/^Showing \d+ of \d+ officers · in overtime$/)).toBeInTheDocument();
+      // Lowest pay-period hours first.
+      const hours = Array.from(rows).map((row) => Number(/(\d+(?:\.\d+)?) h(?:In|Ap|Un)/.exec(row.textContent ?? '')?.[1]));
+      expect(hours.every(Number.isFinite)).toBe(true);
+      expect(hours).toEqual([...hours].sort((a, b) => a - b));
+      expect(screen.getByRole('combobox', { name: 'Overtime' })).toHaveValue('IN_OVERTIME');
+
+      await user.selectOptions(screen.getByRole('combobox', { name: 'Overtime' }), 'all');
+      await user.selectOptions(screen.getByRole('combobox', { name: 'Qualification' }), 'FIRST_AID');
+      await waitFor(() => expect(officerNames()).not.toContain('Tara Nakamura'));
+      expect(officerNames()).toContain('Nia Thompson');
+      expect(screen.getByTestId('search').textContent).toContain('qual=FIRST_AID');
+
+      await user.selectOptions(screen.getByRole('combobox', { name: 'Sort' }), 'name');
+      await waitFor(() => {
+        const names = officerNames();
+        expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, 'en-CA')));
+      });
+    });
+
+    it('says so when nothing matches, and keeps the coverage rows', async () => {
+      const user = userEvent.setup();
+      renderBoard();
+      await screen.findByText('Coverage gaps');
+      await user.type(screen.getByRole('searchbox', { name: 'Find officer' }), 'zzzz');
+      expect(await screen.findByText(/No officer on this board matches these filters/)).toBeInTheDocument();
+      expect(officerNames()).toEqual([]);
+      const roster = screen.getByRole('region', { name: 'Roster, scrolls sideways' });
+      expect(within(roster).getByText('Days')).toBeInTheDocument();
+    });
+
+    it('saves a CSV of the view, copies it as TSV and prints', async () => {
+      const user = userEvent.setup();
+      const created: Blob[] = [];
+      const createObjectURL = vi.fn((blob: Blob) => {
+        created.push(blob);
+        return 'blob:roster';
+      });
+      vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() }));
+      const writeText = vi.fn(async (_text: string) => {});
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+      const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+      const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+      renderBoard('/planning?q=nia');
+      await screen.findByText('Coverage gaps');
+
+      await user.click(screen.getByRole('button', { name: /^Export/ }));
+      await user.click(await screen.findByRole('menuitem', { name: /this view \(1 officer\)/ }));
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
+      expect(click).toHaveBeenCalledTimes(1);
+      const csv = await created[0].text();
+      expect(csv).toContain('Nia Thompson');
+      expect(csv).not.toContain('Tara Nakamura');
+      expect(await screen.findByText(/CSV saved: 1 officer, 7 days/)).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /^Export/ }));
+      await user.click(await screen.findByRole('menuitem', { name: /whole unit/ }));
+      expect(await created[1].text()).toContain('Tara Nakamura');
+
+      await user.click(screen.getByRole('button', { name: /^Export/ }));
+      await user.click(await screen.findByRole('menuitem', { name: /Copy this view/ }));
+      await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+      expect(writeText.mock.calls[0][0]).toMatch(/^Officer\tRotation\t/);
+      expect(await screen.findByText(/Copied 1 officer × 7 days/)).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /^Export/ }));
+      await user.click(await screen.findByRole('menuitem', { name: /Print or save as PDF/ }));
+      expect(print).toHaveBeenCalledTimes(1);
+
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    });
+  });
 });
