@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
@@ -9,6 +9,7 @@ import { api } from '../api/client';
 import { createFixtureApi } from '../api/fixtures/api';
 import { createHttpApi } from '../api/http';
 import { RoleProvider } from '../shell/nav';
+import { sortOffers } from './useMySchedule';
 import { theme } from '../theme/theme';
 
 function renderMySchedule() {
@@ -201,6 +202,58 @@ describe('the employee My schedule', () => {
     expect(await screen.findByText(/offered 20 Nov 08:45/)).toBeInTheDocument();
     expect(screen.queryByText(/offered by\s+at/)).not.toBeInTheDocument();
     expect(screen.queryByText(/2026-11-20T08:45/)).not.toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+  // Demo verification D1: an offer sent while My schedule was open only showed
+  // after a page refresh, and it was the 4th card, below the fold.
+  it('D1: lists open offers first, the newest first', async () => {
+    const [base] = await api.getMyOffers();
+    const offer = (id: string, offeredAt: string, status: typeof base.status) => ({
+      ...base,
+      id,
+      offeredAt,
+      status,
+    });
+    const sorted = sortOffers([
+      offer('dec-13', '2026-11-19T08:00:00-06:00', 'OFFERED'),
+      offer('done', '2026-11-24T10:00:00-06:00', 'ACCEPTED'),
+      offer('nov-25', '2026-11-20T08:00:00-06:00', 'OFFERED'),
+      offer('nov-21', '2026-11-24T09:07:00-06:00', 'OFFERED'),
+    ]);
+    expect(sorted.map((entry) => entry.id)).toEqual(['nov-21', 'nov-25', 'dec-13', 'done']);
+    // Times that do not parse keep the api's order.
+    expect(
+      sortOffers([offer('a', '14:20', 'OFFERED'), offer('b', '15:05', 'OFFERED')]).map((entry) => entry.id),
+    ).toEqual(['a', 'b']);
+  });
+
+  it('D1: fetches the offers again when the window regains focus or becomes visible', async () => {
+    const offers = await api.getMyOffers();
+    const spy = vi.spyOn(api, 'getMyOffers').mockResolvedValue([offers[0]]);
+
+    renderMySchedule();
+    await screen.findByText(/Sam Abara/);
+    expect(await screen.findAllByRole('region', { name: 'Overtime offer' })).toHaveLength(1);
+
+    // A supervisor sends a second offer while the page is open.
+    spy.mockResolvedValue([offers[0], offers[1]]);
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(await screen.findAllByRole('region', { name: 'Overtime offer' })).toHaveLength(2);
+
+    const calls = spy.mock.calls.length;
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(spy.mock.calls.length).toBeGreaterThan(calls);
+
+    // A failed background refresh keeps the offers on screen.
+    spy.mockRejectedValue(new Error('offline'));
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(screen.getAllByRole('region', { name: 'Overtime offer' })).toHaveLength(2);
     vi.restoreAllMocks();
   });
 });

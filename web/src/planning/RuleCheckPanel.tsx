@@ -5,8 +5,9 @@ import Typography from '@mui/material/Typography';
 import { Link } from 'react-router-dom';
 
 import { ruleNameFor } from '../api/shiftTemplates';
-import type { RuleOutcome } from '../api/types';
+import type { RuleOutcome, RuleResult } from '../api/types';
 import { StatusPill } from '../components/StatusPill';
+import { dateTimeWords } from '../planner/plannerTime';
 import { colour } from '../theme/tokens';
 import type { RuleCheckedState } from './useRuleCheckedMutation';
 
@@ -23,6 +24,45 @@ const OUTCOME_TEXT = {
   PASS: 'Pass',
   INFO: 'Info',
 } as const;
+
+const OUTCOME_ORDER: Record<string, number> = { BLOCK: 0, WARN: 1, INFO: 2, PASS: 3 };
+
+/**
+ * The results as rows: Blocks first, then Warns, keeping the api's order
+ * inside each, and identical results (same rule, outcome, message, source and
+ * evidence) as one row with a count. One check of Nia's Sat 21 Nov listed the
+ * same U-16 Warn 14 times and pushed the fourth Block out of the dock (demo
+ * verification D4).
+ */
+function groupRuleResults(results: RuleResult[]): { result: RuleResult; count: number; key: string }[] {
+  const rows: { result: RuleResult; count: number; key: string }[] = [];
+  const byKey = new Map<string, { result: RuleResult; count: number; key: string }>();
+  for (const result of results) {
+    const key = JSON.stringify([
+      result.ruleCode,
+      result.outcome,
+      result.message,
+      result.source ?? '',
+      (result.evidence ?? []).map((item) => item.label ?? ''),
+    ]);
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      const row = { result, count: 1, key };
+      byKey.set(key, row);
+      rows.push(row);
+    }
+  }
+  return rows
+    .map((row, index) => ({ row, index }))
+    .sort(
+      (a, b) =>
+        (OUTCOME_ORDER[a.row.result.outcome] ?? 9) - (OUTCOME_ORDER[b.row.result.outcome] ?? 9) ||
+        a.index - b.index,
+    )
+    .map(({ row }) => row);
+}
 
 interface Banner {
   text: string;
@@ -235,43 +275,59 @@ export function RuleCheckPanel({
           component="ul"
           sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: 2.5 }}
         >
-          {outcome.ruleResults.map((result) => (
+          {groupRuleResults(outcome.ruleResults).map(({ result, count, key }) => (
             <Box
               component="li"
-              key={result.ruleCode}
+              key={key}
+              // One compact row per result: the four Blocks of the demo's
+              // check fit in the dock at 1440×900 without scrolling (D4).
               sx={{
                 display: 'flex',
-                flexDirection: 'column',
-                gap: 1,
-                p: '10px 12px',
+                flexWrap: 'wrap',
+                alignItems: 'baseline',
+                columnGap: 2,
+                rowGap: 0.5,
+                p: '6px 12px',
                 border: `1px solid ${colour.border.default}`,
                 borderRadius: '8px',
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <StatusPill tone={OUTCOME_TONE[result.outcome as RuleOutcome]}>
-                  {OUTCOME_TEXT[result.outcome as RuleOutcome]}
-                </StatusPill>
-                <Box component="span" sx={{ fontSize: 12, fontWeight: 600, color: colour.text.secondary }}>
+              <StatusPill tone={OUTCOME_TONE[result.outcome as RuleOutcome]}>
+                {OUTCOME_TEXT[result.outcome as RuleOutcome]}
+              </StatusPill>
+              <Box
+                component="span"
+                sx={{ fontSize: 12, fontWeight: 600, color: colour.text.secondary, whiteSpace: 'nowrap' }}
+              >
+                <span>
                   {result.ruleCode}
                   {ruleNameFor(result.ruleCode) ? ` · ${ruleNameFor(result.ruleCode)}` : ''}
-                </Box>
+                </span>
+                {count > 1 ? (
+                  <Box
+                    component="span"
+                    aria-label={`${count} times`}
+                    sx={{ ml: 1, color: colour.text.primary }}
+                  >
+                    ×{count}
+                  </Box>
+                ) : null}
               </Box>
-              <Box component="span" sx={{ fontSize: 13, lineHeight: 1.45 }}>
-                {result.message}
+              <Box component="span" sx={{ flex: '1 1 320px', minWidth: 0, fontSize: 13, lineHeight: 1.45 }}>
+                <span>{result.message}</span>
+                {result.source || (result.evidence && result.evidence.length > 0) ? (
+                  <Box component="span" sx={{ ml: 2, fontSize: 12, color: colour.text.secondary }}>
+                    {[
+                      result.source ? `Source: ${result.source}` : null,
+                      result.evidence && result.evidence.length > 0
+                        ? `Evidence: ${result.evidence.map((item) => item.label ?? '').filter(Boolean).join(', ')}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </Box>
+                ) : null}
               </Box>
-              {result.source || (result.evidence && result.evidence.length > 0) ? (
-                <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
-                  {[
-                    result.source ? `Source: ${result.source}` : null,
-                    result.evidence && result.evidence.length > 0
-                      ? `Evidence: ${result.evidence.map((item) => item.label ?? '').filter(Boolean).join(', ')}`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </Box>
-              ) : null}
             </Box>
           ))}
         </Box>
@@ -282,7 +338,7 @@ export function RuleCheckPanel({
           {[
             outcome.passedRules ? `${outcome.passedRules} other rules passed` : null,
             outcome.ruleSetVersion ? `Rule tables v${outcome.ruleSetVersion}` : null,
-            outcome.publishedAt ? `(published ${outcome.publishedAt})` : null,
+            outcome.publishedAt ? `(published ${dateTimeWords(outcome.publishedAt)})` : null,
           ]
             .filter(Boolean)
             .join(' · ')}

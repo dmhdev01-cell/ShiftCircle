@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
@@ -97,6 +97,58 @@ describe('the rule-check panel', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('U-05 · Max 16 h in 24 h')).toBeInTheDocument();
     expect(screen.getByText('52 hours this week, over the 48 h warning level.')).toBeInTheDocument();
+  });
+
+  // Demo verification D4: Nia's Sat 21 Nov check returned U-16 Warn 14 times
+  // with the same text, and U-14 (the fourth Block) came after the Warns, out
+  // of the dock's visible part.
+  it('D4: lists Blocks first and shows identical results once with a count', () => {
+    const warn = (ruleCode: string, message: string, label?: string) => ({
+      ruleCode,
+      ruleTable: 'X',
+      outcome: 'WARN' as const,
+      overridePolicy: 'ACKNOWLEDGE' as const,
+      message,
+      evidence: label ? [{ label }] : undefined,
+    });
+    const block = (ruleCode: string, message: string) => ({
+      ruleCode,
+      ruleTable: 'X',
+      outcome: 'BLOCK' as const,
+      overridePolicy: 'ACKNOWLEDGE' as const,
+      message,
+    });
+    renderPanel({
+      ...blockedState,
+      outcome: {
+        ...blockedOutcome,
+        overridable: false,
+        ruleResults: [
+          block('U-01', 'Rest too short.'),
+          block('U-08', 'More than 7 consecutive work days.'),
+          block('U-05', 'More than 16 hours in 24.'),
+          warn('U-12', 'Short-notice change.'),
+          warn('U-02', 'Rest target not met.', 'after Thu'),
+          warn('U-02', 'Rest target not met.', 'after Fri'),
+          block('U-14', 'More than 60 hours in the week.'),
+          ...Array.from({ length: 14 }, () =>
+            warn('U-16', 'Night shifts on the unit.', 'N8 of 480 min on unit B'),
+          ),
+        ],
+      },
+    });
+
+    expect(screen.getByRole('status')).toHaveTextContent('Blocked: 4 rules fail');
+    const rows = screen.getAllByRole('listitem');
+    // 4 Blocks, U-12, U-02 twice (different evidence), U-16 once.
+    expect(rows).toHaveLength(8);
+    expect(rows.map((row) => /U-\d+/.exec(row.textContent ?? '')?.[0])).toEqual([
+      'U-01', 'U-08', 'U-05', 'U-14', 'U-12', 'U-02', 'U-02', 'U-16',
+    ]);
+    expect(rows.slice(0, 4).every((row) => within(row).queryByText('Block'))).toBe(true);
+    expect(within(rows[7]).getByLabelText('14 times')).toHaveTextContent('×14');
+    expect(rows[7]).toHaveTextContent('Evidence: N8 of 480 min on unit B');
+    expect(within(rows[5]).queryByLabelText(/times/)).not.toBeInTheDocument();
   });
 
   it('shows the evidence and the source the api sent', () => {

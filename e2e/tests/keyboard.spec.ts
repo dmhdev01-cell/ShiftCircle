@@ -70,6 +70,6 @@ test.describe('keyboard only', () => {
     await expect(page.getByText('The version is approved. It can be published.')).toBeVisible();
     await tabTo(page, page.getByRole('button', { name: 'Publish' }), 40);
     await page.keyboard.press('Enter');
-    await expect(page.getByText(/Version \d+ is live from/)).toBeVisible();
+    await expect(page.getByText(/^Version \d+ is live now\.$/)).toBeVisible();
   });
 });

@@ -18,6 +18,7 @@ import type {
 import { StatusPill } from '../components/StatusPill';
 import { useRole } from '../shell/nav';
 import { colour } from '../theme/tokens';
+import { dateTimeWords } from '../planner/plannerTime';
 import { DecisionTable } from './DecisionTable';
 import { PublishChecklist } from './PublishChecklist';
 
@@ -354,6 +355,12 @@ export function RulesPage() {
             <DecisionTable
               table={table}
               readOnly={!canEdit}
+              inDraft={
+                !draft.live &&
+                (draft.status === 'DRAFT' ||
+                  draft.status === 'SUBMITTED' ||
+                  draft.status === 'APPROVED')
+              }
               rows={rows}
               edited={edited}
               saving={saving}
@@ -414,7 +421,10 @@ export function RulesPage() {
                     live: entry.version === published.version,
                   })),
                 );
-                setMessage(`Version ${published.version} is live from ${published.publishedAt}.`);
+                // "Live now": the api's publishedAt is the real moment of
+                // publishing, not the demo day, and the raw ISO stamp read badly
+                // on screen (demo verification D3). The history says when.
+                setMessage(`Version ${published.version} is live now.`);
               }}
             />
           ) : null}
@@ -447,7 +457,7 @@ export function RulesPage() {
                 <Box component="span" sx={{ fontSize: 14, fontWeight: 600 }}>
                   v{entry.version}{' '}
                   <Box component="span" sx={{ fontWeight: 500, color: colour.text.secondary }}>
-                    · {entry.publishedAt ?? entry.createdAt ?? ''}
+                    · {dateTimeWords(entry.publishedAt ?? entry.createdAt ?? '')}
                   </Box>
                 </Box>
                 <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>

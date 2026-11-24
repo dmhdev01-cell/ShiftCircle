@@ -260,7 +260,7 @@ describe('Rules admin', () => {
     expect(await screen.findByText('The version is approved. It can be published.')).toBeInTheDocument();
 
     await user.click(await screen.findByRole('button', { name: 'Publish' }));
-    expect(await screen.findByText(/Version 8 is live from/)).toBeInTheDocument();
+    expect(await screen.findByText('Version 8 is live now.')).toBeInTheDocument();
 
     const versions = await api.getRuleSets();
     const published = versions.find((entry) => entry.version === 8);
@@ -343,6 +343,32 @@ describe('Rules admin', () => {
     expect(await screen.findByText('Live v7 · draft v8')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Before draft v8 goes live' })).toBeInTheDocument();
     expect(screen.queryByText('Before draft v7 goes live')).not.toBeInTheDocument();
+  });
+
+  it('D2: the draft still shows its saved changes in the pill', async () => {
+    renderRules();
+    // The fixture tables are shared across this file, so earlier saves change the count.
+    expect(await screen.findByText(/^\d+ changes? in draft$/)).toBeInTheDocument();
+  });
+
+  it('D2: the live version has no "change in draft" pill (its diff to the version before is not a draft)', async () => {
+    renderRules('/rules/7/rest-between-shifts');
+    await screen.findByRole('heading', { name: 'Rest between shifts' });
+    await screen.findByText(/After a 12 h 00–12 shift/);
+    expect(screen.queryByText(/in draft/)).not.toBeInTheDocument();
+  });
+
+  it('D3: the version history reads an api instant as a date and time in Regina, not raw ISO', async () => {
+    const live = demoRuleSets.find((entry) => entry.version === 7)!;
+    const before = live.publishedAt;
+    live.publishedAt = '2026-11-24T15:08:19.884657Z';
+    try {
+      renderRules();
+      expect(await screen.findByText('· 24 Nov 2026, 09:08')).toBeInTheDocument();
+      expect(screen.queryByText(/2026-11-24T15:08/)).not.toBeInTheDocument();
+    } finally {
+      live.publishedAt = before;
+    }
   });
 
   it('shows the version history', async () => {

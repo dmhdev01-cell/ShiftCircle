@@ -122,9 +122,9 @@ export function AboutPage() {
           <Typography sx={{ fontWeight: 600, fontSize: 15 }}>What this is</Typography>
           <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
             ShiftCircle is a working prototype for the AI Solutions Architect assessment. It
-            schedules 8, 12 and 16 hour shifts at a fictional 24/7 correctional centre, checks every
-            change against a configurable rules engine, and exports time to a simulated payroll
-            file.
+            schedules 8 and 12 hour shifts (a 16 hour day is a 12 hour shift plus an extension) at
+            a fictional 24/7 correctional centre, checks every change against a configurable rules
+            engine, and exports time to a simulated payroll file.
           </Typography>
           <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
             Every person, unit and figure in the prototype is synthetic. Sign-in is mocked, the

@@ -21,6 +21,12 @@ interface DecisionTableProps {
   table: RuleTable;
   /** True when the person editing is not a rules admin, or the draft is not editable. */
   readOnly: boolean;
+  /**
+   * True when the version on screen is a draft that is not live yet (draft,
+   * submitted or approved). For the live or an old version the api's
+   * `changed` is that version's diff to the one before it, not a draft.
+   */
+  inDraft: boolean;
   /** The rows, with any unsaved edits applied. */
   rows: RuleTableRow[];
   /** The rules with unsaved edits. */
@@ -40,6 +46,7 @@ interface DecisionTableProps {
 export function DecisionTable({
   table,
   readOnly,
+  inDraft,
   rows,
   edited,
   saving,
@@ -50,8 +57,10 @@ export function DecisionTable({
   const selected = rows.find((row) => row.ruleCode === selectedCode) ?? rows[0];
   const update = onUpdate;
   // Unsaved edits are changes in the draft too; the api's number only catches
-  // what has been saved.
-  const changeCount = Math.max(table.changed, Object.keys(edited).length);
+  // what has been saved. With no draft on screen there is nothing "in draft"
+  // (demo verification D2: the live v3 showed "1 change in draft").
+  const editCount = Object.keys(edited).length;
+  const changeCount = inDraft ? Math.max(table.changed, editCount) : editCount;
 
   return (
     <Box
