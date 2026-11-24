@@ -3,9 +3,11 @@ package ca.shiftcircle.api.planner;
 import ca.shiftcircle.api.rules.RuleCheckService;
 import ca.shiftcircle.api.schedule.ScheduleQuery;
 import ca.shiftcircle.api.security.AuthPrincipal;
+import ca.shiftcircle.domain.Position;
 import ca.shiftcircle.rules.build.ShiftFact;
 import ca.shiftcircle.rules.build.ShiftKind;
 import java.sql.Array;
+import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -1669,7 +1671,7 @@ public class PlannerService {
               .put(rs.getString("block"), rs.getInt("min_staff"));
         });
     return jdbc.query(
-        "SELECT id, code, name, allows_12h, allows_16h FROM unit ORDER BY code",
+        "SELECT id, code, name, kind, allows_12h, allows_16h FROM unit ORDER BY code",
         (rs, row) ->
             new PlanGenerator.Unit(
                 rs.getObject("id", UUID.class),
@@ -1677,7 +1679,8 @@ public class PlannerService {
                 rs.getString("name"),
                 rs.getBoolean("allows_12h"),
                 rs.getBoolean("allows_16h"),
-                requirements.getOrDefault(rs.getObject("id", UUID.class), Map.of())));
+                requirements.getOrDefault(rs.getObject("id", UUID.class), Map.of()),
+                rs.getString("kind")));
   }
 
   /**
@@ -1708,7 +1711,8 @@ public class PlannerService {
     Map<UUID, Integer> phases = new HashMap<>();
     return jdbc.query(
         "SELECT e.id, e.employee_no, e.first_name || ' ' || e.last_name AS name,"
-            + " e.home_unit_id, e.seniority_date, e.fte, e.shift_pattern,"
+            + " e.home_unit_id, e.seniority_date, e.position_since, e.classification, e.fte,"
+            + " e.shift_pattern,"
             + " p.shift_length, p.times_of_day, p.days_off,"
             + " rp.code AS crew"
             + " FROM employee e LEFT JOIN officer_preference p ON p.employee_id = e.id"
@@ -1721,19 +1725,25 @@ public class PlannerService {
           Integer preferred = rs.getObject("shift_length", Integer.class);
           String crew = rs.getString("crew");
           int effective = effectiveLength(crew, preferred, unit.allows12h());
+          LocalDate service = rs.getDate("seniority_date").toLocalDate();
+          // Seniority inside the rank: null until an officer is promoted, so it is the service date
+          // for every officer there is today.
+          Date promoted = rs.getDate("position_since");
           return new PlanGenerator.Employee(
               rs.getObject("id", UUID.class),
               rs.getString("employee_no"),
               rs.getString("name"),
               unitId,
               unit.code(),
-              rs.getDate("seniority_date").toLocalDate(),
+              service,
               rs.getDouble("fte"),
               new PlanGenerator.Pref(preferred, timesOfDay(rs.getArray("times_of_day")), daysOff(rs.getArray("days_off"))),
               effective,
               index % 7,
               crew,
-              rs.getString("shift_pattern"));
+              rs.getString("shift_pattern"),
+              Position.fromCode(rs.getString("classification")),
+              promoted == null ? service : promoted.toLocalDate());
         });
   }
 

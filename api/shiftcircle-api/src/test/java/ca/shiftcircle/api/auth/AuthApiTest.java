@@ -9,11 +9,13 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.env.Environment;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.test.context.ActiveProfiles;
@@ -38,6 +40,7 @@ class AuthApiTest {
 
   @Autowired private Environment environment;
   @Autowired private ApplicationContext context;
+  @Autowired private JdbcTemplate jdbc;
 
   private final ObjectMapper mapper = new ObjectMapper();
   private final HttpClient client = HttpClient.newHttpClient();
@@ -111,6 +114,44 @@ class AuthApiTest {
             null);
 
     assertThat(response.statusCode()).isEqualTo(200);
+  }
+
+  @Test
+  void theSignedInUserCarriesTheirPosition() throws Exception {
+    UUID employeeId = UUID.fromString("33333333-3333-3333-3333-000000000001");
+    jdbc.update(
+        "INSERT INTO employee (id, employee_no, first_name, last_name, seniority_date)"
+            + " VALUES (?, ?, 'Test', 'Nakamura', DATE '2020-01-01')",
+        employeeId,
+        "T-position-" + UUID.randomUUID());
+    jdbc.update("UPDATE app_user SET employee_id = ? WHERE username = 't.nakamura'", employeeId);
+
+    String token = login("t.nakamura");
+    Map<?, ?> body = mapper.readValue(get("/api/v1/me", token).body(), Map.class);
+
+    assertThat(body.get("position")).isEqualTo("Correctional officer");
+    assertThat(body.get("employeeId")).isEqualTo(employeeId.toString());
+
+    // My schedule names the position in words too.
+    Map<?, ?> schedule = mapper.readValue(get("/api/v1/me/schedule", token).body(), Map.class);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> employee = (Map<String, Object>) schedule.get("employee");
+    assertThat(employee.get("position")).isEqualTo("Correctional officer");
+
+    // A supervisor reads their own position.
+    jdbc.update("UPDATE employee SET classification = 'CS' WHERE id = ?", employeeId);
+    Map<?, ?> supervisor =
+        mapper.readValue(get("/api/v1/me", login("t.nakamura")).body(), Map.class);
+    assertThat(supervisor.get("position")).isEqualTo("Correctional supervisor");
+  }
+
+  @Test
+  void anAccountWithNoEmployeeRecordHasNoPosition() throws Exception {
+    String token = login("m.ellis");
+    Map<?, ?> body = mapper.readValue(get("/api/v1/me", token).body(), Map.class);
+
+    assertThat(body.get("employeeId")).isEqualTo("");
+    assertThat(body.get("position")).isEqualTo("");
   }
 
   @Test

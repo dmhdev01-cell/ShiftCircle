@@ -74,3 +74,55 @@ Everything merged to `main` after tag `v1.0-submission` (`efba3f7`), through six
 Install-only change on top of v1.1: `install.sh` at the repo root (prerequisite checks, pinned clone, generated secrets never printed, `docker compose up -d --build --wait`, health checks, idempotent re-run, never `down -v`), a Quick install section in README and INSTALL, and a CI step running `bash -n` and shellcheck. No application, rules, data or test change; the v1.1 counts stand. Tag: `v1.1.1-submission`.
 
 **Release step:** after merge, tag the merge commit `v1.1.1-submission` and push the tag, then run `scripts/check-install-pin.sh --remote` and the README one-liner once from an empty directory (free port, own `SHIFTCIRCLE_PROJECT`).
+
+## Release v1.3: supervisors get their own rostered shifts
+
+The owner approved the plan in `.factory/plans/v1.2-supervisors.md` (the plan file still says v1.2; the
+release was split afterwards, so it is v1.3 here). The work is eight small pull requests, **S1 to S8**;
+this entry covers **S1** only. The plan is not in the repository, so this section is the record of what
+the first pull request did.
+
+### S1 — Positions and the SUPERVISION kind (API, schema only)
+
+**What it does.** An officer's **position** (rank) becomes a reference row instead of a free-text
+column, and a **supervisor post** becomes a unit of its own kind. Nothing about the demo changes yet:
+there are still no supervisor posts and no supervisors in the datasets, so the demo behaves exactly as
+it did.
+
+**The migration (`positions`).** The file is `__positions.sql`; its version number is the order it
+merges in, so it takes the next free number when it merges.
+- The `position` table (`code` PK, `name`, `rank_order`, `is_supervisory`) with two rows: `CO`
+  Correctional officer (1, not supervisory) and `CS` Correctional supervisor (2, supervisory). A new
+  rank is a row, not a schema change.
+- `employee.classification` keeps its name and becomes a foreign key to `position(code)`, so an
+  unknown code is refused by the database (`23503`). Every existing officer is a `CO`, so no data
+  moved.
+- `employee.position_since` (date, null): **seniority within the rank**. It is null for an officer
+  who is already in their rank, so seniority inside a rank is `coalesce(position_since,
+  seniority_date)` and every officer ordering is unchanged.
+- `unit.kind` accepts `SUPERVISION`: a supervisor post is a unit with its own `unit_requirement`
+  rows, so the board, coverage, gaps, publishing and payroll need no new code.
+- `unit_supervision(supervision_unit_id, unit_id)`: which line units a post covers. A trigger refuses
+  a row whose parent is not a `SUPERVISION` unit (`23514`).
+- The `ACTING_SUP` qualification row, on the existing `employee_qualification` table.
+
+**The API.** The `Position` enum (`CO`/`CS`, with `isSupervisory()`) joins `shiftcircle-domain`.
+`PlanGenerator.Employee` gains `position` and `rankSeniority`, `PlanGenerator.Unit` gains `kind`; the
+older constructors are kept, so every existing call site still compiles. `loadEmployees` reads the
+classification and `position_since`, `loadUnits` reads the kind, `MyScheduleQuery` and `GET /me` name
+the position in words (`Correctional officer`, `Correctional supervisor`).
+
+**No pin moves.** No unit and no employee row changes, so the dataset checksums (100, 120, 150), the
+three plan fingerprints and the payroll golden are unchanged: `GeneratorCharacterizationTest` is
+green with no edits, and the demo reset tests still read the same checksums.
+
+**Counts at this gate:** API **475 = 127 rules + 33 infrastructure + 315 api** (`mvn verify`,
+`BUILD SUCCESS`, 0 failures, errors or skipped; the suite was run in batches because the Docker VM
+was shared and the whole reactor in one JVM was OOM-killed twice on a loaded machine); web unit tests
+**532** in 54 files, lint 0 errors, `tsc -b` clean, build clean; `check-ignored-sources.sh` OK and
+`check-audit-codes.sh` still 50 codes. Playwright: see the pull request.
+
+**Not in this release** (the rest of the plan): the `POSTS` rule table and the R-01/R-02 rules (S2),
+the rank-aware planner (S3), the supervisor posts and the demo supervisors in the datasets with the
+single re-pin (S4), the overtime pools and the self-edit guard (S5), and the board, My schedule,
+display and reports work (S6, S7).

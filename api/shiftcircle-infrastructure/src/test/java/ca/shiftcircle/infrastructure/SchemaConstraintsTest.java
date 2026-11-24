@@ -21,8 +21,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
  * Proves the database enforces what the application must not have to: no double-booking, no
- * overlapping pay periods, maker/checker, a locked pay period, an append-only audit log, and
- * mandatory override reasons (HANDOFF §6 step 3; T10, T11 and the overlap case).
+ * overlapping pay periods, maker/checker, a locked pay period, an append-only audit log, mandatory
+ * override reasons (HANDOFF §6 step 3; T10, T11 and the overlap case), and the position and
+ * supervisor-post constraints of release v1.3.
  *
  * <p>Migrations run against a real PostgreSQL 17 container, so this also proves V1–V3 apply from an
  * empty database exactly as they will on {@code docker compose up}.
@@ -287,6 +288,71 @@ class SchemaConstraintsTest {
     exec(
         "INSERT INTO override (reason, rule_set_version_id)"
             + " VALUES ('Emergency lockdown staffing', '00000000-0000-0000-0000-000000000001')");
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // Positions and supervisor posts (release v1.3, S1)
+  // -------------------------------------------------------------------------------------------
+
+  @Test
+  void seedsTheTwoPositionsAndTheActingSupervisorQualification() throws Exception {
+    assertThat(queryInt("SELECT count(*) FROM position")).isEqualTo(2);
+    assertThat(queryString("SELECT name FROM position WHERE code = 'CO'"))
+        .isEqualTo("Correctional officer");
+    assertThat(queryString("SELECT name FROM position WHERE code = 'CS'"))
+        .isEqualTo("Correctional supervisor");
+    assertThat(queryInt("SELECT count(*) FROM position WHERE is_supervisory")).isEqualTo(1);
+    assertThat(queryString("SELECT name FROM qualification WHERE code = 'ACTING_SUP'"))
+        .isEqualTo("Acting supervisor");
+  }
+
+  @Test
+  void rejectsAnEmployeeWithAnUnknownPosition() throws Exception {
+    expectSqlState(
+        "23503",
+        () ->
+            exec(
+                "INSERT INTO employee (employee_no, first_name, last_name, classification,"
+                    + " seniority_date) VALUES (?, 'Test', 'Unknown', 'XX', DATE '2020-01-01')",
+                "T-position-" + UUID.randomUUID()));
+  }
+
+  @Test
+  void acceptsASupervisorPostAsAUnit() throws Exception {
+    exec(
+        "INSERT INTO unit (id, code, name, kind) VALUES (?, 'SUP-T', 'Supervision test',"
+            + " 'SUPERVISION')",
+        UUID.fromString("99999999-9999-9999-9999-000000000001"));
+
+    assertThat(queryString("SELECT kind FROM unit WHERE code = 'SUP-T'")).isEqualTo("SUPERVISION");
+  }
+
+  @Test
+  void refusesASupervisorLinkWhosePostIsNotASupervisorPost() throws Exception {
+    expectSqlState(
+        "23514",
+        () ->
+            exec(
+                "INSERT INTO unit_supervision (supervision_unit_id, unit_id)"
+                    + " VALUES (?, ?)",
+                UUID.fromString("11111111-1111-1111-1111-000000000001"),
+                UUID.fromString("11111111-1111-1111-1111-000000000002")));
+  }
+
+  @Test
+  void acceptsASupervisorLinkToALineUnit() throws Exception {
+    UUID post = UUID.fromString("99999999-9999-9999-9999-000000000002");
+    exec(
+        "INSERT INTO unit (id, code, name, kind) VALUES (?, 'SUP-L', 'Supervision test',"
+            + " 'SUPERVISION')",
+        post);
+
+    exec(
+        "INSERT INTO unit_supervision (supervision_unit_id, unit_id) VALUES (?, ?)",
+        post,
+        UUID.fromString("11111111-1111-1111-1111-000000000002"));
+
+    assertThat(queryInt("SELECT count(*) FROM unit_supervision")).isEqualTo(1);
   }
 
   // -------------------------------------------------------------------------------------------
