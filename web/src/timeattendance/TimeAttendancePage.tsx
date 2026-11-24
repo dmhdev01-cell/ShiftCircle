@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -16,7 +16,7 @@ import { Legend, LegendItem } from '../components/Legend';
 import { KpiTile } from '../planning/KpiTile';
 import { colour } from '../theme/tokens';
 import { LockPeriodDialog, UnlockDialog } from './PeriodDialogs';
-import { RecordActualPanel } from './RecordActualPanel';
+import { RECORD_ACTUAL_HEADING_ID, RecordActualPanel } from './RecordActualPanel';
 import { TimeGrid } from './TimeGrid';
 import type { OfficerTimeRow } from './TimeGrid';
 import { usePayPeriods, useTimeEntries } from './useTimeAttendance';
@@ -43,9 +43,26 @@ function daysBetween(from: string, to: string): string[] {
  * shift's record panel open.
  */
 export function TimeAttendancePage() {
+  // A new link (a query-only change on the mounted route) starts the screen
+  // afresh, so its period, unit and shift are read again (PR-O review N4).
+  const { search } = useLocation();
+  return <TimeAttendanceScreen key={search} />;
+}
+
+/**
+ * An assignment id: a UUID from the api (letters, digits and dashes; the demo
+ * fixtures use ids such as a-marc-16). Anything else in the link is ignored, so
+ * a crafted value cannot reach the CSS selector below (PR-O security LOW-1).
+ */
+const ASSIGNMENT_ID = /^[A-Za-z0-9-]{1,64}$/;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+function TimeAttendanceScreen() {
   const [searchParams] = useSearchParams();
-  const linkDate = searchParams.get('date');
-  const linkShift = searchParams.get('shift');
+  const rawDate = searchParams.get('date');
+  const linkDate = rawDate && ISO_DATE.test(rawDate) ? rawDate : null;
+  const rawShift = searchParams.get('shift');
+  const linkShift = rawShift && ASSIGNMENT_ID.test(rawShift) ? rawShift : null;
   const { state: periodsState, reload: reloadPeriods } = usePayPeriods();
   const periods = periodsState.kind === 'ready' ? periodsState.periods : [];
   const [periodId, setPeriodId] = useState<string | null>(null);
@@ -590,6 +607,7 @@ export function TimeAttendancePage() {
       <Drawer
         anchor="right"
         open={picked !== null}
+        slotProps={{ paper: { 'aria-labelledby': RECORD_ACTUAL_HEADING_ID } }}
         onClose={() => {
           setPicked(null);
           setSaved(null);

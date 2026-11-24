@@ -86,10 +86,36 @@ describe('Time and attendance', () => {
       `/time?date=${linked.date}&unit=${linked.unitId}&shift=${linked.assignmentId}`,
     );
 
-    expect(await screen.findByRole('heading', { name: /Record actual/ })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: `Record actual · ${linked.employeeName}` }),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('Pay period')).toHaveValue('period-2026-10-26');
     expect(screen.getByLabelText('Unit')).toHaveValue(linked.unitId);
-    expect(screen.getAllByText(linked.employeeName).length).toBeGreaterThan(0);
+  });
+
+  it('opens the linked started shift of the open period, and names the record panel', async () => {
+    // The reported case: a shift started two days before the demo day, in the
+    // open period. The panel is a dialog named by its heading (axe aria-dialog-name).
+    const entries = await api.getTimeEntries('period-2026-11-09');
+    const linked = entries.find((entry) => entry.date === '2026-11-17')!;
+    expect(linked).toBeTruthy();
+    renderScreen(`/time?date=2026-11-17&unit=${linked.unitId}&shift=${linked.assignmentId}`);
+
+    const panel = await screen.findByRole('dialog', {
+      name: `Record actual · ${linked.employeeName}`,
+    });
+    expect(within(panel).getByText(new RegExp(`^${linked.date} · `))).toBeInTheDocument();
+    expect(screen.getByLabelText('Pay period')).toHaveValue('period-2026-11-09');
+  });
+
+  it('ignores a crafted shift id instead of crashing the screen', async () => {
+    // x"][foo would be an invalid CSS selector once the entries load.
+    renderScreen('/time?date=2026-11-17&shift=x%22%5D%5Bfoo');
+    // The grid has loaded, so the link has been handled.
+    expect(await screen.findByText('Tara Nakamura')).toBeInTheDocument();
+    expect(screen.getByLabelText('Pay period')).toHaveValue('period-2026-11-09');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByText(/not in this pay period/)).not.toBeInTheDocument();
   });
 
   it('says so when the linked shift is not in the period', async () => {

@@ -416,6 +416,7 @@ class ScheduleApiTest {
     assertThat(before.get("actualRecorded")).isEqualTo(false);
     assertThat(before.get("absenceRecorded")).isEqualTo(false);
     assertThat(before.get("fillsOpenShift")).isEqualTo(false);
+    assertThat(before.get("payPeriodLocked")).isEqualTo(false);
 
     UUID absence = UUID.randomUUID();
     UUID open = UUID.randomUUID();
@@ -441,6 +442,40 @@ class ScheduleApiTest {
     } finally {
       jdbc.update("DELETE FROM open_shift WHERE id = ?", open);
       jdbc.update("DELETE FROM absence WHERE id = ?", absence);
+    }
+  }
+
+  /**
+   * PR-O review S3: any time entry against the shift sets actualRecorded, an absence entry included
+   * (the api refuses the cancel either way), while worked stays false for an absence. The lock of the
+   * shift's pay period is sent too, because the api checks it before "started".
+   */
+  @Test
+  void anAbsenceTimeEntrySetsActualRecordedButNotWorkedAndALockedPeriodIsSent() throws Exception {
+    UUID shift = UUID.fromString("55555555-5555-5555-5555-000000000001");
+    UUID period = UUID.fromString("44444444-4444-4444-4444-000000000001");
+    UUID entry = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO time_entry (id, employee_id, pay_period_id, shift_assignment_id, work_date,"
+            + " start_at, end_at, hours, entry_type, absence_type, pay_code, rule_set_version_id)"
+            + " VALUES (?, ?, ?, ?, DATE '2026-11-18', TIMESTAMPTZ '2026-11-18 07:00:00-06',"
+            + " TIMESTAMPTZ '2026-11-18 15:00:00-06', 8, 'ACTUAL', 'SICK', 'SICK',"
+            + " (SELECT id FROM rule_set_version WHERE status = 'PUBLISHED' LIMIT 1))",
+        entry,
+        EMPLOYEE,
+        period,
+        shift);
+    try {
+      Map<?, ?> sick = firstShift();
+      assertThat(sick.get("actualRecorded")).isEqualTo(true);
+      assertThat(sick.get("worked")).as("an absence is not worked time").isEqualTo(false);
+      assertThat(sick.get("payPeriodLocked")).isEqualTo(false);
+
+      jdbc.update("UPDATE pay_period SET status = 'LOCKED' WHERE id = ?", period);
+      assertThat(firstShift().get("payPeriodLocked")).isEqualTo(true);
+    } finally {
+      jdbc.update("UPDATE pay_period SET status = 'OPEN' WHERE id = ?", period);
+      jdbc.update("DELETE FROM time_entry WHERE id = ?", entry);
     }
   }
 

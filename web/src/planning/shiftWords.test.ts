@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { boardNow, hasStarted, knownRefusals, scheduledWords, startedWords } from './shiftWords';
+import {
+  boardNow,
+  hasStarted,
+  instantWords,
+  knownRefusals,
+  scheduledWords,
+  startedWords,
+  startWords,
+} from './shiftWords';
 
 describe('the rostered shift words (PR-O)', () => {
   it('writes a day shift, a night shift and a shift ending at midnight in words', () => {
@@ -15,6 +23,8 @@ describe('the rostered shift words (PR-O)', () => {
     );
     // An instant in UTC is still read on the centre's clock.
     expect(startedWords('2026-11-18T05:00:00Z')).toBe('Tue 17 Nov at 23:00');
+    expect(startWords('2026-12-21T15:00:00-06:00')).toBe('Mon 21 Dec 2026 at 15:00');
+    expect(instantWords('2026-11-19T18:00:00Z')).toBe('Thu 19 Nov 2026, 12:00');
   });
 
   it('takes the business now from the board, or noon on the demo day from an older api', () => {
@@ -47,5 +57,10 @@ describe('the rostered shift words (PR-O)', () => {
     expect(both.cancel?.slug).toBe('actual-recorded');
 
     expect(knownRefusals({ startAt: future }, now)).toEqual({ move: null, cancel: null });
+
+    // The api checks the pay-period lock before "started" and before the rest.
+    const locked = knownRefusals({ startAt: past, payPeriodLocked: true, actualRecorded: true }, now);
+    expect(locked.move?.slug).toBe('pay-period-locked');
+    expect(locked.cancel?.slug).toBe('pay-period-locked');
   });
 });

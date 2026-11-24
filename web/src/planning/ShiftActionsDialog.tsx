@@ -100,12 +100,17 @@ export function ShiftActionsDialog({
   const canAcknowledge = blocking.length === 0 && warnCodes.length > 0;
 
   const refusals = knownRefusals(item, now);
-  const started = refusals.move?.slug === 'shift-started';
+  // A locked pay period or a started shift refuses both actions, with one notice.
+  const shared = refusals.move && refusals.move === refusals.cancel ? refusals.move : null;
+  const started = shared?.slug === 'shift-started';
   const timeAttendance = timeAttendanceLink(item, unitId);
-  // Up-front notices, once each: a started shift refuses both actions.
   const notices: { refusal: KnownRefusal; action: string }[] = [];
-  if (refusals.move && !started) notices.push({ refusal: refusals.move, action: 'move' });
-  if (refusals.cancel && !started) notices.push({ refusal: refusals.cancel, action: 'cancel' });
+  if (shared) {
+    if (!started) notices.push({ refusal: shared, action: 'both' });
+  } else {
+    if (refusals.move) notices.push({ refusal: refusals.move, action: 'move' });
+    if (refusals.cancel) notices.push({ refusal: refusals.cancel, action: 'cancel' });
+  }
   const newStartAt = shiftTemplates[templateCode] && date ? moveStartAt(date, templateCode) : '';
   const targetStarted = newStartAt !== '' && hasStarted(newStartAt, now);
   // The native picker greys out the days before today; the check above names the reason.
@@ -394,8 +399,15 @@ export function ShiftActionsDialog({
                 disabled={busy || reason.trim().length < 10}
                 onClick={() => void cancel()}
                 sx={{
+                  // White on the block red is 8.6:1; the theme's primary text colour
+                  // on it was 1.04:1 (PR-O UI test P2, WCAG 1.4.3).
                   backgroundColor: colour.status.block.text,
-                  '&:hover': { backgroundColor: colour.status.block.text, opacity: 0.9 },
+                  color: colour.text.onDark,
+                  '&:hover': {
+                    backgroundColor: colour.status.block.text,
+                    color: colour.text.onDark,
+                    opacity: 0.9,
+                  },
                 }}
               >
                 Cancel shift

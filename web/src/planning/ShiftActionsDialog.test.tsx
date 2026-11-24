@@ -438,6 +438,33 @@ describe('the safeguards on a move', () => {
     expect(moved).not.toHaveBeenCalled();
   });
 
+  it('says a started shift in a locked pay period is locked, in the api words, with no link to correct it', () => {
+    renderDialog({ item: { ...startedNight, payPeriodLocked: true }, now: NOW });
+
+    const notice = screen.getByRole('note', { name: 'This pay period is locked' });
+    expect(notice).toHaveTextContent(
+      'This pay period is locked. Unlock it with a reason to make changes.',
+    );
+    expect(within(notice).queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.queryByRole('note', { name: 'This shift has started' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Worked shifts are corrected/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Move…' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cancel shift…' })).not.toBeInTheDocument();
+    // One notice for both actions, not one each.
+    expect(screen.getAllByRole('note')).toHaveLength(1);
+  });
+
+  it('writes the enabled cancel button in white on the block red (WCAG AA)', async () => {
+    const user = userEvent.setup();
+    renderDialog({ now: NOW });
+    await user.click(screen.getByRole('button', { name: 'Cancel shift…' }));
+    await user.type(screen.getByLabelText('Why is this shift cancelled?'), 'No longer needed here');
+    const confirm = screen.getByRole('button', { name: 'Cancel shift' });
+    expect(confirm).toBeEnabled();
+    expect(getComputedStyle(confirm).color).toBe('rgb(255, 255, 255)');
+    expect(getComputedStyle(confirm).backgroundColor).toBe('rgb(163, 0, 0)');
+  });
+
   it('offers a reload when the api says the shift is already cancelled', async () => {
     const user = userEvent.setup();
     vi.spyOn(api, 'cancelAssignment').mockRejectedValue(

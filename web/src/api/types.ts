@@ -152,6 +152,11 @@ export interface ShiftItem {
   absenceRecorded?: boolean;
   /** Live board only: the shift fills an open shift (move refused). */
   fillsOpenShift?: boolean;
+  /**
+   * Live board only: the shift's work date is in a locked pay period. The api
+   * refuses a move or cancel then, before any other state check.
+   */
+  payPeriodLocked?: boolean;
 }
 
 export interface AbsenceItem {

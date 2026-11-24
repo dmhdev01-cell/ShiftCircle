@@ -88,8 +88,11 @@ Tap a shift on the board. The dialog says when it is scheduled, for example *Sch
 - **A shift that has started** (its start is at or before the demo clock, noon on Thu 19 Nov in the demo) has no **Move…** or **Cancel shift…**. The dialog says, for example, *This shift started on Tue 17 Nov at 23:00. Worked shifts are corrected in Time & attendance.* **Open in Time & attendance** opens that screen on the shift's pay period and unit, with the shift's record panel open.
 - **Actual time or an absence recorded** on a future shift: no **Cancel shift…**. Correct the record in Time & attendance (the same button).
 - **The shift fills an open shift**: no **Move…**. Cancel it and assign the open shift again instead.
+- **The shift's pay period is locked**: no **Move…** or **Cancel shift…**, even if it has started. The dialog says *This pay period is locked. Unlock it with a reason to make changes.* (Unlock it on **Time & attendance** with **Unlock pay period**.)
 
-The server still checks every move and cancel. If it refuses one anyway (the shift changed since the board loaded, the pay period is locked, the shift was already cancelled), the dialog shows the refusal's title and what to do, for example *This shift changed since you read it · Reload the board and try again.*, with **Reload the board** where that helps.
+The dialog knows what the board knew when it was loaded. If you leave the board open while a shift starts, reload it, or the server's refusal appears when you press **Move shift**.
+
+The server still checks every move and cancel, including that the new start has not already passed. If it refuses one anyway (the shift changed since the board loaded, the pay period is locked, the shift was already cancelled), the dialog shows the refusal's title and what to do, for example *This shift changed since you read it · Reload the board and try again.*, with **Reload the board** where that helps.
 
 <!-- No screenshot yet: desktop__supervisor__shift-actions (no clean capture from the gated build) -->
 

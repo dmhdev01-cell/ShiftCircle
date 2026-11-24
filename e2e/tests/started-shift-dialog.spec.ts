@@ -127,7 +127,10 @@ test.describe('the shift dialog on a started shift', () => {
     );
     await expect(page.getByRole('heading', { name: 'Time & attendance' })).toBeVisible();
     // The shift's own record panel is open, on the officer from the board.
-    await expect(page.getByRole('heading', { name: /Record actual/ })).toBeVisible();
+    await expect(
+      page.getByRole('dialog', { name: `Record actual · ${officer.name}` }),
+    ).toBeVisible();
+    await expect(page.getByRole('dialog').getByText(new RegExp(`^${date} · `))).toBeVisible();
     await expect(page.getByLabel('Unit')).toHaveValue(unit.id);
   });
 

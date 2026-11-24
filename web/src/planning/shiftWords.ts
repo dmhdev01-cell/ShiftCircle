@@ -42,27 +42,27 @@ export function scheduledWords(startAt: string, endAt: string): string {
   return `${weekdayDateWords(start.date)}, ${start.time} – ${endText}`;
 }
 
-/** "Tue 17 Nov at 23:00", the start in the words of the started-shift notice. */
-export function startedWords(startAt: string): string {
-  const start = reginaParts(startAt);
-  if (!start) return startAt;
-  const day = weekdayDateWords(start.date).replace(/ \d{4}$/, '');
-  return `${day} at ${start.time}`;
+/**
+ * An instant in words on the centre's clock, in the three forms the dialog
+ * uses: "Tue 17 Nov at 23:00" (no year), "Mon 21 Dec 2026 at 15:00" and
+ * "Thu 19 Nov 2026, 12:00".
+ */
+function momentWords(instant: string, form: 'noYear' | 'at' | 'comma'): string {
+  const parts = reginaParts(instant);
+  if (!parts) return instant;
+  const day = weekdayDateWords(parts.date);
+  if (form === 'comma') return `${day}, ${parts.time}`;
+  return `${form === 'noYear' ? day.replace(/ \d{4}$/, '') : day} at ${parts.time}`;
 }
+
+/** "Tue 17 Nov at 23:00", the start in the words of the started-shift notice. */
+export const startedWords = (startAt: string) => momentWords(startAt, 'noYear');
 
 /** "Mon 21 Dec 2026 at 15:00": a start in words with the year. */
-export function startWords(instant: string): string {
-  const parts = reginaParts(instant);
-  if (!parts) return instant;
-  return `${weekdayDateWords(parts.date)} at ${parts.time}`;
-}
+export const startWords = (instant: string) => momentWords(instant, 'at');
 
 /** "Thu 19 Nov 2026, 12:00": an instant in words with the year. */
-export function instantWords(instant: string): string {
-  const parts = reginaParts(instant);
-  if (!parts) return instant;
-  return `${weekdayDateWords(parts.date)}, ${parts.time}`;
-}
+export const instantWords = (instant: string) => momentWords(instant, 'comma');
 
 /**
  * True when the shift has started by the business clock's "now", the same
@@ -87,7 +87,12 @@ export function boardNow(payload: { now?: string | null; asOf?: string }): strin
 
 /** A refusal the api would give, in its own words (AssignmentProblemException). */
 export interface KnownRefusal {
-  slug: 'shift-started' | 'fills-open-shift' | 'actual-recorded' | 'absence-recorded';
+  slug:
+    | 'pay-period-locked'
+    | 'shift-started'
+    | 'fills-open-shift'
+    | 'actual-recorded'
+    | 'absence-recorded';
   title: string;
   detail: string;
   /** True when the fix is made in Time & attendance. */
@@ -95,6 +100,14 @@ export interface KnownRefusal {
 }
 
 export const REFUSALS: Record<KnownRefusal['slug'], KnownRefusal> = {
+  // The words of PayrollProblemAdvice. The period is read-only in Time &
+  // attendance too, so the notice offers no link there as a place to correct it.
+  'pay-period-locked': {
+    slug: 'pay-period-locked',
+    title: 'This pay period is locked',
+    detail: 'Unlock it with a reason to make changes.',
+    timeAndAttendance: false,
+  },
   'shift-started': {
     slug: 'shift-started',
     title: 'This shift has started',
@@ -123,26 +136,29 @@ export const REFUSALS: Record<KnownRefusal['slug'], KnownRefusal> = {
 
 /**
  * What the api would refuse before the request, in its own check order
- * (AssignmentService.move and .cancel). A cancelled shift is not on the board,
- * so "already cancelled" can only come back as an answer.
+ * (AssignmentService.move and .cancel: locked pay period, started, then the
+ * action's own checks). A cancelled shift is not on the board, so "already
+ * cancelled" can only come back as an answer.
  */
 export function knownRefusals(
-  item: Pick<ShiftItem, 'startAt' | 'actualRecorded' | 'absenceRecorded' | 'fillsOpenShift'>,
+  item: Pick<
+    ShiftItem,
+    'startAt' | 'actualRecorded' | 'absenceRecorded' | 'fillsOpenShift' | 'payPeriodLocked'
+  >,
   now: string | undefined,
 ): { move: KnownRefusal | null; cancel: KnownRefusal | null } {
-  const started = hasStarted(item.startAt, now);
-  const move = started
-    ? REFUSALS['shift-started']
-    : item.fillsOpenShift
-      ? REFUSALS['fills-open-shift']
+  const shared = item.payPeriodLocked
+    ? REFUSALS['pay-period-locked']
+    : hasStarted(item.startAt, now)
+      ? REFUSALS['shift-started']
       : null;
-  const cancel = started
-    ? REFUSALS['shift-started']
-    : item.actualRecorded
-      ? REFUSALS['actual-recorded']
-      : item.absenceRecorded
-        ? REFUSALS['absence-recorded']
-        : null;
+  if (shared) return { move: shared, cancel: shared };
+  const move = item.fillsOpenShift ? REFUSALS['fills-open-shift'] : null;
+  const cancel = item.actualRecorded
+    ? REFUSALS['actual-recorded']
+    : item.absenceRecorded
+      ? REFUSALS['absence-recorded']
+      : null;
   return { move, cancel };
 }
 

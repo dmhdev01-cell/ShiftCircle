@@ -199,11 +199,11 @@ dataset checksums and the publish step of the demo. Future work.
 | Move body | `PATCH` takes the same body as `POST /assignments`: `change` with **all four** of `employeeId`, `unitId`, `shiftTemplate` and `startAt` (the full target, not a partial patch), plus optional `acknowledgeWarnings` and `override`. `kind` and `source` don't change. A move needs no separate reason; an override carries its own. |
 | Move rules | The full §3 pipeline runs on the target, with the assignment's **own current slot left out** of the officer's existing shifts, so it can't conflict with itself. `422` blocked or warnings, and overrides, exactly as §3. Updated in place: same `id`, new `version`, a `move_assignment` audit event with `before`/`after`. If the officer changes, both officers' locks are taken in id order. Answers `200` with the save outcome. |
 | Locked period | `409 .../pay-period-locked` if the **current** work date is in a locked period (move and cancel), or the **target** work date is (move). |
-| Started shifts | `409 .../shift-started` if the assignment has started by the server's "today" clock (the demo clock on the demo profile: noon on the demo day). Past shifts are corrected in Time & attendance, not on the schedule. `GET /schedule` sends that clock as `now`, so the board can say so before the request (v1.2, below). |
+| Started shifts | `409 .../shift-started` if the assignment has started by the server's "today" clock (the demo clock on the demo profile: noon on the demo day). Past shifts are corrected in Time & attendance, not on the schedule. `GET /schedule` sends that clock as `now`, so the board can say so before the request (v1.2, below). A move whose **target** start has already passed (`startAt <= now`, the same clock) is refused with `409 .../target-started` ("The new start has already passed · Pick a date and shift that start later. Past shifts are corrected in Time & attendance, not on the schedule."), with or without an override, before the rules run (v1.2). |
 | Recorded actual or absence | `DELETE` answers `409 .../actual-recorded` when a time entry already references the shift, and `409 .../absence-recorded` when an absence row does, even if the start time alone would not have refused it. Correct the record in Time & attendance instead. |
 | Filled open shift | Cancelling an assignment that filled an open shift (`open_shift.filled_assignment_id`) puts that open shift back to `OPEN` with `filled_assignment_id` cleared, so the gap is visible and can be offered again. **Offer rows are left unchanged** (not set to `WITHDRAWN`): the confirmed offer stays as history, and the cancellation is in the audit trail. **Moving** such an assignment is refused with `409 .../fills-open-shift`: cancel it and assign again. |
 | Offers | A pending offer (`offer: true` chip) is not an assignment, so these endpoints don't apply to it. Withdrawing an offer is **not built** (docs/10 §8). |
-| Order of checks | role (`403`) → unknown or out of scope (`404`) → body (`400`) → `If-Match` (`428`, `412`) → state (`409`: locked, started, actual or absence recorded, already cancelled, fills open shift) → rules (`422`, move only). |
+| Order of checks | role (`403`) → unknown or out of scope (`404`) → body (`400`) → `If-Match` (`428`, `412`) → state (`409`: already cancelled, locked, started, fills open shift, target locked, target started; actual or absence recorded for a cancel) → rules (`422`, move only). |
 | Roles | SUPERVISOR, own units only. For a move, both the current and the target unit must be in scope. Scope is checked on the **unit of the shift**, not the officer's home unit: a supervisor may assign an officer from any unit into a unit in their own scope (cross-unit cover, ADR-024). The rule preview then shows that officer's rest conflicts. A supervisor can't assign into a unit outside their scope (`404`), and can't read an officer's data outside their scope except through that preview. |
 
 **Coverage per block (ADR-013 revised, ADR-017):** coverage is hourly, so one number per block can hide a short hour. `GET /schedule` returns a flat `coverage` array (one entry per block per day); `GET /display/today` uses the same block shape. Each entry carries:
@@ -222,11 +222,13 @@ The payload also has `unit { id, name }`, `days` (ISO dates), `asOf` (the demo t
 
 **Move and cancel refusals known in advance (v1.2):** on the live board each `SHIFT` item also
 carries `actualRecorded` (any time entry references it, actual or absence), `absenceRecorded` (an
-absence row references it) and `fillsOpenShift` (it fills an open shift), the same queries
+absence row references it), `fillsOpenShift` (it fills an open shift) and `payPeriodLocked` (its
+work date is in a locked pay period, the first state the api checks), the same queries
 `PATCH`/`DELETE /assignments/{id}` run. With `now` (a shift has started when `startAt <= now`) the
 shift dialog says which action the api would refuse, in the api's own words, and does not offer
-it. They are hints for the screen only: the api still checks every move and cancel. The planner's
-draft roster leaves `now` and the three flags out. "Already cancelled" cannot be known in advance
+it. `now` and the flags are as of the board's last load: a board left open across a shift's start
+still offers the move, and the api's `409` answer is then shown. They are hints for the screen only: the api still checks every move and cancel. The planner's
+draft roster leaves `now` and the four flags out. "Already cancelled" cannot be known in advance
 (the board never lists a cancelled shift) and stays an answer.
 
 `lowestHourly` is the minimum headcount over the block's hours; `shortHours` lists merged hour ranges below `required` (`to` is exclusive); `covered` is true when `shortHours` is empty. `actual` is present for past hours only. The display version has the same shape and still **no names**.

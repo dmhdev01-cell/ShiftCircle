@@ -61,7 +61,7 @@ public class ScheduleQuery {
       HourlyCoverage actual, boolean covered) {}
 
   /**
-   * A shift on a roster. The last three fields are set on the live planning board only (null and
+   * A shift on a roster. The last four fields are set on the live planning board only (null and
    * left out elsewhere, such as the planner's draft): they are the move/cancel refusals the api can
    * know before the request (docs/07 §4.2), so the shift dialog can say so up front. The api still
    * checks them on every move and cancel.
@@ -71,13 +71,14 @@ public class ScheduleQuery {
       String kind, boolean worked, int version, boolean edited,
       @JsonInclude(JsonInclude.Include.NON_NULL) Boolean actualRecorded,
       @JsonInclude(JsonInclude.Include.NON_NULL) Boolean absenceRecorded,
-      @JsonInclude(JsonInclude.Include.NON_NULL) Boolean fillsOpenShift) {
+      @JsonInclude(JsonInclude.Include.NON_NULL) Boolean fillsOpenShift,
+      @JsonInclude(JsonInclude.Include.NON_NULL) Boolean payPeriodLocked) {
 
     public ShiftItem(
         String type, UUID assignmentId, String shiftTemplate, String startAt, String endAt,
         String kind, boolean worked, int version, boolean edited) {
       this(type, assignmentId, shiftTemplate, startAt, endAt, kind, worked, version, edited,
-          null, null, null);
+          null, null, null, null);
     }
   }
 
@@ -163,13 +164,16 @@ public class ScheduleQuery {
                 + " s.start_at, s.end_at, s.work_date, s.kind, s.version,"
                 + " EXISTS (SELECT 1 FROM time_entry te WHERE te.shift_assignment_id = s.id"
                 + "   AND te.absence_type IS NULL) AS worked,"
-                // The same three checks AssignmentService makes before a move or cancel.
+                // The same checks AssignmentService makes before a move or cancel.
                 + " EXISTS (SELECT 1 FROM time_entry te WHERE te.shift_assignment_id = s.id)"
                 + "   AS actual_recorded,"
                 + " EXISTS (SELECT 1 FROM absence a WHERE a.shift_assignment_id = s.id)"
                 + "   AS absence_recorded,"
                 + " EXISTS (SELECT 1 FROM open_shift o WHERE o.filled_assignment_id = s.id)"
-                + "   AS fills_open_shift"
+                + "   AS fills_open_shift,"
+                // The pay-period lock comes first in the api's checks (requireOpenPayPeriod).
+                + " EXISTS (SELECT 1 FROM pay_period p WHERE s.work_date BETWEEN p.start_date"
+                + "   AND p.end_date AND p.status = 'LOCKED') AS pay_period_locked"
                 + " FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
                 + " JOIN shift_template t ON t.id = s.shift_template_id"
                 + " WHERE s.unit_id = ? AND s.status <> 'CANCELLED'"
@@ -275,7 +279,8 @@ public class ScheduleQuery {
                         false,
                         Boolean.TRUE.equals(shift.get("actual_recorded")),
                         Boolean.TRUE.equals(shift.get("absence_recorded")),
-                        Boolean.TRUE.equals(shift.get("fills_open_shift"))));
+                        Boolean.TRUE.equals(shift.get("fills_open_shift")),
+                        Boolean.TRUE.equals(shift.get("pay_period_locked"))));
           }
           List<DayCell> cells = new ArrayList<>();
           itemsByDay.forEach((date, items) -> cells.add(new DayCell(date, items)));
