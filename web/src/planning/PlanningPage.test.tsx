@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -611,9 +611,20 @@ describe('the planning board', () => {
         created.push(blob);
         return 'blob:roster';
       });
-      vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() }));
+      // jsdom has no object URLs and no clipboard: lend them for this test only.
+      const urlStatics = URL as unknown as Record<string, unknown>;
+      const saved = { create: urlStatics.createObjectURL, revoke: urlStatics.revokeObjectURL };
+      urlStatics.createObjectURL = createObjectURL;
+      urlStatics.revokeObjectURL = vi.fn();
+      const hadClipboard = Object.prototype.hasOwnProperty.call(navigator, 'clipboard');
       const writeText = vi.fn(async (_text: string) => {});
       Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+      onTestFinished(() => {
+        urlStatics.createObjectURL = saved.create;
+        urlStatics.revokeObjectURL = saved.revoke;
+        if (!hadClipboard) delete (navigator as unknown as Record<string, unknown>).clipboard;
+        vi.restoreAllMocks();
+      });
       const print = vi.spyOn(window, 'print').mockImplementation(() => {});
       const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
@@ -642,9 +653,59 @@ describe('the planning board', () => {
       await user.click(screen.getByRole('button', { name: /^Export/ }));
       await user.click(await screen.findByRole('menuitem', { name: /Print or save as PDF/ }));
       expect(print).toHaveBeenCalledTimes(1);
+    });
 
-      vi.restoreAllMocks();
-      vi.unstubAllGlobals();
+    it('labels filtered totals, keeps coverage as the whole unit, and prints the full disclaimer', async () => {
+      renderBoard('/planning?ot=IN_OVERTIME');
+      const roster = await screen.findByRole('region', { name: 'Roster, scrolls sideways' });
+      expect(within(roster).getByRole('rowheader', { name: /On duty · hours\s*officers shown/ })).toBeInTheDocument();
+      expect(within(roster).getAllByText(/needs \d+ · whole unit/)).toHaveLength(3);
+      expect(
+        screen.getByText(
+          /^Showing \d+ of \d+ officers \(in overtime\) · Not an official Government of Saskatchewan service · fictional, synthetic data only$/,
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('offers no Casual rotation the payload cannot show, and ignores a stale one', async () => {
+      const user = userEvent.setup();
+      renderBoard('/planning?rot=casual&qual=NOT_HELD');
+      await screen.findByText('Coverage gaps');
+      expect(screen.getByRole('combobox', { name: 'Rotation' })).toHaveValue('all');
+      expect(screen.getByRole('combobox', { name: 'Qualification' })).toHaveValue('all');
+      expect(screen.getByText(/^Showing all \d+ officers$/)).toBeInTheDocument();
+      const rotations = within(screen.getByRole('combobox', { name: 'Rotation' }))
+        .getAllByRole('option')
+        .map((option) => option.textContent);
+      expect(rotations).toEqual(['All', '8 h', '12 h']);
+      await user.click(screen.getByRole('button', { name: /^Export/ }));
+      expect(await screen.findByRole('menuitem', { name: /Print or save as PDF/ })).toBeInTheDocument();
+    });
+
+    it('resets the qualification filter when the unit changes', async () => {
+      const user = userEvent.setup();
+      const [unitB] = await api.getUnits();
+      vi.spyOn(api, 'getUnits').mockResolvedValue([unitB, { ...unitB, id: 'unit-c', code: 'C', name: 'Unit C · Test' }]);
+      onTestFinished(() => { vi.restoreAllMocks(); });
+      renderBoard('/planning?unit=unit-b&qual=FIRST_AID&ot=IN_OVERTIME');
+      await screen.findByText('Coverage gaps');
+      expect(screen.getByRole('combobox', { name: 'Qualification' })).toHaveValue('FIRST_AID');
+      await user.selectOptions(screen.getByRole('combobox', { name: 'Unit' }), 'unit-c');
+      await waitFor(() => expect(screen.getByTestId('search').textContent).toContain('unit=unit-c'));
+      expect(screen.getByTestId('search').textContent).not.toContain('qual=');
+      expect(screen.getByTestId('search').textContent).toContain('ot=IN_OVERTIME');
+    });
+
+    it('does not offer to print a month, which is too wide for one page', async () => {
+      stubVersion();
+      onTestFinished(() => { vi.unstubAllGlobals(); });
+      const user = userEvent.setup();
+      renderBoard('/planning?view=month&week=2026-11-16');
+      expect(await screen.findByText('1 – 30 Nov 2026')).toBeInTheDocument();
+      await user.click(await screen.findByRole('button', { name: /^Export/ }));
+      const item = await screen.findByRole('menuitem', { name: /a month is too wide for one page/ });
+      expect(item).toHaveAttribute('aria-disabled', 'true');
+      expect(screen.queryByRole('menuitem', { name: /Print or save as PDF/ })).not.toBeInTheDocument();
     });
   });
 });

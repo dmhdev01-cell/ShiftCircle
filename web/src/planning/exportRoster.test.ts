@@ -6,7 +6,24 @@ import { cellWords, dayHeading, exportFileName, guardFormula, rosterRows, toCsv,
 
 describe('A3 roster export', () => {
   it('guards every formula-looking cell with an apostrophe', () => {
-    for (const value of ['=SUM(A1)', '+1', '-2+3', '@cmd', '\t=1', '\r=1']) {
+    for (const value of [
+      '=SUM(A1)',
+      '+1',
+      '-2+3',
+      '@cmd',
+      '\t=1',
+      '\r=1',
+      '\n=1',
+      ' =1+1',
+      '\u00A0=1+1',
+      '\u3000=1',
+      '\uFEFF=1',
+      ' @SUM(A1)',
+      '\uFF1D1+1',
+      '\uFF0B1',
+      '\uFF0D1',
+      '\uFF20cmd',
+    ]) {
       expect(guardFormula(value)).toBe(`'${value}`);
     }
     for (const value of ['Nia Thompson', '72', 'D8 extra', '4 of 5', '']) {
@@ -28,6 +45,9 @@ describe('A3 roster export', () => {
 
   it('writes TSV for the clipboard without breaking the grid', () => {
     expect(toTsv([['a\tb', '@x'], ['c\nd', '-1']])).toBe("a b\t'@x\nc d\t'-1");
+    // The guard sees the cell before its line breaks are flattened.
+    expect(toTsv([['\n=1+1', '\r\n@x', 'ok']])).toBe("' =1+1\t' @x\tok");
+    expect(toCsv([['\n=1+1']])).toBe('\uFEFF"\'\n=1+1"\r\n');
   });
 
   it('builds the roster rows from what is on screen', () => {
@@ -46,7 +66,7 @@ describe('A3 roster export', () => {
     rows.forEach((row) => expect(row).toHaveLength(7 + days));
     // Header, three coverage rows, two officers, two total rows.
     expect(rows).toHaveLength(1 + 3 + 2 + 2);
-    expect(rows[1][0]).toMatch(/^Days coverage/);
+    expect(rows[1][0]).toBe('Days coverage, whole unit (needs 5)');
     // Coverage is "n of m", never "n/m", which Excel would read as a date.
     rows.slice(1, 4).forEach((row) => row.slice(7).forEach((value) => expect(value).toMatch(/^(\d+ of \d+)?$/)));
     expect(rows[4][0]).toBe('Tara Nakamura');
@@ -54,6 +74,12 @@ describe('A3 roster export', () => {
     expect(rows[4][7]).toBe('A12');
     expect(rows[6][0]).toBe('On duty');
     expect(rows[7][0]).toBe('Hours on duty');
+    const filtered = rosterRows(demoSchedule, demoSchedule.officers.slice(0, 2), true);
+    expect(filtered[6][0]).toBe('On duty, officers listed');
+    expect(filtered[7][0]).toBe('Hours on duty, officers listed');
+    // The live /schedule sends no rotation text: the column says it is read from the shifts.
+    const live = { ...demoSchedule.officers[0], rotation: '' };
+    expect(rosterRows(demoSchedule, [live])[4][1]).toBe('12 h (from shifts)');
   });
 
   it('marks extra shifts, offers, proposals and absences in a cell', () => {

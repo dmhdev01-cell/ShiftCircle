@@ -87,6 +87,24 @@ test.describe('the planning board filters and export', () => {
     expect(hours.every(Number.isFinite)).toBe(true);
     expect(hours).toEqual([...hours].sort((a, b) => a - b));
 
+    // Rotation: the live /schedule sends no rotation text, so Casual is not offered.
+    const rotation = page.getByRole('combobox', { name: 'Rotation' });
+    await expect(rotation.getByRole('option')).toHaveText(['All', '8 h', '12 h']);
+    await rotation.selectOption({ label: '12 h' });
+    const twelve = await shownCount(page, /officers · works nights, 12 h rotation$/);
+    await expect(officerRows(page)).toHaveCount(twelve);
+    await rotation.selectOption({ label: 'All' });
+    // Qualification, with the footer saying it sums the officers shown.
+    await page.getByRole('combobox', { name: 'Qualification' }).selectOption({ label: 'Escort' });
+    const escorts = await shownCount(page, /officers · works nights, Escort$/);
+    await expect(officerRows(page)).toHaveCount(escorts);
+    await expect(officerRows(page).filter({ hasNotText: 'Escort' })).toHaveCount(0);
+    const roster = page.getByRole('region', { name: 'Roster, scrolls sideways' });
+    await expect(roster.getByRole('rowheader', { name: /officers shown/ })).toBeVisible();
+    await expect(roster.getByText(/needs \d+ · whole unit/)).toHaveCount(3);
+    await page.getByRole('combobox', { name: 'Qualification' }).selectOption({ label: 'All' });
+    await expect(officerRows(page)).toHaveCount(nights);
+
     await expectAccessible(page, testInfo, 'planning-filtered');
     await page.getByRole('button', { name: /^Export/ }).click();
     await expect(page.getByRole('menu')).toBeVisible();
@@ -137,7 +155,11 @@ test.describe('the planning board filters and export', () => {
     await expect(page.getByRole('search')).toBeHidden();
     await expect(page.getByRole('button', { name: 'Rules help' })).toBeHidden();
     await expect(page.getByRole('region', { name: 'Roster, scrolls sideways' })).toBeVisible();
-    await expect(page.getByText(/^Showing \d+ of \d+ officers \(in overtime\) · fictional, synthetic data$/)).toBeVisible();
+    await expect(
+      page.getByText(
+        /^Showing \d+ of \d+ officers \(in overtime\) · Not an official Government of Saskatchewan service · fictional, synthetic data only$/,
+      ),
+    ).toBeVisible();
     await shot(page, testInfo, 'supervisor', 'planning', 'print-media');
     const pdf = await page.pdf({ preferCSSPageSize: true });
     // The first page's media box is wider than it is tall (landscape).
@@ -145,6 +167,32 @@ test.describe('the planning board filters and export', () => {
     expect(box).not.toBeNull();
     expect(Number(box![1])).toBeGreaterThan(Number(box![2]));
     await page.emulateMedia({ media: 'screen' });
+  });
+
+  test('prints a pay period on one landscape width; a month is not offered', async ({ page }) => {
+    await page.getByRole('button', { name: 'Pay period', exact: true }).click();
+    await settled(page);
+    await expect(page.getByRole('group', { name: 'Pay period' })).toContainText('9 – 22 Nov 2026');
+    // A landscape Letter page less the 8 mm margins is about 1,000 CSS px wide.
+    await page.setViewportSize({ width: 1000, height: 760 });
+    await page.emulateMedia({ media: 'print' });
+    const fit = await page.evaluate(() => {
+      const table = document.querySelector('#roster table') as HTMLElement;
+      return { table: table.scrollWidth, page: document.documentElement.clientWidth };
+    });
+    expect(fit.table).toBeLessThanOrEqual(fit.page);
+    await page.emulateMedia({ media: 'screen' });
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    await page.getByRole('button', { name: 'Month', exact: true }).click();
+    await settled(page);
+    await page.getByRole('button', { name: /^Export/ }).click();
+    await expect(page.getByRole('menuitem', { name: /a month is too wide for one page/ })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    await expect(page.getByRole('menuitem', { name: /Print or save as PDF/ })).toHaveCount(0);
+    await page.keyboard.press('Escape');
   });
 
   test('fits a phone: the filter bar wraps and the page never scrolls sideways', async ({ page }, testInfo) => {

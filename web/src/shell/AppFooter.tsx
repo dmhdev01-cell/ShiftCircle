@@ -4,6 +4,7 @@ import Typography from '@mui/material/Typography';
 
 import { useVersion } from '../api/useVersion';
 import { colour } from '../theme/tokens';
+import { DISCLAIMER_TEXT } from './disclaimer';
 
 function versionSummary(state: ReturnType<typeof useVersion>['state']): string {
   if (state.status === 'loading') return 'Loading build information';
@@ -44,7 +45,7 @@ export function AppFooter() {
         </Typography>
       </Tooltip>
       <Typography component="span" sx={{ color: colour.footer.text, fontSize: 14 }}>
-        Not an official Government of Saskatchewan service · fictional, synthetic data only
+        {DISCLAIMER_TEXT}
       </Typography>
     </Box>
   );

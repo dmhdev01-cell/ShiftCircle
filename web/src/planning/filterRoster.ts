@@ -97,7 +97,7 @@ export function parseFilters(params: URLSearchParams): RosterFilterState {
 export function writeFilters(params: URLSearchParams, filters: RosterFilterState): URLSearchParams {
   const next = new URLSearchParams(params);
   (Object.keys(PARAM) as (keyof RosterFilterState)[]).forEach((key) => {
-    const value = filters[key];
+    const value = key === 'query' ? filters.query.trim() : filters[key];
     if (value === DEFAULT_FILTERS[key] || value === '') next.delete(PARAM[key]);
     else next.set(PARAM[key], value);
   });
@@ -127,9 +127,11 @@ function countedShifts(officer: OfficerRow): ShiftItem[] {
  * evening (E8, P12), anything else a night (N8, N12, A12, L16).
  */
 export function blockOfShift(item: ShiftItem): WorksBlock | null {
-  const start = shiftTemplates[item.shiftTemplate]?.start;
-  if (!start) return null;
+  // A template the table does not know (one added through the rules admin)
+  // falls back to the shift's own local start time, "2026-11-16T07:00:00-06:00".
+  const start = shiftTemplates[item.shiftTemplate]?.start ?? item.startAt.slice(11, 13);
   const hour = Number(start.slice(0, 2));
+  if (!/^\d{2}/.test(start) || !Number.isFinite(hour)) return null;
   if (hour >= 5 && hour < 11) return 'D';
   if (hour >= 11 && hour < 19) return 'E';
   return 'N';
@@ -168,6 +170,38 @@ export function rotationLabel(kind: RotationKind | null): string {
   if (kind === '12h') return '12 h';
   if (kind === 'casual') return 'Casual';
   return '';
+}
+
+/**
+ * The rotation options worth offering: All plus the kinds the rows on the
+ * board actually have. Today /schedule sends no rotation text, so a casual
+ * officer cannot be told apart and Casual is not offered there (no dead
+ * option); a payload that names it brings it back.
+ */
+export function rotationOptions(officers: OfficerRow[]): { id: RotationFilter; label: string }[] {
+  const kinds = new Set(officers.map(rotationKind));
+  return ROTATION_OPTIONS.filter((option) => option.id === 'all' || kinds.has(option.id));
+}
+
+/** The qualification codes held by anyone on the board, sorted. */
+export function qualificationOptions(officers: OfficerRow[]): string[] {
+  return [...new Set(officers.flatMap((officer) => officer.qualifications ?? []))].sort();
+}
+
+/**
+ * The filters that can apply to these rows: a rotation or qualification from
+ * the address that no row on this board has (a bookmark, another unit) falls
+ * back to All, so a select is never blank and the rows never vanish for it.
+ */
+export function effectiveFilters(filters: RosterFilterState, officers: OfficerRow[]): RosterFilterState {
+  const rotation = rotationOptions(officers).some((option) => option.id === filters.rotation)
+    ? filters.rotation
+    : 'all';
+  const qualification =
+    filters.qualification === 'all' || qualificationOptions(officers).includes(filters.qualification)
+      ? filters.qualification
+      : 'all';
+  return { ...filters, rotation, qualification };
 }
 
 function matches(officer: OfficerRow, filters: RosterFilterState): boolean {
@@ -220,7 +254,7 @@ export function filterWords(filters: RosterFilterState, qualificationLabel: (cod
     words.push(OVERTIME_OPTIONS.find((option) => option.id === filters.overtime)!.label.toLowerCase());
   }
   if (filters.rotation !== 'all') {
-    words.push(`${ROTATION_OPTIONS.find((option) => option.id === filters.rotation)!.label} rotation`);
+    words.push(`${ROTATION_OPTIONS.find((option) => option.id === filters.rotation)!.label.toLowerCase()} rotation`);
   }
   if (filters.works !== 'all') {
     words.push(`works ${WORKS_OPTIONS.find((option) => option.id === filters.works)!.label.toLowerCase()}`);

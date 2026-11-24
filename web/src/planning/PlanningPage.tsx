@@ -16,6 +16,7 @@ import { assignableTemplates, shiftTemplates } from '../api/shiftTemplates';
 import type { OfficerRow, ShiftItem, Unit } from '../api/types';
 import { useUnits } from '../api/useUnits';
 import { useVersion } from '../api/useVersion';
+import { DISCLAIMER_TEXT } from '../shell/disclaimer';
 import { useRole } from '../shell/nav';
 import { boardPrintStyles } from '../theme/print';
 import { colour, focusRing } from '../theme/tokens';
@@ -37,7 +38,16 @@ import { OverrideDialog } from './OverrideDialog';
 import { PublishPeriodButton } from './PublishPeriodButton';
 import { copyText, downloadCsv, exportFileName, rosterRows, toCsv, toTsv } from './exportRoster';
 import { RosterFilters } from './RosterFilters';
-import { applyRosterFilters, filterWords, isFiltered, parseFilters, writeFilters } from './filterRoster';
+import {
+  applyRosterFilters,
+  effectiveFilters,
+  filterWords,
+  isFiltered,
+  parseFilters,
+  qualificationOptions,
+  rotationOptions,
+  writeFilters,
+} from './filterRoster';
 import type { RosterFilterState } from './filterRoster';
 import { RosterGrid } from './RosterGrid';
 import { RuleCheckPanel } from './RuleCheckPanel';
@@ -344,12 +354,15 @@ export function PlanningPage() {
 
   // A3: find, filter and sort the rows already loaded. The address keeps the
   // choice (q, ot, rot, works, qual, sort); with none, the board is unchanged.
-  const filters = parseFilters(searchParams);
+  // A rotation or qualification no row here has (a bookmark, another unit)
+  // reads as All rather than an empty select and an empty board.
+  const filters = effectiveFilters(parseFilters(searchParams), payload.officers);
   const filtered = isFiltered(filters);
   const shownOfficers = applyRosterFilters(payload.officers, filters);
-  const qualificationCodes = [
-    ...new Set(payload.officers.flatMap((officer) => officer.qualifications ?? [])),
-  ].sort();
+  const qualificationCodes = qualificationOptions(payload.officers);
+  const rotationChoices = rotationOptions(payload.officers);
+  // A month is too wide for one landscape page; a week or a pay period fits.
+  const printable = payload.days.length <= 14;
 
   const changeFilters = (next: RosterFilterState) => {
     setExportStatus('');
@@ -359,7 +372,7 @@ export function PlanningPage() {
   const officersWord = (count: number) => `${count} ${count === 1 ? 'officer' : 'officers'}`;
 
   const exportView = () => {
-    downloadCsv(exportFileName(payload, filtered), toCsv(rosterRows(payload, shownOfficers)));
+    downloadCsv(exportFileName(payload, filtered), toCsv(rosterRows(payload, shownOfficers, filtered)));
     setExportStatus(`CSV saved: ${officersWord(shownOfficers.length)}, ${payload.days.length} days`);
   };
 
@@ -369,7 +382,7 @@ export function PlanningPage() {
   };
 
   const copyView = () => {
-    const text = toTsv(rosterRows(payload, shownOfficers));
+    const text = toTsv(rosterRows(payload, shownOfficers, filtered));
     void copyText(text).then((copied) =>
       setExportStatus(
         copied
@@ -385,7 +398,11 @@ export function PlanningPage() {
     unit: string | undefined,
     next: { view?: BoardView; density?: RosterDensity } = {},
   ) => {
+    setExportStatus('');
     const params = new URLSearchParams(searchParams);
+    // Another unit has its own officers: a qualification picked here may
+    // match no one there, so it is reset (the other filters still read).
+    if (unit !== activeUnitId) params.delete('qual');
     if (weekFrom) params.set('week', weekFrom);
     else params.delete('week');
     if (unit) params.set('unit', unit);
@@ -560,7 +577,7 @@ export function PlanningPage() {
             {filtered
               ? `Showing ${shownOfficers.length} of ${payload.officers.length} officers (${filterWords(filters, qualificationLabel)})`
               : `Showing all ${payload.officers.length} officers`}{' '}
-            · fictional, synthetic data
+            · {DISCLAIMER_TEXT}
           </Typography>
         </Box>
 
@@ -729,6 +746,8 @@ export function PlanningPage() {
         filters={filters}
         onChange={changeFilters}
         qualificationCodes={qualificationCodes}
+        rotationOptions={rotationChoices}
+        printable={printable}
         shown={shownOfficers.length}
         total={payload.officers.length}
         onExportView={exportView}
@@ -756,6 +775,7 @@ export function PlanningPage() {
           today={today}
           density={density}
           officers={shownOfficers}
+          filtered={filtered}
           {...(readOnly ? {} : { onEmptyCell: startChoose, onPickChip: pickChip })}
         />
       </Box>

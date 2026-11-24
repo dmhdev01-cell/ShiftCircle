@@ -9,13 +9,12 @@ import { qualificationLabel } from '../api/qualifications';
 import { colour } from '../theme/tokens';
 import {
   OVERTIME_OPTIONS,
-  ROTATION_OPTIONS,
   SORT_OPTIONS,
   WORKS_OPTIONS,
   filterWords,
   isFiltered,
 } from './filterRoster';
-import type { RosterFilterState } from './filterRoster';
+import type { RosterFilterState, RotationFilter } from './filterRoster';
 
 const controlSx = {
   minHeight: 44,
@@ -83,6 +82,10 @@ export interface RosterFiltersProps {
   onChange: (next: RosterFilterState) => void;
   /** The qualification codes held by anyone on the board. */
   qualificationCodes: string[];
+  /** All plus the rotations the rows have (Casual only when a row names it). */
+  rotationOptions: { id: RotationFilter; label: string }[];
+  /** False for a month: too wide for one landscape page. */
+  printable: boolean;
   shown: number;
   total: number;
   onExportView: () => void;
@@ -102,6 +105,8 @@ export function RosterFilters({
   filters,
   onChange,
   qualificationCodes,
+  rotationOptions,
+  printable,
   shown,
   total,
   onExportView,
@@ -156,7 +161,7 @@ export function RosterFilters({
           <Select value={filters.overtime} options={OVERTIME_OPTIONS} onChange={(value) => set('overtime', value)} />
         </Field>
         <Field label="Rotation">
-          <Select value={filters.rotation} options={ROTATION_OPTIONS} onChange={(value) => set('rotation', value)} />
+          <Select value={filters.rotation} options={rotationOptions} onChange={(value) => set('rotation', value)} />
         </Field>
         <Field label="Works">
           <Select value={filters.works} options={WORKS_OPTIONS} onChange={(value) => set('works', value)} />
@@ -197,7 +202,13 @@ export function RosterFilters({
               CSV for Excel · this view ({shown} {shown === 1 ? 'officer' : 'officers'})
             </MenuItem>
             <MenuItem onClick={run(onExportUnit)}>CSV for Excel · whole unit, all {total} officers</MenuItem>
-            <MenuItem onClick={run(onPrint)}>Print or save as PDF (landscape)</MenuItem>
+            {printable ? (
+              <MenuItem onClick={run(onPrint)}>Print or save as PDF (landscape)</MenuItem>
+            ) : (
+              <MenuItem disabled sx={{ whiteSpace: 'normal', maxWidth: 360, '&.Mui-disabled': { opacity: 1, color: colour.text.secondary } }}>
+                Print: a month is too wide for one page. Print a week or a pay period.
+              </MenuItem>
+            )}
             <MenuItem onClick={run(onCopy)}>Copy this view (tab-separated, for a spreadsheet)</MenuItem>
           </Menu>
         </Box>
@@ -227,7 +238,7 @@ export function RosterFilters({
             type="button"
             onClick={() => onChange({ ...filters, query: '', overtime: 'all', rotation: 'all', works: 'all', qualification: 'all' })}
             sx={{
-              minHeight: 32,
+              minHeight: 44,
               p: 0,
               border: 0,
               background: 'none',

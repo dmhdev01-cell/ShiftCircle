@@ -57,7 +57,11 @@ function hours(value: number): string {
  * then the day totals. `officers` is the filtered and sorted list on screen,
  * or every officer for the whole-unit export.
  */
-export function rosterRows(payload: SchedulePayload, officers: OfficerRow[]): string[][] {
+export function rosterRows(
+  payload: SchedulePayload,
+  officers: OfficerRow[],
+  filtered = false,
+): string[][] {
   const days = payload.days;
   const rows: string[][] = [
     [
@@ -75,7 +79,7 @@ export function rosterRows(payload: SchedulePayload, officers: OfficerRow[]): st
   (['DAY', 'EVENING', 'NIGHT'] as Block[]).forEach((block) => {
     const required = payload.coverage.find((entry) => entry.block === block)?.required;
     rows.push([
-      `${BLOCK_WORDS[block]} coverage${required === undefined ? '' : ` (needs ${required})`}`,
+      `${BLOCK_WORDS[block]} coverage, whole unit${required === undefined ? '' : ` (needs ${required})`}`,
       '',
       '',
       '',
@@ -93,7 +97,8 @@ export function rosterRows(payload: SchedulePayload, officers: OfficerRow[]): st
     const totals = officerTotals(officer);
     rows.push([
       officer.name,
-      officer.rotation || rotationLabel(rotationKind(officer)),
+      officer.rotation ||
+        (rotationKind(officer) ? `${rotationLabel(rotationKind(officer))} (from shifts)` : ''),
       (officer.qualifications ?? []).map(qualificationLabel).join(', '),
       String(totals.shifts),
       hours(totals.hours),
@@ -104,7 +109,7 @@ export function rosterRows(payload: SchedulePayload, officers: OfficerRow[]): st
   }
 
   rows.push([
-    'On duty',
+    filtered ? 'On duty, officers listed' : 'On duty',
     '',
     '',
     '',
@@ -114,7 +119,7 @@ export function rosterRows(payload: SchedulePayload, officers: OfficerRow[]): st
     ...days.map((date) => String(dayTotals(officers, date).onDuty)),
   ]);
   rows.push([
-    'Hours on duty',
+    filtered ? 'Hours on duty, officers listed' : 'Hours on duty',
     '',
     '',
     '',
@@ -126,9 +131,14 @@ export function rosterRows(payload: SchedulePayload, officers: OfficerRow[]): st
   return rows;
 }
 
-/** A spreadsheet shows a cell starting with = + - @ (or tab / CR) as text, not a formula. */
+/**
+ * A spreadsheet shows a guarded cell as text, never a formula. Guarded: a cell
+ * starting with = + - @, their full-width forms, or any whitespace (space,
+ * NBSP, tab, CR, LF, BOM, ideographic space), since some spreadsheets trim
+ * the whitespace and then evaluate what follows.
+ */
 export function guardFormula(value: string): string {
-  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return /^[\s=+\-@\uFF1D\uFF0B\uFF0D\uFF20]/u.test(value) ? `'${value}` : value;
 }
 
 function csvField(value: string): string {
@@ -138,13 +148,14 @@ function csvField(value: string): string {
 
 /** CSV with a byte-order mark and CRLF line ends, the form Excel opens cleanly. */
 export function toCsv(rows: string[][]): string {
-  return '﻿' + rows.map((row) => row.map(csvField).join(',')).join('\r\n') + '\r\n';
+  return '\uFEFF' + rows.map((row) => row.map(csvField).join(',')).join('\r\n') + '\r\n';
 }
 
 /** Tab-separated text for the clipboard; a tab or line break inside a cell becomes a space. */
 export function toTsv(rows: string[][]): string {
   return rows
-    .map((row) => row.map((value) => guardFormula(value.replace(/[\t\r\n]+/g, ' '))).join('\t'))
+    // Guard first, on the cell as it is, then flatten its tabs and line breaks.
+    .map((row) => row.map((value) => guardFormula(value).replace(/[\t\r\n]+/g, ' ')).join('\t'))
     .join('\n');
 }
 

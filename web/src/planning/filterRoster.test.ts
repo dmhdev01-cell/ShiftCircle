@@ -6,6 +6,8 @@ import {
   DEFAULT_FILTERS,
   applyRosterFilters,
   blockOfShift,
+  effectiveFilters,
+  rotationOptions,
   filterWords,
   isFiltered,
   parseFilters,
@@ -84,6 +86,10 @@ describe('A3 roster filters', () => {
     expect(blockOfShift(N12)).toBe('N');
     expect(blockOfShift(shift('A12', 'x', 'y'))).toBe('N');
     expect(blockOfShift(shift('ZZ', 'x', 'y'))).toBeNull();
+    // A template the table does not know reads the shift's own local start.
+    expect(blockOfShift(shift('X10', '2026-11-16T09:00:00-06:00', 'y'))).toBe('D');
+    expect(blockOfShift(shift('X10', '2026-11-16T16:00:00-06:00', 'y'))).toBe('E');
+    expect(blockOfShift(shift('X10', '2026-11-16T21:00:00-06:00', 'y'))).toBe('N');
   });
 
   it('counts only rostered and extra shifts toward "works"', () => {
@@ -139,6 +145,24 @@ describe('A3 roster filters', () => {
     expect(rows.map((row) => row.name)).toEqual(['Cara', 'Abe', 'Bea']);
   });
 
+  it('on the live payload shape (no rotation text) offers no Casual and drops a stale one', () => {
+    // /schedule sends rotation "" for every officer (ScheduleQuery).
+    const live = demoSchedule.officers.map((row) => ({ ...row, rotation: '' }));
+    expect(rotationOptions(live).map((option) => option.id)).toEqual(['all', '8h', '12h']);
+    const clamped = effectiveFilters({ ...DEFAULT_FILTERS, rotation: 'casual', qualification: 'NOT_HELD' }, live);
+    expect(clamped.rotation).toBe('all');
+    expect(clamped.qualification).toBe('all');
+    expect(effectiveFilters({ ...DEFAULT_FILTERS, qualification: 'ESCORT' }, live).qualification).toBe('ESCORT');
+    // A payload that does name a casual rotation brings the option back.
+    const named = [...live, officer('Omar Nyberg', [D8], { rotation: 'Casual relief' })];
+    expect(rotationOptions(named).map((option) => option.id)).toEqual(['all', '8h', '12h', 'casual']);
+  });
+
+  it('does not keep a whitespace-only search in the address', () => {
+    expect(writeFilters(new URLSearchParams(''), { ...DEFAULT_FILTERS, query: '   ' }).toString()).toBe('');
+    expect(writeFilters(new URLSearchParams(''), { ...DEFAULT_FILTERS, query: ' nia ' }).toString()).toBe('q=nia');
+  });
+
   it('says which filters are on', () => {
     expect(
       filterWords(
@@ -146,5 +170,6 @@ describe('A3 roster filters', () => {
         (code) => code.toLowerCase(),
       ),
     ).toBe('name has "ni", under, 12 h rotation, works nights, escort');
+    expect(filterWords({ ...DEFAULT_FILTERS, rotation: 'casual' }, (code) => code)).toBe('casual rotation');
   });
 });

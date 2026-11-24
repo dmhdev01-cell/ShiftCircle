@@ -78,6 +78,11 @@ export interface RosterGridProps {
    * day-totals footer sums the rows shown.
    */
   officers?: OfficerRow[];
+  /**
+   * True when `officers` is a filtered subset (A3): the footer then says it
+   * sums the officers shown, and the coverage rows say they are the whole unit.
+   */
+  filtered?: boolean;
 }
 
 function CellChips({
@@ -177,6 +182,7 @@ export function RosterGrid({
   onPickChip,
   density = 'comfortable',
   officers: shownOfficers,
+  filtered = false,
 }: RosterGridProps) {
   const officers = shownOfficers ?? payload.officers;
   const threshold = payload.officers[0]?.payPeriodThreshold ?? 80;
@@ -309,6 +315,7 @@ export function RosterGrid({
                     {compact ? ' ' : <br />}
                     <span style={{ fontWeight: 500, fontSize: compact ? 11 : 12, color: colour.text.secondary }}>
                       needs {requirement}
+                      {filtered ? ' · whole unit' : ''}
                     </span>
                   </td>
                   <td colSpan={2} style={{ backgroundColor: colour.bg.subtle, borderBottom: border }} />
@@ -503,6 +510,11 @@ export function RosterGrid({
                 }}
               >
                 On duty · hours
+                {filtered ? (
+                  <span style={{ display: 'block', fontWeight: 500, color: colour.text.secondary }}>
+                    officers shown
+                  </span>
+                ) : null}
               </th>
               <td
                 colSpan={2}
