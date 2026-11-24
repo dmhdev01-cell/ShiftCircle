@@ -3,10 +3,10 @@ package ca.shiftcircle.api.proposals;
 import ca.shiftcircle.api.time.BusinessClock;
 import java.sql.Timestamp;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,17 +38,38 @@ public class ProposalExpiry {
     this.clock = clock;
   }
 
-  /** Expire every waiting item whose shift has started. Returns how many items were expired. */
+  /** Expire every waiting item whose shift has started (the sweep). Returns how many. */
   @Transactional
   public int apply() {
+    return expire(null);
+  }
+
+  /**
+   * Expire only this officer's waiting items. Request paths use it: they are about to read or
+   * change this officer's proposals, and a global write on every read would make officers wait on
+   * each other's rows at a shift boundary.
+   */
+  @Transactional
+  public int apply(UUID employeeId) {
+    return expire(employeeId);
+  }
+
+  private int expire(UUID employeeId) {
+    Timestamp now = Timestamp.from(clock.now());
+    // Rows are taken in id order and a busy row is skipped, so two overlapping runs never wait on
+    // or deadlock with each other; the run that holds a row expires it.
     List<Map<String, Object>> expired =
         jdbc.queryForList(
             "UPDATE proposal_item SET decision = 'EXPIRED', decided_at = ?"
-                + " WHERE decision = 'PENDING' AND start_at <= ?"
+                + " WHERE id IN (SELECT id FROM proposal_item WHERE decision = 'PENDING'"
+                + " AND start_at <= ?"
+                + (employeeId == null ? "" : " AND employee_id = ?")
+                + " ORDER BY id FOR UPDATE SKIP LOCKED)"
                 + " RETURNING id, proposal_id, employee_id, start_at",
-            Timestamp.from(clock.now()),
-            Timestamp.from(clock.now()));
-    Set<UUID> proposals = new LinkedHashSet<>();
+            employeeId == null
+                ? new Object[] {now, now}
+                : new Object[] {now, now, employeeId});
+    Set<UUID> proposals = new TreeSet<>();
     for (Map<String, Object> row : expired) {
       UUID proposalId = (UUID) row.get("proposal_id");
       proposals.add(proposalId);
@@ -67,7 +88,7 @@ public class ProposalExpiry {
               + "      WHEN EXISTS (SELECT 1 FROM proposal_item WHERE proposal_id = proposal.id"
               + "                   AND decision IN ('ACCEPTED', 'DECLINED')) THEN 'DECIDED'"
               + "      ELSE 'EXPIRED' END"
-              + " WHERE id = ?",
+              + " WHERE id = ? AND status = 'WAITING'",
           proposalId);
     }
     return expired.size();

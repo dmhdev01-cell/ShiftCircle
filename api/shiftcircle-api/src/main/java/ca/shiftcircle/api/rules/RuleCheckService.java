@@ -116,11 +116,30 @@ public class RuleCheckService {
    * The same evaluation with extra shifts the caller holds in memory added to the officer's real
    * ones: the other drafts of a multi-item proposal, so rest, hours and runs between them show up
    * (v1.3 proposals). The extras are facts only; nothing is read for them and nothing is saved.
+   *
+   * <p><b>Contract:</b> an extra stands for a shift that is NOT in {@code shift_assignment} yet.
+   * A decision that inserts each accepted item before checking the next must not also pass that
+   * item as an extra, or the shift would be counted twice (U-05, U-14 hours). As a guard, an extra
+   * that matches a stored shift (same unit, template, start and end) is dropped, so the mistake
+   * cannot produce a false Block. Either evaluate every item before inserting any, or pass
+   * only what is still unsaved.
    */
   public OutcomeView evaluateWithExtras(
       Change change, List<ShiftFact> extraShifts, PublishedRuleSet.Snapshot live) {
     List<ShiftFact> shifts = new ArrayList<>(existingShifts(change.employeeId(), change.startAt(), null));
-    shifts.addAll(extraShifts);
+    for (ShiftFact extra : extraShifts) {
+      boolean alreadyStored =
+          shifts.stream()
+              .anyMatch(
+                  stored ->
+                      stored.unitCode().equals(extra.unitCode())
+                          && stored.templateCode().equals(extra.templateCode())
+                          && stored.start().equals(extra.start())
+                          && stored.end().equals(extra.end()));
+      if (!alreadyStored) {
+        shifts.add(extra);
+      }
+    }
     shifts.add(factFor(change));
     return evaluateFacts(shifts, live);
   }

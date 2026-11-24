@@ -114,6 +114,7 @@ public class ProposalService {
   private final BusinessClock clock;
   private final ActiveUnits activeUnits;
   private final ProposalExpiry expiry;
+  private final ProposalRateLimiter limits;
   private final ObjectMapper mapper = new ObjectMapper();
 
   public ProposalService(
@@ -122,13 +123,15 @@ public class ProposalService {
       PublishedRuleSet published,
       BusinessClock clock,
       ActiveUnits activeUnits,
-      ProposalExpiry expiry) {
+      ProposalExpiry expiry,
+      ProposalRateLimiter limits) {
     this.jdbc = jdbc;
     this.ruleChecks = ruleChecks;
     this.published = published;
     this.clock = clock;
     this.activeUnits = activeUnits;
     this.expiry = expiry;
+    this.limits = limits;
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -138,8 +141,9 @@ public class ProposalService {
   /** Rule results for every item, each with the earlier items as extra facts. Saves nothing. */
   public PreviewView preview(PreviewRequest request, AuthPrincipal principal) {
     UUID employeeId = requireOfficer(principal);
+    limits.require(employeeId, ProposalRateLimiter.Action.PREVIEW);
     List<Valid> items = validate(request == null ? null : request.items());
-    List<Checked> checked = check(employeeId, items, true);
+    List<Checked> checked = check(employeeId, items);
     boolean blocked = checked.stream().anyMatch(c -> isBlock(c.outcome()));
     boolean problem = checked.stream().anyMatch(c -> c.problem() != null);
     List<PreviewItem> views =
@@ -169,13 +173,14 @@ public class ProposalService {
   @Transactional
   public ProposalView submit(SubmitRequest request, AuthPrincipal principal) {
     UUID employeeId = requireOfficer(principal);
+    limits.require(employeeId, ProposalRateLimiter.Action.SEND);
     String note = cleanNote(request == null ? null : request.note());
     List<Valid> items = validate(request == null ? null : request.items());
 
     // Two sends close together must not both pass the waiting-item limit, and the rules read the
     // officer's shifts: serialise on the officer, the same lock the board takes.
     lockOfficer(employeeId);
-    expiry.apply();
+    expiry.apply(employeeId);
 
     Integer waiting =
         jdbc.queryForObject(
@@ -191,7 +196,7 @@ public class ProposalService {
               + " withdraw a proposal first.");
     }
 
-    List<Checked> checked = check(employeeId, items, false);
+    List<Checked> checked = check(employeeId, items);
     for (Checked c : checked) {
       if (c.problem() != null) {
         throw ProposalProblemException.of(
@@ -260,10 +265,10 @@ public class ProposalService {
           HttpStatus.BAD_REQUEST,
           "status must be one of ALL, " + String.join(", ", STATES.stream().sorted().toList()));
     }
-    expiry.apply();
+    expiry.apply(employeeId);
     List<UUID> ids =
         jdbc.queryForList(
-            "SELECT id FROM proposal WHERE employee_id = ? ORDER BY submitted_at DESC, id LIMIT 200",
+            "SELECT id FROM proposal WHERE employee_id = ? ORDER BY submitted_at DESC, seq DESC LIMIT 200",
             UUID.class,
             employeeId);
     List<ProposalView> views = loadAll(ids);
@@ -289,52 +294,46 @@ public class ProposalService {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found");
     }
     int expected = parseIfMatch(ifMatch);
+    limits.require(employeeId, ProposalRateLimiter.Action.WITHDRAW);
     lockOfficer(employeeId);
-    expiry.apply();
+    expiry.apply(employeeId);
 
     Map<String, Object> current =
         jdbc.queryForMap("SELECT status, version FROM proposal WHERE id = ?", proposalId);
     int version = ((Number) current.get("version")).intValue();
     if (version != expected) {
-      throw ProposalProblemException.of(
-          412,
-          "stale-version",
-          "This proposal changed since you read it",
-          "Reload your proposals and try again.");
+      throw staleVersion();
     }
-    Integer notWaiting =
-        jdbc.queryForObject(
-            "SELECT count(*) FROM proposal_item WHERE proposal_id = ? AND decision <> 'PENDING'",
-            Integer.class,
-            proposalId);
-    if (!"WAITING".equals(current.get("status")) || (notWaiting != null && notWaiting > 0)) {
-      throw ProposalProblemException.of(
-          409,
-          "not-withdrawable",
-          "This proposal can't be withdrawn",
-          "A shift in it has already been answered or has started. Ask your supervisor instead.");
+    if (!"WAITING".equals(current.get("status"))) {
+      throw notWithdrawable();
     }
 
+    // Atomic against a concurrent expiry: the items are updated first, in the same order expiry
+    // takes them, and only still-pending rows change. If fewer rows changed than the proposal has
+    // items, one was decided or expired in between, so the whole withdraw rolls back as a 409.
+    Timestamp now = Timestamp.from(clock.now());
     int items =
         jdbc.update(
             "UPDATE proposal_item SET decision = 'WITHDRAWN', decided_at = ?"
                 + " WHERE proposal_id = ? AND decision = 'PENDING'",
-            Timestamp.from(clock.now()),
+            now,
             proposalId);
+    Integer total =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM proposal_item WHERE proposal_id = ?", Integer.class, proposalId);
+    if (total == null || items == 0 || items != total) {
+      throw notWithdrawable();
+    }
     int updated =
         jdbc.update(
             "UPDATE proposal SET status = 'WITHDRAWN', withdrawn_at = ?, version = ?"
-                + " WHERE id = ? AND version = ?",
-            Timestamp.from(clock.now()),
+                + " WHERE id = ? AND version = ? AND status = 'WAITING'",
+            now,
             version + 1,
             proposalId,
             version);
     if (updated != 1) {
-      throw ProposalProblemException.of(
-          412,
-          "stale-version",
-          "This proposal changed since you read it",
-          "Reload your proposals and try again.");
+      throw staleVersion();
     }
     audit(
         principal,
@@ -344,6 +343,22 @@ public class ProposalService {
         Map.of("status", "WAITING", "version", version),
         Map.of("status", "WITHDRAWN", "itemCount", items, "version", version + 1));
     return load(proposalId);
+  }
+
+  private static ProposalProblemException staleVersion() {
+    return ProposalProblemException.of(
+        412,
+        "stale-version",
+        "This proposal changed since you read it",
+        "Reload your proposals and try again.");
+  }
+
+  private static ProposalProblemException notWithdrawable() {
+    return ProposalProblemException.of(
+        409,
+        "not-withdrawable",
+        "This proposal can't be withdrawn",
+        "A shift in it has already been answered or has started. Ask your supervisor instead.");
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -451,7 +466,7 @@ public class ProposalService {
    * and collect the problems no rule explains (locked period, closed unit, already waiting).
    * Results come back in the order the officer listed them.
    */
-  private List<Checked> check(UUID employeeId, List<Valid> items, boolean forPreview) {
+  private List<Checked> check(UUID employeeId, List<Valid> items) {
     PublishedRuleSet.Snapshot live = published.snapshot();
     List<Valid> byStart = new ArrayList<>(items);
     byStart.sort(Comparator.comparing((Valid v) -> v.input().startAt()).thenComparing(Valid::index));

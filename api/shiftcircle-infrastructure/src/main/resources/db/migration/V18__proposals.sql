@@ -8,9 +8,10 @@
 --     assignment and the snapshots P2 needs.
 -- No dataset checksum, payroll golden or plan fingerprint reads these tables.
 --
--- The number is V18 because PR-N takes V14 and the supervisors' S1 to S3 reserve V15 to V17.
--- If a lower number is still free when this merges, rename it BEFORE merging: Flyway refuses an
--- out-of-order version on an existing database.
+-- The number rule for v1.3: a migration takes the NEXT FREE number at the moment it merges, so
+-- Flyway never sees an out-of-order version on an installed database. This file is the highest
+-- one for now; it is renamed just before merge if a lower one has been taken or is still free.
+-- Nothing in the code, tests or docs depends on the number.
 
 -- ---------------------------------------------------------------------------------------------
 -- proposal
@@ -28,12 +29,16 @@ ALTER TABLE proposal
 ALTER TABLE proposal ADD COLUMN submitted_by uuid REFERENCES app_user (id);
 ALTER TABLE proposal ADD COLUMN withdrawn_at timestamptz;
 
+-- A monotonic order for "newest first". submitted_at comes from the business clock, which is
+-- frozen on the demo, so two proposals sent in one session share it.
+ALTER TABLE proposal ADD COLUMN seq bigint GENERATED ALWAYS AS IDENTITY;
+
 -- The note is free text the officer types; it is short and carries no medical detail (the screen
 -- says so, as it does for absences). The length is enforced here so no path can store an essay.
 ALTER TABLE proposal
     ADD CONSTRAINT proposal_note_length CHECK (note IS NULL OR char_length(note) <= 500);
 
-CREATE INDEX proposal_employee_submitted_idx ON proposal (employee_id, submitted_at DESC);
+CREATE INDEX proposal_employee_submitted_idx ON proposal (employee_id, submitted_at DESC, seq DESC);
 
 -- ---------------------------------------------------------------------------------------------
 -- proposal_item
@@ -51,6 +56,9 @@ UPDATE proposal_item i SET employee_id = p.employee_id FROM proposal p WHERE p.i
 ALTER TABLE proposal_item ALTER COLUMN employee_id SET NOT NULL;
 
 ALTER TABLE proposal_item ADD COLUMN work_date date;
+UPDATE proposal_item SET work_date = (start_at AT TIME ZONE 'America/Regina')::date
+ WHERE work_date IS NULL AND start_at IS NOT NULL;
+ALTER TABLE proposal_item ALTER COLUMN work_date SET NOT NULL;
 ALTER TABLE proposal_item ADD COLUMN sort_order integer NOT NULL DEFAULT 0;
 ALTER TABLE proposal_item ADD COLUMN decided_by uuid REFERENCES app_user (id);
 ALTER TABLE proposal_item ADD COLUMN decided_at timestamptz;
@@ -76,6 +84,9 @@ ALTER TABLE proposal_item
 ALTER TABLE proposal_item
     ADD CONSTRAINT proposal_item_decline_needs_comment
         CHECK (decision <> 'DECLINED' OR (comment IS NOT NULL AND char_length(btrim(comment)) >= 3));
+
+-- Items are always loaded by their proposal.
+CREATE INDEX proposal_item_proposal_idx ON proposal_item (proposal_id);
 
 -- The inbox reads waiting items by unit; My proposals reads by officer (above).
 CREATE INDEX proposal_item_unit_decision_idx ON proposal_item (unit_id, decision, start_at);

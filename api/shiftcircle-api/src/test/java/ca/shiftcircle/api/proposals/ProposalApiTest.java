@@ -28,7 +28,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Shift proposals, officer side (v1.3 P1): the V18 constraints, multi-item preview, send,
+ * Shift proposals, officer side (v1.3 P1): the migration constraints, multi-item preview, send,
  * withdraw, list, expiry, scope and the abuse limits.
  *
  * <p>The business clock is the demo day, 19 Nov 2026 at noon. The shifts proposed here are on 24 to
@@ -48,6 +48,10 @@ class ProposalApiTest {
   @Autowired private JdbcTemplate jdbc;
   @Autowired private Environment environment;
   @Autowired private ProposalExpiry expiry;
+  @Autowired private ProposalRateLimiter limiter;
+  @Autowired private ca.shiftcircle.api.rules.RuleCheckService ruleChecks;
+  @Autowired private ca.shiftcircle.api.config.PublishedRuleSet published;
+  @Autowired private org.springframework.context.ApplicationContext context;
 
   private final ObjectMapper mapper = new ObjectMapper();
   private final HttpClient client = HttpClient.newHttpClient();
@@ -62,6 +66,7 @@ class ProposalApiTest {
 
   @BeforeEach
   void fixture() throws Exception {
+    limiter.reset();
     jdbc.update("DELETE FROM proposal_item");
     jdbc.update("DELETE FROM proposal");
     jdbc.update("DELETE FROM shift_assignment WHERE employee_id IN (?, ?)", TARA, ELLIS);
@@ -78,11 +83,11 @@ class ProposalApiTest {
   }
 
   // ---------------------------------------------------------------------------------------------
-  // V18 constraints
+  // Migration constraints
   // ---------------------------------------------------------------------------------------------
 
   @Test
-  void v18RefusesALongNoteAndAnOldStatusWord() {
+  void schemaRefusesALongNoteAndAnOldStatusWord() {
     assertThatThrownBy(
             () ->
                 jdbc.update(
@@ -99,7 +104,7 @@ class ProposalApiTest {
   }
 
   @Test
-  void v18RefusesAnAddWithoutTheWholeShiftAndADeclineWithoutAComment() {
+  void schemaRefusesAnAddWithoutTheWholeShiftAndADeclineWithoutAComment() {
     UUID proposal = insertProposal(TARA);
     assertThatThrownBy(
             () ->
@@ -122,7 +127,7 @@ class ProposalApiTest {
   }
 
   @Test
-  void v18AllowsOneWaitingItemPerOfficerAndStartButNotTwo() {
+  void schemaAllowsOneWaitingItemPerOfficerAndStartButNotTwo() {
     UUID proposal = insertProposal(TARA);
     insertItem(proposal, TARA, "2026-11-25T07:00:00-06:00", "D8", UNIT_A, "PENDING");
     assertThatThrownBy(
@@ -368,8 +373,13 @@ class ProposalApiTest {
     UUID first = send("t.nakamura", item(UNIT_A, "D8", "2026-11-25T07:00:00-06:00"));
     UUID second = send("t.nakamura", item(UNIT_A, "D8", "2026-11-26T07:00:00-06:00"));
     send("m.ellis", item(UNIT_A, "D8", "2026-11-27T07:00:00-06:00"));
-    jdbc.update(
-        "UPDATE proposal SET submitted_at = submitted_at - interval '1 hour' WHERE id = ?", first);
+    // Both were sent at the same frozen business-clock instant: the order is the send order.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(DISTINCT submitted_at) FROM proposal WHERE employee_id = ?",
+                Integer.class,
+                TARA))
+        .isEqualTo(1);
 
     List<Map<String, Object>> mine = listOf(get("/api/v1/me/proposals", "t.nakamura"));
     assertThat(mine).extracting(p -> p.get("id")).containsExactly(second.toString(), first.toString());
@@ -534,6 +544,110 @@ class ProposalApiTest {
     assertThat(get("/api/v1/me/proposals", "a.reviewer").statusCode()).isEqualTo(403);
     // Signed out.
     assertThat(post("/api/v1/proposals", request, null).statusCode()).isEqualTo(401);
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Review fixes: expiry scope, limits, wiring, double counting
+  // ---------------------------------------------------------------------------------------------
+
+  @Test
+  void aReadExpiresOnlyTheCallersOwnItems() throws Exception {
+    UUID mine = insertProposal(TARA);
+    insertItem(mine, TARA, "2026-11-19T07:00:00-06:00", "D8", UNIT_A, "PENDING");
+    UUID theirs = insertProposal(ELLIS);
+    insertItem(theirs, ELLIS, "2026-11-19T07:00:00-06:00", "D8", UNIT_A, "PENDING");
+
+    get("/api/v1/me/proposals", "t.nakamura");
+
+    assertThat(jdbc.queryForObject("SELECT status FROM proposal WHERE id = ?", String.class, mine))
+        .isEqualTo("EXPIRED");
+    // Ellis's item is left for her own read or the hourly sweep.
+    assertThat(jdbc.queryForObject("SELECT status FROM proposal WHERE id = ?", String.class, theirs))
+        .isEqualTo("WAITING");
+    assertThat(expiry.apply()).isEqualTo(1);
+  }
+
+  @Test
+  void theHourlySweepIsWired() {
+    var processor =
+        context.getBean(org.springframework.scheduling.annotation.ScheduledAnnotationBeanPostProcessor.class);
+    assertThat(processor.getScheduledTasks())
+        .anySatisfy(task -> assertThat(task.toString()).contains("ProposalExpiry.sweep"));
+  }
+
+  @Test
+  void sendingTooOftenIsRefusedWith429() throws Exception {
+    Map<String, Object> request = items(item(UNIT_A, "D8", "2026-11-25T07:00:00-06:00"));
+    for (int i = 0; i < ProposalRateLimiter.Action.SEND.perMinute(); i++) {
+      assertThat(post("/api/v1/proposals", request, "t.nakamura").statusCode()).isNotEqualTo(429);
+    }
+    HttpResponse<String> limited = post("/api/v1/proposals", request, "t.nakamura");
+    assertThat(limited.statusCode()).isEqualTo(429);
+    assertThat((String) json(limited).get("type")).endsWith("/rate-limited");
+    // The limit is per officer.
+    assertThat(post("/api/v1/proposals", request, "m.ellis").statusCode()).isEqualTo(201);
+  }
+
+  @Test
+  void previewingTooOftenIsRefusedWith429() throws Exception {
+    Map<String, Object> request = items(item(UNIT_A, "D8", "2026-11-25T07:00:00-06:00"));
+    for (int i = 0; i < ProposalRateLimiter.Action.PREVIEW.perMinute(); i++) {
+      assertThat(post("/api/v1/proposals/preview", request, "t.nakamura").statusCode()).isEqualTo(200);
+    }
+    assertThat(post("/api/v1/proposals/preview", request, "t.nakamura").statusCode()).isEqualTo(429);
+  }
+
+  @Test
+  void aSendWithdrawLoopIsStoppedByTheWithdrawLimit() throws Exception {
+    UUID id = send("t.nakamura", item(UNIT_A, "D8", "2026-11-25T07:00:00-06:00"));
+    for (int i = 0; i < ProposalRateLimiter.Action.WITHDRAW.perMinute(); i++) {
+      assertThat(post("/api/v1/proposals/" + id + "/withdraw", null, "t.nakamura", "\"99\"").statusCode())
+          .isEqualTo(412);
+    }
+    assertThat(post("/api/v1/proposals/" + id + "/withdraw", null, "t.nakamura", "\"0\"").statusCode())
+        .isEqualTo(429);
+  }
+
+  @Test
+  void anExtraThatIsAlreadySavedIsNotCountedTwice() throws Exception {
+    // P2 may insert an approved item and then check the next one with the same item still passed as
+    // an extra. The stored copy wins, so the result is the same as checking without the extra.
+    java.time.Instant start = OffsetDateTime.parse("2026-11-25T07:00:00-06:00").toInstant();
+    insertAssignment(TARA, UNIT_A, "D8", "2026-11-25T07:00:00-06:00");
+    var next =
+        new ca.shiftcircle.api.rules.RuleCheckService.Change(
+            "EXTRA", TARA, UNIT_A, "E8", OffsetDateTime.parse("2026-11-25T15:00:00-06:00").toInstant());
+    var extra =
+        ruleChecks.factOf(
+            new ca.shiftcircle.api.rules.RuleCheckService.Change("EXTRA", TARA, UNIT_A, "D8", start),
+            "draft-0");
+
+    var withoutExtra = ruleChecks.evaluate(next);
+    var withDuplicate = ruleChecks.evaluateWithExtras(next, List.of(extra), published.snapshot());
+
+    assertThat(withDuplicate.outcome()).isEqualTo(withoutExtra.outcome());
+    assertThat(withDuplicate.ruleResults()).hasSameSizeAs(withoutExtra.ruleResults());
+  }
+
+  @Test
+  void theDisplayStateIsDerivedFromTheItems() {
+    java.util.function.Function<String, ProposalService.ItemView> item =
+        decision ->
+            new ProposalService.ItemView(
+                UUID.randomUUID(), UNIT_A, "A", "Unit A", "D8", null, null, null, decision, null,
+                null, null, null, null);
+    assertThat(ProposalService.displayState("DECIDED", List.of(item.apply("ACCEPTED"), item.apply("ACCEPTED"))))
+        .isEqualTo("APPROVED");
+    assertThat(ProposalService.displayState("DECIDED", List.of(item.apply("ACCEPTED"), item.apply("DECLINED"))))
+        .isEqualTo("PARTLY_APPROVED");
+    assertThat(ProposalService.displayState("DECIDED", List.of(item.apply("DECLINED"), item.apply("DECLINED"))))
+        .isEqualTo("DECLINED");
+    assertThat(ProposalService.displayState("DECIDED", List.of(item.apply("DECLINED"), item.apply("EXPIRED"))))
+        .isEqualTo("EXPIRED");
+    assertThat(ProposalService.displayState("WAITING", List.of(item.apply("PENDING"), item.apply("ACCEPTED"))))
+        .isEqualTo("WAITING");
+    assertThat(ProposalService.displayState("WITHDRAWN", List.of(item.apply("WITHDRAWN"))))
+        .isEqualTo("WITHDRAWN");
   }
 
   // ---------------------------------------------------------------------------------------------

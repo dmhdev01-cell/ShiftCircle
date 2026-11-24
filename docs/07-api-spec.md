@@ -12,7 +12,7 @@
 | IDs | UUID strings |
 | Time | Instants as ISO-8601 with offset (`2026-11-21T07:00:00-06:00`); dates as `YYYY-MM-DD`; all in `America/Regina` |
 | Lists | Plain JSON arrays; the prototype has no `page`/`size` paging. The one long list, `GET /audit-events`, is keyset-paged: `?limit=` (default 50, at most 200) and `?beforeId=`, answering `{ "items": [...], "nextBeforeId": <id or null> }` |
-| Concurrency | Editable resources return `ETag: "<version>"`; updates require `If-Match`. A stale version gets `412 Precondition Failed`. **In the prototype this is built for assignment move and cancel (§4.2) and for the planner's draft edits and commit (§4.9) only.** Rule-table drafts are protected by the build fingerprint and the maker/checker states instead. |
+| Concurrency | Editable resources return `ETag: "<version>"`; updates require `If-Match`. A stale version gets `412 Precondition Failed`. **In the prototype this is built for assignment move and cancel (§4.2), the planner's draft edits and commit (§4.9) and proposal withdraw (§4.4) only.** Rule-table drafts are protected by the build fingerprint and the maker/checker states instead. |
 | Errors | RFC 9457 Problem Details (`application/problem+json`), with a `ruleResults` extension when rules decide (see §3) |
 | CSV | Report and export endpoints also answer `Accept: text/csv` |
 | Correlation | `X-Correlation-Id` is accepted or generated, echoed back, and written to logs and audit |
@@ -21,13 +21,13 @@
 
 | Code | When |
 |---|---|
-| `200` / `201` | Success; `201` with `Location` for creates |
+| `200` / `201` | Success; `201` with `Location` for creates (`POST /proposals` sends none: there is no GET-by-id to point at yet) |
 | `400` | Malformed request or invalid values (field errors listed) |
 | `401` / `403` | Not signed in / role or unit scope doesn't allow it |
 | `404` | Not found, or outside the caller's scope (we don't reveal what exists) |
 | `409` | State conflict (e.g. pay period locked, offer already answered, lock refused because past shifts lack actuals) |
 | `412` | Stale `If-Match` version |
-| `428` | `If-Match` missing where it is required (assignment move and cancel, §4.2; planner draft edits and commit, §4.9) |
+| `428` | `If-Match` missing where it is required (assignment move and cancel, §4.2; planner draft edits and commit, §4.9; proposal withdraw, §4.4) |
 | `422` | **A rule blocked the change** (body includes `ruleResults`), or Warn results need acknowledgement |
 
 ### 2.1 Database conflicts (problem types)
@@ -280,7 +280,7 @@ path (`POST /assignments`), so S-04 and the audit event still hold.
 
 ### 4.4 Proposals (employee shift planner) — officer side built (v1.3 P1); inbox and decision not built
 
-An officer proposes **extra shifts to add**; a supervisor in scope will approve or decline each one (P2). Only the officer side exists so far: preview, send, list, withdraw and expiry. **The inbox and the decision endpoints are not built** (`GET /proposals`, `GET /proposals/{id}`, `POST /proposals/{id}/decision` answer `404`), so a sent proposal stays *Waiting* until its shift starts and then expires. The web's *Propose shifts* card is unchanged until P3. Design: owner answers Q1 to Q5 (overtime-order acknowledgement, add-only, no sending Blocked drafts, any active unit with supervisors in scope deciding and the planner as fallback, paid like an accepted overtime offer).
+An officer proposes **extra shifts to add**; a supervisor in scope will approve or decline each one (P2). Only the officer side exists so far: preview, send, list, withdraw and expiry. **The inbox and the decision endpoints are not built** (`GET /proposals` answers `405` because the path exists for `POST`; `GET /proposals/{id}` and `POST /proposals/{id}/decision` answer `404`), so a sent proposal stays *Waiting* until its shift starts and then expires. The web's *Propose shifts* card is unchanged until P3. Design: owner answers Q1 to Q5 (overtime-order acknowledgement, add-only, no sending Blocked drafts, any active unit with supervisors in scope deciding and the planner as fallback, paid like an accepted overtime offer).
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
@@ -304,7 +304,7 @@ An officer proposes **extra shifts to add**; a supervisor in scope will approve 
 
 **Expiry.** A waiting item expires when its shift starts (`start_at <= now`, the business clock, demo day 19 Nov 2026). It is applied inside every read and withdraw of a proposal and by an hourly sweep, so nobody acts on a shift that has started. Each expiry writes `expire_proposal_item` once, with no actor (the system).
 
-**Limits.** At most 10 items per proposal and 20 waiting items per officer; dates from now to the end of the planned quarter. An officer may propose in any active unit (not only the home unit); the rules and qualifications decide eligibility. The officer's per-officer advisory lock is taken on send and withdraw, the same lock the board uses.
+**Limits.** At most 10 items per proposal and 20 waiting items per officer; dates from now to the end of the planned quarter. An officer may propose in any active unit (not only the home unit); the rules and qualifications decide eligibility. The per-officer advisory lock is taken on send and withdraw, the same lock the board uses. Per officer and minute: 60 previews, 10 sends and 10 withdraws, then `429` (`.../problems/rate-limited`, with `retryAfterSeconds`). Reading `/me/proposals` expires only the caller's own items; the hourly sweep expires everyone's.
 
 **Not yet (P2):**
 
@@ -524,7 +524,7 @@ ids are stable, so a signed-in planner stays signed in.
 | Screen (UI canvas) | Main calls |
 |---|---|
 | Planning board | `GET /schedule`, `POST /rule-checks`, `POST/PATCH/DELETE /assignments`, `POST /schedule-periods/{id}/publish` |
-| My schedule | `GET /me/schedule`, `GET /me/offers`, `POST /offers/{id}/accept`, `POST /rule-checks` (the proposal send, `POST /proposals`, is not built) |
+| My schedule | `GET /me/schedule`, `GET /me/offers`, `POST /offers/{id}/accept`, `POST /rule-checks`, `POST /proposals/preview`, `POST /proposals`, `GET /me/proposals`, `POST /proposals/{id}/withdraw` (the API is built in v1.3 P1; the screen still only rule-checks and does not send until P3) |
 | Overtime board | `GET /open-shifts`, `GET /open-shifts/{id}/candidates`, `POST /open-shifts/{id}/offers`, `POST /open-shifts/{id}/assign` |
 | Rules | `GET /rule-sets…`, `PUT …/rows`, `POST …/build`, `…/submit`, `…/approve`, `…/publish` (Excel export/import: not built) |
 | Reports | `GET /reports/*`, `GET /pay-periods/{id}/payroll-export` |
