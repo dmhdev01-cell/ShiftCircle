@@ -171,7 +171,48 @@ class PlannerLeaveRosterApiTest {
             .flatMap(cell -> items(cell).stream())
             .filter(item -> "ABSENCE".equals(item.get("type")))
             .count();
-    assertThat(absenceItems).isGreaterThanOrEqualTo(8);
+    assertThat(absenceItems).as("7 VACATION + 1 SICK, nothing else").isEqualTo(8);
+
+    // Leave that straddles the range edge is clamped to it: OTHER on 15-19 Feb, read on 18-20 Feb.
+    for (LocalDate day = LocalDate.of(2027, 2, 15);
+        !day.isAfter(LocalDate.of(2027, 2, 19));
+        day = day.plusDays(1)) {
+      assertThat(planAbsence(awayId, day, "OTHER").statusCode()).isEqualTo(201);
+    }
+    HttpResponse<String> edges =
+        send(
+            "GET",
+            "/api/v1/planner/drafts/" + draft + "/schedule?unitId=" + unitId
+                + "&from=2027-02-18&to=2027-02-20",
+            null,
+            tokens.get("p.planner"));
+    assertThat(edges.statusCode()).as(edges.body()).isEqualTo(200);
+    Map<String, Object> edgeRow = row(officers(mapper.readValue(edges.body(), Map.class)), awayId);
+    assertThat(edgeRow).isNotNull();
+    Map<String, List<Object>> otherByDate = new LinkedHashMap<>();
+    for (Map<String, Object> cell : cells(edgeRow)) {
+      otherByDate.put(
+          (String) cell.get("date"),
+          items(cell).stream()
+              .filter(item -> "OTHER".equals(item.get("absenceType")))
+              .map(item -> (Object) item)
+              .toList());
+    }
+    assertThat(otherByDate.keySet()).containsExactly("2027-02-18", "2027-02-19", "2027-02-20");
+    assertThat(otherByDate.get("2027-02-18")).hasSize(1);
+    assertThat(otherByDate.get("2027-02-19")).hasSize(1);
+    assertThat(otherByDate.get("2027-02-20")).as("the day after the leave").isEmpty();
+
+    // The draft roster is PLANNER only: a supervisor gets 403.
+    assertThat(
+            send(
+                    "GET",
+                    "/api/v1/planner/drafts/" + draft + "/schedule?unitId=" + unitId
+                        + "&from=" + WEEK + "&to=" + WEEK.plusDays(6),
+                    null,
+                    tokens.get("m.ellis"))
+                .statusCode())
+        .isEqualTo(403);
   }
 
   @Test

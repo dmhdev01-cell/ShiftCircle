@@ -181,6 +181,6 @@ mkdir -p /private/tmp/sc-ui-shots
 docker run --rm --add-host=host.docker.internal:host-gateway \
   -v "$PWD/e2e":/work -v /private/tmp/sc-ui-shots:/private/tmp/sc-ui-shots -w /work \
   -e BASE_URL=http://host.docker.internal:8080 -e RUN_ID=my-run \
-  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
-# then: docker compose down -v && docker compose up -d --wait, and --project tablet
+  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop-datasets
+# then: docker compose down -v && docker compose up -d --wait, and --project tablet-datasets
 ```

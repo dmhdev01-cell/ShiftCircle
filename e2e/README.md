@@ -70,9 +70,22 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
 docker compose up -d --build --wait
 docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
   -e BASE_URL=http://host.docker.internal:8080 \
-  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
+  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop-datasets
 ```
 
-The real-api specs change the data (offer confirmed, rule version published, period locked), so run **one viewport per fresh stack**: after `--project desktop`, run `docker compose down -v && docker compose up -d --wait`, then `--project tablet`. Fresh-clone result at `f1d696d`: tablet on a fresh stack 12 passed, 1 skipped; both viewports on one stack failed 4 tablet tests on the changed data.
+The real-api specs change the data (offer confirmed, rule version published, period locked), so run **one viewport per fresh stack**: after `--project desktop-datasets`, run `docker compose down -v && docker compose up -d --wait`, then `--project tablet-datasets`. Fresh-clone result at `f1d696d`: tablet on a fresh stack 12 passed, 1 skipped; both viewports on one stack failed 4 tablet tests on the changed data.
 
 `E2E_WORKERS` sets parallelism (default 2; the shared machine made 7 workers flaky). The HTML report is in `playwright-report/`.
+
+### Specs that swap the dataset run one at a time, last
+
+Seven specs reset the one shared demo database to another dataset (120 or 150) and back to 100: `dataset120`, `planned-leave`, `planner-draft-edit`, `planner-preferences-committed`, `reset-datasets`, `reset` and `unit-closure` (the `DATASET_SPECS` list in `playwright.config.ts`). Under `fullyParallel`, two of them in flight corrupt each other's data, and a reset racing another spec's Generate answers 409. So each viewport has two projects:
+
+| Project | Runs | Workers |
+|---|---|---|
+| `desktop` / `tablet` | every other spec, in parallel | `E2E_WORKERS` |
+| `desktop-datasets` / `tablet-datasets` | the seven dataset specs, **after** the parallel project has finished (`dependencies`) | 1 |
+
+- **Whole suite for a viewport:** `--project desktop-datasets` (it runs `desktop` first, then the dataset specs one at a time). `--project desktop` alone skips the dataset specs.
+- **One dataset spec on its own:** add `--no-deps`, for example `npx playwright test tests/planned-leave.spec.ts --project desktop-datasets --no-deps`. Without it, Playwright runs the whole `desktop` project first, because CLI file filters do not apply to dependency projects.
+- **A new spec that resets the dataset** goes into `DATASET_SPECS`.

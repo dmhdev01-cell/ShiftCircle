@@ -16,7 +16,11 @@ export interface LeaveForm {
   to: string;
 }
 
-/** Every date from `from` to `to`, both included (YYYY-MM-DD, calendar days). */
+/**
+ * Every date from `from` to `to`, both included (YYYY-MM-DD, calendar days).
+ * Stops at MAX_LEAVE_DAYS + 1 on purpose: one past the cap is enough for
+ * leaveProblem to see "too long" without walking a mistyped year.
+ */
 export function leaveDates(from: string, to: string): string[] {
   const dates: string[] = [];
   for (let date = from; date <= to && dates.length <= MAX_LEAVE_DAYS; date = addDays(date, 1)) {

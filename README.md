@@ -158,7 +158,7 @@ docker run --rm -v "$PWD/e2e":/app -w /app node:24-alpine \
 #    (use the value you set as SC_GIT_COMMIT, or `git rev-parse --short HEAD`).
 docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
   -e BASE_URL=http://host.docker.internal:8080 -e EXPECT_COMMIT=<the commit you built> \
-  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
+  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop-datasets
 ```
 
 **The UI test: how to run the Playwright suite yourself.** Chromium only (the config refuses any other browser), against the compose stack. What the suite covers, screen by role by state, is in [`e2e/COVERAGE.md`](e2e/COVERAGE.md); these commands are from [`e2e/README.md`](e2e/README.md).
@@ -179,13 +179,13 @@ docker compose -p sc-test up -d --build --wait
 # unless ALLOW_PERSON_STACK=yes.
 docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
   -e BASE_URL=http://host.docker.internal:8080 -e EXPECT_COMMIT=<the commit you built> \
-  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
+  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop-datasets
 
 # tablet: the real-API specs change data, so a fresh stack per viewport
 docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait
 docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
   -e BASE_URL=http://host.docker.internal:8080 -e EXPECT_COMMIT=<the commit you built> \
-  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project tablet
+  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project tablet-datasets
 ```
 
 `host.docker.internal` reaches the host from a container on Docker Desktop; the `--add-host` line makes the same name work on Docker Engine (run on macOS; on Linux it is **UNVERIFIED**, and `--network host` with `BASE_URL=http://localhost:8080` is the alternative). `E2E_WORKERS` (default 2) sets parallelism; `tests/screenshots.spec.ts` writes full-page captures and `index.json` to `SHOTS_DIR` (default `/private/tmp/sc-ui-shots/<RUN_ID>`, outside the repository: mount it the same way when the browser runs in Docker); the HTML report is `playwright-report/`. The fixtures-mode web and the `@api` / `@fixtures` tags are in `e2e/README.md`.
@@ -198,7 +198,7 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
 
 The dataset checksums, the payroll golden and the plan fingerprints were exact. Earlier counts, release by release, are in [docs/process/release-notes.md](docs/process/release-notes.md); each round is in `docs/process/review-rounds.md`.
 
-**One viewport per fresh stack.** The real-API specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop`, then `docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait`, then `--project tablet`. The web unit tests write `web/node_modules` with Linux binaries.
+**One viewport per fresh stack; dataset specs last.** `--project desktop-datasets` runs the parallel `desktop` specs first, then the seven specs that swap the demo dataset one at a time (they would corrupt each other in parallel; `e2e/README.md`). The real-API specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop-datasets`, then `docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait`, then `--project tablet-datasets`. The web unit tests write `web/node_modules` with Linux binaries.
 
 **Fixtures and the shared test database:** each API test class gets its **own database** inside the shared PostgreSQL container (`PostgresTestSupport` creates one per class, and Flyway builds the schema), so class order cannot leak a generated roster, a published rule set or a linked employee into another class. Keep new fixtures off the demo day (19 Nov 2026) where the schedule and display tests assert exact Unit A coverage; dates after it are safer. When you change shared test infrastructure, also run reverse and random class order so a future regression is caught:
 

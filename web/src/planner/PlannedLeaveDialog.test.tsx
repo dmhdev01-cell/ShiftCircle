@@ -56,6 +56,8 @@ describe('planned leave words and checks', () => {
       '2027-03-02',
     ]);
     expect(leaveDates('2027-02-08', '2027-02-08')).toEqual(['2027-02-08']);
+    // One past the cap, so the length check can refuse it without walking a whole year.
+    expect(leaveDates('2027-01-04', '2027-12-31')).toHaveLength(MAX_LEAVE_DAYS + 1);
   });
 
   it('reads a range in house date words with its day count', () => {
@@ -172,5 +174,23 @@ describe('PlannedLeaveDialog', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('1 of 5 days were saved before it stopped.');
     expect(calls).toBe(2);
+  });
+
+  it('a 409 day then a server failure shows one stop line, not a contradictory partial list', async () => {
+    vi.spyOn(api, 'getPlannerPlan').mockResolvedValue(plan());
+    vi.spyOn(api, 'planAbsence').mockImplementation(async (input) => {
+      if (input.date === '2027-02-08') throw new ApiError('An absence of type SICK is already recorded for that date', 409);
+      throw new ApiError('The server could not be reached.', 0);
+    });
+    renderDialog();
+    await screen.findByText(/Plan quarter/);
+    fill('e1', '2027-02-08', '2027-02-12');
+    await userEvent.click(screen.getByRole('button', { name: 'Save leave' }));
+
+    const alerts = await screen.findAllByRole('alert');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toHaveTextContent('0 of 5 days were saved before it stopped.');
+    expect(screen.queryByText(/Saved 0 of 1 days/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Officer')).toBeDisabled();
   });
 });

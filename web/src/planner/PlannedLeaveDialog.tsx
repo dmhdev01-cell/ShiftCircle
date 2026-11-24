@@ -79,7 +79,9 @@ export function PlannedLeaveDialog({ officers, onClose, onSaved }: PlannedLeaveD
   const officer = sorted.find((entry) => entry.employeeId === employeeId);
   const problem = leaveProblem({ employeeId, from, to }, quarter);
   const busy = progress !== null;
-  const finished = outcome !== null && outcome.notSaved.length > 0;
+  // The amber partial list is only for a run that reached the end; a fatal stop has its own line.
+  const finished = outcome !== null && outcome.notSaved.length > 0 && failure === null;
+  const locked = busy || outcome !== null;
 
   const save = async () => {
     setTried(true);
@@ -138,7 +140,7 @@ export function PlannedLeaveDialog({ officers, onClose, onSaved }: PlannedLeaveD
           label="Officer"
           size="small"
           value={employeeId}
-          disabled={busy || finished}
+          disabled={locked}
           onChange={(event) => setEmployeeId(event.target.value)}
           slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
         >
@@ -156,7 +158,7 @@ export function PlannedLeaveDialog({ officers, onClose, onSaved }: PlannedLeaveD
             label="First day"
             size="small"
             value={from}
-            disabled={busy || finished}
+            disabled={locked}
             onChange={(event) => {
               setFrom(event.target.value);
               if (!to || to < event.target.value) setTo(event.target.value);
@@ -172,7 +174,7 @@ export function PlannedLeaveDialog({ officers, onClose, onSaved }: PlannedLeaveD
             label="Last day"
             size="small"
             value={to}
-            disabled={busy || finished}
+            disabled={locked}
             onChange={(event) => setTo(event.target.value)}
             slotProps={{
               inputLabel: { shrink: true },
@@ -188,7 +190,7 @@ export function PlannedLeaveDialog({ officers, onClose, onSaved }: PlannedLeaveD
           </Typography>
         ) : null}
 
-        <FormControl disabled={busy || finished}>
+        <FormControl disabled={locked}>
           <FormLabel id="planned-leave-type" sx={{ fontSize: 14, fontWeight: 600, color: colour.text.primary }}>
             Type
           </FormLabel>

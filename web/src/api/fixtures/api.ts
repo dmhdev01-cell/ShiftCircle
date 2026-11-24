@@ -606,6 +606,7 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
 
     async resetDemo(_confirm: string, dataset: string) {
       await pause();
+      plannedAbsences.clear();
       resetStatus = {
         state: 'DONE',
         step: 'done',
