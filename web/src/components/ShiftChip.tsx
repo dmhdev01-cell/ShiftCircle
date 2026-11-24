@@ -119,10 +119,10 @@ export function ShiftChip({
   );
 }
 
-/** An absence: sick or vacation. */
+/** An absence: sick, vacation or other (FR-51). */
 export function AbsenceChip({ absenceType }: { absenceType: string }) {
   const style = absenceChipStyles[absenceType] ?? absenceChipStyles.SICK;
-  const label = absenceType === 'VACATION' ? 'Vac' : 'Sick';
+  const label = absenceType === 'VACATION' ? 'Vac' : absenceType === 'OTHER' ? 'Other' : 'Sick';
 
   return (
     <Box component="span" title={label} sx={chipBox(style, false)}>

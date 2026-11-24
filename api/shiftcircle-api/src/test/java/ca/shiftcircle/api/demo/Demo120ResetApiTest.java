@@ -68,6 +68,7 @@ class Demo120ResetApiTest {
 
   @Test
   void resetsToTheCrewDatasetTwiceThenBackTo100() throws Exception {
+    assertThat(activeDataset()).as("a fresh boot seeds Dataset 100 (S6 banner)").isEqualTo("100");
     String checksum120 = null;
     List<String> names120 = null;
     for (int round = 0; round < 2; round++) {
@@ -91,6 +92,7 @@ class Demo120ResetApiTest {
               + done.get("checksum"));
       assertThat(done.get("state")).isEqualTo("DONE");
       assertThat(done.get("dataset")).isEqualTo("120");
+      assertThat(activeDataset()).as("the version endpoint names the live dataset").isEqualTo("120");
       assertThat(((Number) done.get("elapsedMs")).longValue())
           .as("a generous reset bound")
           .isLessThanOrEqualTo(30_000L);
@@ -403,6 +405,13 @@ class Demo120ResetApiTest {
         mapper.readValue(send("GET", "/api/v1/version", null, null).body(), Map.class);
     assertThat(((List<?>) version.get("datasets")).stream().map(String::valueOf).toList())
         .containsExactly("100", "120", "150");
+    assertThat(version.get("activeDataset")).as("back on Dataset 100").isEqualTo("100");
+  }
+
+  private Object activeDataset() throws Exception {
+    return mapper
+        .readValue(send("GET", "/api/v1/version", null, null).body(), Map.class)
+        .get("activeDataset");
   }
 
   @Test

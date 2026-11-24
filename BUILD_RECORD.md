@@ -53,7 +53,7 @@ A change is previewed, saved, refused with plain reasons, then acknowledged or e
 - **Honest limits:**
   - **Guardrail 4 exception: no human reviewed the rule boundary tests.** The lead waived it on 2026-11-20; AI verifiers reviewed them (R4 to R7).
   - **Locked periods:** time entries are guarded by api and trigger, shifts only by the api (R38). A legal but wrong rule value is caught only by maker/checker and the dry run (R40).
-  - **Tokens:** 8 h, no revocation (ADR-025); mock issuer. **Not built:** Excel round-trip, offer withdrawal, payroll-clerk role, OpenAPI (docs/10).
+  - **Tokens:** 8 h, no revocation; memory-only on prod-like, sessionStorage on the demo (ADR-025); mock issuer. **Not built:** Excel round-trip, offer withdrawal, payroll-clerk role, OpenAPI (docs/10).
   - **Planner:** qualifications warn-only; no planned leave in the planner's 2027 window by default (the 100 seed's absences fall in 2026); a late actual is not re-checked.
 
 ## 6. Next steps (pilot)

@@ -195,6 +195,7 @@ export function RecordActualPanel({
           >
             <option value="SICK">Sick</option>
             <option value="VACATION">Vacation</option>
+            <option value="OTHER">Other</option>
           </Box>
         </Box>
       ) : null}

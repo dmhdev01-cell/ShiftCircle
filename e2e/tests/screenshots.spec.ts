@@ -16,7 +16,7 @@ import { navTo, selectUnit, signIn } from './support';
  * assert behaviour. A capture that cannot be made fails its test.
  */
 
-/** Move inside the running app: a reload would drop the in-memory token. */
+/** Move inside the running app: a reload would need a saved session. */
 async function goInApp(page: Page, path: string): Promise<void> {
   await page.evaluate((target) => {
     window.history.pushState({}, '', target);

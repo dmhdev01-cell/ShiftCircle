@@ -15,6 +15,11 @@ export type VersionState =
 let cache: VersionInfo | null = null;
 let inFlight: Promise<VersionInfo> | null = null;
 
+/** Start (or join) the shared /version request; the start-up gate uses it too. */
+export function loadVersion(): Promise<VersionInfo> {
+  return load();
+}
+
 function load(): Promise<VersionInfo> {
   if (!inFlight) {
     inFlight = fetchVersion()
