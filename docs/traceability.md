@@ -1,15 +1,16 @@
 # ShiftCircle — requirement-to-proof traceability
 
-**Current status (23 Nov 2026, `main` at `a38e452`).** Every test class and method named in this
-file was re-checked against the sources on that date (all of them exist). Counts today: API
-**468 = 127 rules + 28 infrastructure + 313 api** (a source count; the last verified green run was 464
-at release 8), web unit tests **368** (run), Playwright **114** real-api tests per viewport (listed).
-The sources for each number, and the history behind them, are in `docs/10-testing.md` ("Current
-counts"). Rows added since the first derivation cover the not-built states (FR-30/31, M1, M3), the
-Reports pickers (S1), the dataset notice and Other absence (S6, S8), the demo session (S11) and CI.
-Two requirements stay **PARTIAL**: **FR-06** (publishing is recorded and shown on the board, but My
-schedule is not filtered by period status) and **FR-07** (a real changed-since-publish count, no
-notice rule). The older paragraphs below keep the counts of their day.
+**Current status (24 Nov 2026, `main` at `5a3be22`).** Every test class and method named in this
+file was checked against the sources (all exist; the rows added for release 11 name test files and
+e2e specs). Counts today, all run: API **470 = 127 rules + 28 infrastructure + 315 api** (`mvn verify`, green),
+web unit tests **463** in 51 files, Playwright against the real API `desktop-datasets` **124 passed** and
+`tablet-datasets` **123 passed + 1 skipped**, fixtures **23 passed**. The sources for each number are in
+`docs/10-testing.md` ("Current counts"). Rows added since the first derivation cover the not-built
+states (FR-30/31, M1, M3), the Reports pickers (S1), the dataset notice and Other absence (S6, S8), the
+demo session (S11), CI, and release 11: the board views, filters and export, the gap panel, the readable
+quarter plan, planned leave and the menu fixes. Two requirements stay **PARTIAL**: **FR-06** (publishing is
+recorded and shown on the board, but My schedule is not filtered by period status) and **FR-07** (a real
+changed-since-publish count, no notice rule). The older paragraphs below keep the counts of their day.
 
 **First derived from the test sources, not from the prose.** Checked on 2026-11-21 against `main` at
 `5d0f810` by grepping `@Test`, Playwright `test(...)` titles and the Flyway migrations. The
@@ -307,6 +308,12 @@ no assertion was weakened.
 | A 23P01 pay-period overlap is not reported as an officer shift conflict | `ApiProblemAdviceTest#aPayPeriodOverlapIsNotReportedAsAnOfficerShiftConflict` (`.../pay-period-overlap`, no SQL/constraint text, no "already has a shift") | PASS |
 | Planned absences are a read-only skip and the plan is reproducible | `PlannerAbsenceApiTest#aPlannedAbsenceSkipsTheOfficerAndTheSameInputsProduceTheSamePlan` (no shift for the absent officer; relief/gap covers; scorecard absences line; same inputs same fingerprint; no absences = baseline), `#absenceEntryIsPlannerOnlyAndValidated` (401/403/400) | PASS |
 | Planned leave shows on the draft roster; the live board is unchanged (PR-D, fit-gap B1-lite) | `PlannerLeaveRosterApiTest#plannedLeaveShowsOnTheDraftRosterAsAbsenceItems` (a week of VACATION: leave-only row "On leave", 7 `ABSENCE`/`VACATION` items, no shift; SICK after generate: `SHIFT` then `ABSENCE`/`SICK` in the cell; another unit's leave not shown), `#theLiveBoardScheduleStillCarriesNoAbsenceItems` (`/schedule` has no `ABSENCE`); web `PlannedLeaveDialog.test.tsx` (one POST per day, validation, 409 listed, stop on failure), `contract.test.ts`; e2e `planned-leave.spec.ts` (Dataset 150, axe) | PASS |
+| The planning board shows a week, a 14-day pay period or a month, in a comfortable or compact density, with the view and density in the address (board views, fit-gap items A1, A4, A5 in the sprint plan; not the token names in `docs/ui/README.md`) | `rosterView.test.ts` (view and density from the address, 14-day pay periods, range per view, stepping, per-officer and per-day totals, the day and night 12 h crews); `PlanningPage.test.tsx`; `RosterGrid.test.tsx`; `CoverageCell.test.tsx`; e2e `board-views.spec.ts` (week default, pay period 9 – 22 Nov, month, axe, no sideways page scroll at 1440 and 390; a pay period says "Spans two roster weeks" and offers no publish) | PASS |
+| The board finds, filters, sorts and exports officers (A3) | `filterRoster.test.ts` (name, overtime, rotation, works, qualification together; sorts; the address; no Casual option unless the rows name one); `exportRoster.test.ts` (CSV for Excel with BOM, CRLF, quoting and the formula guard; TSV for the clipboard; file name); e2e `board-filters.spec.ts` (the filter line "Showing n of m officers", whole-unit counts kept, CSV download, copy, print media with the full disclaimer, 390 px) | PASS |
+| A short coverage cell opens the free officers, ranked by pay-period hours, and Check & assign runs the normal rule check (A2) | `gapFill.test.ts` (only free officers, lowest hours first, rest as a fact, run of work days, overtime wording, only today or later); `PlanningPage.test.tsx`; e2e `gap-fill.spec.ts` (Unit B Sat 21 Nov days: Nia Thompson is listed with a rest hint and then Blocked by U-01 and U-14, nothing saved; a phone) | PASS |
+| The quarter plan reads as a plan: part-time capacity line, grouped gaps under a weeks-by-units strip, a week picker with gap counts, the all-units table collapsed, a warning marker on each flagged shift (A6 to A8, fit-gap i-6) | `quarterPlan.test.ts` (14 weeks, runs across a month end, the plain reason, part-time bands planned against target, never negative); `PlannerRosterTab.test.tsx`; `PlannerPage.test.tsx`; e2e `quarterPlanChecks.ts` run from `dataset120.spec.ts` (the line recomputed from the API's own FTE bands, the strip, 14 week options, the ⚠ tooltip by hover and keyboard) | PASS |
+| The planner enters planned leave in a dialog; the draft roster shows it and the audit log records each day (A9, PR-D) | `PlannedLeaveDialog.test.tsx` (one absence per day in order, validation before any call, a day already recorded as another type listed, a server failure stops and says how many were saved); `PlannerLeaveRosterApiTest`; e2e `planned-leave.spec.ts` (Dataset 150: seeded Vac and Sick chips; three Sick days entered, three `record_absence` audit events, axe on the dialog) | PASS |
+| The menu follows the API: Reports only for supervisors and auditors, Employee view only with a linked officer (PR #14) | `roles.test.ts` ("hides Reports from the planner, whom the api answers 403", "hides Employee view from a user with no linked officer"); `nav.test.tsx`; e2e `session-and-nav.spec.ts` (the supervisors' menu has no Employee view; no browser test opens the planner's menu). The API side (a planner is `403` on the reports) is enforced by `@PreAuthorize` and not covered by an automated test | PASS (UI); API planner cells **not covered** |
 | Repeating a planned absence is idempotent; a conflicting type is refused | `PlannerAbsenceApiTest#duplicateAbsenceIsIdempotentAndAConflictingTypeIsRefused` (first 201, second 200 same id, one row; VACATION same date 409 "already recorded") | PASS |
 | The 120 officers have real synthetic names, unique and stable; the 120 checksum includes them | `Demo120ResetApiTest#resetsToTheCrewDatasetTwiceThenBackTo100` (no `FirstN/LastN`, 120 distinct names, same names across two resets, provider checksum `82b19c...32ca`; the 100 checksum/golden unchanged) | PASS |
 | U-14 is labelled by its warning level, not the Block | `PlannerApiTest#generatesAScorecardForTheQuarter` (U-14 group "Week over 48 hours", never "Week over 60 hours") | PASS |

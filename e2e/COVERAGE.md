@@ -1,25 +1,28 @@
 # UI test coverage (Playwright, Chromium only)
 
 What the end-to-end suite covers, screen by role by state, and what it cannot.
-Written for the UI test plan, phase B (2026-11-20) and kept current since (23 Nov 2026: 38 spec files, 114 tests on the real api per viewport). Every row names the spec
+Written for the UI test plan, phase B (2026-11-20) and kept current since (24 Nov 2026: 42 spec files in the real-api run (43 in the folder; `keyboard.spec.ts` is fixtures-only); 110 parallel tests and 14 stack-wide tests (in 12 files) per viewport). Every row names the spec
 that proves it. **Real api** means the compose stack; **fixtures** means the
 fixtures-mode web (tag `@fixtures`). Run against the real api with
 `--grep-invert @fixtures`, **one viewport per fresh stack** (the specs change
 data). Browsers: **Chromium only** (`playwright.config.ts` refuses any other).
 
-## Results at `ac7e1cd` (this author's runs, fresh stack per viewport)
+## Results at `5a3be22` (24 Nov 2026, fresh stack per viewport, real api)
 
-| Viewport | Passed | Skipped | Failed | Of which known-defect tests (`test.fail`, pass while the defect is there) |
+| Project | Passed | Skipped | Failed | What it runs |
 |---|---|---|---|---|
-| desktop 1440×900 | 83 | 0 | 0 | 8: D1, D2, D3, D4, D5, D6, D8, D9 |
-| tablet 768×1024 | 82 | 1 (TV-fit, desktop only) | 0 | 10: the 8 above + D10 on Overtime and Reports > Hours |
+| `desktop-datasets` (1440×900) | 124 | 0 | 0 | the whole desktop suite: 110 parallel tests, then 14 stack-wide specs one at a time |
+| `tablet-datasets` (768×1024) | 123 | 1 (TV-fit, desktop only) | 0 | the same at the tablet viewport |
+| fixtures-mode web, `--grep-invert @api` | 23 | 79 (they need the real api) | 0 | the fixtures-only subset |
+
+No spec carries a known-defect (`test.fail`) marker any more.
 
 A known-defect test asserts the **correct** behaviour and is marked
 `test.fail(...)` with the defect's reason. Playwright counts it as passed while
 the defect exists and reports "expected to fail, but passed" as soon as the
 defect is fixed, so the marker must then be removed. No assertion was weakened.
 
-Screenshots: 80 full-page captures (40 per viewport) with `index.json`, written
+Screenshots: `screenshots.spec.ts` wrote 80 full-page captures (40 per viewport) in phase B; the board and quarter-plan specs have added captures since to the same `index.json`, written
 to `SHOTS_DIR` (default `/private/tmp/sc-ui-shots/<RUN_ID>`, outside the repo).
 
 ## Defects found by these specs
@@ -177,8 +180,15 @@ fixtures-only · **—** not coverable, with the reason.
 | Not-built states say so: Propose shifts sends nothing (M1); Find eligible officer on a slot with no open shift (M3) | employee, supervisor | not-built-states | N |
 | Demo session: a refresh keeps the person signed in on the same screen; sign-out and a `401` clear it (S11) | supervisor | session-and-nav | N |
 | Reports date range and unit picker (S1) | supervisor, auditor | reports | N |
+| Quarter plan readability on Dataset 120: the unused part-time capacity line, gaps grouped under a weeks-by-units strip, the week picker with gap counts, the all-units table collapsed, the ⚠ on a warned shift (tooltip by hover and keyboard), axe | planner | dataset120 (calls `quarterPlanChecks.ts`) | N |
+| Planned leave (PR-D) on Dataset 150: seeded Vac and Sick chips on the draft roster, the scorecard's relief line, the Add planned leave dialog (validation, axe), three Sick days on the roster and three `record_absence` audit events; resets back to 100 | planner, auditor | planned-leave | N |
+| A supervisor with no linked officer has no Employee view (PR #14); the planner's menu without Reports is asserted by the web unit tests (`roles.test.ts`) only, not in the browser | supervisor | session-and-nav | N |
 
 **Not covered by Playwright:** the planner is refused every report by the API (`403`), and since PR #14 the menu has no Reports item for the planner; no spec asserts the absence of the item.
+
+## Projects: parallel, then the stack-wide specs one at a time
+
+`playwright.config.ts` defines four projects. `desktop` and `tablet` run every spec that leaves the shared data as it found it, in parallel (`E2E_WORKERS`). `desktop-datasets` and `tablet-datasets` run, **after** the matching parallel project and with one worker, the specs that change what the whole stack shares: they reset the demo database to Dataset 120 or 150 and back to 100, generate, commit or discard the one quarter plan, or lock the demo pay period. `--project desktop-datasets` is therefore the whole suite for a viewport; `--project desktop` alone skips the stack-wide specs (`e2e/README.md`, "Stack-wide specs run one at a time, last").
 
 ## Not coverable here, and why
 
