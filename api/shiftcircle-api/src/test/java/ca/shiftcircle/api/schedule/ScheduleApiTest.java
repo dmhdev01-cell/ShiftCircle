@@ -405,6 +405,55 @@ class ScheduleApiTest {
     assertThat(((Map<?, ?>) items.get(0)).get("shiftTemplate")).isEqualTo("D8");
   }
 
+  /**
+   * PR-O: the board says what the shift dialog needs to know before a move or cancel: the business
+   * clock's "now" (noon on the demo day, 18:00Z) and the refusals the api would give, per shift.
+   */
+  @Test
+  void theBoardSendsTheBusinessNowAndTheMoveAndCancelRefusalsPerShift() throws Exception {
+    UUID shift = UUID.fromString("55555555-5555-5555-5555-000000000001");
+    Map<?, ?> before = firstShift();
+    assertThat(before.get("actualRecorded")).isEqualTo(false);
+    assertThat(before.get("absenceRecorded")).isEqualTo(false);
+    assertThat(before.get("fillsOpenShift")).isEqualTo(false);
+
+    UUID absence = UUID.randomUUID();
+    UUID open = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO absence (id, employee_id, shift_assignment_id, type, start_at, end_at)"
+            + " VALUES (?, ?, ?, 'SICK', TIMESTAMPTZ '2026-11-18 07:00:00-06',"
+            + " TIMESTAMPTZ '2026-11-18 15:00:00-06')",
+        absence,
+        EMPLOYEE,
+        shift);
+    jdbc.update(
+        "INSERT INTO open_shift (id, unit_id, shift_template_id, start_at, end_at, reason, status,"
+            + " filled_assignment_id) SELECT ?, ?, t.id, TIMESTAMPTZ '2026-11-18 07:00:00-06',"
+            + " TIMESTAMPTZ '2026-11-18 15:00:00-06', 'OTHER', 'FILLED', ? FROM shift_template t"
+            + " WHERE t.code = 'D8'",
+        open,
+        UNIT,
+        shift);
+    try {
+      Map<?, ?> after = firstShift();
+      assertThat(after.get("absenceRecorded")).isEqualTo(true);
+      assertThat(after.get("fillsOpenShift")).isEqualTo(true);
+    } finally {
+      jdbc.update("DELETE FROM open_shift WHERE id = ?", open);
+      jdbc.update("DELETE FROM absence WHERE id = ?", absence);
+    }
+  }
+
+  private Map<?, ?> firstShift() throws Exception {
+    HttpResponse<String> response = get(schedulePath(), login("m.ellis"));
+    assertThat(response.statusCode()).isEqualTo(200);
+    Map<?, ?> body = mapper.readValue(response.body(), Map.class);
+    assertThat(body.get("now")).isEqualTo("2026-11-19T18:00:00Z");
+    var officer = (Map<?, ?>) ((java.util.List<?>) body.get("officers")).get(0);
+    var cell = (Map<?, ?>) ((java.util.List<?>) officer.get("cells")).get(0);
+    return (Map<?, ?>) ((java.util.List<?>) cell.get("items")).get(0);
+  }
+
   @Test
   void aSupervisorCannotReadAnotherUnitsSchedule() throws Exception {
     assertThat(get(schedulePath(), login("j.chen")).statusCode()).isEqualTo(404);

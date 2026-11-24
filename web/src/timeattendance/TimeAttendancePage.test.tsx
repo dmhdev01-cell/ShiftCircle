@@ -11,11 +11,11 @@ import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 import { workedOf } from './workedHours';
 
-function renderScreen() {
+function renderScreen(path = '/time') {
   return render(
     <ThemeProvider theme={theme}>
       <RoleProvider>
-        <MemoryRouter initialEntries={['/time']}>
+        <MemoryRouter initialEntries={[path]}>
           <AppShellRoutes />
         </MemoryRouter>
       </RoleProvider>
@@ -74,6 +74,31 @@ describe('Time and attendance', () => {
     );
 
     expect(await screen.findByRole('heading', { name: /Record actual/ })).toBeInTheDocument();
+  });
+
+  it('opens on the shift the planning board links to: its period, its unit and its panel', async () => {
+    // PR-O: a started shift on the board links here. The shift is in the
+    // older period, not the one that holds the demo day.
+    const entries = await api.getTimeEntries('period-2026-10-26');
+    const linked = entries.find((entry) => entry.date === '2026-11-02')!;
+    expect(linked).toBeTruthy();
+    renderScreen(
+      `/time?date=${linked.date}&unit=${linked.unitId}&shift=${linked.assignmentId}`,
+    );
+
+    expect(await screen.findByRole('heading', { name: /Record actual/ })).toBeInTheDocument();
+    expect(screen.getByLabelText('Pay period')).toHaveValue('period-2026-10-26');
+    expect(screen.getByLabelText('Unit')).toHaveValue(linked.unitId);
+    expect(screen.getAllByText(linked.employeeName).length).toBeGreaterThan(0);
+  });
+
+  it('says so when the linked shift is not in the period', async () => {
+    renderScreen('/time?date=2026-11-18&unit=unit-b&shift=no-such-shift');
+    expect(
+      await screen.findByText(
+        'The shift from the planning board is not in this pay period. Pick its period above.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('will not lock the period while a shift has no actual', async () => {

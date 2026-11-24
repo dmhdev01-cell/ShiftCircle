@@ -143,6 +143,15 @@ export interface ShiftItem {
   edited?: boolean;
   /** The row version for If-Match; the api sends it with every SHIFT item. */
   version: number;
+  /**
+   * Live board only (PR-O): any time entry, actual or absence, is recorded
+   * against the shift. The api refuses to cancel it then.
+   */
+  actualRecorded?: boolean;
+  /** Live board only: an absence is recorded against the shift (cancel refused). */
+  absenceRecorded?: boolean;
+  /** Live board only: the shift fills an open shift (move refused). */
+  fillsOpenShift?: boolean;
 }
 
 export interface AbsenceItem {
@@ -186,6 +195,12 @@ export interface SchedulePayload {
   days: string[];
   /** The server's "today" (`SC_DEMO_TODAY` on the demo profile). */
   asOf: string;
+  /**
+   * The business clock's instant (PR-O): noon on the demo day on the demo
+   * profile. A shift that starts at or before it has started, and the api
+   * refuses to move or cancel it. Not sent with the planner's draft.
+   */
+  now?: string;
   coverage: BlockCoverage[];
   officers: OfficerRow[];
   /** Rule warnings on the published week. */

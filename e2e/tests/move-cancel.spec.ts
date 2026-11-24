@@ -162,9 +162,10 @@ function escapeRegExp(value: string): string {
     await navTo(page, 'Planning board');
 
     const roster = page.getByRole('region', { name: 'Roster, scrolls sideways' });
-    // A rostered shift: not an extra, an offer or a proposal.
+    // A rostered shift after the demo day (Thu 19 Nov): a shift that has
+    // started offers no move (PR-O). Not an extra, an offer or a proposal.
     const chip = roster
-      .getByRole('button', { name: /^(D|E|N|A12|P12|L16) for .+ on [0-9]{4}-[0-9]{2}-[0-9]{2}$/ })
+      .getByRole('button', { name: /^(D|E|N|A12|P12|L16) for .+ on 2026-11-(2[0-9]|30)$/ })
       .first();
     const label = (await chip.getAttribute('aria-label')) ?? '';
     const parts = /^(.+) for (.+) on ([0-9]{4}-[0-9]{2}-[0-9]{2})$/.exec(label);
@@ -183,7 +184,7 @@ function escapeRegExp(value: string): string {
     for (let index = 0; index < (await offs.count()); index += 1) {
       const offLabel = (await offs.nth(index).getAttribute('aria-label')) ?? '';
       const when = /on ([0-9]{4}-[0-9]{2}-[0-9]{2})$/.exec(offLabel)?.[1] ?? '';
-      if (when && when !== date) {
+      if (when && when !== date && when > '2026-11-19') {
         target = when;
         break;
       }

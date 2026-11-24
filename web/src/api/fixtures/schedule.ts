@@ -383,6 +383,7 @@ export const demoSchedule: SchedulePayload = {
   to: WEEK[WEEK.length - 1],
   days: WEEK,
   asOf: DEMO_TODAY,
+  now: `${DEMO_TODAY}T18:00:00Z`,
   coverage: coverageRows,
   officers,
   warnings: 5,
