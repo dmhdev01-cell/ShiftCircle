@@ -66,14 +66,16 @@ export function staffedWords(run: GapRun): string {
   return `${range(run.gaps.map((gap) => gap.placed))} / ${range(run.gaps.map((gap) => gap.required))}`;
 }
 
-const BLOCK_PEOPLE: Record<string, string> = { DAY: 'day', EVENING: 'evening', NIGHT: 'night' };
-
-/** The api's one reason, said plainly; any other reason is shown as sent. */
+/**
+ * The api's one generic reason, said plainly; any other reason is shown as
+ * sent. The api gives every gap that same sentence and records no cause (no
+ * rule, no staffing figure), so the plain words claim nothing more than it.
+ */
 export function reasonWords(run: GapRun): string {
   const reason = run.gaps[0]?.reason ?? null;
   if (reason === null) return '—';
   if (reason.startsWith('No eligible officer left without a Block rule')) {
-    return `Not enough ${BLOCK_PEOPLE[run.block] ?? ''} officers in ${run.unitName} without breaking a rest or hours rule. A supervisor fills it on the planning board.`;
+    return 'No eligible officer was free without breaking a blocking rule. A supervisor fills it on the planning board.';
   }
   return reason;
 }

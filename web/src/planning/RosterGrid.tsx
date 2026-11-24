@@ -1,4 +1,5 @@
 import Box from '@mui/material/Box';
+import Tooltip from '@mui/material/Tooltip';
 import { Fragment } from 'react';
 import type { ReactNode } from 'react';
 
@@ -97,28 +98,35 @@ function CellChips({
   );
 }
 
-/** A rule warning beside a chip: a ⚠ with the message as its name and tooltip. */
+/**
+ * A rule warning beside a chip: a ⚠ named by its message. It takes focus, and
+ * its tooltip opens on focus as well as hover, so a keyboard user can read it.
+ */
 function ChipWarning({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <Box
-      component="span"
-      role="img"
-      aria-label={`Rule warning: ${message}`}
-      title={message}
-      sx={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        height: 30,
-        px: 0.5,
-        fontSize: 14,
-        lineHeight: 1,
-        color: colour.status.warn.text,
-        cursor: 'help',
-      }}
-    >
-      ⚠
-    </Box>
+    <Tooltip title={message} describeChild>
+      <Box
+        component="span"
+        role="img"
+        tabIndex={0}
+        aria-label={`Rule warning: ${message}`}
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          height: 30,
+          px: 0.5,
+          fontSize: 14,
+          lineHeight: 1,
+          color: colour.status.warn.text,
+          cursor: 'help',
+          borderRadius: '4px',
+          '&:focus-visible': { outline: `2px solid ${colour.brand.link}`, outlineOffset: 1 },
+        }}
+      >
+        ⚠
+      </Box>
+    </Tooltip>
   );
 }
 

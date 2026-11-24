@@ -205,7 +205,12 @@ export function plannerGaps(): PlannerGap[] {
       required: index % 2 === 0 ? 3 : 5,
       placed: index % 2 === 0 ? 2 : 4,
       reason:
-        index === 0 ? 'No officer with Control training had enough rest' : null,
+        index === 0
+          ? 'No officer with Control training had enough rest'
+          : index === 1
+            ? // The real api's one generic reason, as PlanGenerator writes it.
+              'No eligible officer left without a Block rule; a supervisor fills this'
+            : null,
     });
   }
   return rows;

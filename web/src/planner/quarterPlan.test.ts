@@ -59,7 +59,7 @@ describe('gap runs (A7)', () => {
   it('says the reason plainly, and keeps any other reason as the api sent it', () => {
     const [run] = gapRuns([gap('2027-01-13')]);
     expect(reasonWords(run)).toBe(
-      'Not enough evening officers in Escort & transport without breaking a rest or hours rule. A supervisor fills it on the planning board.',
+      'No eligible officer was free without breaking a blocking rule. A supervisor fills it on the planning board.',
     );
     expect(reasonWords(gapRuns([gap('2027-01-13', { reason: 'Unit closed' })])[0])).toBe('Unit closed');
     expect(reasonWords(gapRuns([gap('2027-01-13', { reason: null })])[0])).toBe('—');

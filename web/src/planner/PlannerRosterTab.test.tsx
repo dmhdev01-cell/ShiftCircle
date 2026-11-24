@@ -335,10 +335,10 @@ describe('the quarter plan navigation and draft warnings (A6, A8)', () => {
     const picker = await screen.findByLabelText('Go to week');
     const weeks = within(picker).getAllByRole('option').map((option) => option.textContent);
     expect(weeks).toHaveLength(14);
-    expect(weeks[0]).toBe('Week 1 · 4 – 10 Jan 2027 · 3 gaps');
-    expect(weeks[1]).toBe('Week 2 · 11 – 17 Jan 2027 · 1 gap');
-    expect(weeks[12]).toBe('Week 13 · 29 Mar – 4 Apr 2027 · no gaps');
-    expect(weeks[13]).toBe('Week 14 · 5 – 11 Apr 2027 · no gaps');
+    expect(weeks[0]).toBe('Week 1 · 4 – 10 Jan 2027 · 3 gaps in all units');
+    expect(weeks[1]).toBe('Week 2 · 11 – 17 Jan 2027 · 1 gap in all units');
+    expect(weeks[12]).toBe('Week 13 · 29 Mar – 4 Apr 2027 · no gaps in all units');
+    expect(weeks[13]).toBe('Week 14 · 5 – 11 Apr 2027 · no gaps in all units');
 
     await user.selectOptions(picker, '2027-03-08');
     expect(changes).toContainEqual({ week: '2027-03-08' });
@@ -397,7 +397,9 @@ describe('the quarter plan navigation and draft warnings (A6, A8)', () => {
     const marker = await screen.findByRole('img', {
       name: 'Rule warning: Week over 48 hours: 56 hours this week',
     });
-    expect(marker).toHaveAttribute('title', 'Week over 48 hours: 56 hours this week');
+    // The marker takes focus and its tooltip opens on focus, for keyboard users.
+    marker.focus();
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Week over 48 hours: 56 hours this week');
     expect(marker.closest('td')).toHaveAttribute('data-date', cell.date);
     expect(marker.closest('td')).toHaveAttribute('data-officer-id', officer.employeeId);
     expect(screen.getAllByRole('img', { name: /^Rule warning/ })).toHaveLength(1);

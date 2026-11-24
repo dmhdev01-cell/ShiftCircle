@@ -50,7 +50,9 @@ export async function checkQuarterPlanReadability(
   const plan = await api.get<{ draft: Draft | null; committedDraft?: Draft | null }>('/planner/plan');
   const draft = (plan.draft ?? plan.committedDraft)!;
 
-  // The part-time line, from the scorecard's own FTE bands.
+  // The part-time line, from the scorecard's own FTE bands. This recomputes
+  // the page's own sum, so it cross-checks the UI against the api's bands; the
+  // formula itself is pinned with fixed numbers in quarterPlan.test.ts.
   const partTime = (draft.scorecard.fteBands?.bands ?? []).filter((band) => band.band !== 'FULL_TIME');
   const planned = Math.round(partTime.reduce((sum, band) => sum + band.officers * band.plannedAvg, 0));
   const target = Math.round(partTime.reduce((sum, band) => sum + band.officers * band.targetHours, 0));
@@ -72,7 +74,9 @@ export async function checkQuarterPlanReadability(
   const runs = page.getByRole('table', { name: 'Gaps grouped into runs' });
   await expect(runs.getByRole('button', { name: /^Show week of / }).first()).toBeVisible();
   await expect(page.getByText(new RegExp(`^${gapCount} short block-days in \\d+ runs?`))).toBeVisible();
-  await expect(runs.getByText(/^Not enough .+ without breaking a rest or hours rule\./).first()).toBeVisible();
+  await expect(
+    runs.getByText('No eligible officer was free without breaking a blocking rule. A supervisor fills it on the planning board.').first(),
+  ).toBeVisible();
   await expectAccessible(page, testInfo, 'planner-gaps-runs', '[role="tabpanel"]');
   await shot(page, testInfo, 'planner', 'quarter-plan', 'gaps-runs-strip');
 
@@ -83,7 +87,7 @@ export async function checkQuarterPlanReadability(
   // Roster: the week picker, "this week" counts, the all-units table closed.
   const weeks = page.getByLabel('Go to week');
   await expect(weeks.getByRole('option')).toHaveCount(14);
-  await expect(weeks.getByRole('option').first()).toHaveText(/^Week 1 · 4 – 10 Jan 2027 · (no gaps|\d+ gaps?)$/);
+  await expect(weeks.getByRole('option').first()).toHaveText(/^Week 1 · 4 – 10 Jan 2027 · (no gaps|\d+ gaps?) in all units$/);
   const unitOptions = await page.getByLabel('Unit', { exact: true }).getByRole('option').allTextContents();
   expect(unitOptions.every((text) => / · (no gaps|\d+ gaps?) this week(, \d+ in the quarter)?$/.test(text))).toBe(true);
   const allUnits = page.getByRole('region', { name: /^All units · / });
@@ -102,7 +106,8 @@ export async function checkQuarterPlanReadability(
   await weeks.selectOption(mondayOf(item.date));
   const marker = page.getByRole('img', { name: `Rule warning: ${group.ruleName}: ${item.message}` }).first();
   await expect(marker).toBeVisible({ timeout: 15_000 });
-  await expect(marker).toHaveAttribute('title', new RegExp(item.message.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  await marker.focus();
+  await expect(page.getByRole('tooltip')).toContainText(item.message);
   await expect(page.locator(`td[data-date="${item.date}"]`).getByRole('img', { name: /^Rule warning/ }).first()).toBeVisible();
   await expectAccessible(page, testInfo, 'planner-roster-quarter', '[role="tabpanel"]');
   await marker.scrollIntoViewIfNeeded();

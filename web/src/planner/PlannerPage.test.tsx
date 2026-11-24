@@ -263,9 +263,23 @@ describe('the quarter plan', () => {
     // 14 week columns plus the unit column.
     expect(within(strip).getAllByRole('columnheader')).toHaveLength(15);
     const runs = within(panel).getByRole('table', { name: 'Gaps grouped into runs' });
-    // The plain reason replaces the api's rule wording; another reason stays.
+    // The api's generic reason goes through the plain-words mapping, which
+    // claims no cause the api did not give; any other reason is shown as sent.
+    expect(
+      within(runs).getByText(
+        'No eligible officer was free without breaking a blocking rule. A supervisor fills it on the planning board.',
+      ),
+    ).toBeInTheDocument();
+    expect(within(runs).queryByText(/No eligible officer left without a Block rule/)).toBeNull();
     expect(within(runs).getByText('No officer with Control training had enough rest')).toBeInTheDocument();
+    expect(within(runs).getAllByText('—').length).toBeGreaterThan(0);
     expect(within(panel).getByText(/short block-days? in \d+ runs?/)).toBeInTheDocument();
+
+    // The strip follows the Unit filter, like the runs.
+    await user.selectOptions(within(panel).getByLabelText('Filter by unit'), 'Control');
+    expect(within(strip).queryByRole('button', { name: /^Unit A · Living unit/ })).toBeNull();
+    expect(within(strip).getAllByRole('button', { name: /^Control, week of/ }).length).toBeGreaterThan(0);
+    await user.selectOptions(within(panel).getByLabelText('Filter by unit'), '');
 
     await user.click(within(strip).getByRole('button', { name: /^Unit A · Living unit, week of 4 Jan: 1 gap/ }));
     expect(screen.getByTestId('search').textContent).toContain('tab=roster');
@@ -283,6 +297,9 @@ describe('the quarter plan', () => {
     const line = await screen.findByRole('note', { name: 'Unused part-time capacity' });
     expect(line).toHaveTextContent('Unused part-time capacity: 328 h.');
     expect(line).toHaveTextContent(/planned 6,840 h of their 7,168 h target/);
+    // The line states the planner's method, not a cause it cannot measure.
+    expect(line).toHaveTextContent(/planned only into shifts still open in their home unit, up to their FTE target\./);
+    expect(line).not.toHaveTextContent(/not offered/);
   });
 
   it('generates without a facility pattern: each officer keeps their own', async () => {

@@ -63,7 +63,6 @@ function runDays(from: string, to: string): string {
   return `${start}${sameMonth ? '' : ` ${format(from, { month: 'short' })}`} – ${shortDay(to)}`;
 }
 
-
 const TILE_HELP: Record<string, string> = {
   Staffing:
     'Needed is the number of officers each unit must employ to fill its posts every day and still cover leave. It is worked out from each unit\'s minimum staffing, its shift pattern and the leave allowance, shown in the table below. On staff counts active officers homed in the unit. A unit\'s shortfall is needed minus on staff, never below zero. A closed unit needs no one while it\'s closed.',
@@ -814,7 +813,8 @@ export function PlannerPage() {
                     Part-time officers are planned {hours(partTime.planned)} of their {hours(partTime.target)} target
                     this quarter, while {scorecard.coverage.shortBlockDays.toLocaleString('en-CA')} block-day
                     {scorecard.coverage.shortBlockDays === 1 ? ' stays' : 's stay'} short. Part-time hours are not
-                    guaranteed: they fill what is left in their home unit, so this capacity is not offered to the gaps.
+                    guaranteed: each part-time officer is planned only into shifts still open in their home unit, up to
+                    their FTE target.
                   </Box>
                 );
               })()}
@@ -1146,8 +1146,13 @@ export function PlannerPage() {
                     <GapStrip
                       weeks={quarterWeeks(plan.window.from, plan.window.to)}
                       units={units}
-                      gaps={gaps}
-                      onPick={(unitId, week) => navigate(`/planner?tab=roster&unit=${unitId}&week=${week}`)}
+                      // The strip follows the Unit and Block filters, like the runs below.
+                      gaps={gaps
+                        .filter((gap) => (gapUnit ? gap.unitName === gapUnit : true))
+                        .filter((gap) => (gapBlock ? gap.block === gapBlock : true))}
+                      onPick={(unitId, week) =>
+                        navigate(`/planner?tab=roster&unit=${encodeURIComponent(unitId)}&week=${encodeURIComponent(week)}`)
+                      }
                     />
                   ) : null}
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
@@ -1242,7 +1247,7 @@ export function PlannerPage() {
                                       variant="outlined"
                                       color="primary"
                                       aria-label={`Show week of ${run.from} for ${run.unitName}`}
-                                      onClick={() => navigate(`/planner?tab=roster&unit=${run.unitId}&week=${run.from}`)}
+                                      onClick={() => navigate(`/planner?tab=roster&unit=${encodeURIComponent(run.unitId)}&week=${encodeURIComponent(run.from)}`)}
                                       sx={{ whiteSpace: 'nowrap' }}
                                     >
                                       Show week

@@ -63,7 +63,6 @@ function countWords(count: number): string {
   return count === 0 ? 'no gaps' : `${count} gap${count === 1 ? '' : 's'}`;
 }
 
-
 interface PlannerRosterTabProps {
   draftId: string;
   window: { from: string; to: string };
@@ -296,7 +295,7 @@ export function PlannerRosterTab({
               {weeks.map((entry, index) => (
                 <option key={entry.monday} value={entry.monday}>
                   Week {index + 1} · {rangeWords(entry.monday, addDays(entry.monday, 6))} ·{' '}
-                  {countWords(entry.gaps)}
+                  {countWords(entry.gaps)} in all units
                 </option>
               ))}
             </Box>
@@ -337,7 +336,7 @@ export function PlannerRosterTab({
               variant="text"
               color="primary"
               aria-expanded={allUnitsOpen}
-              aria-controls="planner-all-units"
+              aria-controls={allUnitsOpen ? 'planner-all-units' : undefined}
               onClick={() => setAllUnitsOpen((open) => !open)}
               sx={{ minHeight: 44 }}
             >
