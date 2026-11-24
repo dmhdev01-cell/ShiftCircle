@@ -1243,6 +1243,7 @@ export function PlannerPage() {
                                       color="primary"
                                       aria-label={`Show week of ${run.from} for ${run.unitName}`}
                                       onClick={() => navigate(`/planner?tab=roster&unit=${run.unitId}&week=${run.from}`)}
+                                      sx={{ whiteSpace: 'nowrap' }}
                                     >
                                       Show week
                                     </Button>
