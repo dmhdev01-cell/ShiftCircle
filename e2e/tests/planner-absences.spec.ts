@@ -122,7 +122,10 @@ test.describe('planned absences', () => {
     expect(officer, `${absence.name} is still on the roster`).toBeTruthy();
     const cell = officer!.cells.find((entry) => entry.date === absence.date);
     expect(cell, `${absence.name} has a ${absence.date} cell`).toBeTruthy();
-    expect(cell!.items, `${absence.name} on leave on ${absence.date}`).toHaveLength(0);
+    // No shift that day; since PR-D the draft roster shows the leave itself (a Vac chip, not Off).
+    expect(cell!.items, `${absence.name} on leave on ${absence.date}`).toEqual([
+      { type: 'ABSENCE', absenceType: 'VACATION' },
+    ]);
 
     // Leave no open draft behind (the absence row stays: it is a plan input).
     await api.post(`/planner/drafts/${draft.id}/discard`);
