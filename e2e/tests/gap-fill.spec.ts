@@ -41,7 +41,7 @@ test.describe('A2 fill a gap from the board', () => {
 
     const rows = panel.getByRole('list', { name: 'Free officers' }).getByRole('listitem');
     await expect(rows.first()).toBeVisible();
-    const hours = (await rows.allTextContents()).map((text) => Number(/(\d+) h this pay period/.exec(text)?.[1]));
+    const hours = (await rows.allTextContents()).map((text) => Number(/([\d.]+) h this pay period/.exec(text)?.[1]));
     expect(hours.length).toBeGreaterThan(1);
     expect(hours).toEqual([...hours].sort((a, b) => a - b));
 

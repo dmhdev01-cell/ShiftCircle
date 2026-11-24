@@ -188,7 +188,7 @@ describe('the planning board', () => {
       expect(within(panel).getByRole('button', { name: /^D8 / })).toHaveAttribute('aria-pressed', 'true');
       const rows = within(within(panel).getByRole('list', { name: 'Free officers' })).getAllByRole('listitem');
       expect(rows.length).toBeGreaterThan(0);
-      const hours = rows.map((row) => Number(/(\d+) h this pay period/.exec(row.textContent ?? '')?.[1]));
+      const hours = rows.map((row) => Number(/([\d.]+) h this pay period/.exec(row.textContent ?? '')?.[1]));
       expect(hours).toEqual([...hours].sort((a, b) => a - b));
       // Nia's Saturday holds the proposal, so she is not free.
       expect(within(panel).queryByText('Nia Thompson')).not.toBeInTheDocument();
