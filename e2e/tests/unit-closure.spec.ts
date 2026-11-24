@@ -92,6 +92,8 @@ test.describe('units closed from a date', () => {
       }
       await expect(page.getByRole('group', { name: 'Week' })).toContainText('15 – 21 Feb 2027');
       await expect(page.getByText(/Unit C is closed from Mon 15 Feb 2027 \("Renovation \(e2e\)"\)/)).toBeVisible();
+      // The all-units table starts collapsed (quarter plan readability, A6).
+      await page.getByRole('button', { name: 'Show all units' }).click();
       await expect(page.getByTitle(/is closed on this day/).first()).toBeVisible();
 
       // Reopen through the Units screen: remove the closure.
