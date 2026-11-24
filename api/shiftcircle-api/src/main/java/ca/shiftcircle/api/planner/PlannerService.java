@@ -201,6 +201,29 @@ public class PlannerService {
                 activeUnits::active,
                 generatorOptions(options),
                 loadQualifications());
+    PlanGenerator.Options chosen = generatorOptions(options);
+    if (chosen.fillPartTimeToFte() || chosen.crossUnitFill()) {
+      // The extra passes each keep their own warning de-duplication, so the same officer and rule
+      // can be counted twice and the commit's recount would refuse the draft (WARNINGS_CHANGED).
+      // Score the finished draft once, chronologically, exactly as a hand edit and the commit do.
+      // The default path is not re-scored, so its plans and pinned figures are untouched.
+      Object crossUnit = result.scorecard().get("crossUnit");
+      result =
+          new PlanGenerator()
+              .assess(
+                  employees,
+                  units,
+                  templates,
+                  history,
+                  pattern,
+                  verifier,
+                  leave,
+                  activeUnits::active,
+                  result.assignments());
+      if (crossUnit != null) {
+        result.scorecard().put("crossUnit", crossUnit);
+      }
+    }
     operationalCards(result.scorecard(), result.assignments());
     int generatedMs = (int) ((System.nanoTime() - before) / 1_000_000);
 

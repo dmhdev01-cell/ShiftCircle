@@ -117,7 +117,7 @@ class PlannerOptionsApiTest {
         after.unused(), after.planned(), after.gaps(), after.warnings());
     // The documented Dataset 150 figures, seed 20261001 (docs/user-guide/planner.md §1).
     assertThat(before).isEqualTo(new Capacity(6565, 10080, 3515, 100, 39));
-    assertThat(after).isEqualTo(new Capacity(9584, 10080, 496, 100, 77));
+    assertThat(after).isEqualTo(new Capacity(9584, 10080, 496, 100, 51));
 
     // Stored on the row and shown again by GET /drafts/{id} and GET /plan.
     UUID id = UUID.fromString((String) filled.get("id"));
@@ -189,7 +189,7 @@ class PlannerOptionsApiTest {
             + " %d h); card %s%n",
         on.gaps(), off.gaps(), on.warnings(), off.warnings(), on.unused(), off.unused(), card);
     assertThat(off).isEqualTo(new Capacity(6565, 10080, 3515, 100, 39));
-    assertThat(on).isEqualTo(new Capacity(6743, 10080, 3337, 72, 76));
+    assertThat(on).isEqualTo(new Capacity(6743, 10080, 3337, 72, 59));
     assertThat(card)
         .containsEntry("gapsBefore", 100)
         .containsEntry("gapsCovered", 28)
@@ -243,7 +243,7 @@ class PlannerOptionsApiTest {
         generate(
             planner,
             "{\"seed\":20261001,\"partTimeFill\":\"UP_TO_FTE\",\"crossUnitFill\":\"ON\"}");
-    assertThat(capacity(both)).isEqualTo(new Capacity(9584, 10080, 496, 72, 114));
+    assertThat(capacity(both)).isEqualTo(new Capacity(9584, 10080, 496, 72, 71));
     UUID bothId = UUID.fromString((String) both.get("id"));
     Map<String, Object> preview =
         mapper.readValue(

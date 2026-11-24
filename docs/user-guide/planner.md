@@ -40,21 +40,21 @@ What the options did on the demo data (seed 20261001, measured on 24 Nov 2026; t
 | 120 | other units | 38 | 7 | 5,472 h | 5,103 | 0 |
 | 120 | fill up to FTE + other units | 38 | 17 | 260 h | 5,667 | 0 |
 | 120 | full-time only | 156 | 6 | 6,720 h | 4,954 | n/a |
-| 120 | full-time only + other units | 152 | 10 | 6,720 h | 4,958 | 4 |
+| 120 | full-time only + other units | 152 | 6 | 6,720 h | 4,958 | 4 |
 | 150 | defaults | 100 | 39 | 3,515 h | 5,414 | n/a |
-| 150 | fill up to FTE | 100 | 77 | 496 h | 5,746 | n/a |
-| 150 | other units | 72 | 76 | 3,337 h | 5,455 | 28 (41 shifts, 26 officers) |
-| 150 | fill up to FTE + other units | 72 | 114 | 496 h | 5,769 | 28 (41 shifts, 26 officers) |
+| 150 | fill up to FTE | 100 | 51 | 496 h | 5,746 | n/a |
+| 150 | other units | 72 | 59 | 3,337 h | 5,455 | 28 (41 shifts, 26 officers) |
+| 150 | fill up to FTE + other units | 72 | 71 | 496 h | 5,769 | 28 (41 shifts, 26 officers) |
 | 150 | full-time only | 687 | 5 | 10,080 h | 4,691 | n/a |
-| 150 | full-time only + other units | 529 | 119 | 10,080 h | 4,894 | 158 (203 shifts, 82 officers) |
+| 150 | full-time only + other units | 529 | 115 | 10,080 h | 4,894 | 158 (203 shifts, 82 officers) |
 
-![Dataset 150 draft made with Cover gaps from other units: 72 gaps, 76 warnings, and the line 28 gaps covered from other units, 41 shifts by 26 officers](img/planner-scorecard-cross-unit.png)
+![Dataset 150 draft made with Cover gaps from other units: 72 gaps, 59 warnings, and the line 28 gaps covered from other units, 41 shifts by 26 officers](img/planner-scorecard-cross-unit.png)
 
 **What stays short, and why.** *Fill up to FTE* alone closes no gap: it only adds shifts where the minimum is already met. *Cover gaps from other units* is what closes gaps, and the scorecard keeps the reason for each gap it could not cover:
 - **Dataset 120 (38 short, none covered):** all 38 are Escort & transport evenings. Escort needs every officer on duty to hold Escort, and no free officer in another unit holds it, so all 38 are *not qualified*.
 - **Dataset 150 (72 short after 28 covered):** 46 *not qualified* (Control and Escort need every officer qualified; Control evenings and nights and Escort evenings are most of them), 14 *no hours left* (every qualified free officer is at FTE × 80 h for the pay period) and 12 *rule block* (a qualified officer with hours left was blocked, mostly by rest rules). By unit and block: Control evening 14, Escort evening 16, Unit B evening 11, Control night 8, and small numbers elsewhere.
 
-Closing the rest needs more qualified officers (Escort and Control endorsements), not a different fill order. The extra shifts from other units add rule warnings (150: 39 to 76 for 41 shifts; all Warn), because they often land next to the officer's own rotation. Dataset 100 has no part-time officers; the first two options change nothing there.
+Closing the rest needs more qualified officers (Escort and Control endorsements), not a different fill order. The extra shifts from other units add rule warnings (150: 39 to 59 for 41 shifts; all Warn), because they often land next to the officer's own rotation. Dataset 100 has no part-time officers; the first two options change nothing there.
 
 ![Plan options on the Quarter plan landing: Staff to include, Part-time fill and Other units, each choice with one sentence](img/planner-options-landing.png)
 
@@ -92,7 +92,7 @@ Two of them need a note:
 
 Under the tiles, a yellow **Unused part-time capacity** line says how many part-time hours the plan leaves unused, for example "Unused part-time capacity: 5,472 h. Part-time officers are planned 1,248 h of their 6,720 h target this quarter, while 38 block-days stay short." Part-time hours are not guaranteed: with the default fill, a part-time officer is planned only into shifts still open in their home unit, up to their FTE target. The line ends by saying how the draft filled part-time officers; with **Fill up to each officer's FTE** it drops sharply (Dataset 150: 3,515 h to 496 h).
 
-![Dataset 150 scorecard made with Fill up to FTE: Made with line under the status, 100 gaps, 77 warnings, unused part-time capacity 496 h](img/planner-scorecard-up-to-fte.png)
+![Dataset 150 scorecard made with Fill up to FTE: Made with line under the status, 100 gaps, 51 warnings, unused part-time capacity 496 h](img/planner-scorecard-up-to-fte.png)
 
 ![Quarter plan scorecard on Dataset 120 with the yellow Unused part-time capacity line under the tiles](img/planner-scorecard-part-time.png)
 
