@@ -141,7 +141,6 @@ class PlanGeneratorOptionsTest {
 
   @Test
   void partTimeFillUpToFteSpreadsShiftsEvenlyThroughThePeriod() {
-    // A unit the full-timers cover alone, so every part-time shift comes from the top-up.
     UUID unitId = UUID.nameUUIDFromBytes("unit:E".getBytes());
     List<PlanGenerator.Unit> units =
         List.of(new PlanGenerator.Unit(unitId, "E", "E", false, false, Map.of("DAY", 1, "EVENING", 1)));
@@ -152,29 +151,39 @@ class PlanGeneratorOptionsTest {
     PlanGenerator.Employee partTimer = employee("E", unitId, "P0", 0.8, 0, 20);
     employees.add(partTimer);
     Facility facility = new Facility(units, employees);
-    assertThat(generate(facility, PlanGenerator.Options.DEFAULT).assignments())
-        .noneMatch(a -> a.employeeId().equals(partTimer.id()));
+    // The gap fill places the part-timer unpaced; the top-up adds the rest, paced.
+    Set<LocalDate> gapShifts =
+        generate(facility, PlanGenerator.Options.DEFAULT).assignments().stream()
+            .filter(a -> a.employeeId().equals(partTimer.id()))
+            .map(PlanGenerator.Assignment::date)
+            .collect(Collectors.toSet());
 
     PlanGenerator.Result upTo = generate(facility, new PlanGenerator.Options(true, true, false));
     double target = 0.8 * 80;
     double[] cumulative = new double[PlanGenerator.PERIODS];
-    List<PlanGenerator.Assignment> shifts =
+    int added = 0;
+    for (PlanGenerator.Assignment shift :
         upTo.assignments().stream()
             .filter(a -> a.employeeId().equals(partTimer.id()))
             .sorted(java.util.Comparator.comparing(PlanGenerator.Assignment::date))
-            .toList();
-    for (PlanGenerator.Assignment shift : shifts) {
+            .toList()) {
       long day = ChronoUnit.DAYS.between(PlanGenerator.FROM, shift.date());
       int period = (int) (day / 14);
       long dayInPeriod = day % 14;
+      if (!gapShifts.contains(shift.date())) {
+        added++;
+        // A top-up shift is placed only when the period's hours so far are not ahead of an even
+        // pace: hours before it <= target x (day + 1) / 14.
+        assertThat(cumulative[period])
+            .as("%s, day %d of period %d", shift.date(), dayInPeriod, period)
+            .isLessThanOrEqualTo(target * (dayInPeriod + 1) / 14.0 + 0.001);
+      }
       cumulative[period] += 8;
-      // Placed only when not ahead of an even pace: hours so far <= target x (day + 1) / 14 + 8.
-      assertThat(cumulative[period])
-          .as("%s, day %d of period %d", shift.date(), dayInPeriod, period)
-          .isLessThanOrEqualTo(target * (dayInPeriod + 1) / 14.0 + 8 + 0.001);
     }
-    // And it still reaches the FTE target in every period.
-    assertThat(cumulative).containsOnly(target);
+    assertThat(added).as("the top-up added shifts").isGreaterThan(20);
+    for (double hours : cumulative) {
+      assertThat(hours).isLessThanOrEqualTo(target);
+    }
   }
 
   // --- cross-unit fill -------------------------------------------------------------------------

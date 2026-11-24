@@ -48,6 +48,8 @@ What the options did on the demo data (seed 20261001, measured on 24 Nov 2026; t
 | 150 | full-time only | 687 | 5 | 10,080 h | 4,691 | n/a |
 | 150 | full-time only + other units | 529 | 119 | 10,080 h | 4,894 | 158 (203 shifts, 82 officers) |
 
+![Dataset 150 draft made with Cover gaps from other units: 72 gaps, 76 warnings, and the line 28 gaps covered from other units, 41 shifts by 26 officers](img/planner-scorecard-cross-unit.png)
+
 **What stays short, and why.** *Fill up to FTE* alone closes no gap: it only adds shifts where the minimum is already met. *Cover gaps from other units* is what closes gaps, and the scorecard keeps the reason for each gap it could not cover:
 - **Dataset 120 (38 short, none covered):** all 38 are Escort & transport evenings. Escort needs every officer on duty to hold Escort, and no free officer in another unit holds it, so all 38 are *not qualified*.
 - **Dataset 150 (72 short after 28 covered):** 46 *not qualified* (Control and Escort need every officer qualified; Control evenings and nights and Escort evenings are most of them), 14 *no hours left* (every qualified free officer is at FTE × 80 h for the pay period) and 12 *rule block* (a qualified officer with hours left was blocked, mostly by rest rules). By unit and block: Control evening 14, Escort evening 16, Unit B evening 11, Control night 8, and small numbers elsewhere.
@@ -122,6 +124,8 @@ Some gaps can't be filled without breaking a rule, so the draft leaves them open
 - A small **⚠** on a shift means a rule warning names it. Hover or focus it to read the warning, for example "Fewer than 2 days off in 7: Fewer than 2 consecutive days off in 7 days."
 - Leave shows as **Vac**, **Sick** or **Other** instead of Off (section 8).
 - An officer placed in this unit from another unit (by *Cover gaps from other units*, or as relief while their own unit is closed) has a **From Unit A** marker (their home unit) next to their name.
+
+![A draft roster row with the From Unit A marker under the officer's name](img/planner-roster-from-unit.png)
 
 ![Roster tab: Go to week, the unit list with gap counts, the collapsed All units table and the draft grid](img/planner-roster-week-picker.png)
 
