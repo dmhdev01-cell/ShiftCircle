@@ -27,7 +27,7 @@ afterEach(() => resetSession());
 describe('the role navigation', () => {
   it('is empty for a signed-out visitor in the api build', () => {
     // D8: with no session the role fell back to SUPERVISOR, so the sign-in
-    // screen offered the supervisor's nine links to someone who cannot use them.
+    // screen offered the supervisor's links to someone who cannot use them.
     render(
       <RoleProvider>
         <NavProbe />
