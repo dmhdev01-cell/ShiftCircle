@@ -44,7 +44,7 @@ The build process is kept apart from the product docs, in [docs/process/](docs/p
 
 ## Setup (clean clone)
 
-Everything is on `main`: the API, all the screens, the mock sign-in, the quarter planner with draft edits, and the E2E suite. [INSTALL.md](INSTALL.md) is the full install guide; this section is the short version. The release 8 gate followed the install steps from a fresh clone of the public repository on 23 Nov 2026 (clone, start and health check), and checked the version endpoint on commit `8b0df25`. Anything not run is marked **UNVERIFIED**.
+Everything is on `main`: the API, all the screens, the mock sign-in, the quarter planner with draft edits, and the E2E suite. [INSTALL.md](INSTALL.md) is the full install guide; this section is the short version. The steps below were re-run on 24 Nov 2026 from a fresh `git clone` of the branch for this docs pass (own compose project, `SC_WEB_PORT` set): `docker compose up -d --build --wait` built and became healthy in 50 s with warm caches, `/healthz` returned `ok`, `/api/v1/version` returned the commit, rule set v3, demo profile and Dataset 100, and the eight demo users in §3 match `GET /api/v1/auth/demo-users`. Anything not run is marked **UNVERIFIED**.
 
 ### Prerequisites
 
@@ -73,7 +73,7 @@ docker compose up -d --build --wait
 
 `--wait` returns when all three containers are healthy: the database first, then the API (after it has run the Flyway migrations and generated the synthetic dataset), then the web. Then open **http://localhost:8080** and you see the mock sign-in screen with the demo users.
 
-**How long:** with Docker's build cache warm, `up -d --build --wait` took **31 s** when measured on 2026-11-20, and the demo data took about 3 s of that (`Demo data generated in … ms` in `docker compose logs api`). The very first build also downloads the base images and the Maven and pnpm dependencies, which takes several minutes depending on the network (**UNVERIFIED** on a machine with an empty cache). The default dataset: 100 fictional officers, 1 Oct – 29 Dec 2026, "today" fixed at 19 Nov 2026, seed 20261001. The About reset card can also load Dataset 120 and Dataset 150 (see "Demo data and the quarter planner").
+**How long:** with Docker's build cache warm, `up -d --build --wait` took **31 s** on 2026-11-20 and **50 s** on 2026-11-24, and the demo data took about 3 s of that (`Demo data generated in … ms` in `docker compose logs api`). The very first build also downloads the base images and the Maven and pnpm dependencies, which takes several minutes depending on the network (**UNVERIFIED** on a machine with an empty cache). The default dataset: 100 fictional officers, 1 Oct – 29 Dec 2026, "today" fixed at 19 Nov 2026, seed 20261001. The About reset card can also load Dataset 120 and Dataset 150 (see "Demo data and the quarter planner").
 
 **Ports in use?** Only the web publishes a port, and it is bound to **127.0.0.1** (not the LAN) because the demo has mock sign-in and a destructive reset. Set `SC_WEB_PORT` in `.env`, for example `SC_WEB_PORT=18080`, and open that port instead. For local debugging, `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build` also publishes the API (`SC_API_PORT`, default 8081) and the database (`SC_DB_PORT`, default 5433), both on 127.0.0.1 only.
 

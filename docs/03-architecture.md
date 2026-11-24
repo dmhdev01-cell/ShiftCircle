@@ -67,6 +67,24 @@ tests                      → JUnit 5 + AssertJ for the rules boundary tests; S
 
 **Persistence is explicit SQL, not an ORM.** Every query is a `JdbcTemplate` call with parameters (`?`/named), which keeps the data access visible and reviewable (and the audit and locked-period triggers live in the schema, not in entity callbacks). There is **no JPA/Hibernate, no springdoc/OpenAPI and no Bean Validation** in the build: request checks are written in the services, and `web/src/api/types.ts` is kept in step with the API by hand (NFR-09 and the generated contract are roadmap items).
 
+### Rule change and publish flow
+
+Rule tables are data, not code. A new rule version goes through maker/checker and a dry run before the engine uses it (ADR-012, ADR-027; docs/04 §6).
+
+```mermaid
+flowchart LR
+    A[Rules admin<br/>edits rows in the app] --> B[Draft version<br/>rule rows in PostgreSQL]
+    B --> C[Scenarios T1-T9<br/>+ dry run on the roster]
+    C --> D[Submit for approval]
+    D --> E{Rules approver<br/>a different person}
+    E -->|approve and publish| F[Compile rows to<br/>Drools KieBase<br/>shiftcircle-rules]
+    E -->|reject| B
+    F --> G[Live version<br/>used by every rule check]
+    F --> H[(Audit event)]
+```
+
+The planner, the planning board, overtime offers and draft edits all call the same engine, so a published version applies everywhere at once.
+
 ## 3. Key flow: any schedule change
 
 ```mermaid
