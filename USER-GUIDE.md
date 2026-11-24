@@ -1,6 +1,6 @@
 # ShiftCircle user guide
 
-ShiftCircle schedules 8-, 12- and 16-hour shifts at a fictional 24/7 correctional centre. It checks every change against a rules engine and exports worked time to a simulated payroll file.
+ShiftCircle schedules 8- and 12-hour shifts (a 16 h day is a 12 h shift plus an extension) at a fictional 24/7 correctional centre. It checks every change against a rules engine and exports worked time to a simulated payroll file.
 
 Every person, unit and figure in it is synthetic, and sign-in is mocked. There is no AI at runtime: the rules engine decides, and a person approves each change.
 
