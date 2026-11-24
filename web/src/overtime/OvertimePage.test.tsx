@@ -246,6 +246,7 @@ describe('the overtime board', () => {
       await within(panel).findByRole('heading', { name: 'No open shift for this slot yet' }),
     ).toBeInTheDocument();
     expect(await within(panel).findByText(/Sat 21 Nov 15:00/)).toBeInTheDocument();
+    expect(within(panel).getByText(/Posting a new open shift from here is not available/)).toBeInTheDocument();
     // No other shift's ranked list is passed off as the answer.
     expect(within(panel).queryByRole('heading', { name: /Fri 20 Nov · Evenings/ })).toBeNull();
     expect(within(panel).queryByRole('heading', { name: /Sat 21 Nov · Days/ })).toBeNull();

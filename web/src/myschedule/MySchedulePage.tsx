@@ -173,9 +173,10 @@ function offerCheck(offer: MyOffer) {
  * The employee's My schedule (docs/ui/README.md §5.2). It shows only the
  * officer's own data: no colleague's hours, absences or overtime totals.
  *
- * The officer can answer an overtime offer and draft shifts they would like
- * to work. A draft is a request - only a supervisor authorises an extra shift
- * (S-04) - and nothing is agreed until the supervisor decides.
+ * The officer can answer an overtime offer and check shifts they would like
+ * to work against the rules. A checked shift stays on this screen: sending it
+ * to a supervisor is not built (M1), and only a supervisor authorises an extra
+ * shift (S-04).
  */
 export function MySchedulePage() {
   // The month starts at the api's day, not at the browser's, so the demo shows
@@ -686,7 +687,7 @@ export function MySchedulePage() {
         <DialogTitle sx={{ fontSize: 18, fontWeight: 700 }}>Add a shift</DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: 13, color: colour.text.secondary, mb: 2 }}>
-            The rules are checked as soon as you add the shift, so you can see before you send it.
+            The rules are checked as soon as you add the shift, so you can see the answer before you ask your supervisor.
           </Typography>
           <TextField
             label="Date"

@@ -74,15 +74,11 @@ const OFFER_TEXT = {
  * The slot the planning board asked about has no open shift (M3). Creating an
  * open shift from here is not built, so the next step is the planning board.
  */
-function MissingSlot({
-  unitId,
-  unitName,
-  startAt,
-}: {
-  unitId: string | null;
-  unitName: string | undefined;
-  startAt: string | null;
-}) {
+function MissingSlot({ unitId, startAt }: { unitId: string | null; startAt: string | null }) {
+  // Units are read only here, so the normal board keeps its request count.
+  const units = useUnits();
+  const unitName =
+    units.kind === 'ready' ? units.units.find((unit) => unit.id === unitId)?.name : undefined;
   // The planning board writes a local time with an offset, so the date and
   // the clock time are read straight from the string.
   const local = startAt?.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
@@ -94,7 +90,11 @@ function MissingSlot({
   if (local) params.set('week', local[1]);
   const query = params.toString();
   return (
-    <Box role="status" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <Box
+      role="note"
+      aria-label="No open shift for this slot"
+      sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+    >
       <Typography component="h2" sx={{ m: 0, fontSize: 18, fontWeight: 700 }}>
         No open shift for this slot yet
       </Typography>
@@ -161,7 +161,6 @@ export function OvertimePage() {
     shiftsState.kind === 'ready' &&
     requested === null &&
     (requestedId !== null || (requestedUnit !== null && requestedStart !== null));
-  const units = useUnits();
   // The requested shift is selected until the supervisor picks another; with
   // no request the board opens on the nearest current need, not on the oldest
   // filled shift in the data (V7).
@@ -418,15 +417,7 @@ export function OvertimePage() {
           }}
         >
           {!activeShift && slotMissing ? (
-            <MissingSlot
-              unitId={requestedUnit}
-              unitName={
-                units.kind === 'ready'
-                  ? units.units.find((unit) => unit.id === requestedUnit)?.name
-                  : undefined
-              }
-              startAt={requestedStart}
-            />
+            <MissingSlot unitId={requestedUnit} startAt={requestedStart} />
           ) : null}
 
           {!activeShift && !slotMissing ? (

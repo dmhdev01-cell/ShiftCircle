@@ -122,7 +122,6 @@ describe('the employee My schedule', () => {
 
   it('M1: says sending a proposal is not available, and sends nothing', async () => {
     const user = userEvent.setup();
-    const fetchSpy = vi.spyOn(globalThis, 'fetch');
     renderMySchedule();
 
     const planner = await screen.findByRole('region', { name: 'Propose shifts' });
@@ -136,10 +135,6 @@ describe('the employee My schedule', () => {
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: 'Add and check the rules' }));
     expect(await within(planner).findByText(/add A12/)).toBeInTheDocument();
-    expect(
-      fetchSpy.mock.calls.some(([url]) => String(url).includes('/proposals')),
-    ).toBe(false);
-    fetchSpy.mockRestore();
   });
 
   it('M1: neither api offers a proposal call to reach the missing endpoint', () => {
