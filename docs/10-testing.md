@@ -152,7 +152,7 @@ These are the verification cases. Pick 2–5 for the build record (recommended: 
 |---|---|---|
 | E1 | Supervisor tries to assign Nia Thompson to Sat days → blocked → "Find eligible officer" → offers to two officers | Block banner and messages; ranked list order; offer recorded |
 | E2 | Employee (Tara) accepts the offer; supervisor confirms | Offer status changes; assignment appears on both screens; overtime status updates |
-| E3 | Rules admin changes U-03 from 12 to 14 h → build → submit; approver approves and publishes | Checklist states; dry-run numbers; live version increments; maker can't approve |
+| E3 | Rules admin changes U-02 (rest target between shifts) from 12 to 14 h → build → submit; approver approves and publishes | The live sentence names the shift kinds in words (no stored pattern, no repeated clause); checklist states; dry-run numbers (real api: 1 result changes, U-02 in Unit A); live version increments; maker can't approve |
 | E4 | Supervisor records actuals, locks the period, exports payroll | Lock prevents edits; CSV downloads and matches |
 | E5 | Wall display | Shows counts only; no names anywhere in the DOM; refreshes |
 

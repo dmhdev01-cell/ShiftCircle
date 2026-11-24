@@ -21,9 +21,9 @@ The rules are kept as tables:
 - **Overtime ranking**
 - **Shift types**
 
-Each table row is also shown as a plain sentence.
+Each table row is also shown as a plain sentence. It updates as you type, and after **Build and check** it is the same sentence the server keeps with the row.
 
-<!-- No screenshot yet: desktop__rules_admin__rules (no clean capture from the gated build) -->
+![Rest between shifts with U-02 changed to 14 hours: the plain sentence reads "After a D8, E8, N8, A12, P12, D12 or N12 shift, an officer needs at least 14 hours off within 24 hours"](img/rules-u02-edited.png)
 
 ## Rules admin: change a rule
 
@@ -34,6 +34,9 @@ Each table row is also shown as a plain sentence.
    - whether the values are valid and the rules compile;
    - how many test scenarios passed;
    - a dry run: which published shifts, in which units and dates, would now break the rule.
+
+   ![The checklist after Build and check: 6 of 6 scenarios pass, and the dry run shows 1 changed result for U-02](img/rules-u02-built.png)
+
 5. Press **Submit for approval**. Unsaved edits are saved and built first.
 
 ## Rules approver: review and publish
