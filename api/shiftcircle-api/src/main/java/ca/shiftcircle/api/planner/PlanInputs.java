@@ -15,7 +15,8 @@ import java.util.UUID;
  * second query for officers. Counts only, never a name or an employee number.
  *
  * <p>The payload keeps an {@code options} object for the generate options (seed, 8 h pattern);
- * new tailoring options are added there, not as new top-level keys.
+ * new tailoring options are added there, not as new top-level keys, and {@link #fillOrder} takes
+ * the same object so an option that changes the order also changes the words.
  */
 final class PlanInputs {
 
@@ -26,6 +27,12 @@ final class PlanInputs {
   /** One planned-leave day as the generator sees it: an officer is unavailable on a date. */
   record LeaveDay(UUID employeeId, LocalDate date, String type) {}
 
+  /**
+   * The staffing floor for the quarter: the stretch between unit closures that needs the most
+   * officers ({@code periods} stretches in all; one when no unit closes).
+   */
+  record Needed(int fte, LocalDate from, LocalDate to, int periods) {}
+
   static Map<String, Object> build(
       LocalDate from,
       LocalDate to,
@@ -35,10 +42,15 @@ final class PlanInputs {
       List<LeaveDay> leaveDays,
       PlanGenerator.Availability availability,
       int ruleSetVersion,
-      Integer neededFte,
+      Needed needed,
       Map<String, Object> options) {
+    String pattern8h = options.get("pattern8h") instanceof String forced ? forced : null;
     Map<String, Object> inputs = new LinkedHashMap<>();
-    inputs.put("window", Map.of("from", from.toString(), "to", to.toString(), "periods", periods));
+    Map<String, Object> window = new LinkedHashMap<>();
+    window.put("from", from.toString());
+    window.put("to", to.toString());
+    window.put("periods", periods);
+    inputs.put("window", window);
     inputs.put("options", options);
 
     int fullTime = 0;
@@ -62,10 +74,13 @@ final class PlanInputs {
     officers.put("fullTime", fullTime);
     officers.put("partTime", partTime);
     officers.put("fte", round1(fte));
-    officers.put("neededFte", neededFte);
-    officers.put(
-        "units",
-        (int) employees.stream().map(PlanGenerator.Employee::unitId).distinct().count());
+    officers.put("neededFte", needed == null ? null : needed.fte());
+    officers.put("neededFrom", needed == null ? null : needed.from().toString());
+    officers.put("neededTo", needed == null ? null : needed.to().toString());
+    officers.put("neededPeriods", needed == null ? 0 : needed.periods());
+    // Every unit the generator plans, the same rows as the table below (a unit with no officers
+    // is still planned: its minimums become gaps).
+    officers.put("units", units.size());
     inputs.put("officers", officers);
 
     // Unit x employment x pattern, in unit code order, then the groups in a fixed order.
@@ -76,7 +91,7 @@ final class PlanInputs {
       Map<String, Map<String, Object>> groups = new TreeMap<>();
       for (PlanGenerator.Employee employee : members) {
         String employment = employee.fte() >= 1.0 ? "FULL_TIME" : "PART_TIME";
-        String pattern = patternKey(employee);
+        String pattern = patternKey(employee, pattern8h);
         String key = (employment.equals("FULL_TIME") ? "0" : "1") + patternOrder(pattern) + pattern;
         Map<String, Object> group =
             groups.computeIfAbsent(
@@ -186,38 +201,48 @@ final class PlanInputs {
 
     Map<String, Object> rules = new LinkedHashMap<>();
     rules.put("ruleSetVersion", ruleSetVersion);
-    rules.put("historyDays", 35);
-    rules.put("fillOrder", fillOrder(ruleSetVersion));
+    rules.put("historyDays", PlanGenerator.HISTORY_DAYS);
+    rules.put("fillOrder", fillOrder(ruleSetVersion, options));
     inputs.put("rules", rules);
     return inputs;
   }
 
   /**
-   * The generator's real order (PlanGenerator.generate, casualPool, reliefPool), in plain words.
-   * Keep in step with the code: a change to the order changes this list and docs/user-guide.
+   * The generator's real order (PlanGenerator.generate, casualPool, reliefPool), in plain words,
+   * for the options the draft was generated with. This is the one place the order is worded: an
+   * option that changes how shifts are filled adds or replaces its step here, keyed on its value
+   * in {@code options}. Keep in step with the code and docs/user-guide/planner.md.
    */
-  static List<String> fillOrder(int ruleSetVersion) {
-    return List.of(
+  static List<String> fillOrder(int ruleSetVersion, Map<String, Object> options) {
+    List<String> steps = new ArrayList<>();
+    steps.add(
         "Day by day and unit by unit, in the order night, day, evening, full-time officers whose"
             + " rotation has them on that day fill the unit's minimum. Only 12 h officers work"
             + " nights: those who asked for nights first (most senior first), then the newest."
             + " Day and evening go first to officers whose preferred time matches, then by"
-            + " seniority. An 8 h officer keeps one block, day or evening, all quarter.",
+            + " seniority. An 8 h officer keeps one block, day or evening, all quarter.");
+    steps.add(
         "Every other full-time officer whose rotation has them on that day is then rostered too,"
-            + " even above the minimum, so a full-time officer works their full rotation.",
+            + " even above the minimum, so a full-time officer works their full rotation.");
+    steps.add(
         "Part-time and casual officers (under 1.0 FTE) then fill what is still short, in their"
-            + " home unit only, newest first, up to their FTE × 80 h in each pay period.",
+            + " home unit only, newest first, up to their FTE × 80 h in each pay period.");
+    steps.add(
         "Where a unit is closed on a day, its full-time officers may fill another unit's"
-            + " remaining shortage (by home unit, then seniority).",
+            + " remaining shortage (by home unit, then seniority).");
+    steps.add(
         "Every proposed shift is checked by the rules engine (rule set v"
             + ruleSetVersion
-            + ") against the officer's last 35 days of shifts: a Block skips that officer, a"
-            + " warning is kept and counted. Planned leave days are never rostered. Anything"
-            + " still short is a gap for a supervisor.");
+            + ") against the officer's last "
+            + PlanGenerator.HISTORY_DAYS
+            + " days of shifts: a Block skips that officer, a warning is kept and counted."
+            + " Planned leave days are never rostered. Anything still short is a gap for a"
+            + " supervisor.");
+    return List.copyOf(steps);
   }
 
   /** The rotation group an officer is planned in, from the same fields the generator reads. */
-  static String patternKey(PlanGenerator.Employee employee) {
+  static String patternKey(PlanGenerator.Employee employee, String pattern8h) {
     String crew = employee.crew();
     if (crew != null && crew.startsWith("CASUAL_")) {
       return employee.effectiveLength() == 12 ? "CASUAL_12" : "CASUAL_8";
@@ -232,7 +257,8 @@ final class PlanInputs {
     if (employee.effectiveLength() == 12) {
       return "12H";
     }
-    return PlanGenerator.patternOf(employee, null);
+    // The draft's forced 8 h pattern (the one-release override) wins, exactly as in works().
+    return PlanGenerator.patternOf(employee, pattern8h);
   }
 
   private static String patternOrder(String pattern) {

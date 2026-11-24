@@ -61,7 +61,7 @@ test.describe('plan inputs on the quarter plan', () => {
     );
     await expect(
       page.getByText(
-        `Seed 20261001 · 8 h officers on their own pattern · rule set v${inputs.rules.ruleSetVersion} · ${inputs.leave.days.toLocaleString('en-CA')} planned leave days`,
+        `Default seed 20261001 · 8 h officers on their own pattern · rule set v${inputs.rules.ruleSetVersion} · ${inputs.leave.days.toLocaleString('en-CA')} planned leave days`,
         { exact: false },
       ),
     ).toBeVisible();
@@ -83,7 +83,8 @@ test.describe('plan inputs on the quarter plan', () => {
     await expect(page.getByText('Coverage gaps')).toBeVisible({ timeout: 120_000 });
     await expect(page.getByText('Plan inputs · what this draft was generated with')).toBeVisible();
     await expect(headline).toContainText('Planning 150 officers in 6 units · 120 full-time, 30 part-time or casual');
-    await expect(page.getByText('Staff have changed since this draft was generated', { exact: false })).toHaveCount(0);
+    await expect(page.getByText(/^Seed 20261001 · 8 h officers on their own pattern/)).toBeVisible();
+    await expect(page.getByText('have changed since this draft was generated', { exact: false })).toHaveCount(0);
     const tablist = page.getByRole('tablist', { name: 'Quarter plan' });
     const [headBox, tabBox] = [await headline.boundingBox(), await tablist.boundingBox()];
     expect(headBox && tabBox && headBox.y < tabBox.y, 'the inputs sit above the scorecard').toBeTruthy();

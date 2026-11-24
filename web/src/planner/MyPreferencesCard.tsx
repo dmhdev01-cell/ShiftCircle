@@ -183,7 +183,11 @@ export function MyPreferencesCard() {
                           touch();
                           setShiftLength(length);
                         }}
-                        slotProps={{ input: { 'aria-label': `${length} h` } }}
+                        slotProps={{
+                          input: {
+                            'aria-label': length === 16 ? '16 h, no longer offered' : `${length} h`,
+                          },
+                        }}
                       />
                     }
                     label={

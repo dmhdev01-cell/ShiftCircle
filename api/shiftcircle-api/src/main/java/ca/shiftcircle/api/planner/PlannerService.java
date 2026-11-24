@@ -149,7 +149,7 @@ public class PlannerService {
     Map<String, PlanGenerator.Template> templates = loadTemplates();
     Map<UUID, List<ShiftFact>> history =
         loadHistory(
-            FROM.minusDays(35).atStartOfDay(REGINA).toInstant(),
+            FROM.minusDays(PlanGenerator.HISTORY_DAYS).atStartOfDay(REGINA).toInstant(),
             FROM.atStartOfDay(REGINA).toInstant());
     // Warnings the seeded history already has are not this plan's warnings: subtract them so the
     // scorecard counts what the draft adds, not the same history window repeated per proposal.
@@ -305,7 +305,7 @@ public class PlannerService {
     Map<String, PlanGenerator.Template> templates = loadTemplates();
     Map<UUID, List<ShiftFact>> history =
         loadHistory(
-            FROM.minusDays(35).atStartOfDay(REGINA).toInstant(),
+            FROM.minusDays(PlanGenerator.HISTORY_DAYS).atStartOfDay(REGINA).toInstant(),
             FROM.atStartOfDay(REGINA).toInstant());
     Map<UUID, Set<String>> baselineWarnings = new HashMap<>();
     history.forEach(
@@ -932,7 +932,7 @@ public class PlannerService {
             id);
     Map<UUID, List<ShiftFact>> facts =
         loadHistory(
-            FROM.minusDays(35).atStartOfDay(REGINA).toInstant(),
+            FROM.minusDays(PlanGenerator.HISTORY_DAYS).atStartOfDay(REGINA).toInstant(),
             TO.plusDays(1).atStartOfDay(REGINA).toInstant());
     Map<UUID, Set<String>> baselineWarnings = new HashMap<>();
     facts.forEach(
@@ -1837,14 +1837,25 @@ public class PlannerService {
     options.put("seed", seed);
     // null: every 8 h officer works their own pattern (the one-release override is not sent).
     options.put("pattern8h", pattern8h);
-    ca.shiftcircle.api.units.UnitsViews.StaffingReport staffing = unitsService.staffing();
-    Integer needed =
-        staffing.periods().stream()
-            .filter(period -> period.from().equals(FROM))
-            .findFirst()
-            .or(() -> staffing.periods().stream().findFirst())
-            .map(period -> period.totals().needed())
+    // The staffing floor over the whole quarter: the stretch (between unit closures) that needs
+    // the most officers. One stretch when no unit closes, so it is then the whole quarter.
+    List<ca.shiftcircle.api.units.UnitsViews.StaffingPeriod> periods =
+        unitsService.staffingPeriods();
+    ca.shiftcircle.api.units.UnitsViews.StaffingPeriod busiest =
+        periods.stream()
+            .max(
+                Comparator.comparingInt(
+                        (ca.shiftcircle.api.units.UnitsViews.StaffingPeriod period) ->
+                            period.totals().needed())
+                    .thenComparing(
+                        ca.shiftcircle.api.units.UnitsViews.StaffingPeriod::from,
+                        Comparator.reverseOrder()))
             .orElse(null);
+    PlanInputs.Needed needed =
+        busiest == null
+            ? null
+            : new PlanInputs.Needed(
+                busiest.totals().needed(), busiest.from(), busiest.to(), periods.size());
     return PlanInputs.build(
         FROM,
         TO,

@@ -111,8 +111,9 @@ All settings come from environment variables. The repo ships **`.env.example` on
 
 - Serves the React build; unknown paths fall back to `index.html` (client-side routes).
 - `location /api/` → `proxy_pass http://api:8081/api/;` with `X-Correlation-Id` and `X-Forwarded-*` headers. `/actuator` is **not** proxied.
+- Proxy read timeout 60 s, except `POST /api/v1/planner/drafts` (Generate a quarter draft), which gets 180 s: Generate takes seconds on a quiet host but can approach a minute on a cold, loaded one.
 - Static assets: gzip, long cache with hashed filenames; `index.html` not cached.
-- Security headers: `Content-Security-Policy` (self + Google Fonts), `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`, `frame-ancestors 'none'`, `Permissions-Policy` minimal.
+- Security headers: `Content-Security-Policy` (self + Google Fonts: `fonts.googleapis.com` for the stylesheet and `fonts.gstatic.com` for the font files, also in `connect-src` so Chrome's preconnect is not reported), `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`, `frame-ancestors 'none'`, `Permissions-Policy` minimal.
 - `/healthz` returns 200 for the health check.
 
 ## 7. Reviewer commands

@@ -128,7 +128,14 @@ class PlanInputsApiTest {
     assertThat(officers.get("fullTime")).isEqualTo(120);
     assertThat(officers.get("partTime")).isEqualTo(30);
     assertThat(((Number) officers.get("fte")).doubleValue()).isEqualTo(138.0);
-    assertThat(officers.get("neededFte")).isNotNull();
+    // The floor is the Staffing card's own figure: one stretch (no closures), so the whole quarter.
+    List<Map<String, Object>> staffingPeriods = staffingPeriods();
+    assertThat(staffingPeriods).hasSize(1);
+    assertThat(officers.get("neededFte"))
+        .isEqualTo(((Map<String, Object>) staffingPeriods.get(0).get("totals")).get("needed"))
+        .isEqualTo(127);
+    assertThat(officers.get("neededFrom")).isEqualTo("2027-01-04");
+    assertThat(officers.get("neededTo")).isEqualTo("2027-04-11");
 
     Map<String, Object> leave = (Map<String, Object>) inputs.get("leave");
     int days = (int) leave.get("days");
@@ -167,6 +174,26 @@ class PlanInputsApiTest {
     assertThat(((Number) options.get("seed")).longValue()).isEqualTo(20261001L);
     assertThat(options).containsEntry("pattern8h", null);
 
+    // A hand edit re-scores the draft but keeps what it was generated with.
+    Map<String, Object> summary =
+        mapper.readValue(send("GET", "/api/v1/planner/drafts/" + draft, null, planner).body(), Map.class);
+    UUID assignment =
+        jdbc.queryForObject(
+            "SELECT id FROM plan_draft_assignment WHERE draft_id = ? ORDER BY start_at, id LIMIT 1",
+            UUID.class,
+            draft);
+    HttpResponse<String> removed =
+        send(
+            "DELETE",
+            "/api/v1/planner/drafts/" + draft + "/assignments/" + assignment,
+            null,
+            planner,
+            "\"" + summary.get("version") + "\"");
+    assertThat(removed.statusCode()).as(removed.body()).isEqualTo(200);
+    Map<String, Object> afterEdit = mapper.readValue(removed.body(), Map.class);
+    assertThat(((Number) afterEdit.get("handEdits")).intValue()).isEqualTo(1);
+    assertThat(draftInputs(draft)).isEqualTo(snapshot);
+
     // Staff change after the draft: live inputs move, the draft's snapshot does not.
     jdbc.update(
         "UPDATE employee SET fte = 0.5 WHERE id = (SELECT id FROM employee WHERE fte = 1.0"
@@ -178,13 +205,86 @@ class PlanInputsApiTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  void aClosureAndAForcedPatternAreReportedAsTheGeneratorUsesThem() throws Exception {
+    reset("100");
+    // Dataset 100: Unit C closes from 15 Feb, so the quarter has two
+    // staffing stretches; the floor is the one that needs the most officers, with its dates.
+    UUID unitC = jdbc.queryForObject("SELECT id FROM unit WHERE code = 'C'", UUID.class);
+    HttpResponse<String> closed =
+        send(
+            "POST",
+            "/api/v1/planner/units/" + unitC + "/closures",
+            "{\"closedFrom\":\"2027-02-15\",\"reason\":\"Plan inputs test\"}",
+            planner);
+    assertThat(closed.statusCode()).as(closed.body()).isEqualTo(201);
+    List<Map<String, Object>> periods = staffingPeriods();
+    assertThat(periods).hasSize(2);
+    Map<String, Object> busiest =
+        periods.stream()
+            .max(
+                java.util.Comparator.comparingInt(
+                    period -> (int) ((Map<String, Object>) period.get("totals")).get("needed")))
+            .orElseThrow();
+    Map<String, Object> officers = (Map<String, Object>) inputs().get("officers");
+    assertThat(officers.get("neededFte"))
+        .isEqualTo(((Map<String, Object>) busiest.get("totals")).get("needed"));
+    assertThat(officers.get("neededFrom")).isEqualTo(busiest.get("from"));
+    assertThat(officers.get("neededTo")).isEqualTo(busiest.get("to"));
+    assertThat(officers.get("neededPeriods")).isEqualTo(2);
+    int closedDays =
+        ((List<Map<String, Object>>) inputs().get("units"))
+            .stream()
+                .filter(unit -> "C".equals(unit.get("code")))
+                .mapToInt(unit -> (int) unit.get("closedDays"))
+                .sum();
+    assertThat(closedDays).as("15 Feb to 11 Apr").isEqualTo(56);
+
+    // The one-release facility override: the snapshot's groups follow the forced pattern.
+    HttpResponse<String> generated =
+        send(
+            "POST",
+            "/api/v1/planner/drafts",
+            "{\"seed\":20261001,\"pattern8h\":\"7_ON_3_OFF\"}",
+            planner);
+    assertThat(generated.statusCode()).as(generated.body()).isEqualTo(201);
+    UUID draft = UUID.fromString((String) mapper.readValue(generated.body(), Map.class).get("id"));
+    Map<String, Object> snapshot = draftInputs(draft);
+    assertThat((Map<String, Object>) snapshot.get("options")).containsEntry("pattern8h", "7_ON_3_OFF");
+    List<String> patterns =
+        ((List<Map<String, Object>>) snapshot.get("units"))
+            .stream()
+                .flatMap(unit -> ((List<Map<String, Object>>) unit.get("groups")).stream())
+                .filter(group -> (int) group.get("hours") == 8)
+                .map(group -> (String) group.get("pattern"))
+                .distinct()
+                .toList();
+    assertThat(patterns).contains("7_ON_3_OFF").doesNotContain("ROTATING_5_2", "5_ON_2_OFF");
+  }
+
+  @Test
   void onlyThePlannerMayReadTheInputs() throws Exception {
-    for (String user : new String[] {"m.ellis", "t.nakamura", "a.reviewer"}) {
+    for (String user :
+        new String[] {"m.ellis", "j.chen", "t.nakamura", "a.reviewer", "tv.display", "l.fraser", "p.singh"}) {
       assertThat(send("GET", "/api/v1/planner/inputs", null, login(user)).statusCode())
           .as(user)
           .isEqualTo(403);
     }
+    HttpResponse<String> anonymous =
+        client.send(
+            HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/planner/inputs"))
+                .GET()
+                .build(),
+            HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    assertThat(anonymous.statusCode()).as("no token").isEqualTo(401);
     assertThat(send("GET", "/api/v1/planner/inputs", null, planner).statusCode()).isEqualTo(200);
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<Map<String, Object>> staffingPeriods() throws Exception {
+    HttpResponse<String> response = send("GET", "/api/v1/planner/staffing", null, planner);
+    assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+    return (List<Map<String, Object>>) mapper.readValue(response.body(), Map.class).get("periods");
   }
 
   @SuppressWarnings("unchecked")
@@ -246,6 +346,11 @@ class PlanInputsApiTest {
 
   private HttpResponse<String> send(String method, String path, String body, String token)
       throws Exception {
+    return send(method, path, body, token, null);
+  }
+
+  private HttpResponse<String> send(
+      String method, String path, String body, String token, String ifMatch) throws Exception {
     HttpRequest.Builder builder =
         HttpRequest.newBuilder(URI.create("http://localhost:" + port + path));
     if (body != null) {
@@ -256,6 +361,9 @@ class PlanInputsApiTest {
       builder.method(method, HttpRequest.BodyPublishers.noBody());
     }
     builder.header("Authorization", "Bearer " + token);
+    if (ifMatch != null) {
+      builder.header("If-Match", ifMatch);
+    }
     return client.send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
   }
 }

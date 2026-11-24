@@ -11,7 +11,7 @@ import type { PlanInputs } from '../api/types';
 import { RoleProvider } from '../shell/nav';
 import { theme } from '../theme/theme';
 import { PlanInputsCard } from './PlanInputsCard';
-import { changedSince, inputsHeadline, optionsLine } from './planInputsWords';
+import { changedSince, inputsHeadline, optionsLine, optionWords } from './planInputsWords';
 
 function inputs(overrides: Partial<PlanInputs['officers']> = {}): PlanInputs {
   const copy = JSON.parse(JSON.stringify(PLAN_INPUTS_120)) as PlanInputs;
@@ -29,9 +29,17 @@ function renderCard(props: Parameters<typeof PlanInputsCard>[0]) {
 
 describe('plan inputs words', () => {
   it('says how many officers, which kind, the FTE and the window in one line', () => {
-    expect(inputsHeadline(inputs({ total: 150, fullTime: 120, partTime: 30, fte: 138, neededFte: 123 }))).toBe(
-      'Planning 150 officers in 6 units · 120 full-time, 30 part-time or casual · 138 FTE against about 123 needed · 4 Jan – 11 Apr 2027',
+    expect(inputsHeadline(inputs({ total: 150, fullTime: 120, partTime: 30, fte: 138, neededFte: 127 }))).toBe(
+      'Planning 150 officers in 6 units · 120 full-time, 30 part-time or casual · 138 FTE against about 127 needed · 4 Jan – 11 Apr 2027',
     );
+  });
+
+  it('names the busiest stretch when a closure splits the quarter, never passing it off as the quarter', () => {
+    expect(
+      inputsHeadline(
+        inputs({ neededFte: 123, neededFrom: '2027-01-04', neededTo: '2027-02-14', neededPeriods: 2 }),
+      ),
+    ).toContain('112 FTE against about 123 needed at the busiest (4 Jan – 14 Feb) · 4 Jan – 11 Apr 2027');
   });
 
   it('drops the part-time words when everyone is full-time, and the estimate when there is none', () => {
@@ -45,6 +53,30 @@ describe('plan inputs words', () => {
     const forced = inputs();
     forced.options = { seed: 7, pattern8h: '7_ON_3_OFF' };
     expect(optionsLine(forced)).toBe('Seed 7 · every 8 h officer on 7 on, 3 off · rule set v3');
+    // What Generate will use: the api sends the default seed, and says so.
+    expect(optionsLine(inputs(), false)).toMatch(/^Default seed 20261001 · /);
+  });
+
+  it('words any option the draft carries, including ones it has never seen', () => {
+    const words = optionWords(
+      {
+        seed: 20261001,
+        pattern8h: null,
+        staffTypes: ['FULL_TIME'],
+        partTimeFill: 'UP_TO_FTE',
+        crossUnitFill: 'ON',
+        weekendBalance: 'STRICT_EVEN',
+      },
+      true,
+    );
+    expect(words.map((option) => `${option.label}: ${option.value}`)).toEqual([
+      'Seed: 20261001',
+      '8 h pattern: each officer’s own',
+      'Staff to include: full-time only',
+      'Part-time fill: up to each officer’s FTE',
+      'Cross-unit fill: on',
+      'Weekend balance: strict even',
+    ]);
   });
 
   it('reports what changed since a draft was generated, or nothing', () => {
@@ -93,8 +125,16 @@ describe('the plan inputs card', () => {
 
     expect(screen.getByText('Plan inputs · what this draft was generated with')).toBeInTheDocument();
     expect(screen.getByRole('note')).toHaveTextContent(
-      'Staff have changed since this draft was generated: now 121 officers (was 120), 21 part-time or casual (was 20), 112.5 FTE (was 112). Generate again to plan with them.',
+      'The plan\'s inputs have changed since this draft was generated: now 121 officers (was 120), 21 part-time or casual (was 20), 112.5 FTE (was 112). Generate again to plan with them.',
     );
+  });
+
+  it('heads a draft from before v1.2 as today’s inputs, not the draft’s', () => {
+    renderCard({ inputs: inputs(), live: inputs(), fromDraft: false, draftWithoutRecord: true });
+    expect(
+      screen.getByText('Plan inputs · what Generate would use now (this draft kept no record of its own)'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
   });
 
   it('says nothing about changes when the staff are the same', () => {
@@ -135,5 +175,19 @@ describe('plan inputs on the quarter plan', () => {
     const headline = screen.getByTestId('plan-inputs-headline');
     const tablist = screen.getByRole('tablist', { name: 'Quarter plan' });
     expect(headline.compareDocumentPosition(tablist) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    vi.restoreAllMocks();
+  });
+
+  it('fires no planner request for another role', async () => {
+    const calls = [
+      vi.spyOn(api, 'getPlannerInputs'),
+      vi.spyOn(api, 'getPlannerPlan'),
+      vi.spyOn(api, 'getStaffing'),
+      vi.spyOn(api, 'getFlaggedShifts'),
+    ];
+    renderPlanner();
+    expect(await screen.findByText(/may not plan the quarter/)).toBeInTheDocument();
+    for (const call of calls) expect(call).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
   });
 });

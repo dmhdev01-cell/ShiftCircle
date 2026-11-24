@@ -749,8 +749,16 @@ export interface PlanInputs {
     /** Every officer under 1.0 FTE: the generator fills part-time and casual alike. */
     partTime: number;
     fte: number;
-    /** The staffing estimate for the first period (about this many FTE needed), or null. */
+    /**
+     * The staffing floor: the stretch of the quarter (between unit closures)
+     * that needs the most officers, or null. With one stretch it is the quarter.
+     */
     neededFte: number | null;
+    neededFrom?: string | null;
+    neededTo?: string | null;
+    /** How many stretches the quarter has (1 when no unit closes). */
+    neededPeriods?: number;
+    /** Every unit the generator plans (the rows of `units`). */
     units: number;
   };
   units: {

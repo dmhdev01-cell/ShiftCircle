@@ -12,7 +12,9 @@ import {
   changedSince,
   inputsHeadline,
   LEAVE_WORDS,
+  neededWords,
   optionsLine,
+  optionWords,
   TIME_WORDS,
 } from './planInputsWords';
 
@@ -58,10 +60,13 @@ export function PlanInputsCard({
   inputs,
   live,
   fromDraft,
+  draftWithoutRecord = false,
 }: {
   inputs: PlanInputs;
   live?: PlanInputs | null;
   fromDraft: boolean;
+  /** A draft from before v1.2 is open and kept no inputs record: the card shows today's. */
+  draftWithoutRecord?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const regionId = useId();
@@ -71,6 +76,7 @@ export function PlanInputsCard({
     ([a], [b]) => Number(a) - Number(b),
   );
   const anyClosed = inputs.units.some((unit) => unit.closedDays > 0);
+  const needed = neededWords(inputs);
 
   return (
     <Card aria-labelledby={`${regionId}-title`} sx={{ borderLeft: `4px solid ${colour.brand.primary}` }}>
@@ -80,13 +86,17 @@ export function PlanInputsCard({
           component="h2"
           sx={{ m: 0, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: colour.text.secondary }}
         >
-          {fromDraft ? 'Plan inputs · what this draft was generated with' : 'Plan inputs · what Generate will use'}
+          {fromDraft
+            ? 'Plan inputs · what this draft was generated with'
+            : draftWithoutRecord
+              ? 'Plan inputs · what Generate would use now (this draft kept no record of its own)'
+              : 'Plan inputs · what Generate will use'}
         </Typography>
         <Typography data-testid="plan-inputs-headline" sx={{ fontSize: 17, fontWeight: 700, lineHeight: 1.35 }}>
           {inputsHeadline(inputs)}
         </Typography>
         <Typography sx={{ fontSize: 13, color: colour.text.secondary }}>
-          {optionsLine(inputs)} · {inputs.leave.days.toLocaleString('en-CA')} planned leave{' '}
+          {optionsLine(inputs, fromDraft)} · {inputs.leave.days.toLocaleString('en-CA')} planned leave{' '}
           {inputs.leave.days === 1 ? 'day' : 'days'} · {inputs.preferences.officers.toLocaleString('en-CA')}{' '}
           {inputs.preferences.officers === 1 ? 'officer has' : 'officers have'} preferences on file
         </Typography>
@@ -103,8 +113,8 @@ export function PlanInputsCard({
               fontWeight: 600,
             }}
           >
-            Staff have changed since this draft was generated: now {changed}. Generate again to plan
-            with them.
+            The plan&apos;s inputs have changed since this draft was generated: now {changed}.
+            Generate again to plan with them.
           </Box>
         ) : null}
 
@@ -223,8 +233,14 @@ export function PlanInputsCard({
                   value={inputs.seniority.latest ? plainDate(inputs.seniority.latest) : '—'}
                 />
                 <Figure label="Rule set" value={`v${inputs.rules.ruleSetVersion}`} />
-                <Figure label="Seed" value={String(inputs.options.seed)} />
                 <Figure label="Pay periods" value={String(inputs.window.periods)} />
+                {needed ? <Figure label="Staffing floor" value={needed.replace(/^about /, '')} /> : null}
+              </Section>
+
+              <Section title={fromDraft ? 'Generate options used' : 'Generate options'}>
+                {optionWords(inputs.options, fromDraft).map((option) => (
+                  <Figure key={option.key} label={option.label} value={option.value} />
+                ))}
               </Section>
             </Box>
 

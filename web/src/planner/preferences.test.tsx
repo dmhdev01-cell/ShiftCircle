@@ -91,7 +91,7 @@ describe('preferences', () => {
     await screen.findByRole('heading', { name: 'My preferences' });
     expect(screen.getByRole('radio', { name: '8 h' })).toBeEnabled();
     expect(screen.getByRole('radio', { name: '12 h' })).toBeEnabled();
-    expect(screen.queryByRole('radio', { name: '16 h' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /^16 h/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/16-hour shifts are no longer offered/)).not.toBeInTheDocument();
   });
 
@@ -107,7 +107,7 @@ describe('preferences', () => {
     renderAt('/me/schedule');
     await screen.findByRole('heading', { name: 'My preferences' });
 
-    const sixteen = await screen.findByRole('radio', { name: '16 h' });
+    const sixteen = await screen.findByRole('radio', { name: '16 h, no longer offered' });
     expect(sixteen).toBeChecked();
     expect(sixteen).toBeDisabled();
     expect(screen.getByText('16 h (no longer offered)')).toBeInTheDocument();
