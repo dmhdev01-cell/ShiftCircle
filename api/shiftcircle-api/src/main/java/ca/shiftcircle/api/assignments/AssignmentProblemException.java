@@ -19,6 +19,12 @@ public class AssignmentProblemException extends RuntimeException {
         "shift-started",
         "This shift has started",
         "Past shifts are corrected in Time & attendance, not on the schedule."),
+    TARGET_STARTED(
+        409,
+        "target-started",
+        "The new start has already passed",
+        "Pick a date and shift that start later. Past shifts are corrected in Time & attendance,"
+            + " not on the schedule."),
     ALREADY_CANCELLED(409, "already-cancelled", "This shift is already cancelled", "Reload the board."),
     FILLS_OPEN_SHIFT(
         409,

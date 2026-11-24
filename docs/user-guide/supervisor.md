@@ -75,12 +75,24 @@ A coverage cell that is short, and the gap words in the **Coverage gaps** tile (
 
 ### Move or cancel a shift
 
-Tap a shift on the board.
+Tap a shift on the board. The dialog says when it is scheduled, for example *Scheduled Tue 17 Nov 2026, 23:00 – 07:00 next day*.
 
 - **Move…**: pick a **New date** and **Shift**, then press **Move shift**. The same rule check applies.
+  - The line under **New date** says when the moved shift would start, in words. A date and shift that have already started are refused there, with the reason, before anything is sent: pick a later one.
 - **Cancel shift…**: answer **Why is this shift cancelled?** in at least 10 characters, then press **Cancel shift**.
   - The shift stays in the audit trail.
   - If it was filling an open shift, that shift goes back to open.
+
+**When the shift can't be moved or cancelled** (v1.2), the dialog says so as soon as it opens, and does not offer that action:
+
+- **A shift that has started** (its start is at or before the demo clock, noon on Thu 19 Nov in the demo) has no **Move…** or **Cancel shift…**. The dialog says, for example, *This shift started on Tue 17 Nov at 23:00. Worked shifts are corrected in Time & attendance.* **Open in Time & attendance** opens that screen on the shift's pay period and unit, with the shift's record panel open.
+- **Actual time or an absence recorded** on a future shift: no **Cancel shift…**. Correct the record in Time & attendance (the same button).
+- **The shift fills an open shift**: no **Move…**. Cancel it and assign the open shift again instead.
+- **The shift's pay period is locked**: no **Move…** or **Cancel shift…**, even if it has started. The dialog says *This pay period is locked. Unlock it with a reason to make changes.* (Unlock it on **Time & attendance** with **Unlock pay period**.)
+
+The dialog knows what the board knew when it was loaded. If you leave the board open while a shift starts, reload it, or the server's refusal appears when you press **Move shift**.
+
+The server still checks every move and cancel, including that the new start has not already passed. If it refuses one anyway (the shift changed since the board loaded, the pay period is locked, the shift was already cancelled), the dialog shows the refusal's title and what to do, for example *This shift changed since you read it · Reload the board and try again.*, with **Reload the board** where that helps.
 
 <!-- No screenshot yet: desktop__supervisor__shift-actions (no clean capture from the gated build) -->
 
@@ -126,7 +138,7 @@ Ordered (mandatory) overtime is only offered once the voluntary list is used up.
 
 Record what actually happened on past shifts, then lock the pay period for payroll.
 
-1. Pick a past shift in the grid.
+1. Pick a past shift in the grid. (From the planning board, **Open in Time & attendance** on a started shift opens it for you.)
 2. Choose what happened, either:
    - **Worked as scheduled**;
    - **Adjusted times**;

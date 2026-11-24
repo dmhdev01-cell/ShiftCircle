@@ -163,6 +163,11 @@ class PlannerLeaveRosterApiTest {
     assertThat(sickItems).extracting(item -> item.get("type")).containsExactly("SHIFT", "ABSENCE");
     assertThat(sickItems.get(1)).isEqualTo(Map.of("type", "ABSENCE", "absenceType", "SICK"));
     assertThat(sickItems.get(0)).containsKeys("assignmentId", "shiftTemplate", "version");
+    // PR-O: the live board's move/cancel hints are not part of the draft roster.
+    assertThat(payload).as("the draft sends no business-clock now").doesNotContainKey("now");
+    assertThat(sickItems.get(0))
+        .as("the draft's shift items carry none of the live board's refusal flags")
+        .doesNotContainKeys("actualRecorded", "absenceRecorded", "fillsOpenShift", "payPeriodLocked");
 
     assertThat(row(officers, elsewhere)).as("leave of an officer of another unit").isNull();
     long absenceItems =
