@@ -735,8 +735,60 @@ export interface PlannerWindow {
   periods: number;
 }
 
+/**
+ * Plan inputs (PR-M, GET /planner/inputs and `scorecard.inputs` on a draft):
+ * what the generator works from, counts only. Generate options live in
+ * `options`, so new tailoring options are added there.
+ */
+export interface PlanInputs {
+  window: { from: string; to: string; periods: number };
+  options: { seed: number; pattern8h: string | null } & Record<string, unknown>;
+  officers: {
+    total: number;
+    fullTime: number;
+    /** Every officer under 1.0 FTE: the generator fills part-time and casual alike. */
+    partTime: number;
+    fte: number;
+    /** The staffing estimate for the first period (about this many FTE needed), or null. */
+    neededFte: number | null;
+    units: number;
+  };
+  units: {
+    code: string;
+    name: string;
+    allows12h: boolean;
+    officers: number;
+    fullTime: number;
+    partTime: number;
+    fte: number;
+    minimums: Record<'NIGHT' | 'DAY' | 'EVENING', number>;
+    closedDays: number;
+    groups: {
+      employment: 'FULL_TIME' | 'PART_TIME';
+      hours: number;
+      pattern: string;
+      patternWords: string;
+      officers: number;
+      fte: number;
+    }[];
+  }[];
+  leave: { days: number; officers: number; byType: Record<string, number> };
+  preferences: {
+    officers: number;
+    shiftLengthOfficers: number;
+    shiftLength: Record<string, number>;
+    timesOfDayOfficers: number;
+    timesOfDay: Record<string, number>;
+    daysOffOfficers: number;
+  };
+  seniority: { earliest: string | null; latest: string | null };
+  rules: { ruleSetVersion: number; historyDays: number; fillOrder: string[] };
+}
+
 export interface PlannerScorecard {
   coverage: { shortBlockDays: number; totalBlockDays: number };
+  /** What this draft was generated with (PR-M); absent on a draft from before v1.2. */
+  inputs?: PlanInputs;
   warnings: {
     total: number;
     byRule: { ruleName: string; count: number }[];
@@ -1125,6 +1177,8 @@ export interface ShiftCircleApi {
 
   /** Quarter planner (PLANNER role): plan, drafts, gaps, warnings, commit. */
   getPlannerPlan(): Promise<PlannerPlan>;
+  /** What Generate would use now (PR-M). PLANNER only. */
+  getPlannerInputs(): Promise<PlanInputs>;
   createPlannerDraft(body: { seed: number; pattern8h?: string }): Promise<PlannerDraft>;
   /** POST /planner/absences: the planner records one day of planned leave (PR-D, fit-gap A9). */
   planAbsence(input: PlannedAbsenceInput): Promise<PlannedAbsence>;

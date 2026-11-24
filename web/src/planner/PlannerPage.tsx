@@ -24,6 +24,7 @@ import type {
   PlannerScorecard,
   PlannerWarningGroup,
   PlannerCompare,
+  PlanInputs,
   StaffingReport,
   FlaggedShift,
 } from '../api/types';
@@ -36,6 +37,7 @@ import { FlaggedShiftsCard } from './FlaggedShiftsCard';
 import { GapStrip } from './GapStrip';
 import { gapRuns, partTimeCapacity, quarterWeeks, reasonWords, shortWords, staffedWords } from './quarterPlan';
 import { DatasetBanner } from './DatasetBanner';
+import { PlanInputsCard } from './PlanInputsCard';
 import { useRole } from '../shell/nav';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
@@ -152,6 +154,8 @@ export function PlannerPage() {
   const navigate = useNavigate();
   const [plan, setPlan] = useState<PlannerPlan | null>(null);
   const [staffing, setStaffing] = useState<StaffingReport | null>(null);
+  // What Generate would use now (PR-M); a draft carries its own snapshot.
+  const [liveInputs, setLiveInputs] = useState<PlanInputs | null>(null);
   const [flagged, setFlagged] = useState<FlaggedShift[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [message, setMessage] = useState<string | null>(null);
@@ -214,6 +218,21 @@ export function PlannerPage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    let active = true;
+    void api
+      .getPlannerInputs()
+      .then((next) => {
+        if (active) setLiveInputs(next);
+      })
+      .catch(() => {
+        if (active) setLiveInputs(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const refreshStaffing = useCallback(async () => {
     try {
       setStaffing(await api.getStaffing());
@@ -266,6 +285,8 @@ export function PlannerPage() {
   // and its id answers the read-only tabs (dev-build's committed-plan API).
   const planDraft: PlannerDraft | null = draft ?? plan?.committedDraft ?? null;
   const scorecard: PlannerScorecard | null = planDraft?.scorecard ?? null;
+  const draftInputs: PlanInputs | null = planDraft?.scorecard.inputs ?? null;
+  const shownInputs: PlanInputs | null = draftInputs ?? liveInputs;
   const planCommitted = plan?.state === 'COMMITTED';
 
   if (role.id !== 'PLANNER') {
@@ -564,8 +585,10 @@ export function PlannerPage() {
 
       {busy === 'generate' ? (
         <Typography role="status" sx={{ fontSize: 14, color: colour.text.secondary }}>
-          Building a plan for 100 officers and checking every shift against the rules. This usually
-          takes a few seconds.
+          {liveInputs
+            ? `Building a plan for ${liveInputs.officers.total.toLocaleString('en-CA')} officers`
+            : 'Building a plan'}{' '}
+          and checking every shift against the rules. This usually takes a few seconds.
         </Typography>
       ) : null}
 
@@ -665,6 +688,10 @@ export function PlannerPage() {
             </Typography>
           </CardContent>
         </Card>
+      ) : null}
+
+      {shownInputs && !committed ? (
+        <PlanInputsCard inputs={shownInputs} live={liveInputs} fromDraft={draftInputs !== null} />
       ) : null}
 
       {!planDraft && staffing ? (

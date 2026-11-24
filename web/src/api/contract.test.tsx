@@ -27,6 +27,10 @@ import schedulePublished from './contract-samples/schedule-published.json';
 import timeEntries from './contract-samples/time-entries.json';
 import units from './contract-samples/units.json';
 import version from './contract-samples/version.json';
+import plannerInputs from './contract-samples/planner-inputs.json';
+import { PlanInputsCard } from '../planner/PlanInputsCard';
+import { PLAN_INPUTS_120 } from './fixtures/planInputs';
+import type { PlanInputs } from './types';
 
 /**
  * The screens against the api's own answers.
@@ -187,5 +191,34 @@ describe('the fixture period against the api', () => {
   it('names the roster week the way the api does', () => {
     expect(demoSchedule.period?.label).toBe('16 – 22 Nov 2026');
     expect(demoSchedule.period?.status).toBe('DRAFT');
+  });
+});
+
+describe('plan inputs against the api (PR-M)', () => {
+  it('renders the inputs the api sent, headline and detail', async () => {
+    const sample = plannerInputs as unknown as PlanInputs;
+    render(
+      <ThemeProvider theme={theme}>
+        <PlanInputsCard inputs={sample} fromDraft={false} />
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId('plan-inputs-headline').textContent).toContain(
+      `Planning ${sample.officers.total} officers`,
+    );
+    act(() => screen.getByRole('button', { name: 'Show plan inputs' }).click());
+    expect(await screen.findByRole('region', { name: 'Plan inputs detail' })).toBeInTheDocument();
+    expect(screen.queryByText('This screen could not be shown')).not.toBeInTheDocument();
+  });
+
+  it('keeps the fixture in the api shape', () => {
+    const sample = plannerInputs as unknown as Record<string, unknown>;
+    const fixture = PLAN_INPUTS_120 as unknown as Record<string, unknown>;
+    expect(Object.keys(fixture).sort()).toEqual(Object.keys(sample).sort());
+    for (const key of Object.keys(sample)) {
+      const value = sample[key];
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        expect(Object.keys(fixture[key] as object).sort(), key).toEqual(Object.keys(value).sort());
+      }
+    }
   });
 });
