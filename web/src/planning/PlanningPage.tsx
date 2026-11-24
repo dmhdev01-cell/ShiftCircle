@@ -55,6 +55,7 @@ import { RosterGrid } from './RosterGrid';
 import { RuleCheckPanel } from './RuleCheckPanel';
 import { RulesHelpDialog } from './RulesHelpDialog';
 import { ShiftActionsDialog } from './ShiftActionsDialog';
+import { boardNow } from './shiftWords';
 import { useRuleCheckedMutation } from './useRuleCheckedMutation';
 import { useSchedule } from './useSchedule';
 
@@ -1055,6 +1056,7 @@ export function PlanningPage() {
           officer={shiftActions.officer}
           item={shiftActions.item}
           unitId={payload.unit.id}
+          now={boardNow(payload)}
           onClose={() => setShiftActions(null)}
           onChanged={reload}
         />

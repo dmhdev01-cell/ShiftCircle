@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -15,7 +16,7 @@ import { Legend, LegendItem } from '../components/Legend';
 import { KpiTile } from '../planning/KpiTile';
 import { colour } from '../theme/tokens';
 import { LockPeriodDialog, UnlockDialog } from './PeriodDialogs';
-import { RecordActualPanel } from './RecordActualPanel';
+import { RECORD_ACTUAL_HEADING_ID, RecordActualPanel } from './RecordActualPanel';
 import { TimeGrid } from './TimeGrid';
 import type { OfficerTimeRow } from './TimeGrid';
 import { usePayPeriods, useTimeEntries } from './useTimeAttendance';
@@ -35,8 +36,33 @@ function daysBetween(from: string, to: string): string[] {
  * Time and attendance (docs/ui/build-notes.md §2.2). The supervisor records
  * what actually happened, and locks the pay period once every shift that has
  * ended has an actual (ADR-017). A locked period is read-only.
+ *
+ * PR-O: the planning board links here for a shift that has started, as
+ * /time?date=YYYY-MM-DD&unit=<unit id>&shift=<assignment id>. The screen opens
+ * on the pay period that holds the date, filtered to the unit, with that
+ * shift's record panel open.
  */
 export function TimeAttendancePage() {
+  // A new link (a query-only change on the mounted route) starts the screen
+  // afresh, so its period, unit and shift are read again (PR-O review N4).
+  const { search } = useLocation();
+  return <TimeAttendanceScreen key={search} />;
+}
+
+/**
+ * An assignment id: a UUID from the api (letters, digits and dashes; the demo
+ * fixtures use ids such as a-marc-16). Anything else in the link is ignored, so
+ * a crafted value cannot reach the CSS selector below (PR-O security LOW-1).
+ */
+const ASSIGNMENT_ID = /^[A-Za-z0-9-]{1,64}$/;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+function TimeAttendanceScreen() {
+  const [searchParams] = useSearchParams();
+  const rawDate = searchParams.get('date');
+  const linkDate = rawDate && ISO_DATE.test(rawDate) ? rawDate : null;
+  const rawShift = searchParams.get('shift');
+  const linkShift = rawShift && ASSIGNMENT_ID.test(rawShift) ? rawShift : null;
   const { state: periodsState, reload: reloadPeriods } = usePayPeriods();
   const periods = periodsState.kind === 'ready' ? periodsState.periods : [];
   const [periodId, setPeriodId] = useState<string | null>(null);
@@ -45,6 +71,7 @@ export function TimeAttendancePage() {
   // The period that contains the demo day, not whichever one the api lists
   // first: the list runs newest first, so the first is a future period (V3).
   const defaultPeriod =
+    (linkDate ? periods.find((entry) => linkDate >= entry.from && linkDate <= entry.to) : undefined) ??
     (asOf ? periods.find((entry) => asOf >= entry.from && asOf <= entry.to) : undefined) ??
     periods.find((entry) => entry.status === 'OPEN') ??
     periods[0];
@@ -54,7 +81,7 @@ export function TimeAttendancePage() {
     refreshing: entriesRefreshing,
     reload: reloadEntries,
   } = useTimeEntries(activePeriodId);
-  const [unitId, setUnitId] = useState<string>('');
+  const [unitId, setUnitId] = useState<string>(() => searchParams.get('unit') ?? '');
   const [picked, setPicked] = useState<TimeEntry | null>(null);
   const [saved, setSaved] = useState<{
     periodHours: number;
@@ -66,6 +93,30 @@ export function TimeAttendancePage() {
   const [unlockOpen, setUnlockOpen] = useState(false);
 
   const period = periods.find((entry) => entry.id === activePeriodId);
+
+  // Open the linked shift once, when the period's entries have loaded. State
+  // set while rendering, guarded so it runs once (no effect needed for it).
+  const [linkHandled, setLinkHandled] = useState(false);
+  if (linkShift && !linkHandled && entriesState.kind === 'ready') {
+    setLinkHandled(true);
+    const entry = entriesState.entries.find((item) => item.assignmentId === linkShift);
+    if (entry) {
+      setPicked(entry);
+      setSaved(null);
+    } else {
+      setMessage('The shift from the planning board is not in this pay period. Pick its period above.');
+    }
+  }
+  // Bring the linked cell into view once it is drawn.
+  const linkScrolled = useRef(false);
+  useEffect(() => {
+    if (!linkShift || !linkHandled || linkScrolled.current) return;
+    linkScrolled.current = true;
+    const cell = document.querySelector<HTMLElement>(`[data-assignment-id="${linkShift}"]`);
+    if (cell && typeof cell.scrollIntoView === 'function') {
+      cell.scrollIntoView({ block: 'center', inline: 'center' });
+    }
+  }, [linkShift, linkHandled]);
 
   if (periodsState.kind === 'loading') {
     return (
@@ -556,6 +607,7 @@ export function TimeAttendancePage() {
       <Drawer
         anchor="right"
         open={picked !== null}
+        slotProps={{ paper: { 'aria-labelledby': RECORD_ACTUAL_HEADING_ID } }}
         onClose={() => {
           setPicked(null);
           setSaved(null);

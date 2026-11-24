@@ -13,6 +13,9 @@ import { chipTextFor } from '../api/shiftTemplates';
 import type { AbsenceType, PayCode, RecordActualInput, TimeEntry } from '../api/types';
 import { colour } from '../theme/tokens';
 
+/** The panel's heading id, so the drawer around it is a named dialog (axe aria-dialog-name). */
+export const RECORD_ACTUAL_HEADING_ID = 'record-actual-heading';
+
 type Choice = 'AS_SCHEDULED' | 'ADJUSTED' | 'ABSENT';
 
 interface RecordActualPanelProps {
@@ -89,7 +92,11 @@ export function RecordActualPanel({
     >
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <Typography component="h2" sx={{ m: 0, fontSize: 17, fontWeight: 700 }}>
+          <Typography
+            component="h2"
+            id={RECORD_ACTUAL_HEADING_ID}
+            sx={{ m: 0, fontSize: 17, fontWeight: 700 }}
+          >
             Record actual · {entry.employeeName}
           </Typography>
           <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
