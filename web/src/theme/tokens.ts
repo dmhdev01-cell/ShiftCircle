@@ -76,6 +76,8 @@ export const grid = {
   today: '#EAF3F9',
   weekend: '#F1F2F4',
   weekSeparator: '#9AA3AB',
+  /** A2: the officers free on the selected gap's day (the panel lists them in words). */
+  free: '#E3F0E8',
 } as const;
 
 /**

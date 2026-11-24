@@ -8,6 +8,7 @@ import type { BlockCoverage, OfficerRow, SchedulePayload } from '../api/types';
 import { StatusPill } from '../components/StatusPill';
 import { colour, coverageTones, focusRing } from '../theme/tokens';
 import { BLOCK_TEMPLATES, BLOCK_WORDS, dayWords, gapCandidates } from './gapFill';
+import type { PeriodHours } from './gapFill';
 
 export const GAP_PANEL_HEADING_ID = 'gap-fill-heading';
 
@@ -25,7 +26,16 @@ interface GapFillPanelProps {
   findEligibleHref: string;
   /** Hidden (kept mounted) while the rule-check dock is open. */
   hidden?: boolean;
+  /**
+   * Set when the gap sits in another pay period than the board's first day (a
+   * month): the hours, the OT pills and the ranking then come from that
+   * period's own schedule, read separately.
+   */
+  period?: { label: string; state: 'loading' | 'ready' | 'error'; hours?: Map<string, PeriodHours> };
 }
+
+/** The panel's id, for the gap buttons' aria-controls. */
+export const GAP_PANEL_ID = 'gap-fill-panel';
 
 const STATUS_PILL = {
   under: { tone: 'under', text: 'under' },
@@ -48,6 +58,7 @@ export function GapFillPanel({
   onClose,
   findEligibleHref,
   hidden = false,
+  period,
 }: GapFillPanelProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const words = BLOCK_WORDS[gap.block];
@@ -55,7 +66,10 @@ export function GapFillPanel({
   const missing = Math.max(0, gap.required - lowest);
   const met = gap.covered && gap.scheduled.shortHours.length === 0;
   const tone = met ? coverageTones.ok : missing >= 2 ? coverageTones.gap2 : coverageTones.gap;
-  const candidates = met ? [] : gapCandidates(payload, gap, template);
+  const periodPending = period !== undefined && period.state !== 'ready';
+  const candidates =
+    met || periodPending ? [] : gapCandidates(payload, gap, template, period?.hours);
+  const hoursLabel = period ? `h in pay period ${period.label}` : 'h this pay period';
   const shortWords = gap.scheduled.shortHours
     .map((range) => `${range.from.slice(0, 5)}–${range.to.slice(0, 5)}`)
     .join(', ');
@@ -70,6 +84,7 @@ export function GapFillPanel({
   return (
     <Box
       role="region"
+      id={GAP_PANEL_ID}
       aria-labelledby={GAP_PANEL_HEADING_ID}
       hidden={hidden}
       sx={{
@@ -193,14 +208,24 @@ export function GapFillPanel({
 
           <Box sx={{ fontSize: 13, color: colour.text.secondary }}>
             <Box component="h3" sx={{ display: 'inline', m: 0, fontSize: 14, fontWeight: 700, color: colour.text.primary }}>
-              Free in this unit ({candidates.length})
+              Free on this board{periodPending ? '' : ` (${candidates.length})`}
             </Box>{' '}
-            · lowest pay-period hours first. The hints are read from the board; the rules engine decides.
+            · the officers with a shift in this unit on the days shown who have nothing that day,
+            lowest pay-period hours first. The hints are read from the board; the rule check decides.
           </Box>
 
-          {candidates.length === 0 ? (
+          {period?.state === 'loading' ? (
+            <Box role="status" sx={{ fontSize: 14 }}>
+              Reading the hours for pay period {period.label}…
+            </Box>
+          ) : period?.state === 'error' ? (
+            <Box role="status" sx={{ fontSize: 14 }}>
+              Could not read the hours for pay period {period.label}. Close the panel and try again,
+              or use the Overtime board.
+            </Box>
+          ) : candidates.length === 0 ? (
             <Box sx={{ fontSize: 14 }}>
-              No one in this unit is free that day. Try the Overtime board for officers in other units.
+              No officer on this board is free that day. The Overtime board also covers other units.
             </Box>
           ) : (
             <Box
@@ -230,7 +255,9 @@ export function GapFillPanel({
                         </Box>
                       </Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: 13 }}>
-                        <span className="num">{officer.payPeriodHours} h this pay period</span>
+                        <span className="num">
+                          {officer.payPeriodHours} {hoursLabel}
+                        </span>
                         <StatusPill tone={STATUS_PILL[status].tone} small>
                           {STATUS_PILL[status].text}
                         </StatusPill>

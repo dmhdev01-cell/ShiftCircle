@@ -29,6 +29,9 @@ export const BLOCK_TEMPLATES: Record<Block, string[]> = {
   NIGHT: ['N8', 'N12'],
 };
 
+/** The business offset (Saskatchewan has no daylight saving). */
+const OFFSET = '-06:00';
+
 export type HintTone = 'warn' | 'info';
 
 export interface GapHint {
@@ -86,9 +89,26 @@ function isFree(officer: OfficerRow, date: string): boolean {
 }
 
 /**
- * The hints for one free officer, read from the days on screen: a shift
- * ending on the morning of the gap, the run of work days the shift would
- * make, and overtime.
+ * Rest is shown as a fact, never as a verdict: below this many hours between
+ * the previous shift's end and the chosen start (U-02's default 12 h target),
+ * the row says how much rest there is. U-01's floor is a live rule-table
+ * value, so only the rule check says whether that passes.
+ */
+export const REST_HINT_BELOW_HOURS = 12;
+
+/** "Sat 07:00" for an instant with its offset ("2026-11-21T07:00-06:00"). */
+function endWords(instant: string): string {
+  return `${weekdayShort(instant.slice(0, 10))} ${instant.slice(11, 16)}`;
+}
+
+function hoursWords(hours: number): string {
+  return Number.isInteger(hours) ? `${hours}` : hours.toFixed(1);
+}
+
+/**
+ * The hints for one free officer, read from the days on screen: the rest
+ * after the day before, the run of work days the shift would make, and
+ * overtime.
  */
 export function hintsFor(
   officer: OfficerRow,
@@ -98,18 +118,28 @@ export function hintsFor(
 ): GapHint[] {
   const hints: GapHint[] = [];
 
-  // A shift from the day before that ends on the gap's day.
+  // The rest between the day before's last shift and the chosen start.
   const previous = addDays(date, -1);
-  const ending = shiftsOn(officer, previous).find((item) => item.endAt.slice(0, 10) === date);
-  if (ending) {
-    const time = ending.endAt.slice(11, 16);
-    hints.push({
-      tone: 'warn',
-      text:
-        time === '00:00'
-          ? `worked until midnight ${weekdayShort(previous)}: check the rest rule`
-          : `worked a night ending ${weekdayShort(date)} ${time}: likely a rest-rule Block`,
-    });
+  const start = shiftTemplates[template]?.start;
+  if (!days.includes(previous)) {
+    hints.push({ tone: 'info', text: 'the board starts this day: the rule check also sees earlier shifts' });
+  } else if (start) {
+    const startMs = new Date(`${date}T${start}:00${OFFSET}`).getTime();
+    const ending = shiftsOn(officer, previous)
+      .map((item) => ({ item, endMs: new Date(item.endAt).getTime() }))
+      .filter((entry) => Number.isFinite(entry.endMs))
+      .sort((a, b) => b.endMs - a.endMs)[0];
+    if (ending) {
+      const rest = Math.round(((startMs - ending.endMs) / 3600000) * 10) / 10;
+      if (rest < 0) {
+        hints.push({ tone: 'warn', text: `overlaps a shift ending ${endWords(ending.item.endAt)}` });
+      } else if (rest < REST_HINT_BELOW_HOURS) {
+        hints.push({
+          tone: 'info',
+          text: `${hoursWords(rest)} h rest after a shift ending ${endWords(ending.item.endAt)}`,
+        });
+      }
+    }
   }
 
   // The run of work days the shift would join, as far as the board shows.
@@ -147,18 +177,37 @@ export function hintsFor(
   return hints;
 }
 
+/** An officer's pay-period figures, from the schedule of the gap's own pay period. */
+export type PeriodHours = Pick<OfficerRow, 'payPeriodHours' | 'overtimeStatus' | 'payPeriodThreshold'>;
+
 /**
- * The officers in the unit who are free on the gap's day, lowest pay-period
- * hours first (then by name), each with the hints for the chosen template.
+ * The officers on this board (the API lists the unit's officers with a shift
+ * in the range shown) who are free on the gap's day, lowest pay-period hours
+ * first (then by name), each with the hints for the chosen template.
+ *
+ * `periodHours` replaces the payload's figures when the gap sits in another
+ * pay period than the board's first day (a month): the payload's hours are
+ * for the first day's period. An officer missing from it has no shift in
+ * that period, so 0 h.
  */
 export function gapCandidates(
   payload: SchedulePayload,
   gap: BlockCoverage,
   template: string,
+  periodHours?: Map<string, PeriodHours>,
 ): GapCandidate[] {
   return payload.officers
     .filter((officer) => isFree(officer, gap.date))
-    .slice()
+    .map((officer) => {
+      if (!periodHours) return officer;
+      const own = periodHours.get(officer.employeeId);
+      return {
+        ...officer,
+        payPeriodHours: own?.payPeriodHours ?? 0,
+        overtimeStatus: own?.overtimeStatus ?? 'UNDER',
+        payPeriodThreshold: own?.payPeriodThreshold ?? officer.payPeriodThreshold,
+      };
+    })
     .sort((a, b) => a.payPeriodHours - b.payPeriodHours || a.name.localeCompare(b.name))
     .map((officer) => ({
       officer,

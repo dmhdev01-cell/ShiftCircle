@@ -93,7 +93,10 @@ describe('a compact coverage heat cell (A1)', () => {
     );
     const buttons = screen.getAllByRole('button', { name: /^Fill gap: Sat 21 Nov days, 3 ?\/ ?5/ });
     expect(buttons).toHaveLength(2);
-    expect(buttons[1]).toHaveAttribute('aria-pressed', 'true');
+    expect(buttons[0]).toHaveAttribute('aria-expanded', 'false');
+    expect(buttons[0]).not.toHaveAttribute('aria-controls');
+    expect(buttons[1]).toHaveAttribute('aria-expanded', 'true');
+    expect(buttons[1]).toHaveAttribute('aria-controls', 'gap-fill-panel');
     buttons[0].click();
     expect(onFill).toHaveBeenCalledWith(short);
   });

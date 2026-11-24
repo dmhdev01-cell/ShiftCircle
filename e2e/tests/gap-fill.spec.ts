@@ -37,7 +37,7 @@ test.describe('A2 fill a gap from the board', () => {
     await expect(panel).toBeVisible();
     await expect(panel.getByRole('button', { name: /^D8 / })).toHaveAttribute('aria-pressed', 'true');
     // The selected cell is marked in the grid.
-    await expect(page.getByRole('button', { name: /^Fill gap: Sat 21 Nov days/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: /^Fill gap: Sat 21 Nov days/ })).toHaveAttribute('aria-expanded', 'true');
 
     const rows = panel.getByRole('list', { name: 'Free officers' }).getByRole('listitem');
     await expect(rows.first()).toBeVisible();
@@ -48,7 +48,9 @@ test.describe('A2 fill a gap from the board', () => {
     // Nia's Saturday is empty, so she is listed, with the hints the board shows.
     const nia = rows.filter({ hasText: 'Nia Thompson' });
     await expect(nia).toHaveCount(1);
-    await expect(nia).toContainText(/worked until midnight Fri/);
+    // Rest is a fact (P12 ends Sat 00:00, D8 starts 07:00); the rule check decides.
+    await expect(nia).toContainText('7 h rest after a shift ending Sat 00:00');
+    await expect(nia).not.toContainText(/Block/);
     await expect(nia).toContainText(/in overtime/);
     await expectAccessible(page, testInfo, 'planning-gap-fill');
     await shot(page, testInfo, 'supervisor', 'planning', 'gap-fill-panel');

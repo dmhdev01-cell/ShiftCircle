@@ -270,6 +270,10 @@ export function RosterGrid({
                       textAlign: compact ? 'center' : 'left',
                       ...dayStyle(date, index),
                       backgroundColor: date === today ? grid.today : isWeekend(date) ? grid.weekend : colour.bg.subtle,
+                      // A2: the selected gap's day is marked in the header.
+                      ...(selectedGap?.date === date
+                        ? { boxShadow: `inset 0 -3px 0 ${colour.brand.primary}` }
+                        : {}),
                     }}
                   >
                     {compact ? (
@@ -431,6 +435,10 @@ export function RosterGrid({
                           borderBottom: border,
                           textAlign: compact ? 'center' : undefined,
                           ...dayStyle(date, index),
+                          // A2: who is free on the selected gap's day stands out.
+                          ...(selectedGap?.date === date && items.length === 0
+                            ? { backgroundColor: grid.free }
+                            : {}),
                         }}
                       >
                         {items.length === 0 ? (

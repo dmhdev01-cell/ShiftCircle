@@ -107,10 +107,14 @@ export function CoverageCell({
         component: 'button' as const,
         type: 'button' as const,
         onClick: () => onFill(block),
-        'aria-pressed': selected,
+        // It opens the gap panel: a disclosure, not a toggle.
+        'aria-expanded': selected,
+        ...(selected ? { 'aria-controls': 'gap-fill-panel' } : {}),
         // No aria-label: the name is the hidden prefix plus the visible
         // figures, so it keeps the visible text (WCAG 2.5.3).
         'aria-label': undefined,
+        // A button, not the plain cell's image.
+        role: undefined,
         title: `${title} · Fill this gap`,
       }
     : {};

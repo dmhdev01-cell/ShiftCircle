@@ -208,7 +208,15 @@ describe('the planning board', () => {
 
       const cell = await screen.findByRole('button', { name: /^Fill gap: Fri 20 Nov evenings, 4 \/ 5 short 15–17/ });
       await user.click(cell);
-      expect(cell).toHaveAttribute('aria-pressed', 'true');
+      expect(cell).toHaveAttribute('aria-expanded', 'true');
+      expect(cell).toHaveAttribute('aria-controls', 'gap-fill-panel');
+      // The free officers' cells on that day are tinted (S2).
+      const dayCells = [...document.querySelectorAll<HTMLElement>('td[data-officer-id][data-date="2026-11-20"]')];
+      const free = dayCells.filter((td) => td.querySelector('button[aria-label^="Off - "]'));
+      const busy = dayCells.filter((td) => !td.querySelector('button[aria-label^="Off - "]'));
+      expect(free.length).toBeGreaterThan(0);
+      for (const td of free) expect(td.style.backgroundColor).toBe('rgb(227, 240, 232)');
+      for (const td of busy) expect(td.style.backgroundColor).not.toBe('rgb(227, 240, 232)');
       const panel = await screen.findByRole('region', { name: /Fri 20 Nov · Evenings 15:00 – 23:00/ });
       expect(within(panel).getByRole('button', { name: /^E8 / })).toHaveAttribute('aria-pressed', 'true');
 
@@ -279,6 +287,44 @@ describe('the planning board', () => {
       );
       await waitFor(() => expect(schedule.mock.calls.length).toBeGreaterThanOrEqual(2));
       vi.restoreAllMocks();
+    });
+
+    it('returns focus to the latest gap opened, not the first', async () => {
+      const user = userEvent.setup();
+      renderBoard();
+      await user.click(await screen.findByRole('button', { name: /^Fill gap: Sat days/ }));
+      const second = screen.getByRole('button', { name: /^Fill gap: Fri 20 Nov evenings/ });
+      await user.click(second);
+      await screen.findByRole('region', { name: /Fri 20 Nov · Evenings/ });
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(second).toHaveFocus());
+    });
+
+    it('in a month, ranks a gap with its own pay period\'s hours (S1)', async () => {
+      stubVersion();
+      const user = userEvent.setup();
+      const schedule = vi.spyOn(api, 'getSchedule');
+      renderBoard('/planning?view=month&week=2026-11-16');
+
+      await user.click(await screen.findByRole('button', { name: /^Fill gap: Sat 21 Nov days/ }));
+      const panel = await screen.findByRole('region', { name: /Sat 21 Nov · Days/ });
+      // The month starts in the 26 Oct – 8 Nov period; Sat 21 is in 9 – 22 Nov.
+      await waitFor(() =>
+        expect(
+          schedule.mock.calls.some(([query]) => query.from === '2026-11-09' && query.to === '2026-11-22'),
+        ).toBe(true),
+      );
+      expect((await within(panel).findAllByText(/h in pay period 9 – 22 Nov 2026/)).length).toBeGreaterThan(0);
+      vi.restoreAllMocks();
+    });
+
+    it('offers no fill to the read-only planner', async () => {
+      const user = userEvent.setup();
+      renderBoard();
+      await screen.findByRole('button', { name: /^Fill gap: Sat days/ });
+      await user.selectOptions(await screen.findByLabelText('Mock sign-in: choose a role'), 'PLANNER');
+      await screen.findByText(/Read-only: the facility planner/);
+      expect(screen.queryByRole('button', { name: /^Fill gap/ })).not.toBeInTheDocument();
     });
 
     it('keeps the empty-cell flow as it was (demo §2)', async () => {

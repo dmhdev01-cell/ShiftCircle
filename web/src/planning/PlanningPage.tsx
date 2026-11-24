@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
@@ -177,6 +177,24 @@ export function PlanningPage() {
   const [gap, setGap] = useState<{ date: string; block: Block } | null>(null);
   const [gapTemplate, setGapTemplate] = useState('D8');
   const gapTrigger = useRef<HTMLElement | null>(null);
+  // A2: the API's pay-period hours are for the period of the board's first
+  // day. A gap in another period (a month view) reads that period's own
+  // schedule, so the ranking and the OT hints use the right hours.
+  const boardFirstDay = state.kind === 'ready' ? state.payload.days[0] : undefined;
+  const gapPeriod =
+    gap && boardFirstDay && payPeriodOf(gap.date).from !== payPeriodOf(boardFirstDay).from
+      ? payPeriodOf(gap.date)
+      : null;
+  const gapPeriodSchedule = useSchedule(
+    gapPeriod ? activeUnitId : undefined,
+    gapPeriod?.from,
+    gapPeriod?.to,
+  );
+  /** A saved change moves the board and, in a month, the gap's own period. */
+  const reloadAll = () => {
+    reload();
+    if (gapPeriod) gapPeriodSchedule.reload();
+  };
 
   // Only a supervisor publishes a roster; the api refuses everyone else.
   const canPublish = role.id === 'SUPERVISOR';
@@ -200,12 +218,12 @@ export function PlanningPage() {
   };
 
   /** A2: close the gap panel and put focus back on the gap that opened it. */
-  const closeGap = () => {
+  const closeGap = useCallback(() => {
     setGap(null);
     const target = gapTrigger.current;
     gapTrigger.current = null;
     window.setTimeout(() => target?.focus?.({ preventScroll: true }), 0);
-  };
+  }, []);
 
   // Keep the evidence beside the verdict: a non-modal bottom sheet, and the
   // selected cell scrolled above it.
@@ -270,7 +288,7 @@ export function PlanningPage() {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  });
+  }, [gapPanelShown, closeGap]);
 
   if (state.kind === 'loading') {
     return (
@@ -517,10 +535,9 @@ export function PlanningPage() {
 
   /** A2: a short coverage cell or a gap word opens the fill panel. */
   const openGap = (block: BlockCoverage) => {
-    if (!gap) {
-      gapTrigger.current =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    }
+    // The latest gap button is where Close and Escape return.
+    gapTrigger.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     if (mutation.state.kind !== 'idle' || pending || proposal) {
       setPending(null);
       setProposal(null);
@@ -842,14 +859,14 @@ export function PlanningPage() {
               // A saved change moves the board: read it again (D9).
               if (mutation.state.change) {
                 void mutation.save(mutation.state.change).then((saved) => {
-                  if (saved) reload();
+                  if (saved) reloadAll();
                 });
               }
             }}
             onAcknowledge={(codes) => {
               if (mutation.state.change) {
                 void mutation.save(mutation.state.change, { acknowledgeWarnings: codes }).then((saved) => {
-                  if (saved) reload();
+                  if (saved) reloadAll();
                 });
               }
             }}
@@ -913,6 +930,24 @@ export function PlanningPage() {
             `${gapEntry.date}T${shiftTemplates[gapTemplate].start}:00${REGINA_OFFSET}`,
           )}`}
           hidden={!gapPanelShown}
+          {...(gapPeriod
+            ? {
+                period: {
+                  label: rangeWords(gapPeriod.from, gapPeriod.to),
+                  state: gapPeriodSchedule.state.kind,
+                  ...(gapPeriodSchedule.state.kind === 'ready'
+                    ? {
+                        hours: new Map(
+                          gapPeriodSchedule.state.payload.officers.map((officer) => [
+                            officer.employeeId,
+                            officer,
+                          ]),
+                        ),
+                      }
+                    : {}),
+                },
+              }
+            : {})}
         />
       ) : null}
 
@@ -946,7 +981,7 @@ export function PlanningPage() {
                 ...(warnCodes.length > 0 ? { acknowledgeWarnings: warnCodes } : {}),
               })
               .then((saved) => {
-                if (saved) reload();
+                if (saved) reloadAll();
               });
           }
         }}
