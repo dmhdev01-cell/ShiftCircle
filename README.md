@@ -116,7 +116,7 @@ Commit re-checks every shift, hand edits included, needs the warning list accept
 
 **Known limits**, stated on the scorecard and in [`BUILD_RECORD.md`](BUILD_RECORD.md):
 - The planner does not enforce qualifications; the Qualified staff card only reports them, and it does not read qualification start dates.
-- The demo plan has no leave unless you enter it with `POST /api/v1/planner/absences` (PLANNER only, a read-only skip, no approval flow).
+- Planned leave is entered by the planner (**Preferences → Add planned leave**, one `POST /api/v1/planner/absences` per day; PLANNER only, type only, no approval flow) and skipped by the next Generate. The draft roster shows it as Vac, Sick or Other chips; the live planning board does not show planned leave yet. Dataset 100 and 120 seed no leave in the plan quarter; Dataset 150 seeds 20%.
 - Payroll overtime stays per pay period (P-01).
 - L16 is retired: a 16 h shift is a 12 h shift plus an extension, and an old database still renders its history.
 - A late-recorded actual is not re-checked against shifts saved after it.

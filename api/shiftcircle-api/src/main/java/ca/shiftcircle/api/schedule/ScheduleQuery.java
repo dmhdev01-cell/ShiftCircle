@@ -59,7 +59,11 @@ public class ScheduleQuery {
       String type, UUID assignmentId, String shiftTemplate, String startAt, String endAt,
       String kind, boolean worked, int version, boolean edited) {}
 
-  public record DayCell(LocalDate date, List<ShiftItem> items) {}
+  /**
+   * One day of an officer's row. The board sends SHIFT items only; the planner's draft roster
+   * also sends planned leave as {@link ca.shiftcircle.api.planner.PlannerViews.LeaveItem}.
+   */
+  public record DayCell(LocalDate date, List<?> items) {}
 
   public record OfficerRow(
       UUID employeeId, String name, String rotation, List<String> qualifications,
