@@ -1,7 +1,7 @@
 # UI test coverage (Playwright, Chromium only)
 
 What the end-to-end suite covers, screen by role by state, and what it cannot.
-Written for the UI test plan, phase B (2026-11-20) and kept current since (24 Nov 2026: 38 spec files, 114 tests on the real api per viewport). Every row names the spec
+Written for the UI test plan, phase B (2026-11-20) and kept current since (23 Nov 2026: 38 spec files, 114 tests on the real api per viewport). Every row names the spec
 that proves it. **Real api** means the compose stack; **fixtures** means the
 fixtures-mode web (tag `@fixtures`). Run against the real api with
 `--grep-invert @fixtures`, **one viewport per fresh stack** (the specs change
@@ -24,7 +24,7 @@ to `SHOTS_DIR` (default `/private/tmp/sc-ui-shots/<RUN_ID>`, outside the repo).
 
 ## Defects found by these specs
 
-All ten defects below were fixed on `main`: no spec carries a `test.fail` marker any more (`grep -rn "test.fail" e2e/tests` finds only a stale comment in `planning-override.spec.ts`). The file and line evidence is as it stood when each was found, so it no longer matches the code.
+All nine defects below (D1 to D6 and D8 to D10; there was no D7) were fixed on `main`: no spec carries a `test.fail` marker any more (`grep -rn "test.fail" e2e/tests` finds only a stale comment in `planning-override.spec.ts`). The file and line evidence is as it stood when each was found, so it no longer matches the code.
 
 | ID | Severity | What happened | Evidence at the time | Spec | Now |
 |---|---|---|---|---|---|

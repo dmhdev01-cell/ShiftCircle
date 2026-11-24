@@ -152,7 +152,7 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 
 ## 6. Screens not yet designed (build from the patterns above)
 
-**Build status (24 Nov 2026):** Sign-in, Time & attendance and the tablet layouts are built. Shift types is built as the rule table SHIFT_LENGTHS (allowed lengths), not as a shift-template editor. **Proposals inbox, Rule version review and My hours are placeholder pages** that say they are not built yet (`docs/10-testing.md` §8).
+**Build status (23 Nov 2026):** Sign-in, Time & attendance and the tablet layouts are built. Shift types is built as the rule table SHIFT_LENGTHS (allowed lengths), not as a shift-template editor. **Proposals inbox, Rule version review and My hours are placeholder pages** that say they are not built yet (`docs/10-testing.md` §8).
 
 | Screen | Route | Notes |
 |---|---|---|

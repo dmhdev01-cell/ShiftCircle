@@ -12,7 +12,7 @@
 | IDs | UUID strings |
 | Time | Instants as ISO-8601 with offset (`2026-11-21T07:00:00-06:00`); dates as `YYYY-MM-DD`; all in `America/Regina` |
 | Lists | Plain JSON arrays; the prototype has no `page`/`size` paging. The one long list, `GET /audit-events`, is keyset-paged: `?limit=` (default 50, at most 200) and `?beforeId=`, answering `{ "items": [...], "nextBeforeId": <id or null> }` |
-| Concurrency | Editable resources return `ETag: "<version>"`; updates require `If-Match`. A stale version gets `412 Precondition Failed`. **In the prototype this is built for assignment move and cancel only (§4.2).** Rule-table drafts are protected by the build fingerprint and the maker/checker states instead. |
+| Concurrency | Editable resources return `ETag: "<version>"`; updates require `If-Match`. A stale version gets `412 Precondition Failed`. **In the prototype this is built for assignment move and cancel (§4.2) and for the planner's draft edits and commit (§4.9) only.** Rule-table drafts are protected by the build fingerprint and the maker/checker states instead. |
 | Errors | RFC 9457 Problem Details (`application/problem+json`), with a `ruleResults` extension when rules decide (see §3) |
 | CSV | Report and export endpoints also answer `Accept: text/csv` |
 | Correlation | `X-Correlation-Id` is accepted or generated, echoed back, and written to logs and audit |
@@ -27,7 +27,7 @@
 | `404` | Not found, or outside the caller's scope (we don't reveal what exists) |
 | `409` | State conflict (e.g. pay period locked, offer already answered, lock refused because past shifts lack actuals) |
 | `412` | Stale `If-Match` version |
-| `428` | `If-Match` missing where it is required (assignment move and cancel, §4.2) |
+| `428` | `If-Match` missing where it is required (assignment move and cancel, §4.2; planner draft edits and commit, §4.9) |
 | `422` | **A rule blocked the change** (body includes `ruleResults`), or Warn results need acknowledgement |
 
 ### 2.1 Database conflicts (problem types)

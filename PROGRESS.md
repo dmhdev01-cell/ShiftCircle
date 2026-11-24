@@ -2,7 +2,7 @@
 
 Internal working note, kept as a historical log of the build. **It is not the current status**: for that, read the block below, then `docs/process/release-notes.md` and `docs/10-testing.md` ("Current counts"). Older paragraphs quote the counts of their day.
 
-## Current state (24 Nov 2026, `main` at `a38e452`)
+## Current state (23 Nov 2026, `main` at `a38e452`)
 
 - **Everything in `docs/process/HANDOFF.md` §6 is built** except what `docs/10-testing.md` §8 lists as not built (Excel round-trip, the proposals send and inbox, offer withdrawal, OpenAPI, and the rest).
 - **Counts:** API 468 = 127 rules + 28 infrastructure + 313 api; web 368; Playwright 114 real-api tests per viewport. Details and how each was obtained: `docs/10-testing.md`.

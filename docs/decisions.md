@@ -34,7 +34,7 @@ Short records of important decisions. Status: Proposed → Accepted / Rejected /
 **Alternatives:** Microsoft RulesEngine (JSON expressions), Drools (Java), or a domain-specific language. Rejected for the prototype because they're harder for non-developers to change safely and harder to test exhaustively.
 
 ## ADR-008 — Simulated integrations kept inside the three containers
-**Status:** Accepted, and built (checked 24 Nov 2026): the payroll CSV export and the mock sign-in live inside the api and db containers; there is no fourth container.
+**Status:** Accepted, and built (checked 23 Nov 2026): the payroll CSV export and the mock sign-in live inside the api and db containers; there is no fourth container.
 **Decision:** Payroll CSV export and mock identity live inside the existing containers. No extra containers, so we stay within the three-container constraint.
 
 ## ADR-009 — Scope: scheduling prototype for a correctional centre

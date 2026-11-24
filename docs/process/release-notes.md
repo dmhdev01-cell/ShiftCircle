@@ -44,7 +44,7 @@ Screenshots from the gated build in the user guide, the repository made public (
 
 The README no longer describes the repository's purpose beyond "a prototype", and the design-canvas sentence and two process-record wordings were reworded. No code, test or data change; counts as at release 8.
 
-## After the v1.0-submission tag (on `main`, before the v1.1 entry)
+## After the v1.0-submission tag (on `main`, before the next release entry)
 
 Merged through pull requests on 23 November 2026, after tag `v1.0-submission` (`efba3f7`). Product changes, each with its own tests:
 - **Demo session survives a refresh (S11, PR #4).** On the `demo` profile the web keeps the mock sign-in in `sessionStorage` (ADR-025 amendment); `VITE_PERSIST_DEMO_SESSION=false` at build time turns it off; `prod-like` is unchanged and memory-only.
@@ -54,4 +54,4 @@ Merged through pull requests on 23 November 2026, after tag `v1.0-submission` (`
 - **CI and loopback ports (PR #1).** GitHub Actions runs the check scripts, the web checks and the API `mvn verify`; the dev override publishes the api and database on `127.0.0.1` only.
 - **Documentation:** FR-06 is stated as partial (PR #6), the build record and demo script were re-walked (PRs #2, #3), and the documentation audit (this release's docs PR) corrected install, settings, API, access-control, test-count and traceability statements against the code.
 
-Counts on `main`: API **468 = 127 rules + 28 infrastructure + 313 api** `@Test` methods (464 at release 8, plus four: `DemoActiveDatasetTest` ×3 and one in `ReportsApiTest`); web unit tests **368** in 44 files (run on 24 Nov 2026); Playwright lists **114** real-api tests per viewport. The dataset checksums, payroll golden and plan fingerprints are unchanged (no migration or generator change).
+Counts on `main`: API **468 = 127 rules + 28 infrastructure + 313 api** `@Test` methods (464 at release 8, plus four: `DemoActiveDatasetTest` ×3 and one in `ReportsApiTest`); web unit tests **368** in 44 files (run on 23 Nov 2026); Playwright lists **114** real-api tests per viewport. The dataset checksums, payroll golden and plan fingerprints are unchanged (no migration or generator change).

@@ -44,15 +44,16 @@ the NFR limits, so a regression fails the build rather than being noticed in the
 
 **Definition of done for any feature:** its rule and use-case tests pass, its endpoints have authorization tests, and the demo flow touching it passes in Playwright.
 
-### Current counts (`main` at `a38e452`, 24 Nov 2026)
+### Current counts (`main` at `a38e452`, 23 Nov 2026)
 
 The sections after this one are the **history** of how the counts grew, release by release; read this block for today's numbers. Counting method: `@Test` methods on their own line (no parameterised tests), and each suite's own runner.
 
 | Suite | Count | How it was obtained |
 |---|---|---|
 | API (Maven, Testcontainers) | **468 = 127 rules + 28 infrastructure + 313 api** | `@Test` count in the three modules. The release 8 gate was 464 in both class orders; four tests were added since (`DemoActiveDatasetTest` ×3, one in `ReportsApiTest`). A full `mvn verify` run on this tip was started on a loaded host and stopped at its time limit, so **468 is a source count, not a fresh pass result**; the last verified green run is the 464 above. |
-| Web unit tests (Vitest) | **368** in 44 files | `pnpm test` in Docker on 24 Nov 2026: 368 passed, 0 failed. `pnpm lint`: 4 warnings, 0 errors. `tsc -b` clean |
+| Web unit tests (Vitest) | **368** in 44 files | `pnpm test` in Docker on 23 Nov 2026: 368 passed, 0 failed. `pnpm lint`: 4 warnings, 0 errors. `tsc -b` clean |
 | Playwright, real api | **114** tests per viewport (desktop and tablet; the TV-size check is desktop-only) | `playwright test --list --grep-invert @fixtures`: 38 spec files. The last full pass/fail run is the release 8 gate (desktop 105 passed, tablet 104 passed + 1 skipped, fixtures 43 passed, before the specs added since). The newer specs (M1/M3, S1, S6/S8, S11) were each run green by their authors; a whole-suite run on the current tip is the next gate |
+| Playwright, fixtures-mode web | **not re-counted** | the last result is the release 8 gate, **43 passed**, before the specs added since; `e2e/README.md` has the command |
 | Dataset checksums, payroll golden, plan fingerprints | unchanged | no migration or generator change since release 8: 100 `4156077d…da6b`, 120 `82b19cf8…32ca`, 150 `2e6cd938…d7f8`, payroll golden `9f2d51b3…04ff` |
 
 #### Earlier states (history)
@@ -259,7 +260,7 @@ Things the design describes that the prototype does **not** have. They are liste
 | **`ETag`/`If-Match` in general** | Only assignment move and cancel (docs/07 §4.2); rule drafts rely on the build fingerprint | docs/07 §1 |
 | **Per-officer "changed since published" flag and the short-notice check** (FR-07, P-05/S-01) | The board returns `publishedState.unpublishedChanges` as a real count (the shifts of the period changed after it was published, from the audit trail) and names the period in `period`; no P-05/S-01 rule row and no per-officer changed marker | FR-07, docs/06 `schedule_period`, docs/05 P-05/S-01 |
 | **OpenAPI document and Swagger UI** (NFR-09) | `docs/07` is the written contract. No springdoc dependency, no `/api/v1/openapi.json` and no Swagger UI | NFR-09, docs/07 §1 |
-| **Editing shift-template start times through the rules flow** (ADR-015, FR-02) | The six templates are seeded in `V2`. The rules screen's `/rules/{version}/shift-types` route resolves to the SHIFT_LENGTHS table (allowed lengths), not a shift-template editor | ADR-015, docs/ui/README §6 |
+| **Editing shift-template start times through the rules flow** (ADR-015, FR-02) | The templates are seeded in `V2` (six), `V6` adds D12/N12 and `V13` retires L16 (eight rows, seven active). The rules screen's `/rules/{version}/shift-types` route resolves to the SHIFT_LENGTHS table (allowed lengths), not a shift-template editor | ADR-015, docs/ui/README §6 |
 | **Full token claims:** `nbf`, `iss`, `aud` | The mock issuer's tokens are checked for signature, `exp` and the identity claims only. A real identity provider over OIDC would bring the rest (pilot) | docs/09 §4 |
 | **A payroll-clerk role** for lock, unlock and export | Any supervisor with a unit in scope, audited (ADR-022) | ADR-022 pilot note |
 | **Arrow-key (roving tabindex) navigation** in the roster grid | Every chip is reachable by Tab, with a skip link; reaching one can take many presses | ai-dev-log #51 |

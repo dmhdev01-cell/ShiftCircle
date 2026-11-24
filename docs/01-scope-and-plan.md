@@ -1,6 +1,6 @@
 # ShiftCircle — Scope and Plan
 
-**Status:** v0.3, the **original plan** (2026-11-19). It is kept as written; this box says where the build differs (checked 24 Nov 2026).
+**Status:** v0.3, the **original plan** (2026-11-19). It is kept as written; this box says where the build differs (checked 23 Nov 2026).
 
 > **Where the build differs from this plan**
 > - **Built:** F1, F2, F3, F5, F7, F8, F10 and F11 (Must, plus the wall display and audit viewer). Added after this plan: the **quarter planner** with draft edits (ADR-026, ADR-030), D12/N12 crews and datasets 120 and 150 (ADR-027, ADR-028), dated unit closures and staffing (release 3).

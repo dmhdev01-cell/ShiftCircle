@@ -26,9 +26,9 @@ ShiftCircle is a **working prototype** for the *AI Solutions Architect – Scree
 | Test strategy and demo dataset spec | ✅ Written (`docs/10-testing.md`) |
 | UI design: 6 screens + full UI spec | ✅ In `docs/ui/` |
 | AI development log | ✅ Started (`docs/process/ai-dev-log.md`); **keep it updated** |
-| Code | ✅ Built and on `main`: `api/` (Java 21, Spring Boot 4.x, Drools), `web/` (React), `docker-compose.yml`, `e2e/`, GitHub Actions CI. Every step in §6 is done except the items listed as not built in `docs/10-testing.md` §8 |
+| Code | ✅ Built and on `main`: `api/` (Java 21, Spring Boot 4.x, Drools), `web/` (React), `docker-compose.yml`, `e2e/`, GitHub Actions CI. Every development step in §6 is done except the items listed as not built in `docs/10-testing.md` §8 |
 | Build record, demo script | ✅ `BUILD_RECORD.md`, `docs/demo-script.md` |
-| Demo recording | ⏳ Made by the project lead (not part of the repository) |
+| Demo recording (§6 step 13) | ⏳ With the project lead; not part of the repository |
 
 *This note was written on 2026-11-19, before any code existed. §2 was brought up to date on 2026-11-24; the rest is kept as the brief the team worked from. Where §3 to §9 and the current docs differ, the current docs win (`docs/index.md` has the map).*
 

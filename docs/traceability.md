@@ -1,6 +1,6 @@
 # ShiftCircle — requirement-to-proof traceability
 
-**Current status (24 Nov 2026, `main` at `a38e452`).** Every test class and method named in this
+**Current status (23 Nov 2026, `main` at `a38e452`).** Every test class and method named in this
 file was re-checked against the sources on that date (all of them exist). Counts today: API
 **468 = 127 rules + 28 infrastructure + 313 api** (a source count; the last verified green run was 464
 at release 8), web unit tests **368** (run), Playwright **114** real-api tests per viewport (listed).
@@ -165,10 +165,10 @@ reaches; E1 also calls `expectDisclaimer`. E2–E5 rely on the web shell test fo
 | Requirement | Proof | Status |
 |---|---|---|
 | FR-01 assign, unassign and move; every change runs the rules | `AssignmentApiTest`; `AssignmentMoveCancelApiTest` (move re-runs the pipeline); E1/E4 | PASS |
-| FR-02 shift templates configurable | `SchemaConstraintsTest#migrationsApplyAndSeedTheReferenceData` (six seeded templates); `ReferenceApiTest#shiftTemplatesAndQualificationsAreReadableByAnySignedInRole` (read) | **PARTIAL** — start times/lengths are seed data, not editable in the prototype |
+| FR-02 shift templates configurable | `SchemaConstraintsTest#migrationsApplyAndSeedTheReferenceData` (the eight seeded templates: six in V2, D12/N12 in V6; seven active after V13); `ReferenceApiTest#shiftTemplatesAndQualificationsAreReadableByAnySignedInRole` (read) | **PARTIAL** — start times/lengths are seed data, not editable in the prototype |
 | FR-03/04 required vs scheduled vs actual per block; qualifications | `ScheduleApiTest#reportsHourlyCoverageForTheDay`; `ReportsApiTest#coverageHoursReconcileWithTheAssignmentsHourByHour`; `OvertimeRankerTest#anUnqualifiedOfficerKeepsTheFairnessPlaceButIsUnavailable` | PASS |
 | FR-05 overtime status live | `ScheduleApiTest#overtimeStatusChangesAtThePayPeriodThresholdBoundaries`; `#overtimeStatusUsesThePeriodThatContainsTheBoardDateAndCountsAMidnightCrossing`; `PlanningPage.test.tsx#shows the officer pay-period hours with the overtime status pill` | PASS |
-| FR-06 publish a period | `SchedulePublishApiTest#publishingIsScopedAuditedAndOneWay`, `#aDraftWeekReadsAsUnpublishedUntilItIsPublished`; `SchedulePeriodSeedApiTest#publishingASeededPeriodWorksOnAFreshDataset` (publishes a **generated** period, no planted row), `#theBoardCarriesThePeriodItReadsSoTheWebCanPublish` (the board hands over the id), `#theBoardCountsTheShiftsChangedAfterThePublication`, `#aPastWeekIsAlreadyPublishedAndCannotBePublishedAgain` | PASS |
+| FR-06 publish a period | `SchedulePublishApiTest#publishingIsScopedAuditedAndOneWay`, `#aDraftWeekReadsAsUnpublishedUntilItIsPublished`; `SchedulePeriodSeedApiTest#publishingASeededPeriodWorksOnAFreshDataset` (publishes a **generated** period, no planted row), `#theBoardCarriesThePeriodItReadsSoTheWebCanPublish` (the board hands over the id), `#theBoardCountsTheShiftsChangedAfterThePublication`, `#aPastWeekIsAlreadyPublishedAndCannotBePublishedAgain` | **PARTIAL**: publishing is recorded and shown on the board (the proofs here), but My schedule is not filtered by period status, so "visible to employees" is not delivered (`docs/02` FR-06, `docs/07` §4.2) |
 | FR-07 notice check and per-officer "changed" flag after publishing | The board counts the shifts changed after the publication (`publishedState.unpublishedChanges`, from the audit trail) and names the period; there is no P-05/S-01 rule row and no per-officer changed marker | **PARTIAL** — the count is real; the notice rule and the per-officer flag are not built (`docs/10` §8) |
 | FR-30/31 employee proposals: sandbox, submit, supervisor decision | **Not built.** There is no `/proposals` endpoint or inbox. What is proved is the honest "not available" state: `MySchedulePage.test.tsx#M1: says sending a proposal is not available, and sends nothing`, `#M1: neither api offers a proposal call to reach the missing endpoint`; e2e `not-built-states.spec.ts` (M1: the card checks the rules and makes no request to `/proposals`) | **NOT BUILT** (`docs/10` §8); the rule check of one shift is PASS |
 | M3: Find eligible officer on a slot with no open shift | `OvertimePage.test.tsx#M3: says a slot has no open shift instead of opening a different one`, `#M3: an unknown shift id also says so, and a picked shift still opens`; e2e `not-built-states.spec.ts` (M3, `@api`). No screen creates an open shift; the API does (`OvertimeApiTest#creatingAnOpenShiftIsSupervisorOnlyAndAudited`) | PASS (the state), creation in the UI **not built** |
@@ -257,7 +257,7 @@ time-grid refresh.
 | `s6-s8-dataset-notice-other-absence` | the Quarter plan names Dataset 100 and links to About & version; a supervisor records the Other absence code | PASS |
 | `rules-refusals` | the floor and 24 h refusals in plain words; the approver cannot edit; the sentence is words, with no `.*` or bare enum (D6) | PASS |
 | `screenshots` | 40 full-page captures per viewport plus `index.json` | PASS |
-| `session-and-nav` | sign-in and the seven demo users, landing and nav per role, TV with no nav, sign-out, the 401 notice, the top-bar demo date (D1), no supervisor nav when signed out (D8), and the requested route after sign-in (D11) | PASS |
+| `session-and-nav` | sign-in and the demo users (the spec title still says seven; there are eight), landing and nav per role, TV with no nav, sign-out, the 401 notice, the top-bar demo date (D1), no supervisor nav when signed out (D8), and the requested route after sign-in (D11) | PASS |
 
 The phase's defects D1–D11 are pinned by these specs and fixed; the `test.fail` markers are gone and
 no assertion was weakened.

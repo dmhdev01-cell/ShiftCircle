@@ -90,7 +90,7 @@ All settings come from environment variables. The repo ships **`.env.example` on
 |---|---|---|
 | `POSTGRES_DB` / `POSTGRES_USER` | Database name and user | `shiftcircle` / `shiftcircle` |
 | `POSTGRES_PASSWORD` | Database password | *(set by the reviewer: `cp .env.example .env`, then fill in a value)* |
-| `SC_JWT_SECRET` | Signing key for mock sign-in tokens (≥ 32 bytes) | *(generated)* |
+| `SC_JWT_SECRET` | Signing key for mock sign-in tokens (≥ 32 characters) | *(generated)* |
 | `SC_PROFILE` | `demo` (seed data, mock sign-in, demo reset) or `prod-like` (no seed, no mock login, no reset). No Swagger UI exists (docs/10 §8) | `demo` |
 | `SC_DEMO_TODAY` | The "today" the demo pretends it is, so past and future data line up | `2026-11-19` |
 | `SC_DEMO_SEED` | Random seed for the data generator | `20261001` |
@@ -99,7 +99,7 @@ All settings come from environment variables. The repo ships **`.env.example` on
 | `VITE_PERSIST_DEMO_SESSION` | **Demo session kill switch** (ADR-025 amendment), a build argument of the web image. Unset: on the `demo` profile the web keeps the mock sign-in in `sessionStorage` so a refresh does not sign you out. `false` (exactly): the web never stores the session. Rebuild to apply. `prod-like` never persists either way | *(unset)* |
 | `SC_API_PORT` / `SC_DB_PORT` | Only with `docker-compose.dev.yml`: host ports (127.0.0.1) for the api and the database | `8081` / `5433` |
 
-**Secrets:** no default passwords in code or images. If `SC_JWT_SECRET` or `POSTGRES_PASSWORD` is missing, the API refuses to start, with a clear message. For a pilot these come from a secrets manager.
+**Secrets:** no default passwords in code or images. If `SC_JWT_SECRET` or `POSTGRES_PASSWORD` is missing, Compose refuses to start (a missing `POSTGRES_PASSWORD` or `SC_JWT_SECRET`), and the API also refuses a `SC_JWT_SECRET` shorter than 32 characters, each with a clear message. For a pilot these come from a secrets manager.
 
 ## 5. Startup sequence
 

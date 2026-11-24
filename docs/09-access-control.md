@@ -1,6 +1,6 @@
 # ShiftCircle — Access Control
 
-**Status:** v1.0, checked against the API on `main` (23 Nov 2026, each cell probed with a signed-in token)
+**Status:** v1.0, checked against the API on `main` (23 Nov 2026; the planner cells were probed by hand with a signed-in token, see §3)
 
 ## 1. Roles
 
@@ -27,8 +27,8 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 |---|---|---|---|---|---|---|---|
 | View own schedule, hours, offers | own | own | own | own | — | own | — |
 | View unit roster (names and shifts) | — (not built: an officer sees only their own schedule; `GET /schedule` is `403`) | scope | — | — | ✓ | ✓ (read-only) | — |
-| View others' hours, absences, overtime totals | — | scope | — | — | ✓ | — (the board only; the reports are `403`) | — |
-| Absence **type** (sick/vacation) for others | — | scope | — | — | ✓ | ✓ (on the board and in the draft) | — |
+| View others' hours, absences, overtime totals (Reports; absence types in Time & attendance) | — | scope | — | — | ✓ | — (`403` on the reports and on Time & attendance; the board shows hours and overtime status only) | — |
+| Absence **type** (sick/vacation) for others (Time & attendance) | — | scope | — | — | ✓ | — (no absence items in the board or draft payload yet; `403` on Time & attendance) | — |
 | Assign, move or cancel shifts | — | scope (the target unit; the officer may come from any unit: cross-unit cover, ADR-024) | — | — | — | — | — |
 | Emergency override of a Block rule whose policy allows one (U-01, U-03, U-05; ADR-023) | — | scope (reason required) | — | — | — | — | — |
 | Publish a schedule period | — | scope | — | — | — | — | — |
@@ -59,7 +59,7 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 | API (scope) | A `ScopeGuard` checks the target unit against the caller's `user_unit_scope`. For an employee's own request it also checks the caller's linked officer. **Cross-unit cover (ADR-024):** a supervisor may assign an officer from **any** unit into a unit in their own scope. The rule preview then shows that officer's rest and hours conflicts, which the supervisor needs in order to decide. A supervisor can't assign **into** a unit outside their scope, and can't read an officer's data outside their scope except through that preview. Out-of-scope IDs return `404`, so they don't reveal what exists. "Own" checks compare against the caller's linked `employee_id`. |
 | Data queries | Repository methods for lists take the caller's scope as a parameter (no unfiltered list queries in controllers) |
 | Database | Triggers refuse `UPDATE`, `DELETE` and `TRUNCATE` on `audit_event` (role grants deferred to a pilot, ADR-018); `CHECK (approved_by <> created_by)` on rule versions; a trigger blocks changes to time entries in locked pay periods |
-| Tests | Authorization tests for every denied or scoped cell, grouped by area method plus per-endpoint tests, against real HTTP endpoints |
+| Tests | Authorization tests for the denied or scoped cells of the supervisor, employee, rules, auditor and display roles, grouped by area method plus per-endpoint tests, against real HTTP endpoints. **The planner's `403` cells (reports, audit log, rules, Time & attendance, payroll) are enforced by `@PreAuthorize` and were probed by hand; no automated test covers them yet.** |
 
 ## 4. Mock sign-in (prototype)
 
@@ -89,7 +89,7 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 ## 6. Privacy notes (FOIP)
 
 - Data minimization: absences record a type only, never a medical reason.
-- Employees see colleagues' shifts (as on a posted schedule) but not their hours, absences or overtime.
+- Employees see only their own shifts, hours and offers; they never see colleagues' shifts, hours, absences or overtime.
 - The wall display shows counts only, because it's a shared screen.
 - The audit log records **who** saw or changed sensitive data where it matters (payroll export, pay-period unlock, overrides).
 - A privacy impact assessment (PIA) is required before any real employee data is used.
