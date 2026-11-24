@@ -160,9 +160,26 @@ public final class PlanGenerator {
    * @param includePartTime officers below 1.0 FTE (the part-time and casual pool) may be placed
    * @param fillPartTimeToFte after the gaps are filled, top each part-time officer up towards
    *     their FTE target in their home unit, where cover is thinnest
+   * @param crossUnitFill after the home-unit fills, cover each remaining gap with an officer from
+   *     another unit who holds the gap's qualification and has hours left under FTE x 80 h
    */
-  public record Options(boolean includePartTime, boolean fillPartTimeToFte) {
-    public static final Options DEFAULT = new Options(true, false);
+  public record Options(boolean includePartTime, boolean fillPartTimeToFte, boolean crossUnitFill) {
+    public static final Options DEFAULT = new Options(true, false, false);
+  }
+
+  /**
+   * Who holds which qualification, and which qualification a unit's block asks for (only blocks
+   * with a qualified minimum). Read by the cross-unit fill only: an officer from another unit is
+   * offered a gap only if they hold the block's qualification, when it has one.
+   */
+  public record Qualifications(
+      Map<UUID, Map<String, UUID>> requiredByUnitBlock, Map<UUID, Set<UUID>> held) {
+    public static final Qualifications NONE = new Qualifications(Map.of(), Map.of());
+
+    boolean allows(Employee employee, UUID unitId, String block) {
+      UUID required = requiredByUnitBlock.getOrDefault(unitId, Map.of()).get(block);
+      return required == null || held.getOrDefault(employee.id(), Set.of()).contains(required);
+    }
   }
 
   public Result generate(
@@ -320,6 +337,23 @@ public final class PlanGenerator {
       Map<UUID, Set<LocalDate>> leave,
       Availability availability,
       Options options) {
+    return generate(employees, units, templates, history, pattern8h, seed, verifier, leave,
+        availability, options, Qualifications.NONE);
+  }
+
+  /** The overload with the qualifications the cross-unit fill checks. */
+  public Result generate(
+      List<Employee> employees,
+      List<Unit> units,
+      Map<String, Template> templates,
+      Map<UUID, List<ShiftFact>> history,
+      String pattern8h,
+      long seed,
+      Verifier verifier,
+      Map<UUID, Set<LocalDate>> leave,
+      Availability availability,
+      Options options,
+      Qualifications qualifications) {
     long started = System.nanoTime();
     List<Employee> pool =
         options.includePartTime()
@@ -506,6 +540,13 @@ public final class PlanGenerator {
         verifier, pool, leave, availability);
     reliefPool(units, staff, assignments, byEmployee, facts, warnings, templates, verifier,
         employees, leave, availability, pattern8h);
+    Map<String, Object> crossUnit = null;
+    if (options.crossUnitFill()) {
+      // Gaps before the extras: cover what is short in other units first.
+      crossUnit =
+          crossUnitFill(units, assignments, byEmployee, facts, warnings, templates, verifier, pool,
+              leave, availability, qualifications);
+    }
     if (options.fillPartTimeToFte() && options.includePartTime()) {
       topUpPartTime(units, assignments, byEmployee, facts, warnings, templates, verifier,
           employees, leave, availability);
@@ -515,6 +556,9 @@ public final class PlanGenerator {
         scorecard(
             employees, units, assignments, byEmployee, gaps, warnings, pattern8h, started, facts,
             templates, verifier, blockOf, leave, availability);
+    if (crossUnit != null) {
+      scorecard.put("crossUnit", crossUnit);
+    }
     return new Result(assignments, gaps, warnings, scorecard);
   }
 
@@ -911,6 +955,185 @@ public final class PlanGenerator {
         }
       }
     }
+  }
+
+  /**
+   * Cross-unit gap fill (v1.2 option): after the home-unit fills and closed-unit relief, each
+   * remaining gap (the same absolute-time measure as the board) is offered to officers homed in
+   * another unit. Eligible: not working that day, not on leave, a 12 h officer only where the unit
+   * allows 12 h, a template that covers the block, the block's qualification held when it has one,
+   * and room under FTE x 80 h in the pay period (so a full-time officer only fills a short
+   * period, never into overtime). Order: the lowest share of target planned in the period first,
+   * then newest first (the pool's order), then employee number. Every proposal goes through the same
+   * verifier; a Block skips that officer. Returns the card the scorecard shows.
+   */
+  private static Map<String, Object> crossUnitFill(
+      List<Unit> units,
+      List<Assignment> assignments,
+      Map<UUID, List<Assignment>> byEmployee,
+      Map<UUID, List<ShiftFact>> facts,
+      List<Warning> warnings,
+      Map<String, Template> templates,
+      Verifier verifier,
+      List<Employee> employees,
+      Map<UUID, Set<LocalDate>> leave,
+      Availability availability,
+      Qualifications qualifications) {
+    Set<String> warningKeys = new LinkedHashSet<>();
+    Map<UUID, double[]> hours = new HashMap<>();
+    employees.forEach(e -> hours.put(e.id(), new double[PERIODS]));
+    Set<String> working = new LinkedHashSet<>();
+    Map<UUID, List<CoverageCalculator.Interval>> intervals = new HashMap<>();
+    for (Assignment assignment : assignments) {
+      working.add(assignment.employeeId() + "|" + assignment.date());
+      intervals
+          .computeIfAbsent(assignment.unitId(), k -> new ArrayList<>())
+          .add(new CoverageCalculator.Interval(assignment.start(), assignment.end()));
+      double[] perPeriod = hours.get(assignment.employeeId());
+      int period = (int) (ChronoUnit.DAYS.between(FROM, assignment.date()) / 14);
+      if (perPeriod != null && period >= 0 && period < PERIODS) {
+        perPeriod[period] += Duration.between(assignment.start(), assignment.end()).toMinutes() / 60.0;
+      }
+    }
+    Map<UUID, Unit> unitsById = new HashMap<>();
+    units.forEach(unit -> unitsById.put(unit.id(), unit));
+    CoverageCalculator calculator = new CoverageCalculator();
+    List<Gap> before = recomputeGaps(units, assignments, availability);
+    int shifts = 0;
+    Set<UUID> officers = new LinkedHashSet<>();
+    Map<String, Integer> fromUnits = new java.util.TreeMap<>();
+    Map<String, Integer> stillShort = new java.util.TreeMap<>();
+    Map<String, Integer> stillShortBy = new java.util.TreeMap<>();
+    for (Gap gap : before) {
+      Unit unit = unitsById.get(gap.unitId());
+      LocalDate date = gap.date();
+      int period = (int) (ChronoUnit.DAYS.between(FROM, date) / 14);
+      int guard = 0;
+      while (guard++ < 20 && short_(calculator, unit, date, gap.block(), intervals)) {
+        List<Employee> candidates = new ArrayList<>();
+        int free = 0;
+        for (Employee candidate : employees) {
+          if (candidate.unitId().equals(unit.id())
+              || working.contains(candidate.id() + "|" + date)
+              || onLeave(candidate.id(), date, leave)
+              || (effectiveLength(candidate) == 12 && !unit.allows12h())) {
+            continue;
+          }
+          free++;
+          if (!qualifications.allows(candidate, unit.id(), gap.block())) {
+            continue;
+          }
+          candidates.add(candidate);
+        }
+        int withRoom = 0;
+        candidates.sort(
+            Comparator.comparingDouble(
+                    (Employee e) -> hours.get(e.id())[period] / (e.fte() * 80.0))
+                .thenComparing(Employee::seniority, Comparator.reverseOrder())
+                .thenComparing(Employee::employeeNo));
+        Employee chosen = null;
+        Template chosenTemplate = null;
+        Check chosenCheck = null;
+        for (Employee candidate : candidates) {
+          Template template = templateFor(candidate, unit, gap.block(), templates);
+          if (template == null || !covers(template, gap.block())) {
+            continue;
+          }
+          if (hours.get(candidate.id())[period] + template.minutes() / 60.0
+              > candidate.fte() * 80.0 + 0.001) {
+            continue;
+          }
+          withRoom++;
+          Instant start = date.atTime(template.start()).atZone(REGINA).toInstant();
+          Check check =
+              verifier.check(
+                  candidate, unit, template, start, facts.getOrDefault(candidate.id(), List.of()));
+          if (!check.blocked()) {
+            chosen = candidate;
+            chosenTemplate = template;
+            chosenCheck = check;
+            break;
+          }
+        }
+        if (chosen == null) {
+          // Why this gap stays short, in the order the filters apply.
+          String reason =
+              free == 0
+                  ? "NO_OFFICER_FREE"
+                  : candidates.isEmpty()
+                      ? "NOT_QUALIFIED"
+                      : withRoom == 0 ? "NO_HOURS_LEFT" : "RULE_BLOCK";
+          stillShort.merge(reason, 1, Integer::sum);
+          stillShortBy.merge(unit.code() + " " + gap.block(), 1, Integer::sum);
+          break;
+        }
+        Instant start = date.atTime(chosenTemplate.start()).atZone(REGINA).toInstant();
+        Instant end = start.plus(Duration.ofMinutes(chosenTemplate.minutes()));
+        Assignment assignment =
+            new Assignment(chosen.id(), chosen.name(), unit.id(), unit.code(), chosenTemplate.id(),
+                chosenTemplate.code(), date, start, end, ShiftKind.ROSTERED, chosenCheck.warnings());
+        assignments.add(assignment);
+        byEmployee.computeIfAbsent(chosen.id(), k -> new ArrayList<>()).add(assignment);
+        facts
+            .computeIfAbsent(chosen.id(), k -> new ArrayList<>())
+            .add(
+                new ShiftFact(
+                    "plan:" + date + ":" + chosenTemplate.code(), chosen.employeeNo(), unit.code(),
+                    chosenTemplate.code(), start, end, ShiftKind.ROSTERED, 0, true, true));
+        intervals
+            .computeIfAbsent(unit.id(), k -> new ArrayList<>())
+            .add(new CoverageCalculator.Interval(start, end));
+        working.add(chosen.id() + "|" + date);
+        hours.get(chosen.id())[period] += chosenTemplate.minutes() / 60.0;
+        shifts++;
+        officers.add(chosen.id());
+        fromUnits.merge(chosen.unitCode(), 1, Integer::sum);
+        for (RuleWarning warning : chosenCheck.warnings()) {
+          addWarning(warnings, warningKeys, chosen.id().toString(), warning, unit.code(),
+              chosen.name(), date, chosenTemplate.code());
+        }
+      }
+    }
+    int after = recomputeGaps(units, assignments, availability).size();
+    int covered = before.size() - after;
+    Map<String, Object> card = new LinkedHashMap<>();
+    card.put("gapsBefore", before.size());
+    card.put("gapsCovered", covered);
+    card.put("shifts", shifts);
+    card.put("officers", officers.size());
+    card.put("fromUnits", fromUnits);
+    // Gaps the pass tried and could not cover, by the first filter nobody passed.
+    card.put("stillShortReasons", stillShort);
+    card.put("stillShortByUnitBlock", stillShortBy);
+    card.put(
+        "line",
+        covered
+            + (covered == 1 ? " gap" : " gaps")
+            + " covered from other units ("
+            + shifts
+            + (shifts == 1 ? " shift" : " shifts")
+            + " by "
+            + officers.size()
+            + (officers.size() == 1 ? " officer" : " officers")
+            + "); "
+            + after
+            + " still short.");
+    return card;
+  }
+
+  private static boolean short_(
+      CoverageCalculator calculator,
+      Unit unit,
+      LocalDate date,
+      String block,
+      Map<UUID, List<CoverageCalculator.Interval>> intervals) {
+    for (CoverageCalculator.BlockCoverage coverage :
+        calculator.forDay(date, unit.required(), intervals.getOrDefault(unit.id(), List.of()))) {
+      if (coverage.block().equals(block)) {
+        return !coverage.covered();
+      }
+    }
+    return false;
   }
 
   /**

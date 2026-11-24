@@ -168,6 +168,8 @@ export interface OfficerRow {
   payPeriodThreshold: number;
   overtimeStatus: OvertimeStatus;
   cells: DayCell[];
+  /** Draft roster only: the home unit of an officer placed in this unit from another. */
+  homeUnit?: string;
 }
 
 export interface SchedulePayload {
@@ -809,6 +811,15 @@ export interface PlannerScorecard {
   };
   /** The api's plain note about the 5-on/2-off changeover warnings. */
   warningNote?: string;
+  /** v1.2: present when the draft was made with crossUnitFill ON. */
+  crossUnit?: {
+    gapsBefore: number;
+    gapsCovered: number;
+    shifts: number;
+    officers: number;
+    fromUnits?: Record<string, number>;
+    line: string;
+  };
   pattern8h?: string;
   overtime: { officersOver: number; hoursOver: number; thresholdHours: number };
   generatedMs: number;
@@ -836,12 +847,14 @@ export interface PlannerDraft {
 
 /**
  * The quarter plan's tailoring options (v1.2). The names are shared with the
- * Plan inputs panel: staffTypes, partTimeFill.
+ * Plan inputs panel: staffTypes, partTimeFill, crossUnitFill.
  */
 export interface PlanOptions {
   /** FULL_TIME always; PART_TIME = officers below 1.0 FTE (part-time and casual). */
   staffTypes: ('FULL_TIME' | 'PART_TIME')[];
   partTimeFill: 'AFTER_FULL_TIME' | 'UP_TO_FTE';
+  /** ON: cover gaps left after the home-unit fills with qualified officers from other units. */
+  crossUnitFill: 'OFF' | 'ON';
 }
 
 export interface PlannerDraftCreation extends Partial<PlanOptions> {

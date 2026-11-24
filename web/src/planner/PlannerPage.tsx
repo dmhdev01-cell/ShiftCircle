@@ -38,7 +38,14 @@ import { GapStrip } from './GapStrip';
 import { gapRuns, partTimeCapacity, quarterWeeks, reasonWords, shortWords, staffedWords } from './quarterPlan';
 import { DatasetBanner } from './DatasetBanner';
 import { PlanOptionsFields } from './PlanOptionsFields';
-import { DEFAULT_PLAN_OPTIONS, draftOptions, optionsForRequest, planOptionsWords } from './planOptions';
+import {
+  DEFAULT_PLAN_OPTIONS,
+  draftDeltaWords,
+  draftFigures,
+  draftOptions,
+  optionsForRequest,
+  planOptionsWords,
+} from './planOptions';
 import { useRole } from '../shell/nav';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
@@ -122,12 +129,13 @@ function windowWords(from: string, to: string): string {
 }
 
 /** The scorecard's part-time line ends with how this draft filled part-time officers. */
-function fillWords(options: PlanOptions): string {
+function fillWords(options: PlanOptions, committed: boolean): string {
+  const subject = committed ? 'This plan' : 'This draft';
   if (!options.staffTypes.includes('PART_TIME')) {
-    return 'This draft was made with full-time officers only, so no part-time hours were planned.';
+    return `${subject} was made with full-time officers only, so no part-time hours were planned.`;
   }
   if (options.partTimeFill === 'UP_TO_FTE') {
-    return 'This draft filled part-time officers up to their FTE target in their home unit where the rules allowed, after the gaps.';
+    return `${subject} filled part-time officers up to their FTE target in their home unit where the rules allowed, after the gaps.`;
   }
   return 'Part-time hours are not guaranteed: each part-time officer is planned only into shifts still open in their home unit, up to their FTE target.';
 }
@@ -182,6 +190,8 @@ export function PlannerPage() {
   };
   const [seed, setSeed] = useState('');
   const [options, setOptions] = useState<PlanOptions>(DEFAULT_PLAN_OPTIONS);
+  // After Generate again: the figures against the draft it replaced.
+  const [delta, setDelta] = useState<string | null>(null);
   const [busy, setBusy] = useState<null | 'generate' | 'commit' | 'discard'>(null);
   const [explain, setExplain] = useState<string | null>(null);
   const [explainGroup, setExplainGroup] = useState<string | null>(null);
@@ -341,6 +351,9 @@ export function PlannerPage() {
     setBusy('generate');
     setMessage(null);
     setRefusal(null);
+    setDelta(null);
+    const previous =
+      draft && compare ? draftFigures(draft.scorecard, compare.draftShifts) : null;
     try {
       const created = await api.createPlannerDraft({
         seed: seedValue,
@@ -356,6 +369,9 @@ export function PlannerPage() {
       setGaps(gapRows);
       setWarnings(warningRows);
       setCompare(comparison);
+      if (previous) {
+        setDelta(draftDeltaWords(previous, draftFigures(created.scorecard, comparison.draftShifts)));
+      }
       setMessage(
         `Draft generated: ${created.scorecard.coverage.shortBlockDays} block-days short, ${created.scorecard.warnings.total} warnings, took ${seconds(created.generatedMs)}.`,
       );
@@ -457,6 +473,9 @@ export function PlannerPage() {
       setDiscardOpen(false);
       setCommitted(null);
       setMessage('The draft was discarded. Nothing on the planning board changed.');
+      // The landing card starts again from the defaults it describes.
+      setOptions(DEFAULT_PLAN_OPTIONS);
+      setDelta(null);
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'The draft could not be discarded.');
@@ -589,9 +608,27 @@ export function PlannerPage() {
 
       {busy === 'generate' ? (
         <Typography role="status" sx={{ fontSize: 14, color: colour.text.secondary }}>
-          Building a plan for 100 officers and checking every shift against the rules. This usually
-          takes a few seconds.
+          Building a plan for{' '}
+          {staffing?.periods[0]
+            ? `${staffing.periods[0].totals.filled.toLocaleString('en-CA')} officers`
+            : 'every officer'}{' '}
+          and checking every shift against the rules. This usually takes a few seconds.
         </Typography>
+      ) : null}
+
+      {delta ? (
+        <Box
+          role="note"
+          aria-label="Compared with the previous draft"
+          sx={{
+            p: '10px 12px',
+            borderRadius: '8px',
+            backgroundColor: colour.bg.subtle,
+            fontSize: 13,
+          }}
+        >
+          {delta}
+        </Box>
       ) : null}
 
       {message ? (
@@ -835,8 +872,13 @@ export function PlannerPage() {
                     sx={{
                       p: '10px 12px',
                       borderRadius: '8px',
-                      backgroundColor: partTime.unused > 0 ? colour.status.warn.bg : colour.bg.subtle,
-                      color: partTime.unused > 0 ? colour.status.warn.text : colour.text.secondary,
+                      // Amber only when a real share of the part-time target goes unused.
+                      backgroundColor:
+                        partTime.unused > partTime.target * 0.1 ? colour.status.warn.bg : colour.bg.subtle,
+                      color:
+                        partTime.unused > partTime.target * 0.1
+                          ? colour.status.warn.text
+                          : colour.text.secondary,
                       fontSize: 13,
                     }}
                   >
@@ -846,10 +888,35 @@ export function PlannerPage() {
                     Part-time officers are planned {hours(partTime.planned)} of their {hours(partTime.target)} target
                     this quarter, while {scorecard.coverage.shortBlockDays.toLocaleString('en-CA')} block-day
                     {scorecard.coverage.shortBlockDays === 1 ? ' stays' : 's stay'} short.{' '}
-                    {fillWords(draftOptions(planDraft))}
+                    {fillWords(draftOptions(planDraft), !draft)}
                   </Box>
                 );
               })()}
+
+              {scorecard.crossUnit ? (
+                <Box
+                  role="note"
+                  aria-label="Gaps covered from other units"
+                  sx={{
+                    p: '10px 12px',
+                    borderRadius: '8px',
+                    backgroundColor: colour.status.info.bg,
+                    color: colour.status.info.text,
+                    fontSize: 13,
+                  }}
+                >
+                  <Box component="span" sx={{ fontWeight: 700 }}>
+                    {scorecard.crossUnit.gapsCovered.toLocaleString('en-CA')}{' '}
+                    {scorecard.crossUnit.gapsCovered === 1 ? 'gap' : 'gaps'} covered from other units.
+                  </Box>{' '}
+                  {scorecard.crossUnit.shifts.toLocaleString('en-CA')}{' '}
+                  {scorecard.crossUnit.shifts === 1 ? 'shift' : 'shifts'} by{' '}
+                  {scorecard.crossUnit.officers.toLocaleString('en-CA')}{' '}
+                  {scorecard.crossUnit.officers === 1 ? 'officer' : 'officers'} from another unit, each
+                  qualified for the post and within their FTE hours; the roster marks them &quot;From&quot;
+                  their unit. Measured when the draft was generated.
+                </Box>
+              ) : null}
 
               {explain && (TILE_HELP[explain] || (explain === 'Needed (at least)' && staffing)) ? (
                 <Box

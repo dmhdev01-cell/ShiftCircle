@@ -21,29 +21,40 @@ You work in a **draft**. Nobody else sees it until you commit it.
 
 ### Plan options
 
-Two choices tailor how the plan is built. Each says in one sentence what it does, and the scorecard shows its effect.
+Three choices tailor how the plan is built. Each says in one sentence what it does and what it costs, and the scorecard shows its effect.
 
 | Option | Choices | What it does |
 |---|---|---|
 | **Staff to include** | **Full-time officers** (always on) · **Part-time and casual officers** (on by default) | Untick part-time to see the plan the full-time crews make alone. Part-time officers are anyone below 1.0 FTE; in Datasets 120 and 150 that includes the casual relief pool. |
-| **Part-time fill** | **Fill gaps only (as before)** · **Fill up to each officer's FTE** | As before, a part-time officer gets a shift only where their home unit is still short after the full-time crews. *Fill up to FTE* then also gives each part-time officer shifts in their home unit where cover is thinnest, up to their FTE hours in each pay period, spread evenly through the period. It never takes a shift from a gap, and every shift passes the same rule check. |
+| **Part-time fill** | **Fill gaps only (as before)** · **Fill up to each officer's FTE** | As before, a part-time officer gets a shift only where their home unit is still short after the full-time crews. *Fill up to FTE* then also gives each part-time officer shifts above the minimum in their home unit where cover is thinnest, up to FTE × 80 h in each pay period, spread evenly through the period. It never takes a shift from a gap and every shift passes the same rule check, but it adds rule warnings (Warn, never Block). Part-time officers have no fixed pattern here, so these shifts can fall on any day the rules allow. |
+| **Other units** | **Cover gaps from other units** (off by default) | After each unit's own officers (and closed-unit relief), every gap still open is offered to officers homed in another unit: part-time or full-time, not already working that day or on leave, with room under FTE × 80 h in that pay period (so a full-time officer only takes a shift in a short period, never into overtime), holding the qualification the gap's block asks for (first aid on the living units, Control, Escort), and a 12 h officer only where the unit allows 12 h. The lowest share of target planned goes first, then the newest officer. Every proposal passes the same rule check; a Block skips that officer. The roster marks such an officer **From** their home unit. It runs before *Fill up to FTE*, so gaps come first. |
 
-Under the status line, **Made with:** says what the draft was made with, for example "Made with: full-time and part-time officers · part-time filled up to FTE". **Generate again** opens with the last draft's options already filled in.
+Under the status line, **Made with:** says what the draft was made with, for example "Made with: full-time and part-time officers · part-time filled up to FTE · gaps covered from other units". **Generate again** opens with the last draft's options already filled in, and after the replace a **Compared with the previous draft** line gives every figure before and after: gaps, rule warnings, unused part-time hours, shifts and gaps covered from other units. With *Cover gaps from other units* on, a line under the tiles says how many gaps were covered from other units, by how many shifts and officers.
 
-What the options did on the demo data (seed 20261001, measured on 24 Nov 2026):
+What the options did on the demo data (seed 20261001, measured on 24 Nov 2026; the Dataset 150 rows are pinned in `PlannerOptionsApiTest`):
 
-| Dataset | Options | Gaps | Rule warnings | Unused part-time capacity | Shifts |
-|---|---|---|---|---|---|
-| 120 | defaults | 38 | 7 | 5,472 h | 5,103 |
-| 120 | fill up to FTE | 38 | 17 | 260 h | 5,667 |
-| 120 | full-time only | 156 | 6 | 6,720 h | 4,954 |
-| 150 | defaults | 100 | 39 | 3,515 h | 5,414 |
-| 150 | fill up to FTE | 100 | 77 | 496 h | 5,746 |
-| 150 | full-time only | 687 | 5 | 10,080 h | 4,691 |
+| Dataset | Options | Gaps | Rule warnings | Unused part-time capacity | Shifts | Gaps covered from other units |
+|---|---|---|---|---|---|---|
+| 120 | defaults | 38 | 7 | 5,472 h | 5,103 | n/a |
+| 120 | fill up to FTE | 38 | 17 | 260 h | 5,667 | n/a |
+| 120 | other units | 38 | 7 | 5,472 h | 5,103 | 0 |
+| 120 | fill up to FTE + other units | 38 | 17 | 260 h | 5,667 | 0 |
+| 120 | full-time only | 156 | 6 | 6,720 h | 4,954 | n/a |
+| 120 | full-time only + other units | 152 | 10 | 6,720 h | 4,958 | 4 |
+| 150 | defaults | 100 | 39 | 3,515 h | 5,414 | n/a |
+| 150 | fill up to FTE | 100 | 77 | 496 h | 5,746 | n/a |
+| 150 | other units | 72 | 76 | 3,337 h | 5,455 | 28 (41 shifts, 26 officers) |
+| 150 | fill up to FTE + other units | 72 | 114 | 496 h | 5,769 | 28 (41 shifts, 26 officers) |
+| 150 | full-time only | 687 | 5 | 10,080 h | 4,691 | n/a |
+| 150 | full-time only + other units | 529 | 119 | 10,080 h | 4,894 | 158 (203 shifts, 82 officers) |
 
-*Fill up to FTE* uses almost all part-time hours but does not close the remaining gaps: those are where no part-time officer can go (another unit, a block their crew doesn't cover, or a rule blocks it). The extra shifts add rule warnings, all of them Warn, never Block. Dataset 100 has no part-time officers, so the options change nothing there.
+**What stays short, and why.** *Fill up to FTE* alone closes no gap: it only adds shifts where the minimum is already met. *Cover gaps from other units* is what closes gaps, and the scorecard keeps the reason for each gap it could not cover:
+- **Dataset 120 (38 short, none covered):** all 38 are Escort & transport evenings. Escort needs every officer on duty to hold Escort, and no free officer in another unit holds it, so all 38 are *not qualified*.
+- **Dataset 150 (72 short after 28 covered):** 46 *not qualified* (Control and Escort need every officer qualified; Control evenings and nights and Escort evenings are most of them), 14 *no hours left* (every qualified free officer is at FTE × 80 h for the pay period) and 12 *rule block* (a qualified officer with hours left was blocked, mostly by rest rules). By unit and block: Control evening 14, Escort evening 16, Unit B evening 11, Control night 8, and small numbers elsewhere.
 
-![Plan options on the Quarter plan landing: Staff to include and Part-time fill, each choice with one sentence](img/planner-options-landing.png)
+Closing the rest needs more qualified officers (Escort and Control endorsements), not a different fill order. The extra shifts from other units add rule warnings (150: 39 to 76 for 41 shifts; all Warn), because they often land next to the officer's own rotation. Dataset 100 has no part-time officers; the first two options change nothing there.
+
+![Plan options on the Quarter plan landing: Staff to include, Part-time fill and Other units, each choice with one sentence](img/planner-options-landing.png)
 
 The draft opens with four tabs: **Scorecard**, **Gaps (n)**, **Roster** and **Compare**.
 
@@ -110,6 +121,7 @@ Some gaps can't be filled without breaking a rule, so the draft leaves them open
 - **All units** shows the week's figures for every unit in one table. It starts closed: press **Show all units** to open it.
 - A small **⚠** on a shift means a rule warning names it. Hover or focus it to read the warning, for example "Fewer than 2 days off in 7: Fewer than 2 consecutive days off in 7 days."
 - Leave shows as **Vac**, **Sick** or **Other** instead of Off (section 8).
+- An officer placed in this unit from another unit (by *Cover gaps from other units*, or as relief while their own unit is closed) has a **From Unit A** marker (their home unit) next to their name.
 
 ![Roster tab: Go to week, the unit list with gap counts, the collapsed All units table and the draft grid](img/planner-roster-week-picker.png)
 

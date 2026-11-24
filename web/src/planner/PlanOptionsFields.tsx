@@ -25,11 +25,18 @@ function Choice({ label, sentence }: { label: string; sentence: string }) {
   );
 }
 
-const legend = { fontSize: 14, fontWeight: 700, color: colour.text.primary, mb: 0.5 } as const;
+// The legend keeps its colour when a choice inside has focus (MUI turns a focused legend green).
+const legend = {
+  fontSize: 14,
+  fontWeight: 700,
+  color: colour.text.primary,
+  mb: 0.5,
+  '&.Mui-focused': { color: colour.text.primary },
+} as const;
 
 /**
- * The quarter plan's tailoring options (v1.2): which staff to include and how
- * part-time officers are filled. Used on the landing card and in the Generate
+ * The quarter plan's tailoring options (v1.2): which staff to include, how
+ * part-time officers are filled, and whether other units cover the gaps left. Used on the landing card and in the Generate
  * again dialog, filled in from the last draft.
  */
 export function PlanOptionsFields({
@@ -74,6 +81,8 @@ export function PlanOptionsFields({
                 onChange({
                   ...value,
                   staffTypes: event.target.checked ? ['FULL_TIME', 'PART_TIME'] : ['FULL_TIME'],
+                  // Without part-time officers there is nothing to fill: back to the default.
+                  ...(event.target.checked ? {} : { partTimeFill: 'AFTER_FULL_TIME' as const }),
                 })
               }
             />
@@ -81,7 +90,7 @@ export function PlanOptionsFields({
           label={
             <Choice
               label="Part-time and casual officers"
-              sentence="Officers below 1.0 FTE take shifts the full-time crews leave open; untick to see the plan without them."
+              sentence="Officers below 1.0 FTE are included in the plan; untick to see the plan the full-time crews make alone."
             />
           }
         />
@@ -116,7 +125,7 @@ export function PlanOptionsFields({
             label={
               <Choice
                 label="Fill up to each officer's FTE"
-                sentence="After the gaps, part-time officers also get shifts where cover is thinnest, up to their FTE hours, so less capacity goes unused."
+                sentence="After the gaps, part-time officers also get shifts above the minimum where cover is thinnest, up to their FTE hours: less capacity goes unused, but expect more rule warnings (never a Block)."
               />
             }
           />
@@ -126,6 +135,30 @@ export function PlanOptionsFields({
             Include part-time officers to choose how they are filled.
           </Typography>
         ) : null}
+      </FormControl>
+
+      <FormControl component="fieldset" disabled={disabled}>
+        <FormLabel component="legend" sx={legend}>
+          Other units
+        </FormLabel>
+        <FormControlLabel
+          sx={{ alignItems: 'flex-start' }}
+          control={
+            <Checkbox
+              checked={value.crossUnitFill === 'ON'}
+              sx={{ mt: 0.25 }}
+              onChange={(event) =>
+                onChange({ ...value, crossUnitFill: event.target.checked ? 'ON' : 'OFF' })
+              }
+            />
+          }
+          label={
+            <Choice
+              label="Cover gaps from other units"
+              sentence="A gap still open after a unit's own officers goes to an officer from another unit who holds the post's qualification and has hours left; it can add rule warnings (never a Block), and the roster marks them 'From' their unit."
+            />
+          }
+        />
       </FormControl>
     </Box>
   );

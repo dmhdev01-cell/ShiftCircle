@@ -180,8 +180,25 @@ export function generatePlannerDraft(
     createdAt: '2026-11-21T09:14:00-06:00',
     createdBy: 'P. Planner',
     generatedMs: 2400,
-    scorecard: scorecard(seed),
-    options: { ...DEFAULT_PLAN_OPTIONS, ...options },
+    scorecard:
+      options.crossUnitFill === 'ON'
+        ? {
+            ...scorecard(seed),
+            crossUnit: {
+              gapsBefore: 5,
+              gapsCovered: 3,
+              shifts: 3,
+              officers: 2,
+              fromUnits: { A: 2, B: 1 },
+              line: '3 gaps covered from other units (3 shifts by 2 officers); 2 still short.',
+            },
+          }
+        : scorecard(seed),
+    options: {
+      staffTypes: options.staffTypes ?? DEFAULT_PLAN_OPTIONS.staffTypes,
+      partTimeFill: options.partTimeFill ?? DEFAULT_PLAN_OPTIONS.partTimeFill,
+      crossUnitFill: options.crossUnitFill ?? DEFAULT_PLAN_OPTIONS.crossUnitFill,
+    },
   };
   return draft;
 }

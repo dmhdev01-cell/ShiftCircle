@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { isFixtures } from './api';
+import { apiAs, isFixtures } from './api';
 import { expectAccessible, resetDemoData, signIn } from './support';
 
 /**
@@ -57,6 +57,7 @@ test.describe('plan options', () => {
     await expect(landing.getByRole('checkbox', { name: /Full-time officers/ })).toBeDisabled();
     await expect(landing.getByRole('checkbox', { name: /Part-time and casual officers/ })).toBeChecked();
     await expect(landing.getByRole('radio', { name: /Fill gaps only/ })).toBeChecked();
+    await expect(landing.getByRole('checkbox', { name: /Cover gaps from other units/ })).not.toBeChecked();
     await expectAccessible(page, testInfo, 'planner-options-landing', '[role="group"][aria-label="Plan options"]');
 
     await page.getByRole('button', { name: 'Generate draft' }).click();
@@ -88,13 +89,51 @@ test.describe('plan options', () => {
       'filled part-time officers up to their FTE target',
     );
 
-    // The next Generate again starts from this draft's options.
+    // The replace says what changed against the previous draft.
+    await expect(page.getByRole('note', { name: 'Compared with the previous draft' })).toContainText(
+      `unused part-time hours ${before.toLocaleString('en-CA')} h → ${after.toLocaleString('en-CA')} h`,
+    );
+
+    // The next Generate again starts from this draft's options; add cover from other units.
     await expect(page.getByRole('button', { name: 'Generate again' })).toBeEnabled();
     await page.getByRole('button', { name: 'Generate again' }).click();
-    await expect(
-      page.getByRole('dialog').getByRole('radio', { name: /Fill up to each officer's FTE/ }),
-    ).toBeChecked();
-    await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
-    await expect(page.getByRole('dialog')).toBeHidden();
+    const third = page.getByRole('dialog');
+    await expect(third.getByRole('radio', { name: /Fill up to each officer's FTE/ })).toBeChecked();
+    await third.getByRole('checkbox', { name: /Cover gaps from other units/ }).check();
+    await third.getByRole('button', { name: 'Replace draft' }).click();
+    await expect(page.getByTestId('plan-options-used')).toHaveText(
+      'Made with: full-time and part-time officers · part-time filled up to FTE · gaps covered from other units',
+      { timeout: 90_000 },
+    );
+    const covered = page.getByRole('note', { name: 'Gaps covered from other units' });
+    await expect(covered).toContainText(/^\d+ gaps covered from other units\./);
+    const coveredCount = Number(/^(\d+)/.exec((await covered.textContent()) ?? '')![1]);
+    expect(coveredCount, 'Dataset 150 has gaps another unit can cover').toBeGreaterThan(0);
+    await expect(page.getByRole('note', { name: 'Compared with the previous draft' })).toContainText(
+      `gaps covered from other units 0 → ${coveredCount}`,
+    );
+
+    // The roster marks an officer placed from another unit.
+    const planner = await apiAs(request, 'p.planner');
+    const plan = await planner.get<{ draft: { id: string } }>('/planner/plan');
+    const units = await planner.get<{ id: string; code: string }[]>('/units');
+    let found: { unit: string; week: string; home: string } | null = null;
+    for (let week = 0; week < 14 && !found; week += 1) {
+      const monday = new Date(Date.UTC(2027, 0, 4 + week * 7)).toISOString().slice(0, 10);
+      const sunday = new Date(Date.UTC(2027, 0, 10 + week * 7)).toISOString().slice(0, 10);
+      for (const unit of units) {
+        const roster = await planner.get<{ officers: { homeUnit?: string }[] }>(
+          `/planner/drafts/${plan.draft.id}/schedule?unitId=${unit.id}&from=${monday}&to=${sunday}`,
+        );
+        const away = roster.officers.find((officer) => officer.homeUnit);
+        if (away) {
+          found = { unit: unit.id, week: monday, home: away.homeUnit!.split(' · ')[0] };
+          break;
+        }
+      }
+    }
+    expect(found, 'a cross-unit officer on the draft roster').not.toBeNull();
+    await page.goto(`/planner?tab=roster&unit=${found!.unit}&week=${found!.week}`);
+    await expect(page.getByTestId('from-unit').first()).toHaveText(`From ${found!.home}`, { timeout: 30_000 });
   });
 });

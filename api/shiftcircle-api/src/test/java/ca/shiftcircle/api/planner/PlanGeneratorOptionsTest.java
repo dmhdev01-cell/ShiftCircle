@@ -49,7 +49,7 @@ class PlanGeneratorOptionsTest {
     Facility facility = facility();
     PlanGenerator.Result all = generate(facility, PlanGenerator.Options.DEFAULT);
     PlanGenerator.Result fullTimeOnly =
-        generate(facility, new PlanGenerator.Options(false, false));
+        generate(facility, new PlanGenerator.Options(false, false, false));
     Set<UUID> partTimers = partTimers(facility);
 
     assertThat(fullTimeOnly.assignments())
@@ -68,14 +68,11 @@ class PlanGeneratorOptionsTest {
   void partTimeFillUpToFteUsesMorePartTimeHoursWithinTargetAndNoMoreGaps() {
     Facility facility = facility();
     PlanGenerator.Result after = generate(facility, PlanGenerator.Options.DEFAULT);
-    PlanGenerator.Result upTo = generate(facility, new PlanGenerator.Options(true, true));
+    PlanGenerator.Result upTo = generate(facility, new PlanGenerator.Options(true, true, false));
     Set<UUID> partTimers = partTimers(facility);
 
     double hoursAfter = partTimeHours(after, partTimers);
     double hoursUpTo = partTimeHours(upTo, partTimers);
-    System.out.printf(
-        "partTimeFill: AFTER_FULL_TIME %.0f h, %d gaps; UP_TO_FTE %.0f h, %d gaps%n",
-        hoursAfter, after.gaps().size(), hoursUpTo, upTo.gaps().size());
     assertThat(hoursUpTo).isGreaterThan(hoursAfter);
     assertThat(upTo.gaps().size()).isLessThanOrEqualTo(after.gaps().size());
     // The top-up only adds: every shift of the default plan is still there.
@@ -120,11 +117,204 @@ class PlanGeneratorOptionsTest {
         new PlanGenerator()
             .generate(facility.employees, facility.units, templates(), new HashMap<>(), null,
                 20261001, noSundays, Map.of(), PlanGenerator.ALWAYS,
-                new PlanGenerator.Options(true, true));
+                new PlanGenerator.Options(true, true, false));
     assertThat(upTo.assignments())
         .filteredOn(assignment -> partTimers.contains(assignment.employeeId()))
         .isNotEmpty()
         .noneMatch(assignment -> assignment.date().getDayOfWeek() == java.time.DayOfWeek.SUNDAY);
+  }
+
+  @Test
+  void partTimeFillUpToFteIsDeterministic() {
+    Facility facility = facility();
+    PlanGenerator.Options upTo = new PlanGenerator.Options(true, true, false);
+    PlanGenerator.Result first = generate(facility, upTo);
+    PlanGenerator.Result second = generate(facility, upTo);
+    assertThat(first.assignments().stream().map(a -> a.employeeId() + "|" + a.date() + "|" + a.templateCode()).toList())
+        .isEqualTo(second.assignments().stream().map(a -> a.employeeId() + "|" + a.date() + "|" + a.templateCode()).toList());
+    assertThat(first.gaps()).isEqualTo(second.gaps());
+    assertThat(first.warnings()).isEqualTo(second.warnings());
+    for (String card : List.of("coverage", "warnings", "preferences", "fteBands", "quarterHours")) {
+      assertThat(first.scorecard().get(card)).as(card).isEqualTo(second.scorecard().get(card));
+    }
+  }
+
+  @Test
+  void partTimeFillUpToFteSpreadsShiftsEvenlyThroughThePeriod() {
+    // A unit the full-timers cover alone, so every part-time shift comes from the top-up.
+    UUID unitId = UUID.nameUUIDFromBytes("unit:E".getBytes());
+    List<PlanGenerator.Unit> units =
+        List.of(new PlanGenerator.Unit(unitId, "E", "E", false, false, Map.of("DAY", 1, "EVENING", 1)));
+    List<PlanGenerator.Employee> employees = new ArrayList<>();
+    for (int i = 0; i < 8; i++) {
+      employees.add(employee("E", unitId, "F" + i, 1.0, i, i));
+    }
+    PlanGenerator.Employee partTimer = employee("E", unitId, "P0", 0.8, 0, 20);
+    employees.add(partTimer);
+    Facility facility = new Facility(units, employees);
+    assertThat(generate(facility, PlanGenerator.Options.DEFAULT).assignments())
+        .noneMatch(a -> a.employeeId().equals(partTimer.id()));
+
+    PlanGenerator.Result upTo = generate(facility, new PlanGenerator.Options(true, true, false));
+    double target = 0.8 * 80;
+    double[] cumulative = new double[PlanGenerator.PERIODS];
+    List<PlanGenerator.Assignment> shifts =
+        upTo.assignments().stream()
+            .filter(a -> a.employeeId().equals(partTimer.id()))
+            .sorted(java.util.Comparator.comparing(PlanGenerator.Assignment::date))
+            .toList();
+    for (PlanGenerator.Assignment shift : shifts) {
+      long day = ChronoUnit.DAYS.between(PlanGenerator.FROM, shift.date());
+      int period = (int) (day / 14);
+      long dayInPeriod = day % 14;
+      cumulative[period] += 8;
+      // Placed only when not ahead of an even pace: hours so far <= target x (day + 1) / 14 + 8.
+      assertThat(cumulative[period])
+          .as("%s, day %d of period %d", shift.date(), dayInPeriod, period)
+          .isLessThanOrEqualTo(target * (dayInPeriod + 1) / 14.0 + 8 + 0.001);
+    }
+    // And it still reaches the FTE target in every period.
+    assertThat(cumulative).containsOnly(target);
+  }
+
+  // --- cross-unit fill -------------------------------------------------------------------------
+
+  private static final PlanGenerator.Options CROSS = new PlanGenerator.Options(true, false, true);
+
+  @Test
+  void crossUnitFillCoversAnotherUnitsGapsWithSpareOfficersAndOnlyAdds() {
+    Facility facility = shortAndSpare();
+    PlanGenerator.Result off = generate(facility, PlanGenerator.Options.DEFAULT);
+    PlanGenerator.Result on = generate(facility, CROSS);
+    UUID shortUnit = facility.units.get(1).id();
+
+    assertThat(on.gaps().size()).isLessThan(off.gaps().size());
+    assertThat(rows(on)).containsAll(rows(off));
+    // Every added shift is in the short unit, by an officer homed in the spare unit.
+    Map<UUID, UUID> home = new HashMap<>();
+    facility.employees.forEach(e -> home.put(e.id(), e.unitId()));
+    List<PlanGenerator.Assignment> away =
+        on.assignments().stream()
+            .filter(a -> !a.unitId().equals(home.get(a.employeeId())))
+            .toList();
+    assertThat(away).isNotEmpty().allMatch(a -> a.unitId().equals(shortUnit));
+    assertThat(away.size()).isEqualTo(on.assignments().size() - off.assignments().size());
+
+    @SuppressWarnings("unchecked")
+    Map<String, Object> card = (Map<String, Object>) on.scorecard().get("crossUnit");
+    assertThat(card.get("gapsCovered")).isEqualTo(off.gaps().size() - on.gaps().size());
+    assertThat(card.get("shifts")).isEqualTo(away.size());
+    assertThat((String) card.get("line")).contains("covered from other units");
+    assertThat(off.scorecard()).doesNotContainKey("crossUnit");
+
+    // FTE caps kept and one shift a day, for everyone.
+    Map<UUID, Double> fte = new HashMap<>();
+    facility.employees.forEach(e -> fte.put(e.id(), e.fte()));
+    Map<String, Double> perPeriod = new HashMap<>();
+    Map<String, Long> perDay = new HashMap<>();
+    for (PlanGenerator.Assignment a : on.assignments()) {
+      perDay.merge(a.employeeId() + "|" + a.date(), 1L, Long::sum);
+      long period = ChronoUnit.DAYS.between(PlanGenerator.FROM, a.date()) / 14;
+      perPeriod.merge(a.employeeId() + "|" + period,
+          Duration.between(a.start(), a.end()).toMinutes() / 60.0, Double::sum);
+    }
+    assertThat(perDay.values()).allMatch(count -> count == 1);
+    perPeriod.forEach(
+        (key, hours) ->
+            assertThat(hours).as(key)
+                .isLessThanOrEqualTo(fte.get(UUID.fromString(key.split("\\|")[0])) * 80 + 0.001));
+  }
+
+  @Test
+  void crossUnitFillOnlyOffersAQualifiedBlockToOfficersWhoHoldTheQualification() {
+    Facility facility = shortAndSpare();
+    UUID shortUnit = facility.units.get(1).id();
+    UUID escort = UUID.nameUUIDFromBytes("q:ESCORT".getBytes());
+    // The short unit's evenings need Escort; only spare part-timer S0 holds it.
+    UUID holder = facility.employees.stream()
+        .filter(e -> e.employeeNo().equals("S-P0")).findFirst().orElseThrow().id();
+    PlanGenerator.Qualifications qualifications =
+        new PlanGenerator.Qualifications(
+            Map.of(shortUnit, Map.of("EVENING", escort)), Map.of(holder, Set.of(escort)));
+    PlanGenerator.Result on =
+        new PlanGenerator()
+            .generate(facility.employees, facility.units, templates(), new HashMap<>(), null,
+                20261001, ALLOW, Map.of(), PlanGenerator.ALWAYS, CROSS, qualifications);
+    Map<UUID, UUID> home = new HashMap<>();
+    facility.employees.forEach(e -> home.put(e.id(), e.unitId()));
+    List<PlanGenerator.Assignment> awayEvenings =
+        on.assignments().stream()
+            .filter(a -> !a.unitId().equals(home.get(a.employeeId())))
+            .filter(a -> "E8".equals(a.templateCode()))
+            .toList();
+    assertThat(awayEvenings).isNotEmpty().allMatch(a -> a.employeeId().equals(holder));
+    // Day shifts there have no qualification, so other spare officers still help.
+    assertThat(on.assignments().stream()
+            .filter(a -> !a.unitId().equals(home.get(a.employeeId())))
+            .filter(a -> "D8".equals(a.templateCode()))
+            .map(PlanGenerator.Assignment::employeeId)
+            .distinct()
+            .count())
+        .isGreaterThan(1);
+  }
+
+  @Test
+  void crossUnitFillRespectsABlockingRuleAndIsDeterministic() {
+    Facility facility = shortAndSpare();
+    PlanGenerator.Verifier noAway =
+        (employee, unit, template, instant, current) ->
+            new PlanGenerator.Check(!employee.unitId().equals(unit.id()), List.of());
+    PlanGenerator.Result blocked =
+        new PlanGenerator()
+            .generate(facility.employees, facility.units, templates(), new HashMap<>(), null,
+                20261001, noAway, Map.of(), PlanGenerator.ALWAYS, CROSS);
+    PlanGenerator.Result off =
+        new PlanGenerator()
+            .generate(facility.employees, facility.units, templates(), new HashMap<>(), null,
+                20261001, noAway, Map.of(), PlanGenerator.ALWAYS, PlanGenerator.Options.DEFAULT);
+    assertThat(rows(blocked)).isEqualTo(rows(off));
+    @SuppressWarnings("unchecked")
+    Map<String, Object> card = (Map<String, Object>) blocked.scorecard().get("crossUnit");
+    assertThat(card.get("gapsCovered")).isEqualTo(0);
+
+    // Same input, same plan, in the same order.
+    PlanGenerator.Result first = generate(facility, CROSS);
+    PlanGenerator.Result second = generate(facility, CROSS);
+    assertThat(first.assignments().stream().map(a -> a.employeeId() + "|" + a.date() + "|" + a.unitId()).toList())
+        .isEqualTo(second.assignments().stream().map(a -> a.employeeId() + "|" + a.date() + "|" + a.unitId()).toList());
+  }
+
+  @Test
+  void crossUnitGapsComeBeforeTheUpToFteExtras() {
+    Facility facility = shortAndSpare();
+    PlanGenerator.Result cross = generate(facility, CROSS);
+    PlanGenerator.Result both = generate(facility, new PlanGenerator.Options(true, true, true));
+    // The extras run after the cross-unit fill, so they only add to it and never cost a gap.
+    assertThat(rows(both)).containsAll(rows(cross));
+    assertThat(both.gaps().size()).isLessThanOrEqualTo(cross.gaps().size());
+    PlanGenerator.Result upToOnly = generate(facility, new PlanGenerator.Options(true, true, false));
+    assertThat(both.gaps().size()).isLessThan(upToOnly.gaps().size());
+  }
+
+  /** Unit S (spare): 8 full-timers and 4 part-timers for a small need. Unit T (short): 3 full-timers. */
+  private static Facility shortAndSpare() {
+    UUID spare = UUID.nameUUIDFromBytes("unit:S".getBytes());
+    UUID shortUnit = UUID.nameUUIDFromBytes("unit:T".getBytes());
+    List<PlanGenerator.Unit> units =
+        List.of(
+            new PlanGenerator.Unit(spare, "S", "S", false, false, Map.of("DAY", 3, "EVENING", 2)),
+            new PlanGenerator.Unit(shortUnit, "T", "T", false, false, Map.of("DAY", 3, "EVENING", 3)));
+    List<PlanGenerator.Employee> employees = new ArrayList<>();
+    for (int i = 0; i < 8; i++) {
+      employees.add(employee("S", spare, "F" + i, 1.0, i, i));
+    }
+    for (int i = 0; i < 4; i++) {
+      employees.add(employee("S", spare, "P" + i, 0.6, 0, 20 + i));
+    }
+    for (int i = 0; i < 3; i++) {
+      employees.add(employee("T", shortUnit, "F" + i, 1.0, i, 10 + i));
+    }
+    return new Facility(units, employees);
   }
 
   // --- helpers ----------------------------------------------------------------------------------

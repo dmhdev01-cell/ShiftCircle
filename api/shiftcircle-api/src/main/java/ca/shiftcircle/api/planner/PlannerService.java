@@ -199,7 +199,8 @@ public class PlannerService {
                 verifier,
                 leave,
                 activeUnits::active,
-                generatorOptions(options));
+                generatorOptions(options),
+                loadQualifications());
     operationalCards(result.scorecard(), result.assignments());
     int generatedMs = (int) ((System.nanoTime() - before) / 1_000_000);
 
@@ -209,9 +210,9 @@ public class PlannerService {
     jdbc.update(
         "INSERT INTO plan_draft (id, from_date, to_date, seed, pattern8h, status, version,"
             + " created_by, generated_ms, scorecard, warnings, warning_count,"
-            + " staff_types, part_time_fill)"
+            + " staff_types, part_time_fill, cross_unit_fill)"
             + " VALUES (?, ?, ?, ?, ?, 'DRAFT', 0, (SELECT id FROM app_user WHERE username = ?),"
-            + " ?, ?::jsonb, ?::jsonb, ?, ?::text[], ?)",
+            + " ?, ?::jsonb, ?::jsonb, ?, ?::text[], ?, ?)",
         id,
         FROM,
         TO,
@@ -223,7 +224,8 @@ public class PlannerService {
         warningsJson,
         result.warnings().size(),
         "{" + String.join(",", options.staffTypes()) + "}",
-        options.partTimeFill());
+        options.partTimeFill(),
+        options.crossUnitFill());
     List<Object[]> assignmentRows = new ArrayList<>();
     for (PlanGenerator.Assignment assignment : result.assignments()) {
       assignmentRows.add(
@@ -268,6 +270,7 @@ public class PlannerService {
     generated.put("generatedMs", generatedMs);
     generated.put("staffTypes", options.staffTypes());
     generated.put("partTimeFill", options.partTimeFill());
+    generated.put("crossUnitFill", options.crossUnitFill());
     audit(principal, "generate_plan", "plan_draft", id, generated);
 
     Map<String, Object> row =
@@ -280,6 +283,7 @@ public class PlannerService {
 
   private static final List<String> STAFF_TYPES = List.of("FULL_TIME", "PART_TIME");
   private static final List<String> PART_TIME_FILLS = List.of("AFTER_FULL_TIME", "UP_TO_FTE");
+  private static final List<String> ON_OFF = List.of("OFF", "ON");
 
   /**
    * The tailoring options, validated (PR-N). Omitted values take the defaults; anything else that
@@ -315,12 +319,41 @@ public class PlannerService {
           HttpStatus.BAD_REQUEST,
           "partTimeFill UP_TO_FTE needs PART_TIME in staffTypes: there is no one to fill");
     }
-    return new PlannerViews.PlanOptions(staffTypes, partTimeFill);
+    String crossUnitFill =
+        creation.crossUnitFill() == null ? defaults.crossUnitFill() : creation.crossUnitFill();
+    if (!ON_OFF.contains(crossUnitFill)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "crossUnitFill must be OFF or ON");
+    }
+    return new PlannerViews.PlanOptions(staffTypes, partTimeFill, crossUnitFill);
   }
 
   private static PlanGenerator.Options generatorOptions(PlannerViews.PlanOptions options) {
     return new PlanGenerator.Options(
-        options.staffTypes().contains("PART_TIME"), "UP_TO_FTE".equals(options.partTimeFill()));
+        options.staffTypes().contains("PART_TIME"),
+        "UP_TO_FTE".equals(options.partTimeFill()),
+        "ON".equals(options.crossUnitFill()));
+  }
+
+  /** Who holds which qualification, and what each unit block with a qualified minimum asks for. */
+  private PlanGenerator.Qualifications loadQualifications() {
+    Map<UUID, Map<String, UUID>> required = new HashMap<>();
+    jdbc.query(
+        "SELECT unit_id, block, qualification_id FROM unit_requirement"
+            + " WHERE effective_to IS NULL AND qualification_id IS NOT NULL"
+            + " AND min_with_qualification > 0",
+        (RowCallbackHandler)
+            rs ->
+                required
+                    .computeIfAbsent(rs.getObject("unit_id", UUID.class), key -> new HashMap<>())
+                    .put(rs.getString("block"), rs.getObject("qualification_id", UUID.class)));
+    Map<UUID, Set<UUID>> held = new HashMap<>();
+    jdbc.query(
+        "SELECT employee_id, qualification_id FROM employee_qualification",
+        (RowCallbackHandler)
+            rs ->
+                held.computeIfAbsent(rs.getObject("employee_id", UUID.class), key -> new HashSet<>())
+                    .add(rs.getObject("qualification_id", UUID.class)));
+    return new PlanGenerator.Qualifications(required, held);
   }
 
   public PlannerViews.DraftSummary draft(UUID id) {
@@ -429,6 +462,14 @@ public class PlannerService {
                 activeUnits::active,
                 assignments);
     operationalCards(result.scorecard(), result.assignments());
+    // The cross-unit card is measured when the draft is generated; a hand edit keeps it.
+    Object storedScorecard = draft.get("scorecard");
+    if (storedScorecard != null) {
+      Map<String, Object> previous = mapper.readValue(storedScorecard.toString(), Map.class);
+      if (previous.containsKey("crossUnit")) {
+        result.scorecard().put("crossUnit", previous.get("crossUnit"));
+      }
+    }
     String scorecardJson = mapper.writeValueAsString(result.scorecard());
     String warningsJson = mapper.writeValueAsString(warningMaps(result.warnings()));
     int generatedMs = (int) ((System.nanoTime() - started) / 1_000_000);
@@ -638,7 +679,9 @@ public class PlannerService {
                   periodHours,
                   80.0,
                   status,
-                  dayCells));
+                  dayCells,
+                  // Placed away from home (cross-unit fill or closed-unit relief): say from where.
+                  unitId.equals(row.get("home_unit_id")) ? null : (String) row.get("home_unit_name")));
         });
     leave.leaveOnlyNames()
         .forEach(
@@ -660,7 +703,8 @@ public class PlannerService {
                       0.0,
                       80.0,
                       "UNDER",
-                      dayCells));
+                      dayCells,
+                      null));
             });
     return new ca.shiftcircle.api.schedule.ScheduleQuery.SchedulePayload(
         new ca.shiftcircle.api.schedule.ScheduleQuery.UnitView(
@@ -819,9 +863,11 @@ public class PlannerService {
     return jdbc.queryForList(
         "SELECT a.id, a.employee_id, a.work_date, a.start_at, a.end_at,"
             + " e.first_name || ' ' || e.last_name AS employee_name, e.shift_pattern,"
-            + " t.code AS template_code, t.duration_minutes"
+            + " t.code AS template_code, t.duration_minutes, e.home_unit_id,"
+            + " hu.name AS home_unit_name"
             + " FROM plan_draft_assignment a JOIN employee e ON e.id = a.employee_id"
             + " JOIN shift_template t ON t.id = a.shift_template_id"
+            + " LEFT JOIN unit hu ON hu.id = e.home_unit_id"
             + " WHERE a.draft_id = ? AND a.unit_id = ? AND a.work_date BETWEEN ? AND ?"
             + " ORDER BY a.start_at",
         draftId,
@@ -2009,16 +2055,22 @@ public class PlannerService {
         storedOptions(row));
   }
 
-  /** The options a stored draft was made with; a row from before V14 reads as the defaults. */
+  /**
+   * The options a stored draft was made with. V14/V15 backfill older rows with the defaults (NOT
+   * NULL with defaults), so the null branches are defensive only. {@code daysOff} is the generic
+   * text[] reader despite its name.
+   */
   private PlannerViews.PlanOptions storedOptions(Map<String, Object> row) {
     PlannerViews.PlanOptions defaults = PlannerViews.PlanOptions.DEFAULT;
     Object types = row.get("staff_types");
     List<String> staffTypes =
         types instanceof Array array ? daysOff(array) : defaults.staffTypes();
     Object fill = row.get("part_time_fill");
+    Object crossUnit = row.get("cross_unit_fill");
     return new PlannerViews.PlanOptions(
         staffTypes.isEmpty() ? defaults.staffTypes() : staffTypes,
-        fill == null ? defaults.partTimeFill() : fill.toString());
+        fill == null ? defaults.partTimeFill() : fill.toString(),
+        crossUnit == null ? defaults.crossUnitFill() : crossUnit.toString());
   }
 
   private int handEdits(UUID draftId) {

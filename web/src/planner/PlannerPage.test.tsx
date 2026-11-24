@@ -316,6 +316,7 @@ describe('the quarter plan', () => {
       seed: 20261001,
       staffTypes: ['FULL_TIME', 'PART_TIME'],
       partTimeFill: 'AFTER_FULL_TIME',
+      crossUnitFill: 'OFF',
     });
     expect(create.mock.calls[0][0]).not.toHaveProperty('pattern8h');
     vi.restoreAllMocks();
@@ -335,7 +336,7 @@ describe('the quarter plan', () => {
     expect(within(group).getByRole('radio', { name: /Fill gaps only \(as before\)/ })).toBeChecked();
     expect(
       within(group).getByText(
-        'After the gaps, part-time officers also get shifts where cover is thinnest, up to their FTE hours, so less capacity goes unused.',
+        'After the gaps, part-time officers also get shifts above the minimum where cover is thinnest, up to their FTE hours: less capacity goes unused, but expect more rule warnings (never a Block).',
       ),
     ).toBeInTheDocument();
     expect(
@@ -352,6 +353,7 @@ describe('the quarter plan', () => {
       seed: 20261001,
       staffTypes: ['FULL_TIME', 'PART_TIME'],
       partTimeFill: 'UP_TO_FTE',
+      crossUnitFill: 'OFF',
     });
     // The draft says what it was made with, and the part-time line says how it was filled.
     expect(screen.getByTestId('plan-options-used')).toHaveTextContent(
@@ -381,12 +383,70 @@ describe('the quarter plan', () => {
       seed: 20261001,
       staffTypes: ['FULL_TIME'],
       partTimeFill: 'AFTER_FULL_TIME',
+      crossUnitFill: 'OFF',
     });
     expect(screen.getByTestId('plan-options-used')).toHaveTextContent('Made with: full-time officers only');
     expect(await screen.findByRole('note', { name: 'Unused part-time capacity' })).toHaveTextContent(
       /made with full-time officers only/,
     );
     vi.restoreAllMocks();
+  });
+
+  it('covers gaps from other units when asked, and says so on the draft and the scorecard', async () => {
+    const user = userEvent.setup();
+    const create = vi.spyOn(api, 'createPlannerDraft');
+    renderPlanner();
+    await asPlanner(user);
+
+    const group = await screen.findByRole('group', { name: 'Plan options' });
+    const cross = within(group).getByRole('checkbox', { name: /Cover gaps from other units/ });
+    expect(cross).not.toBeChecked();
+    expect(
+      within(group).getByText(
+        "A gap still open after a unit's own officers goes to an officer from another unit who holds the post's qualification and has hours left; it can add rule warnings (never a Block), and the roster marks them 'From' their unit.",
+      ),
+    ).toBeInTheDocument();
+    await user.click(cross);
+    await user.click(screen.getByRole('button', { name: 'Generate draft' }));
+
+    await screen.findByText('Coverage gaps');
+    expect(create).toHaveBeenCalledWith({
+      seed: 20261001,
+      staffTypes: ['FULL_TIME', 'PART_TIME'],
+      partTimeFill: 'AFTER_FULL_TIME',
+      crossUnitFill: 'ON',
+    });
+    expect(screen.getByTestId('plan-options-used')).toHaveTextContent(
+      'Made with: full-time and part-time officers · part-time fills gaps only · gaps covered from other units',
+    );
+    expect(await screen.findByRole('note', { name: 'Gaps covered from other units' })).toHaveTextContent(
+      '3 gaps covered from other units. 3 shifts by 2 officers from another unit',
+    );
+
+    // No previous draft yet, so no comparison.
+    expect(screen.queryByRole('note', { name: 'Compared with the previous draft' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Generate again' }));
+    const replace = await screen.findByRole('dialog');
+    const again = within(replace).getByRole('group', { name: 'Plan options' });
+    const crossAgain = within(again).getByRole('checkbox', { name: /Cover gaps from other units/ });
+    expect(crossAgain).toBeChecked();
+    // Replace it with one made without the option: the comparison names every figure.
+    await user.click(crossAgain);
+    await user.click(within(replace).getByRole('button', { name: 'Replace draft' }));
+    expect(await screen.findByRole('note', { name: 'Compared with the previous draft' })).toHaveTextContent(
+      /^Compared with the previous draft: gaps unchanged at \d+ · rule warnings unchanged at \d+ · unused part-time hours unchanged at [\d,]+ h · shifts unchanged at [\d,]+ · gaps covered from other units 3 → 0\.$/,
+    );
+    vi.restoreAllMocks();
+  });
+
+  it('shows no cross-unit figure for a draft made without the option', async () => {
+    const user = userEvent.setup();
+    renderPlanner();
+    await asPlanner(user);
+    await user.click(await screen.findByRole('button', { name: 'Generate draft' }));
+    await screen.findByText('Coverage gaps');
+    expect(screen.queryByRole('note', { name: 'Gaps covered from other units' })).not.toBeInTheDocument();
   });
 
   it('prefills Generate again with the options the last draft was made with', async () => {
@@ -414,6 +474,7 @@ describe('the quarter plan', () => {
       seed: 20261001,
       staffTypes: ['FULL_TIME'],
       partTimeFill: 'AFTER_FULL_TIME',
+      crossUnitFill: 'OFF',
     });
     await waitFor(() =>
       expect(screen.getByTestId('plan-options-used')).toHaveTextContent('Made with: full-time officers only'),
