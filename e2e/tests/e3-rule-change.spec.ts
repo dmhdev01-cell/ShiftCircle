@@ -3,8 +3,8 @@ import { expect, test } from '@playwright/test';
 import { expectAccessible, signIn, signInAgain, signOut } from './support';
 
 /**
- * E3 (docs/10-testing.md section 5): the rules admin changes U-03 from 12 to
- * 14 h, builds and submits; the author cannot approve; a second person
+ * E3 (docs/10-testing.md section 5): the rules admin changes U-02 (the rest
+ * target between shifts) from 12 to 14 h, builds and submits; the author cannot approve; a second person
  * approves and publishes. No code change.
  */
 
@@ -21,23 +21,37 @@ test.describe('E3 rule change with maker/checker', () => {
     if (await page.getByRole('button', { name: 'Start a draft' }).isVisible().catch(() => false)) {
       await page
         .getByLabel('Why is this change needed?')
-        .fill('Raise the 16-hour rest target to 14 hours');
+        .fill('Raise the rest target between shifts to 14 hours');
       await page.getByRole('button', { name: 'Start a draft' }).click();
     }
     await expect(page.getByRole('button', { name: 'Build and check' })).toBeVisible();
 
-    const u03 = page.getByLabel('Minimum hours off for U-03');
+    const u02 = page.getByLabel('Minimum hours off for U-02');
     // A person clicks into the field, which selects the row.
-    await u03.click();
-    await u03.fill('14');
+    await u02.click();
+    await u02.fill('14');
     await expect(page.getByText('1 change in draft')).toBeVisible();
-    // The plain-language sentence for the selected row follows the value.
-    await expect(page.getByText(/16 h shift, an officer needs at least 14 hours off/)).toBeVisible();
+    // The plain-language sentence for the selected row follows the value, in
+    // words: the shift kind is named, never the stored pattern, and the
+    // outcome is said once (it read "After (d8|e8|...), ... has to acknowledge
+    // it, and the supervisor has to acknowledge it.").
+    const sentence = page.getByText(
+      'After a D8, E8, N8, A12, P12, D12 or N12 shift, an officer needs at least 14 hours off within 24 hours; otherwise the change is warned. A supervisor must acknowledge it before the change is saved.',
+    );
+    await expect(sentence).toBeVisible();
+    await expect(sentence).not.toContainText('|');
     // Build saves the unsaved edit first (R3).
     await expect(page.getByText('You have unsaved edits. Build and Submit save them first.')).toBeVisible();
 
     await page.getByRole('button', { name: 'Build and check' }).click();
     await expect(page.getByText(/test scenarios passed/)).toBeVisible();
+    // Unlike the dormant U-03, the U-02 edit has an effect the dry run shows
+    // (demo §4: one result, U-02, Unit A, Pass -> Warn). The fixtures' build
+    // report is canned, so this check is real-api only.
+    if ((await page.getByText('Demo fixtures').count()) === 0) {
+      await expect(page.getByText(/\d+ result\(s\) change on the current roster\./)).toBeVisible();
+      await expect(page.getByText(/would now break U-02/)).toBeVisible();
+    }
     await page.getByRole('button', { name: 'Submit for approval' }).click();
     await expect(page.getByText(/is submitted for approval/)).toBeVisible();
 

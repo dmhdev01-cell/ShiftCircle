@@ -8,7 +8,7 @@ import type { RuleTable, RuleTableRow } from '../api/types';
 import { StatusPill } from '../components/StatusPill';
 import { ScrollShadows } from '../components/ScrollShadows';
 import { colour } from '../theme/tokens';
-import { sentenceFor } from './sentences';
+import { sentenceFor, shiftKindLabel } from './sentences';
 
 function sourceTone(source: string): 'pass' | 'warn' {
   return source === 'Employment Act' ? 'pass' : 'warn';
@@ -164,7 +164,7 @@ export function DecisionTable({
                     }}
                   >
                     {SHIFT_KINDS.includes(row.after) ? null : (
-                      <option value={row.after}>{row.after}</option>
+                      <option value={row.after}>{shiftKindLabel(row.after)}</option>
                     )}
                     {SHIFT_KINDS.map((kind) => (
                       <option key={kind} value={kind}>
@@ -286,7 +286,7 @@ export function DecisionTable({
             In plain language · {selected.ruleCode}
           </Box>
           <Box component="span" sx={{ fontSize: 15, lineHeight: 1.5 }}>
-            {sentenceFor(selected, edited[selected.ruleCode] ?? false)}
+            {sentenceFor(table.code, selected, edited[selected.ruleCode] ?? false)}
           </Box>
         </Box>
       ) : null}

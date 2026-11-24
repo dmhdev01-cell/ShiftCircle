@@ -45,14 +45,21 @@ const restRows: RuleTableRow[] = [
   {
     ruleCode: 'U-02',
     enabled: true,
-    after: 'Any shift',
+    // As the api sends it since rule set v2: the stored pattern, which the
+    // grid shows as "D8, E8, N8, A12, P12, D12 or N12".
+    after: '(D8|E8|N8|A12|P12|D12|N12)',
     minHours: 12,
     result: 'WARN',
     override: 'ACKNOWLEDGE',
     source: 'Mock agreement',
-    params: { afterShiftKind: '.*', windowHours: 24, minExtensionMinutes: 0, minRestHours: 12 },
+    params: {
+      afterShiftKind: '(D8|E8|N8|A12|P12|D12|N12)',
+      windowHours: 24,
+      minExtensionMinutes: 0,
+      minRestHours: 12,
+    },
     sentence:
-      'Between regular shifts an officer should get at least 12 hours off. If they would not, the supervisor is warned and has to acknowledge it.',
+      'After a D8, E8, N8, A12, P12, D12 or N12 shift, an officer needs at least 12 hours off within 24 hours; otherwise the change is warned. A supervisor must acknowledge it before the change is saved.',
   },
   {
     ruleCode: 'U-03',

@@ -46,7 +46,7 @@ test.describe('keyboard only', () => {
     await page.keyboard.press('Enter');
     await expect(page.getByRole('heading', { name: 'Rest between shifts' })).toBeVisible();
 
-    await tabTo(page, page.getByLabel('Minimum hours off for U-03'), 80);
+    await tabTo(page, page.getByLabel('Minimum hours off for U-02'), 80);
     await page.keyboard.press('ControlOrMeta+a');
     await page.keyboard.type('14');
     await tabTo(page, page.getByRole('button', { name: 'Build and check' }), 40);
