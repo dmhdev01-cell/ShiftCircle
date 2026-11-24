@@ -34,13 +34,13 @@ The **View** buttons choose how much of the calendar you see. **Week** is the de
 
 **Comfortable** and **Compact** switch the density independently. The address keeps the view, the density, the unit and the date, so you can bookmark a board.
 
-![Planning board in the Week view, Unit B: the four tiles, the find and filter bar, coverage rows with 5 / 5 and 5 / 4, and the first officer](img/supervisor-board-week.png)
+![Planning board in the Week view, Unit A: the five tiles, the find and filter bar, coverage rows with 5 / 5 and 5 / 4, and the first officer](img/supervisor-board-week.png)
 
 ![Planning board in the Pay period view, 9 – 22 Nov 2026, compact, with the row of five figures and a total per officer](img/supervisor-board-pay-period.png)
 
 ### Find, filter, sort and export
 
-Above the grid, **Find officer** matches part of a name. The lists **Overtime** (All, In overtime, Approaching, Under), **Rotation** (All, 8 h, 12 h, Casual), **Works** (Any shift, Days, Evenings, Nights) and **Qualification** narrow the officers, and **Sort** orders them (board order, pay-period hours lowest or highest first, name, or rotation). A line under the bar says how many officers you are looking at, for example "Showing 15 of 19 officers · in overtime, works nights", with **Clear filters**. The coverage rows always count the whole unit, whatever you filter, and say so.
+Above the grid, **Find officer** matches part of a name. The lists **Overtime** (All, In overtime, Approaching, Under), **Rotation** (All, 8 h, 12 h; Casual appears only when an officer's rotation is shown as casual), **Works** (Any shift, Days, Evenings, Nights) and **Qualification** narrow the officers, and **Sort** orders them (board order, pay-period hours lowest or highest first, name, or rotation). A line under the bar says how many officers you are looking at, for example "Showing 15 of 19 officers · in overtime, works nights", with **Clear filters**. The coverage rows always count the whole unit, whatever you filter, and say so.
 
 ![Pay period view filtered to officers in overtime who work nights: Showing 15 of 19 officers, with Clear filters](img/supervisor-board-filters.png)
 

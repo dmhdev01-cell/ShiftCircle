@@ -9,18 +9,17 @@ Browser -> nginx + React web -> Spring Boot api (Drools rules engine) -> Postgre
            (only port published)   one engine for every write            audit by trigger
 ```
 
-A change is previewed, then saved, refused with plain reasons, or acknowledged or emergency-overridden with a reason, and audited (ADR-014). Draft edits and the commit use the same engine; commit is one transaction (ADR-026).
+A change is previewed, then saved, refused with plain reasons, or acknowledged or overridden with a reason, and audited (ADR-014). Draft edits and the commit use the same engine (ADR-026).
 
 ## 2. Key decisions
 
 - **No AI at runtime:** the engine decides and a supervisor approves (ADR-002, 005); Drools tables are edited in the app with maker/checker, scenarios and a dry run (ADR-012).
 - **Overtime, overrides, audit:** overtime is hours over the pay-period threshold (ADR-013, 016, 017); emergency-only overrides (ADR-023); trigger-based audit, prototype only (ADR-018).
-- **Planner (ADR-026/027):** deterministic, every proposal engine-checked, guarded commit; no override in a draft.
-- **Datasets:** 100 officers by default, 120 and 150 selectable; rule sets v1 to v3 seeded, later ones by maker/checker (ADR-027).
+- **Planner (ADR-026/027):** deterministic, every proposal engine-checked, guarded commit; no override in a draft. Datasets 100, 120 and 150.
 
 ## 3. AI-assisted development
 
-**Who.** Claude Opus 5.5 did the design and specs. From 2026-11-20 an OpenRig team built and verified it: DeepSeek V4.1 Flash builders, GLM 5.3 verifiers, Claude Sonnet 5.5 for security review and lead. Builders and verifiers were different families except 10:07Z to 11:30Z that day (MiniMax, R32 to R34); releases 3 to 7 had the same builders and GLM QA (R65 to R72).
+**Who.** Claude Opus 5.5 did the design and specs. From 2026-11-20 an OpenRig team built and verified it: DeepSeek V4.1 Flash builders, GLM 5.3 verifiers, Claude Sonnet 5.5 for security review and lead. Builders and verifiers were different families, except 10:07Z to 11:30Z on 2026-11-20 (R32 to R34) and releases 3 to 7 (R65 to R72).
 
 **Caught by verification** after the authors' tests passed:
 
@@ -41,7 +40,7 @@ A change is previewed, then saved, refused with plain reasons, or acknowledged o
 | T8 | Payroll export, locked period | equals the golden file | byte-identical |
 | T9 | 17 h cover in a lockdown | Block; with a written reason it saves, audited | pinned by tests |
 
-**Last full gate (`5a3be22`, 24 Nov 2026):** API 470 tests, web 463, Playwright desktop 124 passed, tablet 123 passed and 1 skipped, 0 failed; checksums, golden and plan fingerprints unchanged. No human has walked the demo.
+**Last full gate (`5a3be22`, release 11, 24 Nov 2026):** API 470 tests, web 463, Playwright desktop 124 passed, tablet 123 passed and 1 skipped, 0 failed; checksums and golden unchanged. Release 11 added board views, filters, export, a gap panel, planned leave and CI. No human has walked the demo.
 
 ## 5. Governance and ministry suitability
 
@@ -49,14 +48,13 @@ A change is previewed, then saved, refused with plain reasons, or acknowledged o
 - **Safeguards:** overrides need a written reason and are audited; other Blocks cannot be overridden; maker/checker; rule input untrusted.
 - **Honest limits:**
   - **Guardrail 4 exception: no human reviewed the rule boundary tests.** Waived by the lead on 2026-11-20; AI verifiers reviewed them (R4 to R7).
-  - **Locked periods:** shifts are guarded by the api only (R38). A legal but wrong rule value is caught only by maker/checker and the dry run (R40).
-  - **Tokens:** 8 h, no revocation; memory-only on prod-like, sessionStorage on the demo (ADR-025). **Not built:** Excel round-trip, offer withdrawal, payroll-clerk role, OpenAPI (docs/10).
+  - **Locks and tokens:** locked-period shifts are guarded by the api only (R38); a legal but wrong rule value is caught only by maker/checker and the dry run (R40); tokens last 8 h with no revocation (ADR-025). **Not built:** Excel round-trip, offer withdrawal, payroll-clerk role, OpenAPI (docs/10).
   - **Rules:** U-03, U-11 dormant (retired L16 key); L-01 still lists 16 h; P-01 makes 4-on/4-off crews built-in overtime (no U-13).
-  - **Planner:** qualifications warn-only; no part-time floor; leave entered by the planner and shown on the draft roster, not on the live board; Unit C has 4 first-aiders (`docs/roadmap.md`); a late actual is not re-checked.
+  - **Planner:** qualifications warn-only; no part-time floor; planned leave shows on the draft roster, not the live board; a late actual is not re-checked (`docs/roadmap.md`).
 
 ## 6. Next steps (pilot)
 
 1. **Restore human review:** a practitioner reviews the rule boundary tests and validates the MOCK values.
 2. Government SSO with short-lived tokens; a payroll-clerk role; separate database roles with insert-only audit and a locked-period shift guard (ADR-018); non-root containers, TLS, secrets, CI scanning (`docs/08` §9).
 
-**Since v1.0-submission (release 11):** board views, filters, export and an inline gap panel; a readable quarter plan and planned leave; CI; limits stated honestly and docs matched to the code (`docs/process/release-notes.md`, `docs/roadmap.md`).
+<!-- Page check (keep): this record must fit 2 pages. Render recipe: Chromium print to PDF, Letter, 11 pt, line-height 1.38, 1 inch margins (the strict case; an assessor's Word default). Measure the content height at a (8.5 - 2) in wide viewport; it must stay at or under about 1.95 pages of 9 in each. At 5a3be22 + release 11 it was 3 pages before this trim and 2 after. -->

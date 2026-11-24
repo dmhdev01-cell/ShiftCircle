@@ -50,7 +50,7 @@ Two of them need a note:
 - **Qualified staff:** this is a warning only. The planner does not enforce qualifications. Qualification start dates are not checked: an officer with a qualification counts as qualified for the whole quarter.
 - **Needed (at least):** a floor. Part-time and casual officers work fewer shifts, so a plan can still have gaps when the floor is met. The draft's own gaps are the real test.
 
-Under the tiles, a yellow **Unused part-time capacity** line says how many part-time hours the plan leaves unused, for example "Unused part-time capacity: 5,472 h. Part-time officers are planned 1,248 h of their 6,720 h target this quarter, while 38 block-days stay short." Part-time hours are not guaranteed: a part-time officer is planned only into shifts still open in their home unit, up to their FTE target. On a dataset with planned leave, a line also says how many officers on leave were skipped and how many of their shifts relief officers covered.
+Under the tiles, a yellow **Unused part-time capacity** line says how many part-time hours the plan leaves unused, for example "Unused part-time capacity: 5,472 h. Part-time officers are planned 1,248 h of their 6,720 h target this quarter, while 38 block-days stay short." Part-time hours are not guaranteed: a part-time officer is planned only into shifts still open in their home unit, up to their FTE target.
 
 ![Quarter plan scorecard on Dataset 120 with the yellow Unused part-time capacity line under the tiles](img/planner-scorecard-part-time.png)
 
@@ -65,7 +65,7 @@ Under the tiles, a yellow **Unused part-time capacity** line says how many part-
 **Gaps (n)** says how many block-days are short and shows them two ways.
 
 - **Gaps by week and unit** is a strip with a row per unit and a column per week. Each cell counts that unit's short block-days that week, and a red number opens that week on the Roster tab.
-- Below it, **Gaps grouped into runs** joins block-days that are the same unit and block on days in a row, for example "Escort & transport · Wed 13 – Sun 17 Jan · Evenings 15–23 · staffed 2–3 of 4 · short by 1–2". A line above says "38 short block-days in 7 runs". Narrow them with **Unit** and **Block**. **Show week** opens the first week of the run on the Roster tab.
+- Below it, The runs table joins block-days that are the same unit and block on days in a row, for example "Escort & transport · Wed 13 – Sun 17 Jan · Evenings 15–23 · staffed 2–3 of 4 · short by 1–2". A line above says "38 short block-days in 7 runs". Narrow them with **Unit** and **Block**. **Show week** opens the first week of the run on the Roster tab.
 
 The **Why** column says what happened. The usual answer is "No eligible officer was free without breaking a blocking rule. A supervisor fills it on the planning board."
 
@@ -142,7 +142,7 @@ If you see "The draft changed since you opened it" or "This draft was committed 
 
 ![The Add planned leave dialog: officer, first and last day, the Vacation, Sick and Other types with their chips, and the sentence Vacation for Aiden Adeyemi: Tue 9 Feb 2027 – Thu 11 Feb 2027 (3 days)](img/planner-leave-dialog.png)
 
-Dataset 150 already carries seeded leave (20% of the officers' days), so its draft roster shows Vac and Sick chips from the start, and part-time officers fill the days the full-timers are away.
+Dataset 150 already carries seeded leave (20% of each full-time officer's days), so its draft roster shows Vac and Sick chips from the start, and part-time officers fill the days the full-timers are away.
 
 ![Draft roster on Dataset 150, the bottom of a Unit B week: an officer on leave all week shows Vac chips, and the key explains Sick and Vac](img/planner-roster-leave.png)
 

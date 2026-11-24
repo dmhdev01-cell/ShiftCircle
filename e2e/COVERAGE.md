@@ -1,7 +1,7 @@
 # UI test coverage (Playwright, Chromium only)
 
 What the end-to-end suite covers, screen by role by state, and what it cannot.
-Written for the UI test plan, phase B (2026-11-20) and kept current since (24 Nov 2026: 43 spec files; 110 parallel tests and 14 stack-wide tests per viewport on the real api). Every row names the spec
+Written for the UI test plan, phase B (2026-11-20) and kept current since (24 Nov 2026: 42 spec files in the real-api run (43 in the folder; `keyboard.spec.ts` is fixtures-only); 110 parallel tests and 14 stack-wide tests (in 12 files) per viewport). Every row names the spec
 that proves it. **Real api** means the compose stack; **fixtures** means the
 fixtures-mode web (tag `@fixtures`). Run against the real api with
 `--grep-invert @fixtures`, **one viewport per fresh stack** (the specs change
@@ -22,7 +22,7 @@ A known-defect test asserts the **correct** behaviour and is marked
 the defect exists and reports "expected to fail, but passed" as soon as the
 defect is fixed, so the marker must then be removed. No assertion was weakened.
 
-Screenshots: 80 full-page captures (40 per viewport) with `index.json`, written
+Screenshots: `screenshots.spec.ts` wrote 80 full-page captures (40 per viewport) in phase B; the board and quarter-plan specs have added captures since to the same `index.json`, written
 to `SHOTS_DIR` (default `/private/tmp/sc-ui-shots/<RUN_ID>`, outside the repo).
 
 ## Defects found by these specs

@@ -16,7 +16,7 @@ To install and start it, see [INSTALL.md](INSTALL.md). This guide is about using
 | An auditor | Planning board, Reports, Rules, Audit log, Wall display | [Auditor guide](docs/user-guide/auditor.md) |
 | A rules admin or rules approver | Rules | [Rules admin and approver guide](docs/user-guide/admin.md) |
 
-The screenshots in the guides were taken at 1440×900 on the demo profile (Dataset 100 for the planning board, Datasets 120 and 150 for the quarter plan and planned leave).
+The screenshots added for the planning board views, filters, export and gap panel, and for the quarter plan and the leave dialog, were taken at 1440×900 on the demo profile (Dataset 100 for the planning board, Datasets 120 and 150 for the quarter plan and planned leave). The older screenshots (scorecard, draft edits, commit, audit log, blocked assignment) are cropped to the part of the screen they show.
 
 Everyone also has **About & version**. The unit office TV uses the **Wall display**, which is covered in the supervisor guide.
 

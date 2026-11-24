@@ -2,11 +2,11 @@
 
 Internal working note, kept as a historical log of the build. **It is not the current status**: for that, read the block below, then `docs/process/release-notes.md` and `docs/10-testing.md` ("Current counts"). Older paragraphs quote the counts of their day.
 
-## Current state (23 Nov 2026, `main` at `a38e452`)
+## Current state (24 Nov 2026, release 11 / v1.1, `main` at `5a3be22`)
 
 - **Everything in `docs/process/HANDOFF.md` §6 is built** except what `docs/10-testing.md` §8 lists as not built (Excel round-trip, the proposals send and inbox, offer withdrawal, OpenAPI, and the rest).
 - **Counts:** API 470 = 127 rules + 28 infrastructure + 315 api; web 463; Playwright `desktop-datasets` 124 passed, `tablet-datasets` 123 passed + 1 skipped; fixtures 23 passed. Details and how each was obtained: `docs/10-testing.md`.
-- **Since the `v1.0-submission` tag:** demo session persistence with a build-time kill switch, the M1/M3 not-available states, the dataset notice and Other absence, the Reports range and unit pickers, and GitHub Actions CI (`docs/process/release-notes.md`).
+- **Since the `v1.0-submission` tag:** demo session persistence with a build-time kill switch, the M1/M3 not-available states, the dataset notice and Other absence, the Reports range and unit pickers, GitHub Actions CI, and release 11: the planning board views, filters, export and inline gap panel, the readable quarter plan, and planned leave (`docs/process/release-notes.md`, "Release 11").
 - **Gaps found by the docs audit** were fixed by PR #14 (Reports hidden for the planner, Employee view only with a linked officer, the publish message no longer says "final"). FR-06 stays partial: My schedule is not filtered by period status.
 - **Where the docs live:** `docs/index.md` has a map by question.
 
