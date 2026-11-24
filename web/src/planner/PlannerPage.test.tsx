@@ -47,7 +47,8 @@ describe('the quarter plan', () => {
 
     // The landing first: nothing generated, the window from the api.
     expect(await screen.findByRole('heading', { name: 'Quarter plan', level: 1 })).toBeInTheDocument();
-    expect(await screen.findByText(/4 Jan – 11 Apr 2027/)).toBeInTheDocument();
+    // The window shows in the header and in the plan inputs headline (PR-M).
+    expect((await screen.findAllByText(/4 Jan – 11 Apr 2027/)).length).toBeGreaterThan(0);
     expect(screen.getByText('No plan for this quarter yet.')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Generate draft' }));

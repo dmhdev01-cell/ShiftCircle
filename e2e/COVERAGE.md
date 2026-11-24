@@ -168,6 +168,7 @@ fixtures-only · **—** not coverable, with the reason.
 | Landing, scorecard, gaps pass axe; the commit dialog works by keyboard | planner | planner-a11y | N |
 | Committed plan keeps its tabs after a reload, with the FTE bands | planner | planner-committed | N |
 | Planned absences skip the officer and are counted on the scorecard | planner | planner-absences | N |
+| Plan inputs: the headline and the inputs panel before and after Generate, on Datasets 150 and 120, match GET /planner/inputs; axe on the open panel | planner | planner-inputs | N |
 | Preferences after a commit: an N12 officer who asked for 12 h nights reads Met | planner | planner-preferences-committed | N |
 | Officer preference card: a mix of day parts survives a reload | employee | preferences-multi | N |
 | Officer pattern: an 8 h officer changes, a 12 h officer is read-only | planner | officer-pattern | N |

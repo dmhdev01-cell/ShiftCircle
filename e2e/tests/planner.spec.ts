@@ -64,7 +64,8 @@ test.describe('the quarter plan', () => {
     await signIn(page, 'P. Planner');
     await expect(page.getByRole('heading', { name: 'Quarter plan', level: 1 })).toBeVisible();
     // The window and the planner's own nav.
-    await expect(page.getByText(/4 Jan – 11 Apr 2027/)).toBeVisible();
+    // The window in the page header (the plan inputs headline repeats the dates, not the periods).
+    await expect(page.getByText(/4 Jan – 11 Apr 2027 · 7 pay periods/)).toBeVisible();
     const nav = page.getByRole('navigation', { name: 'Main' }).getByRole('link');
     await expect(nav).toHaveText([
       'Quarter plan',
