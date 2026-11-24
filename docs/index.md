@@ -69,7 +69,7 @@ Which document answers which question an assessor is likely to ask:
 |---|---|
 | [Scope and plan](01-scope-and-plan.md) | Problem, users, outcomes, priorities, assumptions |
 | [Requirements](02-requirements.md) | Screens, functional and non-functional requirements, rules catalogue |
-| [Architecture](03-architecture.md) | Containers, layers, change flow, security |
+| [Architecture](03-architecture.md) | Containers, feature slices, JdbcTemplate persistence, change flow, security |
 | [Rules engine](04-rules-engine.md) | Drools decision tables an admin can edit, and the publish pipeline |
 | [Union rules](05-union-rules.md) | The mock collective-agreement rule set, with sources |
 | [Data model](06-data-model.md) | PostgreSQL tables, constraints, migrations and seed |
