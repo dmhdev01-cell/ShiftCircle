@@ -74,3 +74,15 @@ Everything merged to `main` after tag `v1.0-submission` (`efba3f7`), through six
 Install-only change on top of v1.1: `install.sh` at the repo root (prerequisite checks, pinned clone, generated secrets never printed, `docker compose up -d --build --wait`, health checks, idempotent re-run, never `down -v`), a Quick install section in README and INSTALL, and a CI step running `bash -n` and shellcheck. No application, rules, data or test change; the v1.1 counts stand. Tag: `v1.1.1-submission`.
 
 **Release step:** after merge, tag the merge commit `v1.1.1-submission` and push the tag, then run `scripts/check-install-pin.sh --remote` and the README one-liner once from an empty directory (free port, own `SHIFTCIRCLE_PROJECT`).
+
+## Release 12 (v1.2, in progress): plan inputs
+
+**Plan inputs on the Quarter plan** (PR-M, branch `sc-pr-m`): the plan is no longer a black box.
+- A headline above the scorecard, and on the empty quarter before a draft: "Planning 150 officers in 6 units · 120 full-time, 30 part-time or casual · 138 FTE against about 127 needed · 4 Jan – 11 Apr 2027", with the seed, 8 h pattern, rule set, planned leave days and preferences on file.
+- A **Show plan inputs** panel: officers by unit × employment × shift pattern, FTE, unit minimums per block, closed days, planned leave by type, preferences on file, the seniority range and the generator's real fill order in plain words.
+- `GET /api/v1/planner/inputs` (PLANNER), built from the generator's own loaders (no second query for officers; the planned-leave loader now also reads the type). Each new draft keeps its own copy in `scorecard.inputs` with the seed and 8 h pattern; hand edits keep it; the card warns when staff have changed since. Generate options go in its `options` object.
+- **16 h preference retired on My preferences**: 8 h and 12 h only; a 16 h wish saved earlier shows checked but "no longer offered" (`allowedLengths` is now `[8, 12]`; the API still accepts a stored 16 back so saving other changes works).
+
+**No migration, no generator change.** Measured on the branch: Dataset 120 plan fingerprint `e8b29ce6…9d31` (38 gaps, 7 warnings), Dataset 150 `a1e093f7…b381` (100 gaps), checksums 120 `82b19cf8…32ca` and 150 `2e6cd938…d7f8`, all as before.
+
+**Counts on the branch:** web unit tests **544** in 55 files, lint 4 warnings and 0 errors, `tsc -b` clean; API: the new `PlanInputsApiTest` (3) plus the planner, dataset and characterization classes (33 tests) green locally, full `mvn verify` in CI on the PR; Playwright against the real API, a fresh stack per viewport: desktop **126 passed**, tablet **125 passed and 1 skipped**; fixtures (all four projects) **45 passed, 159 skipped**, no failures.
