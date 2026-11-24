@@ -17,7 +17,7 @@ flowchart LR
     V[(volume: pgdata)] --- D
 ```
 
-Only **web** publishes a port to the host (8080 by default; `SC_WEB_PORT` overrides it). The API and database are reachable only inside the Docker network; a `docker-compose.dev.yml` override exposes them for local debugging (api on 8081, db on 5433 by default).
+Only **web** publishes a port to the host (8080 by default; `SC_WEB_PORT` overrides it). The API and database are reachable only inside the Docker network; a `docker-compose.dev.yml` override exposes them for local debugging, on 127.0.0.1 only (api on 8081, db on 5433 by default).
 
 ## 2. Containers
 
@@ -114,7 +114,7 @@ All settings come from environment variables. The repo ships **`.env.example` on
 | First run | `cp .env.example .env` → set the two secrets → `docker compose up --build` |
 | Open | `http://localhost:8080` → pick a demo user (supervisor, employee, rules admin, approver, auditor, wall display) |
 | Port already in use | `SC_WEB_PORT=9090 docker compose up --build` (and open `http://localhost:9090`) |
-| Debug api/db from the host | `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build` (api 8081, db 5433) |
+| Debug api/db from the host | `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build` (api 8081, db 5433, loopback only) |
 | Reset all data | `docker compose down -v && docker compose up` |
 | Logs | `docker compose logs -f api` |
 | Run tests | `docker compose --profile test run --rm api-test` (Testcontainers needs Docker access), or `./mvnw verify` in `api/` |
