@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box';
 
 import type { BlockCoverage, ShortHourRange } from '../api/types';
+import { coverageTones } from '../theme/tokens';
 
 function shortRangeLabel(range: ShortHourRange): string {
   const from = range.from.endsWith(':00') ? range.from.slice(0, -3) : range.from;
@@ -12,20 +13,19 @@ interface CoverageCellProps {
   block: BlockCoverage;
   /** The demo "today", so the cell can say "on shift". */
   today: string;
+  /**
+   * The compact roster's heat cell: only "lowest/required" in the block's
+   * colour; the short hours stay in the title and the accessible name.
+   */
+  compact?: boolean;
 }
-
-const TONES = {
-  ok: { bg: '#E8F1F8', text: '#00558C' },
-  gap: { bg: '#FDF1B0', text: '#5A4500' },
-  over: { bg: '#EEF0F2', text: '#333333' },
-} as const;
 
 /**
  * A coverage cell (docs/ui/build-notes.md §1.3). It shows the lowest hourly
  * headcount in the block over the requirement, and names the hours that fall
  * short - one number per block can hide a two-hour gap.
  */
-export function CoverageCell({ block, today }: CoverageCellProps) {
+export function CoverageCell({ block, today, compact = false }: CoverageCellProps) {
   // Today and the days after it are shown as planned: the recorded actuals for
   // a day in progress are a handful of hours, and reading them as the day's
   // coverage said "0 / 5" at 10 a.m. for a shift that is 5/5. Past days keep
@@ -35,7 +35,14 @@ export function CoverageCell({ block, today }: CoverageCellProps) {
   const lowest = shown.lowestHourly;
   const over = lowest > block.required;
   const short = shown.shortHours.length > 0;
-  const tone = over ? TONES.over : short ? TONES.gap : TONES.ok;
+  // Heat (A1): one short reads yellow, two or more short orange.
+  const tone = over
+    ? coverageTones.over
+    : short
+      ? block.required - lowest >= 2
+        ? coverageTones.gap2
+        : coverageTones.gap
+      : coverageTones.ok;
 
   let note: string;
   if (over) {
@@ -61,6 +68,32 @@ export function CoverageCell({ block, today }: CoverageCellProps) {
   ]
     .filter(Boolean)
     .join(' · ');
+
+  if (compact) {
+    return (
+      <Box
+        component="span"
+        className="num"
+        title={title}
+        aria-label={`${lowest} of ${block.required}. ${title}`}
+        sx={{
+          display: 'inline-block',
+          minWidth: 34,
+          px: 0.5,
+          py: '1px',
+          borderRadius: '4px',
+          backgroundColor: tone.bg,
+          color: tone.text,
+          fontSize: 11,
+          fontWeight: 700,
+          textAlign: 'center',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {lowest}/{block.required}
+      </Box>
+    );
+  }
 
   return (
     <Box

@@ -9,8 +9,19 @@ export const qualificationNames: Record<string, string> = {
   FIRST_AID: 'First aid',
 };
 
+/** The short form the compact roster shows, with the full name as its title. */
+export const qualificationShortNames: Record<string, string> = {
+  CONTROL: 'Ctl',
+  ESCORT: 'Esc',
+  FIRST_AID: 'FA',
+};
+
 export function qualificationLabel(code: string): string {
   return qualificationNames[code] ?? code;
+}
+
+export function qualificationShortLabel(code: string): string {
+  return qualificationShortNames[code] ?? code;
 }
 
 /** The qualifications of an officer, in words. */

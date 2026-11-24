@@ -55,3 +55,25 @@ describe('a coverage cell', () => {
     expect(screen.getByText(/short 07–15/)).toBeInTheDocument();
   });
 });
+
+describe('a compact coverage heat cell (A1)', () => {
+  it('shows lowest/required and keeps the short hours in its name', () => {
+    render(
+      <ThemeProvider theme={theme}>
+        <CoverageCell
+          block={block({
+            date: '2026-11-21',
+            scheduled: { lowestHourly: 3, shortHours: [{ from: '07:00', to: '15:00', count: 3 }], maxHourly: 3 },
+            covered: false,
+          })}
+          today={TODAY}
+          compact
+        />
+      </ThemeProvider>,
+    );
+    const cell = screen.getByText('3/5');
+    expect(cell).toHaveAccessibleName(/3 of 5\. Lowest 3 of 5 required · Short 07–15/);
+    // Two or more short is the orange heat tone.
+    expect(cell).toHaveStyle({ backgroundColor: '#F6B26B' });
+  });
+});

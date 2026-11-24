@@ -18,6 +18,16 @@ import { useRole } from '../shell/nav';
 import { colour } from '../theme/tokens';
 import { addDays, weekdayDateWords } from '../planner/unitDates';
 import { KpiTile } from './KpiTile';
+import {
+  BOARD_VIEWS,
+  mondayOf,
+  parseDensity,
+  parseView,
+  rangeFor,
+  rangeWords,
+  stepFocus,
+} from './rosterView';
+import type { BoardView, RosterDensity } from './rosterView';
 import { OverrideDialog } from './OverrideDialog';
 import { PublishPeriodButton } from './PublishPeriodButton';
 import { RosterGrid } from './RosterGrid';
@@ -38,48 +48,64 @@ function weekday(date: string): string {
   );
 }
 
-function iso(date: Date): string {
-  return date.toISOString().slice(0, 10);
+/** Segmented toggle buttons: the board's view and its density. */
+function Segmented<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { id: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <Box
+      role="group"
+      aria-label={label}
+      sx={{ display: 'inline-flex', border: `1px solid ${colour.brand.link}`, borderRadius: '2px', overflow: 'hidden' }}
+    >
+      {options.map((option, index) => {
+        const selected = option.id === value;
+        return (
+          <Box
+            key={option.id}
+            component="button"
+            type="button"
+            aria-pressed={selected}
+            onClick={() => onChange(option.id)}
+            sx={{
+              minHeight: 44,
+              px: 3,
+              border: 0,
+              borderLeft: index > 0 ? `1px solid ${colour.brand.link}` : 0,
+              fontFamily: 'inherit',
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+              color: selected ? colour.text.onDark : colour.brand.link,
+              backgroundColor: selected ? colour.brand.link : colour.bg.surface,
+              '&:hover': selected ? {} : { backgroundColor: colour.bg.linkHover },
+              '&:focus-visible': { outline: `3px solid ${colour.brand.accent}`, outlineOffset: '-3px' },
+            }}
+          >
+            {option.label}
+          </Box>
+        );
+      })}
+    </Box>
+  );
 }
 
-/**
- * The Monday-to-Sunday week the demo "today" falls in, moved by whole weeks.
- * The board opens on that week and the arrows walk from it, so "Today" is a
- * known place rather than whatever week happens to be on screen (obs. #3).
- */
-function weekOf(asOf: string | undefined, offsetWeeks = 0): { from?: string; to?: string } {
-  if (!asOf) return {};
-  const date = new Date(`${asOf}T00:00:00Z`);
-  const monday = new Date(date);
-  monday.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7) + offsetWeeks * 7);
-  const sunday = new Date(monday);
-  sunday.setUTCDate(monday.getUTCDate() + 6);
-  return { from: iso(monday), to: iso(sunday) };
-}
+const DENSITIES: { id: RosterDensity; label: string }[] = [
+  { id: 'comfortable', label: 'Comfortable' },
+  { id: 'compact', label: 'Compact' },
+];
 
-/** The Monday-to-Sunday week a date falls in, for a ?week= the person shares. */
-function weekOfDate(date: string): { from: string; to: string } {
-  const parsed = new Date(`${date}T00:00:00Z`);
-  const monday = new Date(parsed);
-  monday.setUTCDate(parsed.getUTCDate() - ((parsed.getUTCDay() + 6) % 7));
-  const sunday = new Date(monday);
-  sunday.setUTCDate(monday.getUTCDate() + 6);
-  return { from: iso(monday), to: iso(sunday) };
-}
-
-/** "16 – 22 Nov 2026", the range a week picker shows. */
-function weekRange(from: string | undefined, to: string | undefined): string {
-  if (!from || !to) return '';
-  const start = new Date(`${from}T00:00:00Z`);
-  const end = new Date(`${to}T00:00:00Z`);
-  const startDay = new Intl.DateTimeFormat('en-CA', { day: 'numeric', timeZone: 'UTC' }).format(start);
-  const endDay = new Intl.DateTimeFormat('en-CA', { day: 'numeric', timeZone: 'UTC' }).format(end);
-  const endMonth = new Intl.DateTimeFormat('en-CA', { month: 'short', timeZone: 'UTC' }).format(end);
-  const endYear = new Intl.DateTimeFormat('en-CA', { year: 'numeric', timeZone: 'UTC' }).format(end);
-  return start.getUTCMonth() === end.getUTCMonth()
-    ? `${startDay} – ${endDay} ${endMonth} ${endYear}`
-    : `${startDay} ${new Intl.DateTimeFormat('en-CA', { month: 'short', timeZone: 'UTC' }).format(start)} – ${endDay} ${endMonth} ${endYear}`;
-}
+/** The words the navigation uses for each view: "Previous week", "Next period", … */
+const STEP_NOUN: Record<BoardView, string> = { week: 'week', period: 'period', month: 'month' };
+const GROUP_LABEL: Record<BoardView, string> = { week: 'Week', period: 'Pay period', month: 'Month' };
 
 function longDay(date: string): string {
   const parsed = new Date(`${date}T00:00:00Z`);
@@ -110,21 +136,21 @@ export function PlanningPage() {
   const activeUnitId = unitId ?? searchParams.get('unit') ?? units[0]?.id;
   // The address is the source of truth: ?unit= and ?week= (a Monday) let the
   // planner's links open the board on a chosen week, and a reload or Back keeps
-  // the week the person was looking at (observation #3 follow-up).
+  // the week the person was looking at (observation #3 follow-up). A1 adds
+  // ?view= (period or month; a week has none) and ?density=; the week stays
+  // the focus, so switching views keeps the same place in time.
+  const view = parseView(searchParams.get('view'));
+  const density = parseDensity(searchParams.get('density'), view);
   const weekParam = searchParams.get('week');
-  const demoWeek = weekOf(version.state.status === 'ready' ? version.state.info.asOf : undefined);
-  const week: { from?: string; to?: string } = weekParam
-    ? weekOfDate(weekParam)
-    : demoWeek;
-  const weekOffsetFromToday =
-    week.from !== undefined && demoWeek.from !== undefined
-      ? Math.round(
-          (new Date(`${week.from}T00:00:00Z`).getTime() -
-            new Date(`${demoWeek.from}T00:00:00Z`).getTime()) /
-            (7 * 24 * 3600 * 1000),
-        )
-      : 0;
-  const { state, reload } = useSchedule(activeUnitId, week.from, week.to);
+  const asOf = version.state.status === 'ready' ? version.state.info.asOf : undefined;
+  const demoMonday = asOf ? mondayOf(asOf) : undefined;
+  const focus = weekParam ? mondayOf(weekParam) : demoMonday;
+  const range: { from?: string; to?: string } = focus ? rangeFor(view, focus) : {};
+  const showsToday =
+    asOf !== undefined && range.from !== undefined && range.to !== undefined
+      ? asOf >= range.from && asOf <= range.to
+      : true;
+  const { state, reload } = useSchedule(activeUnitId, range.from, range.to);
   const mutation = useRuleCheckedMutation();
   const [pending, setPending] = useState<Pending | null>(null);
   const [shiftActions, setShiftActions] = useState<{ officer: OfficerRow; item: ShiftItem } | null>(
@@ -241,8 +267,13 @@ export function PlanningPage() {
   const today = payload.asOf;
 
   const gapBlocks = payload.coverage.filter((block) => !block.covered);
+  // A week names the weekday; a longer span adds the date so "Sat" is not two days.
   const gapNote = gapBlocks
-    .map((block) => `${weekday(block.date)} ${BLOCK_LABEL[block.block]}`)
+    .map((block) =>
+      payload.days.length > 7
+        ? `${weekday(block.date)} ${Number(block.date.slice(8, 10))} ${BLOCK_LABEL[block.block]}`
+        : `${weekday(block.date)} ${BLOCK_LABEL[block.block]}`,
+    )
     .join(', ');
   const inOvertime = payload.officers.filter((officer) => officer.overtimeStatus === 'IN_OVERTIME');
   const approaching = payload.officers.filter((officer) => officer.overtimeStatus === 'APPROACHING');
@@ -254,6 +285,15 @@ export function PlanningPage() {
     ? changes + ' ' + (changes === 1 ? 'change' : 'changes') + ' since publishing'
     : '';
 
+  const compactKpis = density === 'compact';
+  const kpis: { label: string; value: number; note: string; highlight?: boolean }[] = [
+    { label: 'Coverage gaps', value: gapBlocks.length, note: gapNote, highlight: gapBlocks.length > 0 },
+    { label: 'In overtime', value: inOvertime.length, note: 'this pay period' },
+    { label: 'Approaching overtime', value: approaching.length, note: `within 8 h of ${threshold} h` },
+    { label: 'Rule warnings', value: payload.warnings, note: 'on the published week' },
+    { label: 'Overrides this period', value: payload.overridesThisPeriod, note: 'emergency, with reason' },
+  ];
+
   const warnCodes =
     mutation.state.outcome?.ruleResults
       .filter(
@@ -262,27 +302,32 @@ export function PlanningPage() {
       )
       .map((result) => result.ruleCode) ?? [];
 
-  /** Write the week (a Monday) and unit into the address. */
-  const writeParams = (weekFrom: string | undefined, unit: string | undefined) => {
-    const next = new URLSearchParams(searchParams);
-    if (weekFrom) next.set('week', weekFrom);
-    else next.delete('week');
-    if (unit) next.set('unit', unit);
-    else next.delete('unit');
-    setSearchParams(next, { replace: true });
+  /** Write the focus week (a Monday), the unit, the view and the density into the address. */
+  const writeParams = (
+    weekFrom: string | undefined,
+    unit: string | undefined,
+    next: { view?: BoardView; density?: RosterDensity } = {},
+  ) => {
+    const params = new URLSearchParams(searchParams);
+    if (weekFrom) params.set('week', weekFrom);
+    else params.delete('week');
+    if (unit) params.set('unit', unit);
+    else params.delete('unit');
+    const nextView = next.view ?? view;
+    if (nextView === 'week') params.delete('view');
+    else params.set('view', nextView);
+    if (next.density !== undefined) {
+      // Only a choice that differs from the view's default is kept.
+      if (next.density === parseDensity(null, nextView)) params.delete('density');
+      else params.set('density', next.density);
+    } else if (next.view !== undefined) {
+      params.delete('density');
+    }
+    setSearchParams(params, { replace: true });
   };
 
-  /**
-   * Move the board by whole weeks (a delta from the week on screen; 0 is the
-   * demo week), dropping anything that belonged to the old week.
-   */
-  const changeWeek = (weeks: number) => {
-    const base = week.from;
-    const target =
-      weeks === 0 || base === undefined
-        ? demoWeek.from
-        : iso(new Date(new Date(`${base}T00:00:00Z`).getTime() + weeks * 7 * 24 * 3600 * 1000));
-    writeParams(target, activeUnitId);
+  /** Drop anything that belonged to the old range. */
+  const clearSelection = () => {
     setPending(null);
     setProposal(null);
     setShiftActions(null);
@@ -290,9 +335,30 @@ export function PlanningPage() {
     mutation.reset();
   };
 
+  /**
+   * Move the board by whole weeks, pay periods or months (a step from the
+   * range on screen; 0 is back to the demo day).
+   */
+  const changeWeek = (steps: number) => {
+    const target =
+      steps === 0 || focus === undefined ? demoMonday : stepFocus(view, focus, steps);
+    writeParams(target, activeUnitId);
+    clearSelection();
+  };
+
+  const changeView = (next: BoardView) => {
+    if (next === view) return;
+    writeParams(focus, activeUnitId, { view: next });
+    clearSelection();
+  };
+
+  const changeDensity = (next: RosterDensity) => {
+    writeParams(focus, activeUnitId, { density: next });
+  };
+
   const changeUnit = (value: string) => {
     setUnitId(value);
-    writeParams(week.from, value);
+    writeParams(focus, value);
   };
 
   const startChoose = (officer: OfficerRow, date: string) => {
@@ -407,25 +473,26 @@ export function PlanningPage() {
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 2.5 }}>
           {/* Observation #3: the board was pinned to the week of the demo day.
-              The api takes any range, so the arrows walk whole weeks from it. */}
+              The api takes any range (up to 31 days), so the arrows walk whole
+              weeks, pay periods or months from it (A1). */}
           <Box
             role="group"
-            aria-label="Week"
+            aria-label={GROUP_LABEL[view]}
             sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}
           >
             <Button variant="outlined" color="primary" onClick={() => changeWeek(-1)}>
-              Previous week
+              Previous {STEP_NOUN[view]}
             </Button>
             <Box component="span" className="num" sx={{ fontSize: 13, fontWeight: 700, minWidth: 150, textAlign: 'center' }}>
-              {weekRange(week.from, week.to)}
+              {rangeWords(range.from, range.to)}
             </Box>
             <Button variant="outlined" color="primary" onClick={() => changeWeek(1)}>
-              Next week
+              Next {STEP_NOUN[view]}
             </Button>
             <Button
               variant="outlined"
               color="primary"
-              disabled={weekOffsetFromToday === 0}
+              disabled={showsToday}
               onClick={() => changeWeek(0)}
             >
               Today
@@ -484,25 +551,32 @@ export function PlanningPage() {
       </Box>
 
       <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: 3,
-        }}
+        sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 3 }}
       >
-        <KpiTile label="Coverage gaps" value={gapBlocks.length} note={gapNote} />
-        <KpiTile label="In overtime" value={inOvertime.length} note="this pay period" />
-        <KpiTile
-          label="Approaching overtime"
-          value={approaching.length}
-          note={`within 8 h of ${threshold} h`}
-        />
-        <KpiTile label="Rule warnings" value={payload.warnings} note="on the published week" />
-        <KpiTile
-          label="Overrides this period"
-          value={payload.overridesThisPeriod}
-          note="emergency, with reason"
-        />
+        <Segmented label="View" options={BOARD_VIEWS} value={view} onChange={changeView} />
+        <Segmented label="Density" options={DENSITIES} value={density} onChange={changeDensity} />
+      </Box>
+
+      {/* A1: the compact board shows the same figures as a one-line strip of
+          chips, so a pay period of officers fits above the fold. */}
+      <Box
+        role={compactKpis ? 'list' : undefined}
+        aria-label={compactKpis ? 'Board figures' : undefined}
+        sx={
+          compactKpis
+            ? { display: 'flex', flexWrap: 'wrap', gap: 1.5 }
+            : { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 3 }
+        }
+      >
+        {kpis.map((kpi) =>
+          compactKpis ? (
+            <Box key={kpi.label} role="listitem" sx={{ display: 'flex', minWidth: 0, maxWidth: '100%' }}>
+              <KpiTile {...kpi} variant="chip" />
+            </Box>
+          ) : (
+            <KpiTile key={kpi.label} {...kpi} />
+          ),
+        )}
       </Box>
 
       {/* Observation 29: the help is a real legend, read from the live rule
@@ -543,7 +617,7 @@ export function PlanningPage() {
 
       {payload.officers.every((officer) => officer.cells.every((cell) => cell.items.length === 0)) ? (
         <Typography role="note" sx={{ fontSize: 13, color: colour.text.secondary }}>
-          No shifts on this week yet.
+          {view === 'week' ? 'No shifts on this week yet.' : `No shifts in this ${STEP_NOUN[view]} yet.`}
           {canPublish ? ' Assign a shift from an empty cell, or commit a quarter plan for this week.' : ''}
         </Typography>
       ) : null}
@@ -558,6 +632,7 @@ export function PlanningPage() {
         <RosterGrid
           payload={payload}
           today={today}
+          density={density}
           {...(readOnly ? {} : { onEmptyCell: startChoose, onPickChip: pickChip })}
         />
       </Box>
