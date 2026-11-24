@@ -167,5 +167,6 @@ ShiftCircle is running (demo profile, synthetic data only).
     cd $DIR && docker compose -p $PROJECT down
   Remove everything, including the demo database volume:
     cd $DIR && docker compose -p $PROJECT down -v
-  Start again:  bash install.sh   (same directory; nothing is re-cloned or re-generated)
+  Start again: re-run the same install command from the same directory (nothing is
+  re-cloned or re-generated).
 EOF

@@ -42,6 +42,24 @@ The build process is kept apart from the product docs, in [docs/process/](docs/p
 
 **UI design:** six screens (planning board, my schedule, overtime board, rules admin, reports, wall display) are specified in `docs/ui/`.
 
+## Quick install
+
+One command (needs git, Docker with Compose v2, a running Docker daemon and a free port; it clones into `./ShiftCircle`, creates `.env` with freshly generated random secrets that it never prints, runs `docker compose up -d --build --wait`, and prints the URL):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.2-submission/install.sh | bash
+```
+
+Prefer to read it first? Download, read, then run:
+
+```sh
+curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.2-submission/install.sh
+less install.sh
+bash install.sh
+```
+
+Overrides (environment variables): `SC_WEB_PORT` (host port, default 8080), `COMPOSE_PROJECT_NAME` (default `shiftcircle`), `SHIFTCIRCLE_REF` (tag or branch to install, default the release tag), `SHIFTCIRCLE_DIR` (default `./ShiftCircle`). It refuses to touch an existing non-empty directory that is not a ShiftCircle checkout; re-running in the same place skips the clone and the `.env`. It never runs `docker compose down -v`. The manual steps are below.
+
 ## Setup (clean clone)
 
 Everything is on `main`: the API, all the screens, the mock sign-in, the quarter planner with draft edits, and the E2E suite. [INSTALL.md](INSTALL.md) is the full install guide; this section is the short version. The steps below were re-run on 24 Nov 2026 from a fresh `git clone` of the branch for this docs pass (own compose project, `SC_WEB_PORT` set): `docker compose up -d --build --wait` built and became healthy in 50 s with warm caches, `/healthz` returned `ok`, `/api/v1/version` returned the commit, rule set v3, demo profile and Dataset 100, and the eight demo users in §3 match `GET /api/v1/auth/demo-users`. Anything not run is marked **UNVERIFIED**.

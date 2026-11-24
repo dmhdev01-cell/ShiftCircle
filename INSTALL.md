@@ -9,6 +9,24 @@ Everything runs in three containers: **web** (nginx + React), **api** (Java 21 +
 Boot + Drools) and **db** (PostgreSQL 17). No JDK, Maven, Node or database is needed on
 the host.
 
+## Quick install
+
+One command (needs git, Docker with Compose v2, a running Docker daemon and a free port; it clones into `./ShiftCircle`, creates `.env` with freshly generated random secrets that it never prints, runs `docker compose up -d --build --wait`, and prints the URL):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.2-submission/install.sh | bash
+```
+
+Prefer to read it first? Download, read, then run:
+
+```sh
+curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.2-submission/install.sh
+less install.sh
+bash install.sh
+```
+
+Overrides (environment variables): `SC_WEB_PORT` (host port, default 8080), `COMPOSE_PROJECT_NAME` (default `shiftcircle`), `SHIFTCIRCLE_REF` (tag or branch to install, default the release tag), `SHIFTCIRCLE_DIR` (default `./ShiftCircle`). It refuses to touch an existing non-empty directory that is not a ShiftCircle checkout; re-running in the same place skips the clone and the `.env`. It never runs `docker compose down -v`. The manual steps are below.
+
 ## 1. Prerequisites
 
 - Docker Desktop (macOS, Windows) or Docker Engine (Linux) with **Compose v2**.

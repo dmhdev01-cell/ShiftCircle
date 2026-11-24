@@ -28,6 +28,10 @@ jobs:
           persist-credentials: false
       - run: ./scripts/check-ignored-sources.sh
       - run: ./scripts/check-audit-codes.sh
+      - name: install.sh (shellcheck, bash -n)
+        run: |
+          bash -n install.sh
+          shellcheck install.sh
       # The dev override must keep db, api and web on loopback only (3 bindings).
       - name: Loopback port bindings
         run: |
