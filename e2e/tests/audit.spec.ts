@@ -96,7 +96,7 @@ test.describe('audit log', () => {
     const nav = page.getByRole('navigation', { name: 'Main' });
     await expect(nav.getByRole('link', { name: 'Audit log' })).toHaveCount(0);
 
-    // Move within the running app (a reload would drop the in-memory token).
+    // Move within the running app (a reload would need a saved session).
     await page.evaluate(() => {
       window.history.pushState({}, '', '/audit');
       window.dispatchEvent(new PopStateEvent('popstate'));

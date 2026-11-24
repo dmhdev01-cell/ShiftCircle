@@ -62,6 +62,8 @@ Severity: **Block** = can't be saved. An emergency override exists only where ma
 | P-05 | Shift changed on **short notice (under 96 h)**: first changed shift gets a premium (code `CHG`) | 96 h | Pay / Warn | **CX** (pays 1.75×; our rate is a placeholder) |
 | P-06 | Statutory holiday worked | placeholder | Pay | **MOCK**, to confirm |
 
+**Absence pay codes (placeholder, to confirm).** A recorded absence pays the shift's hours under one pay code: vacation under `VAC`, and every other absence (sick **and** "other", FR-51) under `SICK`. There is no separate `OTHER` pay code in this prototype, so an "other" absence (bereavement, jury duty and the like) shows as `SICK` hours in the payroll CSV. Which code each kind of leave should use is a question for real practice.
+
 ### E. Scheduling and notice
 
 | ID | Rule | Default | Severity | Based on |

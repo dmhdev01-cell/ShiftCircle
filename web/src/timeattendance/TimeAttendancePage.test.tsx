@@ -462,6 +462,52 @@ describe('Time and attendance', () => {
     vi.restoreAllMocks();
   });
 
+  it('records and reopens the Other absence code (FR-51)', async () => {
+    // S8: the api accepts SICK, VACATION and OTHER; the panel offered two.
+    const planned: TimeEntry = {
+      assignmentId: 'assignment-other',
+      employeeId: 'emp-tara',
+      employeeName: 'Tara Nakamura',
+      unitId: 'unit-b',
+      unitName: 'Unit B · Living unit',
+      date: '2026-11-20',
+      startAt: '2026-11-20T07:00:00-06:00',
+      endAt: '2026-11-20T15:00:00-06:00',
+      shiftTemplate: 'D8',
+      worked: false,
+      needsActual: false,
+      absence: 'OTHER',
+    };
+    vi.spyOn(api, 'getTimeEntries').mockResolvedValue([planned]);
+    const record = vi.spyOn(api, 'recordActual').mockResolvedValue({
+      entry: planned,
+      payCodes: [],
+      periodHours: 0,
+    });
+    const user = userEvent.setup();
+
+    renderScreen();
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Other · Tara Nakamura on 2026-11-20 · change' }),
+    );
+    const type = await screen.findByLabelText('Absence type');
+    expect(type).toHaveValue('OTHER');
+    expect(
+      within(type).getAllByRole('option').map((option) => option.getAttribute('value')),
+    ).toEqual(['SICK', 'VACATION', 'OTHER']);
+    expect(screen.getByText('Will record: absent (other), no hours.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(record).toHaveBeenCalledWith('assignment-other', {
+        workedAsScheduled: false,
+        absence: 'OTHER',
+      }),
+    );
+    vi.restoreAllMocks();
+  });
+
   it('counts no hours as worked until an actual is recorded', async () => {
     // V3: a future period read "Worked h 2304 recorded" because the page used
     // the planned times when no actual existed.

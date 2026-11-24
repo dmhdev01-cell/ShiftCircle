@@ -173,9 +173,10 @@ function offerCheck(offer: MyOffer) {
  * The employee's My schedule (docs/ui/README.md §5.2). It shows only the
  * officer's own data: no colleague's hours, absences or overtime totals.
  *
- * The officer can answer an overtime offer and draft shifts they would like
- * to work. A draft is a request - only a supervisor authorises an extra shift
- * (S-04) - and nothing is agreed until the supervisor decides.
+ * The officer can answer an overtime offer and check shifts they would like
+ * to work against the rules. A checked shift stays on this screen: sending it
+ * to a supervisor is not built (M1), and only a supervisor authorises an extra
+ * shift (S-04).
  */
 export function MySchedulePage() {
   // The month starts at the api's day, not at the browser's, so the demo shows
@@ -188,8 +189,6 @@ export function MySchedulePage() {
   const { state: offersState, reload: reloadOffers } = useMyOffers();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [note, setNote] = useState('');
-  const [sent, setSent] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [newDate, setNewDate] = useState('2026-11-26');
   const [newTemplate, setNewTemplate] = useState('A12');
@@ -307,22 +306,6 @@ export function MySchedulePage() {
             : draft,
         ),
       );
-    }
-  };
-
-  const sendToSupervisor = async () => {
-    try {
-      await api.submitProposals(
-        note,
-        drafts.map((draft) => draft.change),
-      );
-      setSent(
-        `Sent. Your supervisor decides - ${drafts.length} shift${drafts.length === 1 ? '' : 's'} proposed.`,
-      );
-      setDrafts([]);
-      setNote('');
-    } catch (error) {
-      setSent(error instanceof Error ? error.message : 'The proposal could not be sent.');
     }
   };
 
@@ -636,8 +619,8 @@ export function MySchedulePage() {
                 Propose shifts
               </Typography>
               <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary, lineHeight: 1.45 }}>
-                Draft the shifts you would like. The rules are checked as you go, and your supervisor
-                decides. A proposal is a request - only a supervisor can authorise an extra shift.
+                Check a shift you would like against the rules before you ask for it. Only a
+                supervisor can authorise an extra shift.
               </Box>
             </Box>
 
@@ -669,38 +652,29 @@ export function MySchedulePage() {
               </Box>
             ))}
 
-            <TextField
-              label="Note to your supervisor"
-              multiline
-              minRows={3}
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-            />
-
-            {sent ? (
-              <Box
-                role="status"
-                sx={{
-                  p: '10px 12px',
-                  borderRadius: '8px',
-                  backgroundColor: '#E8F1F8',
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
-              >
-                {sent}
+            {/* M1: the api has no proposals endpoint or inbox (README, "Not built
+                at all"), so nothing is sent; the officer is told plainly instead of
+                meeting a 404. */}
+            <Box
+              role="note"
+              aria-label="Sending a proposal"
+              sx={{
+                p: '10px 12px',
+                borderRadius: '8px',
+                backgroundColor: colour.status.info.bg,
+                color: colour.status.info.text,
+                fontSize: 13,
+                lineHeight: 1.45,
+              }}
+            >
+              <Box component="strong" sx={{ display: 'block', fontWeight: 700 }}>
+                Sending to your supervisor: not available in this prototype
               </Box>
-            ) : null}
+              There is no proposals inbox yet, so nothing is sent from here. Check the shift, then
+              ask your supervisor directly.
+            </Box>
 
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-              <Button
-                variant="contained"
-                color="primary"
-                disabled={drafts.length === 0}
-                onClick={() => void sendToSupervisor()}
-              >
-                Send to supervisor
-              </Button>
               <Button variant="outlined" color="primary" onClick={() => setAdding(true)}>
                 Add a shift
               </Button>
@@ -713,7 +687,7 @@ export function MySchedulePage() {
         <DialogTitle sx={{ fontSize: 18, fontWeight: 700 }}>Add a shift</DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: 13, color: colour.text.secondary, mb: 2 }}>
-            The rules are checked as soon as you add the shift, so you can see before you send it.
+            The rules are checked as soon as you add the shift, so you can see the answer before you ask your supervisor.
           </Typography>
           <TextField
             label="Date"

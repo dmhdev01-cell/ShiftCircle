@@ -542,6 +542,9 @@ export function TimeAttendancePage() {
           <LegendItem>
             <AbsenceChip absenceType="VACATION" /> <span>Vacation</span>
           </LegendItem>
+          <LegendItem>
+            <AbsenceChip absenceType="OTHER" /> <span>Other</span>
+          </LegendItem>
           <span>— = no shift</span>
           <span>Short extension = under 30 min, unpaid</span>
           <span>Overtime = hours over {period?.overtimeThresholdHours ?? 80} h in a pay period</span>

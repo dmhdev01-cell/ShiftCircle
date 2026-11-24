@@ -14,6 +14,10 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
+# ADR-025 amendment kill switch: build with VITE_PERSIST_DEMO_SESSION=false to
+# remove the demo's sessionStorage persistence from the bundle.
+ARG VITE_PERSIST_DEMO_SESSION=
+ENV VITE_PERSIST_DEMO_SESSION=$VITE_PERSIST_DEMO_SESSION
 RUN pnpm build
 
 

@@ -41,6 +41,7 @@ public class VersionController {
   public VersionResponse version() {
     BuildProperties build = buildProperties.getIfAvailable();
     String[] activeProfiles = environment.getActiveProfiles();
+    DemoResetService demo = reset.getIfAvailable();
 
     return new VersionResponse(
         environment.getProperty("spring.application.name", "shiftcircle-api"),
@@ -52,6 +53,7 @@ public class VersionController {
         activeProfiles.length == 0 ? "default" : String.join(",", Arrays.asList(activeProfiles)),
         asOf,
         environment.acceptsProfiles(Profiles.of("demo")),
-        reset.getIfAvailable() == null ? List.of() : reset.getIfAvailable().availableDatasets());
+        demo == null ? List.of() : demo.availableDatasets(),
+        demo == null ? null : demo.activeDataset());
   }
 }

@@ -30,7 +30,7 @@
 | FR-03 | Each post has a required staff count per block, and required qualifications. | M |
 | FR-04 | The planning board shows **required vs. scheduled vs. actual** per post and block, with gaps and surpluses highlighted (not by colour alone). | M |
 | FR-05 | Each officer's **overtime status** is shown live (under threshold / approaching / in overtime) for the current period. | M |
-| FR-06 | The supervisor can **publish** a schedule period, which makes it visible to employees. | M |
+| FR-06 | The supervisor can **publish** a schedule period, which makes it visible to employees. **Prototype status: partial.** Publishing is recorded (one-way, audited) and shown on the planning board, but My schedule is not yet filtered by period status (the demo day's week is seeded DRAFT); see docs/07. | M |
 | FR-07 | Changes made after publishing are checked for notice (R-07) and flagged as "changed" on the affected officers' schedules. | M |
 
 ### Trades — future work
@@ -57,7 +57,7 @@ FR-40 and FR-41 (email/SMS outbox, message templates) are reserved for a later p
 | ID | Requirement | P |
 |---|---|---|
 | FR-50 | Each scheduled shift creates a **scheduled time entry**. | M |
-| FR-51 | The supervisor records **actuals**: worked as scheduled, adjusted start/end, or an absence code (sick, vacation, other). | M |
+| FR-51 | The supervisor records **actuals**: worked as scheduled, adjusted start/end, or an absence code (sick, vacation, other). In the prototype an "other" absence is paid under the `SICK` pay code (placeholder, `docs/05-union-rules.md` §D). | M |
 | FR-52 | Hours are classified into **pay codes** (regular, OT 1.5×, OT 2×, statutory holiday, all placeholders) by the time rules. | M |
 | FR-53 | The supervisor **locks** a pay period. Locked entries can't be edited without an unlock reason, which is audited. | M |
 | FR-54 | **Payroll export**: a CSV per locked pay period (employee ID, date, pay code, hours, cost centre). The receiving payroll system is simulated. | M |

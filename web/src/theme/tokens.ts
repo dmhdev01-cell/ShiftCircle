@@ -101,10 +101,11 @@ export const proposedChipStyle: ChipStyle = {
   borderStyle: 'dashed',
 };
 
-/** An absence: sick or vacation. */
+/** An absence: sick, vacation or other (FR-51). */
 export const absenceChipStyles: Record<string, ChipStyle> = {
   SICK: { bg: '#FFFFFF', text: '#9A3412', border: '#C2410C', borderStyle: 'dashed' },
   VACATION: { bg: '#E3F0E8', text: '#046A38' },
+  OTHER: { bg: '#EEF0F2', text: '#444A50' },
 };
 
 /** A day off. */

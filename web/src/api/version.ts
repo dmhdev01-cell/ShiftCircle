@@ -3,7 +3,8 @@
  *
  * The response shape is the api's `VersionResponse` record
  * (`api/shiftcircle-api/.../version/VersionResponse.java`):
- * `{ name, version, buildTime, gitCommit, ruleSetVersion, profiles }`.
+ * `{ name, version, buildTime, gitCommit, ruleSetVersion, profiles, asOf, demoMode,
+ * datasets, activeDataset }`.
  * The field names are read exactly as the api sends them. If the api answers
  * with a different shape the reader keeps the raw payload so the screen can
  * show it, rather than showing a blank.
@@ -28,6 +29,8 @@ export interface VersionInfo {
   demoMode?: boolean;
   /** The datasets the reset may generate, when the api names more than one. */
   datasets?: { id: string; name: string }[];
+  /** The dataset the database holds now ("100", "120", "150"), when the api says. */
+  activeDataset?: string;
   /** The raw response body, kept so unexpected shapes can be shown as-is. */
   raw: unknown;
 }
@@ -57,6 +60,7 @@ export function normaliseVersion(raw: unknown): VersionInfo {
     asOf: asString(source.asOf),
     demoMode: source.demoMode === true,
     datasets: normaliseDatasets(source.datasets),
+    activeDataset: asString(source.activeDataset),
     raw,
   };
 }

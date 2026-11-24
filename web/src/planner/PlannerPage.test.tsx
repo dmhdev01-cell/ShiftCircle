@@ -457,3 +457,43 @@ describe('the quarter plan', () => {
     expect(await screen.findByText('No plan for this quarter yet.')).toBeInTheDocument();
   });
 });
+
+describe('the Dataset 100 notice (S6)', () => {
+  function versionSays(activeDataset: string) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: async () => ({ name: 'shiftcircle-api', demoMode: true, activeDataset }),
+      })),
+    );
+  }
+
+  it('says Dataset 100 is under-staffed for nights and links to About & version', async () => {
+    versionSays('100');
+    const user = userEvent.setup();
+    renderPlanner();
+    await asPlanner(user);
+
+    const note = await screen.findByRole('note', { name: 'Dataset notice' });
+    expect(note).toHaveTextContent(
+      'Dataset 100 is under-staffed for nights; reset to Dataset 120 for the planner demo.',
+    );
+    await user.click(within(note).getByRole('link', { name: 'About & version' }));
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'About & version', level: 1 })).toBeInTheDocument(),
+    );
+  });
+
+  it('stays quiet on Dataset 120', async () => {
+    versionSays('120');
+    const user = userEvent.setup();
+    renderPlanner();
+    await asPlanner(user);
+
+    expect(await screen.findByText('No plan for this quarter yet.')).toBeInTheDocument();
+    expect(screen.queryByRole('note', { name: 'Dataset notice' })).not.toBeInTheDocument();
+  });
+});
