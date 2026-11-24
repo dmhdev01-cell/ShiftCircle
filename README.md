@@ -1,6 +1,6 @@
 # ShiftCircle
 
-A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervisors plan 8- and 12-hour shifts (a 16 h day is a 12 h shift plus an extension) against a **configurable rules engine** (rest and hours limits, consecutive shifts, staffing, qualifications, overtime). A planner builds a whole-quarter draft through the same engine, changes single shifts in it by hand, and commits it to the planning board. Employees see their schedule and hours and propose shifts. Time feeds a payroll export, and reports show coverage and overtime as planned vs. actual.
+A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervisors plan 8- and 12-hour shifts (a 16 h day is a 12 h shift plus an extension) against a **configurable rules engine** (rest and hours limits, consecutive shifts, staffing, qualifications, overtime). A planner builds a whole-quarter draft through the same engine, changes single shifts in it by hand, and commits it to the planning board. Employees see their schedule and hours and can draft and rule-check shift ideas (sending them to a supervisor is not available yet). Time feeds a payroll export, and reports show coverage and overtime as planned vs. actual.
 
 > A prototype. **All data is synthetic.** Payroll and sign-on are simulated. The default demo seeds 100 fictional officers over 90 days; the About reset card can also load Dataset 120 and Dataset 150 for the quarter planner.
 
@@ -8,7 +8,7 @@ A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervis
 
 ## Architecture at a glance
 
-Three containers: **web** (nginx + React) · **api** (Java 21 + Spring Boot 4.x + Drools rules engine) · **db** (PostgreSQL). See [docs/03-architecture.md](docs/03-architecture.md).
+Three containers: **web** (nginx + React) · **api** (Java 21 + Spring Boot 4.x, JdbcTemplate + Flyway, Drools rules engine) · **db** (PostgreSQL). See [docs/03-architecture.md](docs/03-architecture.md).
 
 ## Documentation
 
@@ -18,7 +18,7 @@ Three containers: **web** (nginx + React) · **api** (Java 21 + Spring Boot 4.x 
 | [USER-GUIDE.md](USER-GUIDE.md) | How to use it, per role: officer, supervisor, planner, auditor, rules admin and approver |
 | [docs/01-scope-and-plan.md](docs/01-scope-and-plan.md) | Problem, users, outcomes, feature priorities, assumptions, plan, open questions |
 | [docs/02-requirements.md](docs/02-requirements.md) | Screens, functional and non-functional requirements, rules catalogue, data model, test cases |
-| [docs/03-architecture.md](docs/03-architecture.md) | Containers, layers, change flow, frontend, security |
+| [docs/03-architecture.md](docs/03-architecture.md) | Containers, feature slices, JdbcTemplate persistence, change flow, frontend, JWT security |
 | [docs/04-rules-engine.md](docs/04-rules-engine.md) | Rules engine design: Drools decision tables a non-technical admin can edit |
 | [docs/05-union-rules.md](docs/05-union-rules.md) | Mock collective-agreement rule set, with each rule's source |
 | [docs/06-data-model.md](docs/06-data-model.md) | PostgreSQL tables, constraints, ER diagram, migrations and seed |
@@ -27,6 +27,7 @@ Three containers: **web** (nginx + React) · **api** (Java 21 + Spring Boot 4.x 
 | [docs/09-access-control.md](docs/09-access-control.md) | Roles, permission matrix, enforcement, mock sign-in, privacy |
 | [docs/10-testing.md](docs/10-testing.md) | Test strategy, rule boundary matrix, scenarios, E2E flows, demo dataset spec |
 | [docs/ui/README.md](docs/ui/README.md) | UI spec: Sask design tokens, components, every screen; design files in `docs/ui/screens/` |
+| [docs/roadmap.md](docs/roadmap.md) | Known limits, staffing findings and the ordered post-submission roadmap |
 | [docs/decisions.md](docs/decisions.md) | Decision log (ADRs) |
 
 ## How this was built
@@ -43,7 +44,7 @@ The build process is kept apart from the product docs, in [docs/process/](docs/p
 
 ## Setup (clean clone)
 
-Everything is on `main`: the API, all the screens, the mock sign-in, the quarter planner with draft edits, and the E2E suite. [INSTALL.md](INSTALL.md) is the full install guide; this section is the short version. The release 8 gate followed the install steps from a fresh clone of the public repository on 23 Nov 2026 (clone, start and health check), and checked the version endpoint on commit `8b0df25`. Anything not run is marked **UNVERIFIED**.
+Everything is on `main`: the API, all the screens, the mock sign-in, the quarter planner with draft edits, and the E2E suite. [INSTALL.md](INSTALL.md) is the full install guide; this section is the short version. The steps below were re-run on 24 Nov 2026 from a fresh `git clone` of the branch for this docs pass (own compose project, `SC_WEB_PORT` set): `docker compose up -d --build --wait` built and became healthy in 50 s with warm caches, `/healthz` returned `ok`, `/api/v1/version` returned the commit, rule set v3, demo profile and Dataset 100, and the eight demo users in §3 match `GET /api/v1/auth/demo-users`. Anything not run is marked **UNVERIFIED**.
 
 ### Prerequisites
 
@@ -72,7 +73,7 @@ docker compose up -d --build --wait
 
 `--wait` returns when all three containers are healthy: the database first, then the API (after it has run the Flyway migrations and generated the synthetic dataset), then the web. Then open **http://localhost:8080** and you see the mock sign-in screen with the demo users.
 
-**How long:** with Docker's build cache warm, `up -d --build --wait` took **31 s** when measured on 2026-11-20, and the demo data took about 3 s of that (`Demo data generated in … ms` in `docker compose logs api`). The very first build also downloads the base images and the Maven and pnpm dependencies, which takes several minutes depending on the network (**UNVERIFIED** on a machine with an empty cache). The default dataset: 100 fictional officers, 1 Oct – 29 Dec 2026, "today" fixed at 19 Nov 2026, seed 20261001. The About reset card can also load Dataset 120 and Dataset 150 (see "Demo data and the quarter planner").
+**How long:** with Docker's build cache warm, `up -d --build --wait` took **31 s** on 2026-11-20 and **50 s** on 2026-11-24, and the demo data took about 6.6 s of that (`Demo data generated in … ms` in `docker compose logs api`). The very first build also downloads the base images and the Maven and pnpm dependencies, which takes several minutes depending on the network (**UNVERIFIED** on a machine with an empty cache). The default dataset: 100 fictional officers, 1 Oct – 29 Dec 2026, "today" fixed at 19 Nov 2026, seed 20261001. The About reset card can also load Dataset 120 and Dataset 150 (see "Demo data and the quarter planner").
 
 **Ports in use?** Only the web publishes a port, and it is bound to **127.0.0.1** (not the LAN) because the demo has mock sign-in and a destructive reset. Set `SC_WEB_PORT` in `.env`, for example `SC_WEB_PORT=18080`, and open that port instead. For local debugging, `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build` also publishes the API (`SC_API_PORT`, default 8081) and the database (`SC_DB_PORT`, default 5433), both on 127.0.0.1 only.
 
@@ -115,9 +116,11 @@ Before committing, the planner can **change single shifts in the draft**: move o
 Commit re-checks every shift, hand edits included, needs the warning list accepted once, and refuses a stale draft or a locked period. On Dataset 120 the measured draft is 38 gaps of 1,764 (all Escort evening), 7 warnings, zero Block, and 5,103 shifts on commit. The demo script in [`docs/demo-script.md`](docs/demo-script.md) §7 walks it.
 
 **Known limits**, stated on the scorecard and in [`BUILD_RECORD.md`](BUILD_RECORD.md):
-- The planner does not enforce qualifications; the Qualified staff card only reports them, and it does not read qualification start dates.
-- Planned leave is entered by the planner (**Preferences → Add planned leave**, one `POST /api/v1/planner/absences` per day; PLANNER only, type only, no approval flow) and skipped by the next Generate. The draft roster shows it as Vac, Sick or Other chips; the live planning board does not show planned leave yet. Dataset 100 and 120 seed no leave in the plan quarter; Dataset 150 seeds 20%.
-- Payroll overtime stays per pay period (P-01).
+- **Rules (mock values, known defects):** U-03 and U-11 are dormant, because they key on the retired L16 template, so no new shift can trigger them. A 12 h + extension day is still bounded by U-02 and U-04 (Warn), U-01 and U-05 (Block); only the dedicated 12 h-rest Block is missing. L-01 still lists 16 h as a regular length (a 16 h day is 12 h + extension). P-01's 80 h per-period threshold makes 4-on/4-off 12 h crews built-in overtime, because U-13 cycle averaging is not built.
+- **Planner:** qualifications are not used for placement (the Qualified staff card only reports them and does not read start dates); part-timers get no floor or fair share (casuals fill leftovers, home unit only, newest-first); seniority orders nights and overtime but not the casual pool; the quarter window is fixed and a plan commits once.
+- **Leave and sick:** the planner enters planned leave (**Preferences → Add planned leave**, one `POST /api/v1/planner/absences` per day; PLANNER only, type only) and the next Generate skips it. The draft roster shows it as Vac, Sick or Other chips, but the live planning board does not, and there is no request, approval or limits. Datasets 100 and 120 seed no leave in the plan quarter; Dataset 150 seeds 20%. Sick is recorded after the fact, with no call-out flow.
+- **Staffing:** Dataset 150 has enough people (138 FTE against about 123 needed); its gaps come from the part-time fill order, and Unit C has only 4 first-aiders for four 12 h crews. Dataset 100 is deliberately tight. See [`docs/roadmap.md`](docs/roadmap.md) for the findings and the ordered roadmap.
+- Payroll overtime stays per pay period (P-01); a weekly threshold is refused by the validator.
 - L16 is retired: a 16 h shift is a 12 h shift plus an extension, and an old database still renders its history.
 - A late-recorded actual is not re-checked against shifts saved after it.
 - The Dataset 120 preferences headline excludes the 13 shift-less casuals instead of counting their wishes.
@@ -151,8 +154,10 @@ docker run --rm -v "$PWD/e2e":/app -w /app node:24-alpine \
   sh -c "corepack enable && pnpm install --frozen-lockfile"
 # 2. Run the browser in a container. host.docker.internal reaches the host's port 8080 on
 #    Docker Desktop (macOS, Windows); --add-host makes the same name work on Linux.
+#    EXPECT_COMMIT is required: the suite refuses a stack built from any other commit
+#    (use the value you set as SC_GIT_COMMIT, or `git rev-parse --short HEAD`).
 docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
-  -e BASE_URL=http://host.docker.internal:8080 \
+  -e BASE_URL=http://host.docker.internal:8080 -e EXPECT_COMMIT=<the commit you built> \
   mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
 ```
 
@@ -185,7 +190,7 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
 
 `host.docker.internal` reaches the host from a container on Docker Desktop; the `--add-host` line makes the same name work on Docker Engine (run on macOS; on Linux it is **UNVERIFIED**, and `--network host` with `BASE_URL=http://localhost:8080` is the alternative). `E2E_WORKERS` (default 2) sets parallelism; `tests/screenshots.spec.ts` writes full-page captures and `index.json` to `SHOTS_DIR` (default `/private/tmp/sc-ui-shots/<RUN_ID>`, outside the repository: mount it the same way when the browser runs in Docker); the HTML report is `playwright-report/`. The fixtures-mode web and the `@api` / `@fixtures` tags are in `e2e/README.md`.
 
-**Count:** the latest independent gate, on the tip that became the current `main`:
+**Count:** the last full independent gate was at `8b0df25` (Release 8, 23 Nov 2026), **before** PRs #4 to #8, so the counts below are stale and will be re-gated at the release candidate (the API and web suites have grown since; Playwright has not been re-run since):
 - API: **464 = 127 rules + 28 infrastructure + 309 api tests**, green in two class orders, 0 failures/errors/skipped.
 - Web unit tests: **341**.
 - Playwright against the real API, whole suite, a fresh stack per viewport: desktop **105 passed**; tablet **104 passed and 1 skipped** (the TV-size check runs on desktop only); no failures on either.
