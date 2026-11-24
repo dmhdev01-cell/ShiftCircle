@@ -54,7 +54,7 @@ test.describe('A2 fill a gap from the board', () => {
     await shot(page, testInfo, 'supervisor', 'planning', 'gap-fill-panel');
 
     // The same rule check as her empty cell (demo §2): Blocked, reasons, no assign.
-    await nia.getByRole('button', { name: 'Check & assign Nia Thompson to D8 on Sat 21 Nov' }).click();
+    await nia.getByRole('button', { name: 'Check & assign D8: Nia Thompson, Sat 21 Nov' }).click();
     const dock = page.getByRole('region', { name: 'Rule check' });
     await expect(dock.getByText(/Blocked: [234] rules fail/)).toBeVisible();
     await expect(dock.getByRole('heading', { name: /Assign Nia Thompson/ })).toBeVisible();

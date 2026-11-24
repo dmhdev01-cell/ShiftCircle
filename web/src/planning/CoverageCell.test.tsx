@@ -91,7 +91,7 @@ describe('a compact coverage heat cell (A1)', () => {
         <CoverageCell block={short} today={TODAY} compact onFill={onFill} selected />
       </ThemeProvider>,
     );
-    const buttons = screen.getAllByRole('button', { name: /^Fill gap: Sat 21 Nov days, 3 of 5/ });
+    const buttons = screen.getAllByRole('button', { name: /^Fill gap: Sat 21 Nov days, 3 ?\/ ?5/ });
     expect(buttons).toHaveLength(2);
     expect(buttons[1]).toHaveAttribute('aria-pressed', 'true');
     buttons[0].click();

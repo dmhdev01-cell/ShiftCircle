@@ -206,7 +206,7 @@ describe('the planning board', () => {
       const user = userEvent.setup();
       renderBoard();
 
-      const cell = await screen.findByRole('button', { name: /^Fill gap: Fri 20 Nov evenings, 4 of 5/ });
+      const cell = await screen.findByRole('button', { name: /^Fill gap: Fri 20 Nov evenings, 4 \/ 5 short 15–17/ });
       await user.click(cell);
       expect(cell).toHaveAttribute('aria-pressed', 'true');
       const panel = await screen.findByRole('region', { name: /Fri 20 Nov · Evenings 15:00 – 23:00/ });
@@ -226,8 +226,8 @@ describe('the planning board', () => {
       await user.click(await screen.findByRole('button', { name: /^Fill gap: Sat days/ }));
       const panel = await screen.findByRole('region', { name: /Sat 21 Nov · Days/ });
       await user.click(within(panel).getByRole('button', { name: /^D12 / }));
-      const first = within(panel).getAllByRole('button', { name: /^Check & assign .* to D12 on Sat 21 Nov$/ })[0];
-      const name = /Check & assign (.*) to D12/.exec(first.getAttribute('aria-label') ?? '')?.[1];
+      const first = within(panel).getAllByRole('button', { name: /^Check & assign D12: .*, Sat 21 Nov$/ })[0];
+      const name = /Check & assign D12: (.*), Sat/.exec(first.getAttribute('aria-label') ?? '')?.[1];
       await user.click(first);
 
       expect(preview).toHaveBeenCalledWith({

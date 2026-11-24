@@ -27,6 +27,15 @@ interface CoverageCellProps {
   selected?: boolean;
 }
 
+const VISUALLY_HIDDEN = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+} as const;
+
 const BLOCK_NAME = { DAY: 'days', EVENING: 'evenings', NIGHT: 'nights' } as const;
 
 function gapDay(date: string): string {
@@ -99,14 +108,27 @@ export function CoverageCell({
         type: 'button' as const,
         onClick: () => onFill(block),
         'aria-pressed': selected,
-        'aria-label': `Fill gap: ${gapDay(block.date)} ${BLOCK_NAME[block.block]}, ${lowest} of ${block.required}. ${title}`,
+        // No aria-label: the name is the hidden prefix plus the visible
+        // figures, so it keeps the visible text (WCAG 2.5.3).
+        'aria-label': undefined,
         title: `${title} · Fill this gap`,
       }
     : {};
+  const fillPrefix = fillable ? (
+    <Box component="span" sx={VISUALLY_HIDDEN}>
+      {`Fill gap: ${gapDay(block.date)} ${BLOCK_NAME[block.block]}, `}
+    </Box>
+  ) : null;
+  const fillSuffix = fillable ? (
+    <Box component="span" sx={VISUALLY_HIDDEN}>
+      {`. ${title}`}
+    </Box>
+  ) : null;
   const fillSx = fillable
     ? {
         border: 0,
         fontFamily: 'inherit',
+        position: 'relative' as const,
         cursor: 'pointer',
         outline: selected ? `2px solid ${colour.brand.primary}` : undefined,
         outlineOffset: '1px',
@@ -140,7 +162,9 @@ export function CoverageCell({
           ...fillSx,
         }}
       >
+        {fillPrefix}
         {lowest}/{block.required}
+        {compact ? fillSuffix : null}
       </Box>
     );
   }
@@ -163,6 +187,7 @@ export function CoverageCell({
         ...fillSx,
       }}
     >
+      {fillPrefix}
       <Box className="num">
         {lowest} / {block.required}
       </Box>

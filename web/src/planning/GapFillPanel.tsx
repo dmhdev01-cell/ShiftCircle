@@ -237,7 +237,7 @@ export function GapFillPanel({
                       variant="outlined"
                       color="primary"
                       onClick={() => onCheck(officer, template)}
-                      aria-label={`Check & assign ${officer.name} to ${template} on ${dayWords(gap.date)}`}
+                      aria-label={`Check & assign ${template}: ${officer.name}, ${dayWords(gap.date)}`}
                       sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
                     >
                       Check & assign {template}
