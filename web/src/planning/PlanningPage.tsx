@@ -16,7 +16,6 @@ import { assignableTemplates, shiftTemplates } from '../api/shiftTemplates';
 import type { OfficerRow, ShiftItem, Unit } from '../api/types';
 import { useUnits } from '../api/useUnits';
 import { useVersion } from '../api/useVersion';
-import { DISCLAIMER_TEXT } from '../shell/disclaimer';
 import { useRole } from '../shell/nav';
 import { boardPrintStyles } from '../theme/print';
 import { colour, focusRing } from '../theme/tokens';
@@ -575,9 +574,8 @@ export function PlanningPage() {
           </Typography>
           <Typography data-print="only" sx={{ display: 'none', fontSize: 12, color: colour.text.secondary }}>
             {filtered
-              ? `Showing ${shownOfficers.length} of ${payload.officers.length} officers (${filterWords(filters, qualificationLabel)})`
-              : `Showing all ${payload.officers.length} officers`}{' '}
-            · {DISCLAIMER_TEXT}
+              ? `Printed: ${shownOfficers.length} of ${payload.officers.length} officers (${filterWords(filters, qualificationLabel)})`
+              : `Printed: all ${payload.officers.length} officers`}
           </Typography>
         </Box>
 

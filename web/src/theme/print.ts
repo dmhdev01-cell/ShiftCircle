@@ -3,8 +3,9 @@
  * renders it with MUI `GlobalStyles`, so only the board prints landscape.
  *
  * What prints: the title, the unit and range, a "showing" line, the roster
- * with its coverage rows, day totals and key. What does not: the top bar, the
- * side navigation, the footer, the figures, the view and filter controls and
+ * with its coverage rows, day totals and key, and the app footer with its
+ * disclaimer (HANDOFF §5.8), in plain black on white. What does not: the top
+ * bar, the side navigation, the figures, the view and filter controls and
  * every button outside the roster (marked `data-print="hide"`).
  */
 export const boardPrintStyles = {
@@ -12,7 +13,10 @@ export const boardPrintStyles = {
   '@media print': {
     body: { backgroundColor: '#FFFFFF !important' },
     '*': { printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' },
-    'header, nav, footer, [data-print="hide"]': { display: 'none !important' },
+    'header, nav, [data-print="hide"]': { display: 'none !important' },
+    // The footer carries the required disclaimer, so it prints, without its dark band.
+    footer: { backgroundColor: '#FFFFFF !important', padding: '4px 0 !important' },
+    'footer, footer *': { color: '#000000 !important' },
     '[data-print="only"]': { display: 'block !important' },
     main: { padding: '0 !important', gap: '6px !important' },
     // The roster prints whole: no sideways scroll, no sticky column, no edge shadow.

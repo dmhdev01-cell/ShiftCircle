@@ -157,8 +157,13 @@ test.describe('the planning board filters and export', () => {
     await expect(page.getByRole('region', { name: 'Roster, scrolls sideways' })).toBeVisible();
     await expect(
       page.getByText(
-        /^Showing \d+ of \d+ officers \(in overtime\) · Not an official Government of Saskatchewan service · fictional, synthetic data only$/,
+        /^Printed: \d+ of \d+ officers \(in overtime\)$/,
       ),
+    ).toBeVisible();
+    // The footer, with the full disclaimer, prints too (HANDOFF §5.8).
+    await expect(page.getByRole('contentinfo')).toBeVisible();
+    await expect(
+      page.getByText('Not an official Government of Saskatchewan service · fictional, synthetic data only'),
     ).toBeVisible();
     await shot(page, testInfo, 'supervisor', 'planning', 'print-media');
     const pdf = await page.pdf({ preferCSSPageSize: true });

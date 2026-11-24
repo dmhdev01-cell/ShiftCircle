@@ -655,14 +655,14 @@ describe('the planning board', () => {
       expect(print).toHaveBeenCalledTimes(1);
     });
 
-    it('labels filtered totals, keeps coverage as the whole unit, and prints the full disclaimer', async () => {
+    it('labels filtered totals, keeps coverage as the whole unit, and names the filter on the print line', async () => {
       renderBoard('/planning?ot=IN_OVERTIME');
       const roster = await screen.findByRole('region', { name: 'Roster, scrolls sideways' });
       expect(within(roster).getByRole('rowheader', { name: /On duty · hours\s*officers shown/ })).toBeInTheDocument();
       expect(within(roster).getAllByText(/needs \d+ · whole unit/)).toHaveLength(3);
       expect(
         screen.getByText(
-          /^Showing \d+ of \d+ officers \(in overtime\) · Not an official Government of Saskatchewan service · fictional, synthetic data only$/,
+          /^Printed: \d+ of \d+ officers \(in overtime\)$/,
         ),
       ).toBeInTheDocument();
     });
