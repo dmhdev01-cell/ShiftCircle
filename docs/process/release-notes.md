@@ -68,3 +68,9 @@ Everything merged to `main` after tag `v1.0-submission` (`efba3f7`), through six
 **Counts at the gate:** API **470 = 127 rules + 28 infrastructure + 315 api** (`mvn verify`, `BUILD SUCCESS`, default class order, 0 failures, errors or skipped); web unit tests **463** in 51 files, lint 4 warnings and 0 errors, `tsc -b` clean; Playwright against the real API, a fresh stack per viewport: `desktop-datasets` (the whole desktop suite) **124 passed**, `tablet-datasets` **123 passed and 1 skipped** (the TV-size check is desktop-only), 0 failed; fixtures-mode web (`--grep-invert @api`): **23 passed**, 79 skipped (the real-API specs), 0 failed. The parallel projects list 110 tests per viewport and the stack-wide specs add 14 (`e2e/README.md`).
 
 **Still not built** (unchanged, `docs/10-testing.md` §8 and `docs/roadmap.md`): the Excel round-trip, sending a proposal and the proposals inbox, offer withdrawal, OpenAPI, and the rule corrections on the roadmap (U-03 and U-11 re-keyed, L-01, U-13). The planner's `403` cells have no automated test.
+
+## Release 11.1 (v1.1.1): one-line install
+
+Install-only change on top of v1.1: `install.sh` at the repo root (prerequisite checks, pinned clone, generated secrets never printed, `docker compose up -d --build --wait`, health checks, idempotent re-run, never `down -v`), a Quick install section in README and INSTALL, and a CI step running `bash -n` and shellcheck. No application, rules, data or test change; the v1.1 counts stand. Tag: `v1.1.1-submission`.
+
+**Release step:** after merge, tag the merge commit `v1.1.1-submission` and push the tag, then run `scripts/check-install-pin.sh --remote` and the README one-liner once from an empty directory (free port, own `SHIFTCIRCLE_PROJECT`).
