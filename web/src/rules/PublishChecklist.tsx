@@ -4,8 +4,10 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 
 import { api } from '../api/client';
+import { useUnits } from '../api/useUnits';
 import type { BuildReport, RuleSetVersion, RuleSetStatus } from '../api/types';
 import { colour } from '../theme/tokens';
+import { impactSentence } from './impact';
 
 interface PublishChecklistProps {
   report: BuildReport | null;
@@ -52,6 +54,9 @@ export function PublishChecklist({
   onPublished,
 }: PublishChecklistProps) {
   const [busy, setBusy] = useState(false);
+  // The dry run names units by code; show their names when the list loads.
+  const unitsState = useUnits();
+  const units = unitsState.kind === 'ready' ? unitsState.units : [];
   const [message, setMessage] = useState<string | null>(null);
 
   const canEdit = role === 'RULES_ADMIN';
@@ -147,9 +152,8 @@ export function PublishChecklist({
                 sx={{ m: 0, pl: 3, fontSize: 12, color: colour.text.secondary }}
               >
                 {step.impact.map((row) => (
-                  <li key={`${row.ruleCode}-${row.unit}-${row.from}`}>
-                    {row.count} published shifts in {row.unit}, {row.from} – {row.to}, would now break{' '}
-                    {row.ruleCode}
+                  <li key={`${row.ruleCode}-${row.unit}-${row.from}-${row.to}`}>
+                    {impactSentence(row, units)}
                   </li>
                 ))}
               </Box>

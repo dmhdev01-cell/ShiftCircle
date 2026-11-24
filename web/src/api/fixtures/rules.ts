@@ -368,7 +368,7 @@ export const demoRuleTables: RuleTable[] = [
 ];
 
 /**
- * The build report. The dry-run impact is counts by rule, unit and date - no
+ * The build report. The dry-run impact is counts by rule, unit and result - no
  * names, because the approver has no roster access (ADR-017).
  */
 export const demoBuildReport: BuildReport = {
@@ -380,11 +380,10 @@ export const demoBuildReport: BuildReport = {
     {
       key: 'impact',
       title: 'Impact on the published roster',
-      detail: '3 published shifts in Unit C, 24 – 28 Nov, would now break U-03.',
+      detail: '3 result(s) change on the current roster.',
       done: false,
-      impact: [
-        { ruleCode: 'U-03', unit: 'Unit C · Living unit', from: '2026-11-24', to: '2026-11-28', count: 3 },
-      ],
+      // The api's shape: unit code and the result before and after.
+      impact: [{ ruleCode: 'U-03', unit: 'C', from: 'PASS', to: 'BLOCK', count: 3 }],
     },
     { key: 'approver', title: 'Second approver', detail: 'A second person has to review this change.', done: false },
     { key: 'live', title: 'Go live', detail: 'The live rules switch on the effective date.', done: false },

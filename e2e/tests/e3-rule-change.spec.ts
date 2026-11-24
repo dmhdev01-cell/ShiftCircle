@@ -50,7 +50,7 @@ test.describe('E3 rule change with maker/checker', () => {
     // report is canned, so this check is real-api only.
     if ((await page.getByText('Demo fixtures').count()) === 0) {
       await expect(page.getByText(/\d+ result\(s\) change on the current roster\./)).toBeVisible();
-      await expect(page.getByText(/would now break U-02/)).toBeVisible();
+      await expect(page.getByText(/^\d+ officers? in Unit A goe?s? from Pass to Warn under U-02$/)).toBeVisible();
     }
     await page.getByRole('button', { name: 'Submit for approval' }).click();
     await expect(page.getByText(/is submitted for approval/)).toBeVisible();

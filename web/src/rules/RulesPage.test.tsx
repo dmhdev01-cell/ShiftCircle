@@ -142,7 +142,7 @@ describe('Rules admin', () => {
 
     expect(await screen.findByText('13 / 13 test scenarios passed.')).toBeInTheDocument();
     expect(
-      screen.getByText(/3 published shifts in Unit C, 24 – 28 Nov, would now break U-03/),
+      await screen.findByText('3 officers in Unit C go from Pass to Block under U-03'),
     ).toBeInTheDocument();
     // The impact is counts, never names (ADR-017).
     expect(screen.queryByText('Tara Nakamura')).not.toBeInTheDocument();

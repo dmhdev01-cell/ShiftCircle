@@ -609,6 +609,10 @@ export interface BuildStep {
   detail: string;
   done: boolean;
   /** The impact on the published roster, as counts without names (ADR-017). */
+  /**
+   * One row per rule, unit and change of result: `count` officers whose
+   * result goes `from` -> `to` (PASS, INFO, WARN, BLOCK); `unit` is the code.
+   */
   impact?: { ruleCode: string; unit: string; from: string; to: string; count: number }[];
 }
 
