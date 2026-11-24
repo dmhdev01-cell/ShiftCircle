@@ -17,7 +17,7 @@ import { expectAccessible, navTo, signIn } from './support';
  *    the auditor reads three "record_absence" events.
  *
  * Self-contained: resets to 150 and back to 100 afterwards (the rest of the
- * suite and the demo assume the seeded 100 baseline). Listed in DATASET_SPECS
+ * suite and the demo assume the seeded 100 baseline). Listed in STACK_SPECS
  * (playwright.config.ts), so it runs in the one-worker `<viewport>-datasets`
  * project, never beside another spec.
  */
