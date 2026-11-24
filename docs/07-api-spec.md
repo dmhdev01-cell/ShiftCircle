@@ -199,7 +199,7 @@ dataset checksums and the publish step of the demo. Future work.
 | Move body | `PATCH` takes the same body as `POST /assignments`: `change` with **all four** of `employeeId`, `unitId`, `shiftTemplate` and `startAt` (the full target, not a partial patch), plus optional `acknowledgeWarnings` and `override`. `kind` and `source` don't change. A move needs no separate reason; an override carries its own. |
 | Move rules | The full §3 pipeline runs on the target, with the assignment's **own current slot left out** of the officer's existing shifts, so it can't conflict with itself. `422` blocked or warnings, and overrides, exactly as §3. Updated in place: same `id`, new `version`, a `move_assignment` audit event with `before`/`after`. If the officer changes, both officers' locks are taken in id order. Answers `200` with the save outcome. |
 | Locked period | `409 .../pay-period-locked` if the **current** work date is in a locked period (move and cancel), or the **target** work date is (move). |
-| Started shifts | `409 .../shift-started` if the assignment has started by the server's "today" clock (the demo clock on the demo profile). Past shifts are corrected in Time & attendance, not on the schedule. |
+| Started shifts | `409 .../shift-started` if the assignment has started by the server's "today" clock (the demo clock on the demo profile: noon on the demo day). Past shifts are corrected in Time & attendance, not on the schedule. `GET /schedule` sends that clock as `now`, so the board can say so before the request (v1.2, below). |
 | Recorded actual or absence | `DELETE` answers `409 .../actual-recorded` when a time entry already references the shift, and `409 .../absence-recorded` when an absence row does, even if the start time alone would not have refused it. Correct the record in Time & attendance instead. |
 | Filled open shift | Cancelling an assignment that filled an open shift (`open_shift.filled_assignment_id`) puts that open shift back to `OPEN` with `filled_assignment_id` cleared, so the gap is visible and can be offered again. **Offer rows are left unchanged** (not set to `WITHDRAWN`): the confirmed offer stays as history, and the cancellation is in the audit trail. **Moving** such an assignment is refused with `409 .../fills-open-shift`: cancel it and assign again. |
 | Offers | A pending offer (`offer: true` chip) is not an assignment, so these endpoints don't apply to it. Withdrawing an offer is **not built** (docs/10 §8). |
@@ -215,10 +215,19 @@ dataset checksums and the publish step of the demo. Future work.
   "covered": false }
 ```
 
-The payload also has `unit { id, name }`, `days` (ISO dates), `asOf` (the demo today), `officers`
-(rows with day cells of `SHIFT` items), `warnings`, `overridesThisPeriod`,
-`publishedState { published, unpublishedChanges }` and `period { id, label, status }`, matching
-`web/src/api/types.ts`.
+The payload also has `unit { id, name }`, `days` (ISO dates), `asOf` (the demo today), `now`
+(the business clock's instant, v1.2), `officers` (rows with day cells of `SHIFT` items), `warnings`,
+`overridesThisPeriod`, `publishedState { published, unpublishedChanges }` and
+`period { id, label, status }`, matching `web/src/api/types.ts`.
+
+**Move and cancel refusals known in advance (v1.2):** on the live board each `SHIFT` item also
+carries `actualRecorded` (any time entry references it, actual or absence), `absenceRecorded` (an
+absence row references it) and `fillsOpenShift` (it fills an open shift), the same queries
+`PATCH`/`DELETE /assignments/{id}` run. With `now` (a shift has started when `startAt <= now`) the
+shift dialog says which action the api would refuse, in the api's own words, and does not offer
+it. They are hints for the screen only: the api still checks every move and cancel. The planner's
+draft roster leaves `now` and the three flags out. "Already cancelled" cannot be known in advance
+(the board never lists a cancelled shift) and stays an answer.
 
 `lowestHourly` is the minimum headcount over the block's hours; `shortHours` lists merged hour ranges below `required` (`to` is exclusive); `covered` is true when `shortHours` is empty. `actual` is present for past hours only. The display version has the same shape and still **no names**.
 
@@ -231,7 +240,7 @@ The payload also has `unit { id, name }`, `days` (ISO dates), `asOf` (the demo t
   "period": { "id": "9f0a…", "label": "16 – 22 Nov 2026", "status": "PUBLISHED" } }
 ```
 
-`asOf` is the server's "today" (`SC_DEMO_TODAY` on the demo profile), so the board marks the same days the api does instead of guessing from the browser clock. `overridesThisPeriod` counts the emergency overrides recorded in the pay period on the board.
+`asOf` is the server's "today" (`SC_DEMO_TODAY` on the demo profile), so the board marks the same days the api does instead of guessing from the browser clock. `now` (v1.2, for example `"2026-11-19T18:00:00Z"`) is the business clock's instant (`BusinessClock`: noon on the demo day in Regina on the demo profile, the real clock otherwise), the "now" behind `409 .../shift-started`. `overridesThisPeriod` counts the emergency overrides recorded in the pay period on the board.
 
 `period` is the roster week the board shows: the `schedule_period` row whose dates **contain the board's range** (`from` and `to`). It is `null` when the range is not inside one period — a board that spans two weeks has no single period. `id` is what `POST /schedule-periods/{id}/publish` takes, `label` is the week for people ("16 – 22 Nov 2026") and `status` is `DRAFT` or `PUBLISHED`.
 
