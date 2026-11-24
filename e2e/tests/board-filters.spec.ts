@@ -21,6 +21,13 @@ async function settled(page: Page): Promise<void> {
   await page.waitForLoadState('networkidle');
 }
 
+/** The "Showing n of m officers · …" line, once it names the filters given. */
+async function shownCount(page: Page, words: RegExp): Promise<number> {
+  const line = page.getByRole('status').filter({ hasText: /^Showing / });
+  await expect(line).toHaveText(words);
+  return Number(/^Showing (?:all )?(\d+)/.exec(await line.innerText())?.[1]);
+}
+
 function officerRows(page: Page) {
   return page
     .getByRole('region', { name: 'Roster, scrolls sideways' })
@@ -39,9 +46,9 @@ test.describe('the planning board filters and export', () => {
   });
 
   test('keeps demo §2 by default, then finds, filters and sorts', async ({ page }, testInfo) => {
-    const total = await officerRows(page).count();
+    const total = await shownCount(page, /^Showing all \d+ officers$/);
     expect(total).toBeGreaterThan(10);
-    await expect(page.getByText(`Showing all ${total} officers`)).toBeVisible();
+    await expect(officerRows(page)).toHaveCount(total);
     await expect(page).not.toHaveURL(/[?&](q|ot|rot|works|qual|sort)=/);
     // Demo §2's officer is on the board, with the empty Sat 21 cell to pick.
     await expect(officerRows(page).filter({ hasText: 'Nia Thompson' })).toHaveCount(1);
@@ -66,12 +73,14 @@ test.describe('the planning board filters and export', () => {
 
     await page.getByRole('combobox', { name: 'Overtime' }).selectOption({ label: 'All' });
     await page.getByRole('combobox', { name: 'Works' }).selectOption({ label: 'Nights' });
-    const nights = await officerRows(page).count();
+    const nights = await shownCount(page, /officers · works nights$/);
+    await expect(officerRows(page)).toHaveCount(nights);
     expect(nights).toBeGreaterThan(0);
     expect(nights).toBeLessThan(total);
     await page.getByRole('combobox', { name: 'Sort' }).selectOption({ label: 'Pay-period hours, lowest first' });
     await expect(page).toHaveURL(/works=N/);
     await expect(page).toHaveURL(/sort=hours-asc/);
+    await expect(officerRows(page)).toHaveCount(nights);
     const hours = (await officerRows(page).allInnerTexts()).map((text) =>
       Number(/(\d+(?:\.\d+)?) h\s*(?:In overtime|Approaching|Under)/.exec(text)?.[1]),
     );
@@ -93,14 +102,15 @@ test.describe('the planning board filters and export', () => {
 
   test('saves a CSV for Excel, copies the view and prints landscape', async ({ page }, testInfo) => {
     await page.getByRole('combobox', { name: 'Overtime' }).selectOption({ label: 'In overtime' });
-    const shown = await officerRows(page).count();
+    const shown = await shownCount(page, /officers · in overtime$/);
+    await expect(officerRows(page)).toHaveCount(shown);
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
       page
         .getByRole('button', { name: /^Export/ })
         .click()
-        .then(() => page.getByRole('menuitem', { name: /this view/ }).click()),
+        .then(() => page.getByRole('menuitem', { name: /CSV for Excel · this view/ }).click()),
     ]);
     expect(download.suggestedFilename()).toBe('roster-unit-b-living-unit-2026-11-16-to-2026-11-22-filtered.csv');
     const csv = await readFile((await download.path())!, 'utf8');
@@ -127,7 +137,7 @@ test.describe('the planning board filters and export', () => {
     await expect(page.getByRole('search')).toBeHidden();
     await expect(page.getByRole('button', { name: 'Rules help' })).toBeHidden();
     await expect(page.getByRole('region', { name: 'Roster, scrolls sideways' })).toBeVisible();
-    await expect(page.getByText(/officers \(in overtime\) · fictional, synthetic data/)).toBeVisible();
+    await expect(page.getByText(/^Showing \d+ of \d+ officers \(in overtime\) · fictional, synthetic data$/)).toBeVisible();
     await shot(page, testInfo, 'supervisor', 'planning', 'print-media');
     const pdf = await page.pdf({ preferCSSPageSize: true });
     // The first page's media box is wider than it is tall (landscape).

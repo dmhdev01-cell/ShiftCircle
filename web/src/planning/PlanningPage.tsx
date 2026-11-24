@@ -516,10 +516,9 @@ export function PlanningPage() {
             {changesPhrase ? ', ' + changesPhrase : ''}
           </Typography>
           <Typography data-print="only" sx={{ display: 'none', fontSize: 12, color: colour.text.secondary }}>
-            {rangeWords(range.from, range.to)} ·{' '}
             {filtered
-              ? `${shownOfficers.length} of ${payload.officers.length} officers (${filterWords(filters, qualificationLabel)})`
-              : `all ${payload.officers.length} officers`}{' '}
+              ? `Showing ${shownOfficers.length} of ${payload.officers.length} officers (${filterWords(filters, qualificationLabel)})`
+              : `Showing all ${payload.officers.length} officers`}{' '}
             · fictional, synthetic data
           </Typography>
         </Box>
