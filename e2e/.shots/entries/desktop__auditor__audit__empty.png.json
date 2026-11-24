@@ -1,0 +1,11 @@
+{
+  "file": "desktop__auditor__audit__empty.png",
+  "path": "/work/.shots/desktop__auditor__audit__empty.png",
+  "screen": "audit",
+  "role": "auditor",
+  "viewport": "desktop",
+  "state": "empty",
+  "url": "http://host.docker.internal:18492/audit",
+  "captured": true,
+  "at": "2026-11-24T19:06:54.790Z"
+}

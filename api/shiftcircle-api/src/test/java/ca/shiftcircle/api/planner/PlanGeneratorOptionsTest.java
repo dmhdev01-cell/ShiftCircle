@@ -49,7 +49,7 @@ class PlanGeneratorOptionsTest {
     Facility facility = facility();
     PlanGenerator.Result all = generate(facility, PlanGenerator.Options.DEFAULT);
     PlanGenerator.Result fullTimeOnly =
-        generate(facility, new PlanGenerator.Options(false, false, true));
+        generate(facility, new PlanGenerator.Options(false, false));
     Set<UUID> partTimers = partTimers(facility);
 
     assertThat(fullTimeOnly.assignments())
@@ -68,7 +68,7 @@ class PlanGeneratorOptionsTest {
   void partTimeFillUpToFteUsesMorePartTimeHoursWithinTargetAndNoMoreGaps() {
     Facility facility = facility();
     PlanGenerator.Result after = generate(facility, PlanGenerator.Options.DEFAULT);
-    PlanGenerator.Result upTo = generate(facility, new PlanGenerator.Options(true, true, true));
+    PlanGenerator.Result upTo = generate(facility, new PlanGenerator.Options(true, true));
     Set<UUID> partTimers = partTimers(facility);
 
     double hoursAfter = partTimeHours(after, partTimers);
@@ -120,45 +120,11 @@ class PlanGeneratorOptionsTest {
         new PlanGenerator()
             .generate(facility.employees, facility.units, templates(), new HashMap<>(), null,
                 20261001, noSundays, Map.of(), PlanGenerator.ALWAYS,
-                new PlanGenerator.Options(true, true, true));
+                new PlanGenerator.Options(true, true));
     assertThat(upTo.assignments())
         .filteredOn(assignment -> partTimers.contains(assignment.employeeId()))
         .isNotEmpty()
         .noneMatch(assignment -> assignment.date().getDayOfWeek() == java.time.DayOfWeek.SUNDAY);
-  }
-
-  @Test
-  void preferencesOffIgnoresTimeOfDayWishesAndTheScorecardShowsIt() {
-    // One unit, eight 8 h officers: the four most senior ask for evenings, the four newest for
-    // days. The day group is three officers (2 required x 7 / 5).
-    UUID unitId = UUID.nameUUIDFromBytes("unit:P".getBytes());
-    List<PlanGenerator.Unit> units =
-        List.of(new PlanGenerator.Unit(unitId, "P", "P", false, false,
-            Map.of("DAY", 2, "EVENING", 2)));
-    List<PlanGenerator.Employee> employees = new ArrayList<>();
-    for (int i = 0; i < 8; i++) {
-      String wish = i < 4 ? "EVENING" : "DAY";
-      employees.add(
-          new PlanGenerator.Employee(
-              UUID.nameUUIDFromBytes(("P" + i).getBytes()), "P-" + i, "P " + i, unitId, "P",
-              LocalDate.of(2000 + i, 1, 1), 1.0,
-              new PlanGenerator.Pref(8, List.of(wish), List.of()), 8, i));
-    }
-    PlanGenerator.Result on =
-        new PlanGenerator()
-            .generate(employees, units, templates(), new HashMap<>(), null, 20261001, ALLOW,
-                Map.of(), PlanGenerator.ALWAYS, PlanGenerator.Options.DEFAULT);
-    PlanGenerator.Result off =
-        new PlanGenerator()
-            .generate(employees, units, templates(), new HashMap<>(), null, 20261001, ALLOW,
-                Map.of(), PlanGenerator.ALWAYS, new PlanGenerator.Options(true, false, false));
-
-    // On: the day-wishers work days. Off: seniority decides, so the senior evening-wishers do.
-    assertThat(dayOfficers(on)).containsExactlyInAnyOrder("P 4", "P 5", "P 6");
-    assertThat(dayOfficers(off)).containsExactlyInAnyOrder("P 0", "P 1", "P 2");
-    // The scorecard counts the real wishes either way, so the cost of switching them off shows.
-    assertThat(timeMet(off)).isLessThan(timeMet(on));
-    assertThat(asked(off)).isEqualTo(asked(on));
   }
 
   // --- helpers ----------------------------------------------------------------------------------
@@ -173,27 +139,6 @@ class PlanGeneratorOptionsTest {
                 .thenComparing(row -> row.employee().toString())
                 .thenComparing(Row::template))
         .toList();
-  }
-
-  private static Set<String> dayOfficers(PlanGenerator.Result result) {
-    return result.assignments().stream()
-        .filter(a -> "D8".equals(a.templateCode()))
-        .map(PlanGenerator.Assignment::employeeName)
-        .collect(Collectors.toSet());
-  }
-
-  @SuppressWarnings("unchecked")
-  private static int timeMet(PlanGenerator.Result result) {
-    Map<String, Object> preferences = (Map<String, Object>) result.scorecard().get("preferences");
-    return ((List<Map<String, Object>>) preferences.get("byKind")).stream()
-        .filter(kind -> "TIME_OF_DAY".equals(kind.get("kind")))
-        .mapToInt(kind -> (Integer) kind.get("met"))
-        .sum();
-  }
-
-  @SuppressWarnings("unchecked")
-  private static int asked(PlanGenerator.Result result) {
-    return (Integer) ((Map<String, Object>) result.scorecard().get("preferences")).get("asked");
   }
 
   @SuppressWarnings("unchecked")

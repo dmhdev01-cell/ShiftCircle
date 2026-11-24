@@ -1,0 +1,11 @@
+{
+  "file": "desktop__supervisor__audit__normal.png",
+  "path": "/work/.shots/desktop__supervisor__audit__normal.png",
+  "screen": "audit",
+  "role": "supervisor",
+  "viewport": "desktop",
+  "state": "normal",
+  "url": "http://host.docker.internal:18492/audit",
+  "captured": true,
+  "at": "2026-11-24T19:06:51.280Z"
+}

@@ -1,0 +1,11 @@
+{
+  "file": "desktop__auditor__reports__error-boundary.png",
+  "path": "/work/.shots/desktop__auditor__reports__error-boundary.png",
+  "screen": "reports",
+  "role": "auditor",
+  "viewport": "desktop",
+  "state": "error-boundary",
+  "url": "http://host.docker.internal:18492/reports/coverage",
+  "captured": true,
+  "at": "2026-11-24T19:06:55.929Z"
+}

@@ -56,8 +56,7 @@ class PlannerOptionsApiTest {
             "{\"seed\":1,\"partTimeFill\":\"ALWAYS\"}", "partTimeFill",
             "{\"seed\":1,\"staffTypes\":[\"FULL_TIME\"],\"partTimeFill\":\"UP_TO_FTE\"}",
                 "UP_TO_FTE needs PART_TIME",
-            "{\"seed\":1,\"preferences\":\"SOMETIMES\"}", "preferences",
-            "{\"seed\":1,\"preferences\":\"on\"}", "preferences");
+            "{\"seed\":1,\"partTimeFill\":\"up_to_fte\"}", "partTimeFill");
     Integer draftsBefore = jdbc.queryForObject("SELECT count(*) FROM plan_draft", Integer.class);
     for (Map.Entry<String, String> entry : bad.entrySet()) {
       HttpResponse<String> response = send("POST", "/api/v1/planner/drafts", entry.getKey(), planner);
@@ -98,8 +97,7 @@ class PlannerOptionsApiTest {
         .isEqualTo(
             Map.of(
                 "staffTypes", List.of("FULL_TIME", "PART_TIME"),
-                "partTimeFill", "AFTER_FULL_TIME",
-                "preferences", "ON"));
+                "partTimeFill", "AFTER_FULL_TIME"));
     Capacity before = capacity(defaults);
 
     Map<String, Object> filled =
@@ -107,7 +105,6 @@ class PlannerOptionsApiTest {
     Map<String, Object> options = (Map<String, Object>) filled.get("options");
     assertThat(options.get("partTimeFill")).isEqualTo("UP_TO_FTE");
     assertThat(options.get("staffTypes")).isEqualTo(List.of("FULL_TIME", "PART_TIME"));
-    assertThat(options.get("preferences")).isEqualTo("ON");
     Capacity after = capacity(filled);
 
     System.out.printf(
@@ -131,17 +128,11 @@ class PlannerOptionsApiTest {
         mapper.readValue(send("GET", "/api/v1/planner/plan", null, planner).body(), Map.class);
     assertThat(((Map<String, Object>) plan.get("draft")).get("options")).isEqualTo(options);
 
-    // Full-time only and preferences off: stored and shown; no part-timer is placed.
+    // Full-time only: stored and shown; no part-timer is placed.
     Map<String, Object> fullTimeOnly =
-        generate(
-            planner,
-            "{\"seed\":20261001,\"staffTypes\":[\"FULL_TIME\"],\"preferences\":\"OFF\"}");
+        generate(planner, "{\"seed\":20261001,\"staffTypes\":[\"FULL_TIME\"]}");
     assertThat(fullTimeOnly.get("options"))
-        .isEqualTo(
-            Map.of(
-                "staffTypes", List.of("FULL_TIME"),
-                "partTimeFill", "AFTER_FULL_TIME",
-                "preferences", "OFF"));
+        .isEqualTo(Map.of("staffTypes", List.of("FULL_TIME"), "partTimeFill", "AFTER_FULL_TIME"));
     UUID fullTimeId = UUID.fromString((String) fullTimeOnly.get("id"));
     assertThat(
             jdbc.queryForObject(
@@ -154,7 +145,7 @@ class PlannerOptionsApiTest {
     assertThat(none.planned()).isZero();
     assertThat(none.gaps()).isGreaterThan(before.gaps());
     System.out.printf(
-        "Dataset 150 full-time only, preferences off: %d gaps, %d warnings%n",
+        "Dataset 150 full-time only: %d gaps, %d warnings%n",
         none.gaps(), none.warnings());
 
     // The audit event records the options.
@@ -164,7 +155,9 @@ class PlannerOptionsApiTest {
                 + " AND entity_id = ?",
             String.class,
             fullTimeId);
-    assertThat(audit).contains("\"preferences\": \"OFF\"").contains("\"staffTypes\": [\"FULL_TIME\"]");
+    assertThat(audit)
+        .contains("\"staffTypes\": [\"FULL_TIME\"]")
+        .contains("\"partTimeFill\": \"AFTER_FULL_TIME\"");
   }
 
   // --- helpers ----------------------------------------------------------------------------------

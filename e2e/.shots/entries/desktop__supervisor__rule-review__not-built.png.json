@@ -1,0 +1,11 @@
+{
+  "file": "desktop__supervisor__rule-review__not-built.png",
+  "path": "/work/.shots/desktop__supervisor__rule-review__not-built.png",
+  "screen": "rule-review",
+  "role": "supervisor",
+  "viewport": "desktop",
+  "state": "not-built",
+  "url": "http://host.docker.internal:18492/rules/1/review",
+  "captured": true,
+  "at": "2026-11-24T19:06:51.895Z"
+}

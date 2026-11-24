@@ -1,0 +1,11 @@
+{
+  "file": "desktop__supervisor__planning__print-media.png",
+  "path": "/work/.shots/desktop__supervisor__planning__print-media.png",
+  "screen": "planning",
+  "role": "supervisor",
+  "viewport": "desktop",
+  "state": "print-media",
+  "url": "http://host.docker.internal:18492/planning?week=2026-11-16&unit=11111111-1111-1111-1111-000000000002&ot=IN_OVERTIME",
+  "captured": true,
+  "at": "2026-11-24T19:06:09.944Z"
+}

@@ -1,0 +1,11 @@
+{
+  "file": "desktop__supervisor__reports__hours.png",
+  "path": "/work/.shots/desktop__supervisor__reports__hours.png",
+  "screen": "reports",
+  "role": "supervisor",
+  "viewport": "desktop",
+  "state": "Hours",
+  "url": "http://host.docker.internal:18492/reports/hours",
+  "captured": true,
+  "at": "2026-11-24T19:06:50.744Z"
+}

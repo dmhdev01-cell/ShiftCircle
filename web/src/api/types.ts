@@ -836,13 +836,12 @@ export interface PlannerDraft {
 
 /**
  * The quarter plan's tailoring options (v1.2). The names are shared with the
- * Plan inputs panel: staffTypes, partTimeFill, preferences.
+ * Plan inputs panel: staffTypes, partTimeFill.
  */
 export interface PlanOptions {
   /** FULL_TIME always; PART_TIME = officers below 1.0 FTE (part-time and casual). */
   staffTypes: ('FULL_TIME' | 'PART_TIME')[];
   partTimeFill: 'AFTER_FULL_TIME' | 'UP_TO_FTE';
-  preferences: 'ON' | 'OFF';
 }
 
 export interface PlannerDraftCreation extends Partial<PlanOptions> {

@@ -57,13 +57,12 @@ test.describe('plan options', () => {
     await expect(landing.getByRole('checkbox', { name: /Full-time officers/ })).toBeDisabled();
     await expect(landing.getByRole('checkbox', { name: /Part-time and casual officers/ })).toBeChecked();
     await expect(landing.getByRole('radio', { name: /Fill gaps only/ })).toBeChecked();
-    await expect(landing.getByRole('radio', { name: /Honour time-of-day wishes/ })).toBeChecked();
     await expectAccessible(page, testInfo, 'planner-options-landing', '[role="group"][aria-label="Plan options"]');
 
     await page.getByRole('button', { name: 'Generate draft' }).click();
     await expect(page.getByText('Coverage gaps')).toBeVisible({ timeout: 90_000 });
     await expect(page.getByTestId('plan-options-used')).toHaveText(
-      'Made with: full-time and part-time officers · part-time fills gaps only · time-of-day wishes honoured',
+      'Made with: full-time and part-time officers · part-time fills gaps only',
     );
     const before = await unusedHours(page);
     expect(before, 'Dataset 150 leaves part-time capacity unused by default').toBeGreaterThan(1000);
@@ -79,7 +78,7 @@ test.describe('plan options', () => {
     await again.getByRole('radio', { name: /Fill up to each officer's FTE/ }).check();
     await dialog.getByRole('button', { name: 'Replace draft' }).click();
     await expect(page.getByTestId('plan-options-used')).toHaveText(
-      'Made with: full-time and part-time officers · part-time filled up to FTE · time-of-day wishes honoured',
+      'Made with: full-time and part-time officers · part-time filled up to FTE',
       { timeout: 90_000 },
     );
     const after = await unusedHours(page);

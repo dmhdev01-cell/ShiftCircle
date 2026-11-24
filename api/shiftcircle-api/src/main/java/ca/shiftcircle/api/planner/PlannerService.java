@@ -209,9 +209,9 @@ public class PlannerService {
     jdbc.update(
         "INSERT INTO plan_draft (id, from_date, to_date, seed, pattern8h, status, version,"
             + " created_by, generated_ms, scorecard, warnings, warning_count,"
-            + " staff_types, part_time_fill, preferences)"
+            + " staff_types, part_time_fill)"
             + " VALUES (?, ?, ?, ?, ?, 'DRAFT', 0, (SELECT id FROM app_user WHERE username = ?),"
-            + " ?, ?::jsonb, ?::jsonb, ?, ?::text[], ?, ?)",
+            + " ?, ?::jsonb, ?::jsonb, ?, ?::text[], ?)",
         id,
         FROM,
         TO,
@@ -223,8 +223,7 @@ public class PlannerService {
         warningsJson,
         result.warnings().size(),
         "{" + String.join(",", options.staffTypes()) + "}",
-        options.partTimeFill(),
-        options.preferences());
+        options.partTimeFill());
     List<Object[]> assignmentRows = new ArrayList<>();
     for (PlanGenerator.Assignment assignment : result.assignments()) {
       assignmentRows.add(
@@ -269,7 +268,6 @@ public class PlannerService {
     generated.put("generatedMs", generatedMs);
     generated.put("staffTypes", options.staffTypes());
     generated.put("partTimeFill", options.partTimeFill());
-    generated.put("preferences", options.preferences());
     audit(principal, "generate_plan", "plan_draft", id, generated);
 
     Map<String, Object> row =
@@ -282,7 +280,6 @@ public class PlannerService {
 
   private static final List<String> STAFF_TYPES = List.of("FULL_TIME", "PART_TIME");
   private static final List<String> PART_TIME_FILLS = List.of("AFTER_FULL_TIME", "UP_TO_FTE");
-  private static final List<String> PREFERENCES = List.of("ON", "OFF");
 
   /**
    * The tailoring options, validated (PR-N). Omitted values take the defaults; anything else that
@@ -318,20 +315,12 @@ public class PlannerService {
           HttpStatus.BAD_REQUEST,
           "partTimeFill UP_TO_FTE needs PART_TIME in staffTypes: there is no one to fill");
     }
-    String preferences =
-        creation.preferences() == null ? defaults.preferences() : creation.preferences();
-    if (!PREFERENCES.contains(preferences)) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "preferences must be ON or OFF");
-    }
-    return new PlannerViews.PlanOptions(staffTypes, partTimeFill, preferences);
+    return new PlannerViews.PlanOptions(staffTypes, partTimeFill);
   }
 
   private static PlanGenerator.Options generatorOptions(PlannerViews.PlanOptions options) {
     return new PlanGenerator.Options(
-        options.staffTypes().contains("PART_TIME"),
-        "UP_TO_FTE".equals(options.partTimeFill()),
-        "ON".equals(options.preferences()));
+        options.staffTypes().contains("PART_TIME"), "UP_TO_FTE".equals(options.partTimeFill()));
   }
 
   public PlannerViews.DraftSummary draft(UUID id) {
@@ -2027,11 +2016,9 @@ public class PlannerService {
     List<String> staffTypes =
         types instanceof Array array ? daysOff(array) : defaults.staffTypes();
     Object fill = row.get("part_time_fill");
-    Object preferences = row.get("preferences");
     return new PlannerViews.PlanOptions(
         staffTypes.isEmpty() ? defaults.staffTypes() : staffTypes,
-        fill == null ? defaults.partTimeFill() : fill.toString(),
-        preferences == null ? defaults.preferences() : preferences.toString());
+        fill == null ? defaults.partTimeFill() : fill.toString());
   }
 
   private int handEdits(UUID draftId) {

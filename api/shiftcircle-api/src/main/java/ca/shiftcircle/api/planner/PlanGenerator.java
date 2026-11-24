@@ -160,13 +160,9 @@ public final class PlanGenerator {
    * @param includePartTime officers below 1.0 FTE (the part-time and casual pool) may be placed
    * @param fillPartTimeToFte after the gaps are filled, top each part-time officer up towards
    *     their FTE target in their home unit, where cover is thinnest
-   * @param honourPreferences the officers' time-of-day wishes order blocks and candidates; off,
-   *     every officer is treated as having no time-of-day wish (seniority decides). Shift length
-   *     and pattern follow the crew either way, and the scorecard still counts the real wishes.
    */
-  public record Options(
-      boolean includePartTime, boolean fillPartTimeToFte, boolean honourPreferences) {
-    public static final Options DEFAULT = new Options(true, false, true);
+  public record Options(boolean includePartTime, boolean fillPartTimeToFte) {
+    public static final Options DEFAULT = new Options(true, false);
   }
 
   public Result generate(
@@ -310,11 +306,11 @@ public final class PlanGenerator {
 
   /**
    * The overload with tailoring options. Placement uses the options; the scorecard always counts
-   * every officer and their real wishes, so a draft made with an option shows its effect (an
-   * excluded part-timer reads as unused capacity, an ignored wish as unmet).
+   * every officer, so a draft made with an option shows its effect (an excluded part-timer reads
+   * as unused capacity on the FTE bands).
    */
   public Result generate(
-      List<Employee> allEmployees,
+      List<Employee> employees,
       List<Unit> units,
       Map<String, Template> templates,
       Map<UUID, List<ShiftFact>> history,
@@ -325,8 +321,6 @@ public final class PlanGenerator {
       Availability availability,
       Options options) {
     long started = System.nanoTime();
-    List<Employee> employees =
-        options.honourPreferences() ? allEmployees : withoutTimeWishes(allEmployees);
     List<Employee> pool =
         options.includePartTime()
             ? employees
@@ -519,8 +513,8 @@ public final class PlanGenerator {
     gaps = recomputeGaps(units, assignments, availability);
     Map<String, Object> scorecard =
         scorecard(
-            allEmployees, units, assignments, byEmployee, gaps, warnings, pattern8h, started,
-            facts, templates, verifier, blockOf, leave, availability);
+            employees, units, assignments, byEmployee, gaps, warnings, pattern8h, started, facts,
+            templates, verifier, blockOf, leave, availability);
     return new Result(assignments, gaps, warnings, scorecard);
   }
 
@@ -917,27 +911,6 @@ public final class PlanGenerator {
         }
       }
     }
-  }
-
-  /** The officers as the generator sees them with preferences off: no time-of-day wish. */
-  private static List<Employee> withoutTimeWishes(List<Employee> employees) {
-    return employees.stream()
-        .map(
-            employee ->
-                new Employee(
-                    employee.id(),
-                    employee.employeeNo(),
-                    employee.name(),
-                    employee.unitId(),
-                    employee.unitCode(),
-                    employee.seniority(),
-                    employee.fte(),
-                    new Pref(employee.pref().shiftLength(), List.of(), employee.pref().daysOff()),
-                    employee.effectiveLength(),
-                    employee.phase(),
-                    employee.crew(),
-                    employee.pattern()))
-        .toList();
   }
 
   /**

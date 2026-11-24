@@ -1,0 +1,11 @@
+{
+  "file": "desktop__supervisor__display__own-units.png",
+  "path": "/work/.shots/desktop__supervisor__display__own-units.png",
+  "screen": "display",
+  "role": "supervisor",
+  "viewport": "desktop",
+  "state": "own-units",
+  "url": "http://host.docker.internal:18492/display",
+  "captured": true,
+  "at": "2026-11-24T19:06:52.811Z"
+}

@@ -1,0 +1,11 @@
+{
+  "file": "desktop__auditor__planning__api-unreachable.png",
+  "path": "/work/.shots/desktop__auditor__planning__api-unreachable.png",
+  "screen": "planning",
+  "role": "auditor",
+  "viewport": "desktop",
+  "state": "api-unreachable",
+  "url": "http://host.docker.internal:18492/planning",
+  "captured": true,
+  "at": "2026-11-24T19:06:56.030Z"
+}

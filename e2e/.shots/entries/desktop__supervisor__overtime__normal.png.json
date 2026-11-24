@@ -1,0 +1,11 @@
+{
+  "file": "desktop__supervisor__overtime__normal.png",
+  "path": "/work/.shots/desktop__supervisor__overtime__normal.png",
+  "screen": "overtime",
+  "role": "supervisor",
+  "viewport": "desktop",
+  "state": "normal",
+  "url": "http://host.docker.internal:18492/overtime",
+  "captured": true,
+  "at": "2026-11-24T19:06:50.370Z"
+}

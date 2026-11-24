@@ -1,0 +1,11 @@
+{
+  "file": "desktop__supervisor__planning__published-period.png",
+  "path": "/work/.shots/desktop__supervisor__planning__published-period.png",
+  "screen": "planning",
+  "role": "supervisor",
+  "viewport": "desktop",
+  "state": "published-period",
+  "url": "http://host.docker.internal:18492/planning?week=2026-11-16&unit=11111111-1111-1111-1111-000000000002",
+  "captured": true,
+  "at": "2026-11-24T19:06:58.183Z"
+}

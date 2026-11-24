@@ -1,0 +1,11 @@
+{
+  "file": "desktop__supervisor__not-found__404.png",
+  "path": "/work/.shots/desktop__supervisor__not-found__404.png",
+  "screen": "not-found",
+  "role": "supervisor",
+  "viewport": "desktop",
+  "state": "404",
+  "url": "http://host.docker.internal:18492/no-such-page",
+  "captured": true,
+  "at": "2026-11-24T19:06:51.929Z"
+}

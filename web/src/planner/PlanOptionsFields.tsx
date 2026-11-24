@@ -28,9 +28,9 @@ function Choice({ label, sentence }: { label: string; sentence: string }) {
 const legend = { fontSize: 14, fontWeight: 700, color: colour.text.primary, mb: 0.5 } as const;
 
 /**
- * The quarter plan's tailoring options (v1.2): which staff, how part-time
- * officers are filled, and whether time-of-day wishes count. Used on the
- * landing card and in the Generate again dialog, prefilled from the last draft.
+ * The quarter plan's tailoring options (v1.2): which staff to include and how
+ * part-time officers are filled. Used on the landing card and in the Generate
+ * again dialog, filled in from the last draft.
  */
 export function PlanOptionsFields({
   value,
@@ -126,42 +126,6 @@ export function PlanOptionsFields({
             Include part-time officers to choose how they are filled.
           </Typography>
         ) : null}
-      </FormControl>
-
-      <FormControl component="fieldset" disabled={disabled}>
-        <FormLabel component="legend" id={`${idPrefix}-preferences`} sx={legend}>
-          Officer preferences
-        </FormLabel>
-        <RadioGroup
-          aria-labelledby={`${idPrefix}-preferences`}
-          value={value.preferences}
-          onChange={(event) =>
-            onChange({ ...value, preferences: event.target.value as PlanOptions['preferences'] })
-          }
-        >
-          <FormControlLabel
-            value="ON"
-            sx={{ alignItems: 'flex-start' }}
-            control={<Radio sx={{ mt: 0.25 }} />}
-            label={
-              <Choice
-                label="Honour time-of-day wishes (as before)"
-                sentence="Officers who asked for days, evenings or nights are placed there first where the rules allow."
-              />
-            }
-          />
-          <FormControlLabel
-            value="OFF"
-            sx={{ alignItems: 'flex-start' }}
-            control={<Radio sx={{ mt: 0.25 }} />}
-            label={
-              <Choice
-                label="Ignore time-of-day wishes"
-                sentence="Seniority alone decides who works days or evenings; the Preferences met tile shows what that costs."
-              />
-            }
-          />
-        </RadioGroup>
       </FormControl>
     </Box>
   );

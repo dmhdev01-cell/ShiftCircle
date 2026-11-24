@@ -1,0 +1,11 @@
+{
+  "file": "desktop__display__display__stale.png",
+  "path": "/work/.shots/desktop__display__display__stale.png",
+  "screen": "display",
+  "role": "display",
+  "viewport": "desktop",
+  "state": "stale",
+  "url": "http://host.docker.internal:18492/display",
+  "captured": true,
+  "at": "2026-11-24T19:06:55.747Z"
+}

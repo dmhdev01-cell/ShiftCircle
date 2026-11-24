@@ -103,7 +103,7 @@ class GeneratorCharacterizationTest {
           generate(
               planner,
               "{\"seed\":20261001,\"staffTypes\":[\"FULL_TIME\",\"PART_TIME\"],"
-                  + "\"partTimeFill\":\"AFTER_FULL_TIME\",\"preferences\":\"ON\"}");
+                  + "\"partTimeFill\":\"AFTER_FULL_TIME\"}");
       assertThat(fingerprint(withDefaults))
           .as(dataset + " plan fingerprint with the default options sent")
           .isEqualTo(PLAN_FINGERPRINTS.get(dataset));
