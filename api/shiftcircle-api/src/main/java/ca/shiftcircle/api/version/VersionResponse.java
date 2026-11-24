@@ -14,6 +14,8 @@ import java.util.List;
  * @param profiles active Spring profiles, comma separated
  * @param asOf the demo "today" (ISO date) the UI clock should show
  * @param demoMode true only on the demo profile, so the web shows the reset control there
+ * @param datasets the datasets a demo reset may generate (empty off the demo profile)
+ * @param activeDataset the dataset the database holds now, or {@code null} off the demo profile
  */
 public record VersionResponse(
     String name,
@@ -24,4 +26,5 @@ public record VersionResponse(
     String profiles,
     String asOf,
     boolean demoMode,
-    List<String> datasets) {}
+    List<String> datasets,
+    String activeDataset) {}

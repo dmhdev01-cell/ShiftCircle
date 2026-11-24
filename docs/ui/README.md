@@ -66,6 +66,7 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 | Proposed but blocked | `! D proposed` | white, 2px dashed `#C40000`, text `#A30000` |
 | Sick | `Sick` | white, 1px dashed `#C2410C`, text `#9A3412` |
 | Vacation | `Vac` | bg `#E3F0E8`, text `#046A38` |
+| Other absence (FR-51) | `Other` | bg `#EEF0F2`, text `#444A50` |
 | Off | `Off` | no fill, text `#666666` |
 | Worked (actual recorded) | prefix `✓ ` | — |
 

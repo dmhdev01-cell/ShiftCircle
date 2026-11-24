@@ -65,6 +65,7 @@ const PATTERN_WORDS: Record<string, string> = {
 const ABSENCE_WORDS: Record<string, string> = {
   SICK: 'Sick',
   VACATION: 'Vacation',
+  OTHER: 'Other',
 };
 
 /** A date-only value as "4 Jan 2027"; anything else as written. */
