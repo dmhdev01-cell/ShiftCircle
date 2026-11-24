@@ -175,7 +175,7 @@ fixtures-only · **—** not coverable, with the reason.
 | Demo session: a refresh keeps the person signed in on the same screen; sign-out and a `401` clear it (S11) | supervisor | session-and-nav | N |
 | Reports date range and unit picker (S1) | supervisor, auditor | reports | N |
 
-**Not covered by Playwright:** the planner's Reports menu item. The planner is refused every report by the API, so the screen reads "Could not load the reports" (found in the 24 Nov docs audit; no spec asserts or guards it).
+**Not covered by Playwright:** the planner is refused every report by the API (`403`), and since PR #14 the menu has no Reports item for the planner; no spec asserts the absence of the item.
 
 ## Not coverable here, and why
 

@@ -9,7 +9,6 @@ Your menu has these screens:
 - **Preferences**
 - **Units**
 - **Planning board** (read-only for you)
-- **Reports** (listed, but see section 11: it does not load for the planner in this build)
 
 You work in a **draft**. Nobody else sees it until you commit it.
 
@@ -154,9 +153,9 @@ The **Staffing by unit** card shows, for each unit and period:
 
 **How** shows the formula. **Change…** sets the leave allowance used in the sums. A closed unit needs no one while it is closed.
 
-## 11. Planning board and Reports
+## 11. Planning board
 
-You can read every unit's live roster on the planning board, but not change it: "Read-only: the facility planner sees every unit's roster. Supervisors change their own." **Reports** is in your menu, but the API does not give the planner access to the reports in this build (a known gap, see `docs/09-access-control.md`). The screen opens and says "Could not load the reports"; use a supervisor or auditor sign-in for coverage, hours, overtime and overrides.
+You can read every unit's live roster on the planning board, but not change it: "Read-only: the facility planner sees every unit's roster. Supervisors change their own." Reports are for supervisors and auditors, so your menu has no Reports item.
 
 ## 12. Reset the demo
 

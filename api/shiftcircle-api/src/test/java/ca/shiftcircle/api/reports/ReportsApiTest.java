@@ -75,7 +75,7 @@ class ReportsApiTest {
         "INSERT INTO app_user_role (user_id, role) VALUES"
             + " ('22222222-2222-2222-2222-0000000000aa', 'EMPLOYEE') ON CONFLICT DO NOTHING");
     for (String user :
-        new String[] {"m.ellis", "j.chen", "a.reviewer", "l.fraser", "tv.display", "pay.employee"}) {
+        new String[] {"m.ellis", "j.chen", "a.reviewer", "l.fraser", "tv.display", "pay.employee", "p.planner"}) {
       tokens.put(user, login(user));
     }
   }
@@ -521,6 +521,11 @@ class ReportsApiTest {
     assertThat(get(coverage, tokens.get("pay.employee"), null).statusCode()).as("employee").isEqualTo(403);
     assertThat(get(coverage, tokens.get("l.fraser"), null).statusCode()).as("rules admin").isEqualTo(403);
     assertThat(get(coverage, tokens.get("tv.display"), null).statusCode()).as("display").isEqualTo(403);
+    // The web hides Reports from the planner (web/src/shell/roles.ts REPORTS_ROLES).
+    for (String report : new String[] {"coverage", "overtime", "overrides"}) {
+      String path = "/api/v1/reports/" + report + "?from=2026-10-26&to=2026-11-08";
+      assertThat(get(path, tokens.get("p.planner"), null).statusCode()).as("planner " + report).isEqualTo(403);
+    }
     assertThat(get(coverage, tokens.get("a.reviewer"), null).statusCode()).as("auditor").isEqualTo(200);
 
     // A supervisor's unit filter is scoped; an out-of-scope unit answers 404.

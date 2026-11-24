@@ -7,8 +7,7 @@ Internal working note, kept as a historical log of the build. **It is not the cu
 - **Everything in `docs/process/HANDOFF.md` §6 is built** except what `docs/10-testing.md` §8 lists as not built (Excel round-trip, the proposals send and inbox, offer withdrawal, OpenAPI, and the rest).
 - **Counts:** API 468 = 127 rules + 28 infrastructure + 313 api; web 368; Playwright 114 real-api tests per viewport. Details and how each was obtained: `docs/10-testing.md`.
 - **Since the `v1.0-submission` tag:** demo session persistence with a build-time kill switch, the M1/M3 not-available states, the dataset notice and Other absence, the Reports range and unit pickers, and GitHub Actions CI (`docs/process/release-notes.md`).
-- **Known gaps found by the docs audit** (not fixed by it): the planner's side menu lists Reports, but the API refuses the planner every report (`docs/09-access-control.md`); the "Published. The officers see this roster as final." message overstates FR-06, which is partial.
-- Also found: the supervisors' **Employee view** menu item opens My schedule, which says "No employee record for this user" for both demo supervisors (they have no linked officer).
+- **Gaps found by the docs audit** were fixed by PR #14 (Reports hidden for the planner, Employee view only with a linked officer, the publish message no longer says "final"). FR-06 stays partial: My schedule is not filtered by period status.
 - **Where the docs live:** `docs/index.md` has a map by question.
 
 ## Start here: exact commands

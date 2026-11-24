@@ -9,7 +9,7 @@ You run your unit's roster week to week. Your menu has these screens:
 - **Rules**
 - **Audit log**
 - **Wall display**
-- **Employee view**
+- **Employee view** (only when your account is linked to an officer; the demo supervisors are not, so they don't see it)
 - **Time & attendance**
 
 ## Planning board
@@ -57,11 +57,11 @@ You must write the reason as a real sentence. It goes to the audit log, and the 
 
 ### Publish a roster week
 
-The board shows one unit's **roster week** (Monday to Sunday). **Publish period** marks that week as final. Your name and the time are recorded, and the board header shows it as published.
+**Publish period** records your unit's roster for the period as published, and the board marks it so. Your name and the time are recorded. In this prototype publishing is a recorded state, not an access gate: My schedule does not yet filter by period status (docs/02 FR-06, partial).
 
 Publishing is one-way in this prototype: a later correction is a further assignment, and the board marks it as unpublished.
 
-Known limit (FR-06, partial): publishing is a recorded state, not an access gate. **My schedule** shows an officer their shifts whether or not the week is published, so the message "The officers see this roster as final" describes the intent rather than a filter. A roster week is not a pay period: pay periods (two weeks) are locked on **Time & attendance**.
+A roster week is not a pay period: pay periods (two weeks) are locked on **Time & attendance**.
 
 ### Shifts from the quarter plan
 
@@ -139,7 +139,7 @@ It is a shared screen, so it shows counts only, no names. **Leave the wall displ
 
 ## Employee view
 
-Employee view opens **My schedule** for the officer record linked to your account, exactly as an officer sees it. In the demo, M. Ellis and J. Chen have no linked officer record, so this screen reads "Could not load your schedule: No employee record for this user" (a known gap, not a fault in your sign-in). Sign in as T. Nakamura to see an officer's view.
+Employee view opens **My schedule** for the officer record linked to your account, exactly as an officer sees it. It appears in your menu only when your account is linked to an officer; the demo supervisors (M. Ellis, J. Chen) are not, so they don't see it. Sign in as T. Nakamura to see an officer's view.
 
 ## What you can't do here
 
