@@ -118,7 +118,7 @@ Commit re-checks every shift, hand edits included, needs the warning list accept
 **Known limits**, stated on the scorecard and in [`BUILD_RECORD.md`](BUILD_RECORD.md):
 - **Rules (mock values, known defects):** U-03 and U-11 are dormant, because they key on the retired L16 template, so no new shift can trigger them. A 12 h + extension day is still bounded by U-02 and U-04 (Warn), U-01 and U-05 (Block); only the dedicated 12 h-rest Block is missing. L-01 still lists 16 h as a regular length (a 16 h day is 12 h + extension). P-01's 80 h per-period threshold makes 4-on/4-off 12 h crews built-in overtime, because U-13 cycle averaging is not built.
 - **Planner:** qualifications are not used for placement (the Qualified staff card only reports them and does not read start dates); part-timers get no floor or fair share (casuals fill leftovers, home unit only, newest-first); seniority orders nights and overtime but not the casual pool; the quarter window is fixed and a plan commits once.
-- **Leave and sick:** leave is skipped by the planner but not shown on the board, with no request, approval or limits (the only entry is `POST /api/v1/planner/absences`, PLANNER only, a read-only skip, and the demo plan has none unless you add it); sick is recorded after the fact, with no call-out flow.
+- **Leave and sick:** the planner enters planned leave (**Preferences → Add planned leave**, one `POST /api/v1/planner/absences` per day; PLANNER only, type only) and the next Generate skips it. The draft roster shows it as Vac, Sick or Other chips, but the live planning board does not, and there is no request, approval or limits. Datasets 100 and 120 seed no leave in the plan quarter; Dataset 150 seeds 20%. Sick is recorded after the fact, with no call-out flow.
 - **Staffing:** Dataset 150 has enough people (138 FTE against about 123 needed); its gaps come from the part-time fill order, and Unit C has only 4 first-aiders for four 12 h crews. Dataset 100 is deliberately tight. See [`docs/roadmap.md`](docs/roadmap.md) for the findings and the ordered roadmap.
 - Payroll overtime stays per pay period (P-01); a weekly threshold is refused by the validator.
 - L16 is retired: a 16 h shift is a 12 h shift plus an extension, and an old database still renders its history.
@@ -158,7 +158,7 @@ docker run --rm -v "$PWD/e2e":/app -w /app node:24-alpine \
 #    (use the value you set as SC_GIT_COMMIT, or `git rev-parse --short HEAD`).
 docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
   -e BASE_URL=http://host.docker.internal:8080 -e EXPECT_COMMIT=<the commit you built> \
-  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
+  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop-datasets
 ```
 
 **The UI test: how to run the Playwright suite yourself.** Chromium only (the config refuses any other browser), against the compose stack. What the suite covers, screen by role by state, is in [`e2e/COVERAGE.md`](e2e/COVERAGE.md); these commands are from [`e2e/README.md`](e2e/README.md).
@@ -179,13 +179,13 @@ docker compose -p sc-test up -d --build --wait
 # unless ALLOW_PERSON_STACK=yes.
 docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
   -e BASE_URL=http://host.docker.internal:8080 -e EXPECT_COMMIT=<the commit you built> \
-  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
+  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop-datasets
 
 # tablet: the real-API specs change data, so a fresh stack per viewport
 docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait
 docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
   -e BASE_URL=http://host.docker.internal:8080 -e EXPECT_COMMIT=<the commit you built> \
-  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project tablet
+  mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project tablet-datasets
 ```
 
 `host.docker.internal` reaches the host from a container on Docker Desktop; the `--add-host` line makes the same name work on Docker Engine (run on macOS; on Linux it is **UNVERIFIED**, and `--network host` with `BASE_URL=http://localhost:8080` is the alternative). `E2E_WORKERS` (default 2) sets parallelism; `tests/screenshots.spec.ts` writes full-page captures and `index.json` to `SHOTS_DIR` (default `/private/tmp/sc-ui-shots/<RUN_ID>`, outside the repository: mount it the same way when the browser runs in Docker); the HTML report is `playwright-report/`. The fixtures-mode web and the `@api` / `@fixtures` tags are in `e2e/README.md`.
@@ -198,7 +198,7 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
 
 The dataset checksums, the payroll golden and the plan fingerprints were exact. Earlier counts, release by release, are in [docs/process/release-notes.md](docs/process/release-notes.md); each round is in `docs/process/review-rounds.md`.
 
-**One viewport per fresh stack.** The real-API specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop`, then `docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait`, then `--project tablet`. The web unit tests write `web/node_modules` with Linux binaries.
+**One viewport per fresh stack; dataset specs last.** `--project desktop-datasets` runs the parallel `desktop` specs first, then the twelve stack-wide specs (dataset resets, quarter-plan generate/commit/discard, the E4 pay-period lock) one at a time, because they would corrupt each other in parallel (`e2e/README.md`). The real-API specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop-datasets`, then `docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait`, then `--project tablet-datasets`. The web unit tests write `web/node_modules` with Linux binaries.
 
 **Fixtures and the shared test database:** each API test class gets its **own database** inside the shared PostgreSQL container (`PostgresTestSupport` creates one per class, and Flyway builds the schema), so class order cannot leak a generated roster, a published rule set or a linked employee into another class. Keep new fixtures off the demo day (19 Nov 2026) where the schedule and display tests assert exact Unit A coverage; dates after it are safer. When you change shared test infrastructure, also run reverse and random class order so a future regression is caught:
 

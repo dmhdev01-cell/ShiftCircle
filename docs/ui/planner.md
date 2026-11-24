@@ -269,6 +269,7 @@ There is no override here. Emergency overrides stay one shift at a time on the p
 - Sort: unit order, then seniority (oldest first). No sortable headers.
 - Empty filter: "No officers match."
 - Who: PLANNER only; others 403 (§11 Q2).
+- **Add planned leave** (PR-D, fit-gap A9): an outlined button by the H1 opens a dialog: Officer (select, "Name · Unit", sorted by name), First day and Last day (date inputs bounded by the plan quarter), Type (radios Vacation · Sick · Other, each with its chip), the line "Type only: no reason or medical detail is recorded (privacy)" and a live summary ("Vacation for Nia Thompson: Mon 8 Feb 2027 – Sun 14 Feb 2027 (7 days)"). Checks before any call: an officer, both days, last ≥ first, inside the quarter, at most 31 days. Save sends one `POST /planner/absences` per day in order ("Saving day 3 of 7…"). All saved: the dialog closes and a pass status line says what was recorded, that each day is in the audit log as "Absence recorded", and to generate again. A day already recorded as another type (409) is skipped and listed ("Saved 6 of 7 days. Not saved: …"); a server failure stops and says how many days were saved. The draft roster then shows Vac, Sick or Other chips on those days.
 
 ---
 

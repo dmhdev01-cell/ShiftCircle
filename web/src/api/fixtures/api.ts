@@ -47,7 +47,10 @@ import type {
   SchedulePayload,
   ScheduleQuery,
   ShiftCircleApi,
+  PlannedAbsence,
+  PlannedAbsenceInput,
 } from '../types';
+
 import {
   BLOCKED_BY_RULES,
   MISSING_ACTUALS,
@@ -112,6 +115,47 @@ import {
   updateUnitClosure,
 } from './plannerUnits';
 import { demoPayPeriods, demoTimeEntries, unitCodeFor } from './timeAttendance';
+
+/**
+ * Planned leave entered in fixtures mode (POST /planner/absences): one row per
+ * officer and date, the same idempotent / 409 answers as the api, and shown
+ * on the draft roster as ABSENCE items like the api's draft schedule.
+ */
+const plannedAbsences = new Map<string, PlannedAbsence>();
+
+function recordPlannedAbsence(input: PlannedAbsenceInput): PlannedAbsence {
+  if (!['SICK', 'VACATION', 'OTHER'].includes(input.type)) {
+    throw new ApiError('type must be SICK, VACATION or OTHER', 400);
+  }
+  const key = `${input.employeeId}|${input.date}`;
+  const existing = plannedAbsences.get(key);
+  if (existing) {
+    if (existing.type === input.type) return existing;
+    throw new ApiError(
+      `An absence of type ${existing.type} is already recorded for that date; reset or correct it first`,
+      409,
+    );
+  }
+  const saved: PlannedAbsence = { ...input, id: `planned-absence-${plannedAbsences.size + 1}` };
+  plannedAbsences.set(key, saved);
+  return saved;
+}
+
+function withPlannedLeave(payload: SchedulePayload): SchedulePayload {
+  if (plannedAbsences.size === 0) return payload;
+  return {
+    ...payload,
+    officers: payload.officers.map((officer) => ({
+      ...officer,
+      cells: officer.cells.map((cell) => {
+        const leave = plannedAbsences.get(`${officer.employeeId}|${cell.date}`);
+        return leave
+          ? { ...cell, items: [...cell.items, { type: 'ABSENCE' as const, absenceType: leave.type }] }
+          : cell;
+      }),
+    })),
+  };
+}
 
 /**
  * How long a fixture call takes to answer, so a screen can show its loading
@@ -519,7 +563,12 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
 
     async getPlannerSchedule(_draftId: string, query: { unitId: string; from: string; to: string }) {
       await pause();
-      return plannerSchedule(query);
+      return withPlannedLeave(plannerSchedule(query));
+    },
+
+    async planAbsence(input: PlannedAbsenceInput) {
+      await pause();
+      return recordPlannedAbsence(input);
     },
 
     async getPlannerCoverage(_draftId: string, range: { from: string; to: string }) {
@@ -557,6 +606,7 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
 
     async resetDemo(_confirm: string, dataset: string) {
       await pause();
+      plannedAbsences.clear();
       resetStatus = {
         state: 'DONE',
         step: 'done',

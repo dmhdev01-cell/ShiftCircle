@@ -14,7 +14,7 @@
 | Planner | **Qualifications are not used for placement**; the scorecard only reports them (FR-03) | Changes plan fingerprints |
 | Planner | **No part-time floor or fair share.** Casuals fill leftovers, in their home unit, newest-first, capped at FTE × 80 h a period. On Dataset 120, 13 of 20 part-timers get no shifts | Changes plan fingerprints |
 | Planner | **Seniority** orders nights and overtime, but the casual pool is newest-first and not configurable; extra shifts and vacation picks are not offered by seniority | Same, plus rule design |
-| Leave | **Leave is skipped by the generator but not shown on the board.** It is entered through the API only; there is no request, approval, balance or leave limit (maximum off per unit per day) | API and data risk on Dataset 100 |
+| Leave | **Leave is skipped by the generator and shown on the draft roster (Vac/Sick/Other), but not on the live board.** The planner enters it (Preferences → Add planned leave); there is no request, approval, balance or leave limit (maximum off per unit per day) | API and data risk on Dataset 100 |
 | Sick | Sick is recorded after the fact. There is no call-out flow (sick call → open shift → ranked offer); posting an open shift is "not available in this prototype" | New flow |
 | Planner | The quarter window (4 Jan to 11 Apr 2027) and the clock are fixed; a plan can be committed once; the 28 Dec to 3 Jan seam on Dataset 100 is thin | Window is in seeded data |
 | Workflow | Employee proposals and the supervisor inbox, FR-06 publish gating, FR-07 "changed" flags, offer withdrawal/expiry, mandatory OT and OT caps | New flows |
@@ -34,7 +34,7 @@
 |---|---|---|
 | Positions and qualified-first placement | Posts are unit × block counts; qualifications are reported, not used | 4 |
 | Seniority-ordered offering (extra shifts, part-time hours, vacation picks) | Nights and OT only; casual pool newest-first | 3 |
-| Leave visible and managed with approval | Skipped by the generator; API-only entry; not shown | 2 |
+| Leave visible and managed with approval | Skipped by the generator; planner entry dialog; shown on the draft roster only | 2 |
 | Sick call-out | After-the-fact actuals only | 5 |
 | Part-time fair share and floor | Leftovers only, no floor | 3 |
 | Rolling planner window | Fixed quarter, single use | 6 |
