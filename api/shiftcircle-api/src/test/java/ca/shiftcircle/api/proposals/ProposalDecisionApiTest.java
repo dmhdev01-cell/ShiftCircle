@@ -48,6 +48,7 @@ class ProposalDecisionApiTest {
   @Autowired private JdbcTemplate jdbc;
   @Autowired private Environment environment;
   @Autowired private ProposalRateLimiter limiter;
+  @Autowired private javax.sql.DataSource dataSource;
 
   private final ObjectMapper mapper = new ObjectMapper();
   private final HttpClient client = HttpClient.newHttpClient();
@@ -71,6 +72,9 @@ class ProposalDecisionApiTest {
     jdbc.update("DELETE FROM open_shift");
     jdbc.update("DELETE FROM shift_assignment WHERE employee_id IN (?, ?, ?)", TARA, ELLIS, OTHER);
     jdbc.update("DELETE FROM pay_period");
+    jdbc.update("DROP TRIGGER IF EXISTS test_expire_on_insert ON shift_assignment");
+    jdbc.update("UPDATE unit SET active = true WHERE id = ?", UNIT_B);
+    jdbc.update("UPDATE shift_template SET active = true WHERE code = 'E8'");
     jdbc.update("UPDATE app_user SET employee_id = NULL WHERE username IN ('t.nakamura', 'm.ellis')");
     insertEmployee(TARA, "E-PD1", "Tara", "Proposer", "2015-01-01");
     insertEmployee(ELLIS, "E-PD2", "Mel", "Ellis", "2015-01-01");
@@ -118,6 +122,17 @@ class ProposalDecisionApiTest {
     assertThat(get("/api/v1/proposals", "t.nakamura").statusCode()).isEqualTo(403);
     assertThat(get("/api/v1/proposals", "a.reviewer").statusCode()).isEqualTo(403);
     assertThat(get("/api/v1/proposals/" + onB, "a.reviewer").statusCode()).isEqualTo(403);
+    for (String user : new String[] {"t.nakamura", "a.reviewer"}) {
+      assertThat(get("/api/v1/proposals/count", user).statusCode()).as(user).isEqualTo(403);
+      assertThat(get("/api/v1/proposals/" + onB, user).statusCode()).as(user).isEqualTo(403);
+      assertThat(
+              post("/api/v1/proposals/" + onB + "/decision", body(accept(UUID.randomUUID())), user,
+                      "\"0\"")
+                  .statusCode())
+          .as(user)
+          .isEqualTo(403);
+    }
+    assertThat(get("/api/v1/proposals/count", null).statusCode()).isEqualTo(401);
   }
 
   @Test
@@ -569,6 +584,9 @@ class ProposalDecisionApiTest {
     jdbc.update("UPDATE employee SET seniority_date = DATE '2000-01-01' WHERE id = ?", TARA);
     UUID openShift = insertOpenShift(UNIT_B, "D8", "2026-11-25T07:00:00-06:00");
     UUID offer = insertOffer(openShift, OTHER);
+    // Ellis's officer already said yes to the shift; that answer is not withdrawn (plan §4).
+    UUID accepted = insertOffer(openShift, ELLIS);
+    jdbc.update("UPDATE overtime_offer SET status = 'ACCEPTED' WHERE id = ?", accepted);
     Map<String, Object> proposal =
         send("t.nakamura", item(UNIT_B, "D8", "2026-11-25T07:00:00-06:00"));
 
@@ -582,7 +600,7 @@ class ProposalDecisionApiTest {
     assertThat(match.get("otOrderPosition")).isEqualTo(1);
     assertThat(match.get("otOrderSize")).isEqualTo(3);
     assertThat(match.get("outOfOrder")).isEqualTo(false);
-    assertThat(match.get("liveOffers")).isEqualTo(1);
+    assertThat(match.get("liveOffers")).isEqualTo(2);
 
     HttpResponse<String> approved = decideRaw("m.ellis", proposal, "\"0\"", accept(itemId(proposal, 0)));
     assertThat(approved.statusCode()).as(approved.body()).isEqualTo(200);
@@ -595,6 +613,13 @@ class ProposalDecisionApiTest {
     assertThat(
             jdbc.queryForObject("SELECT status FROM overtime_offer WHERE id = ?", String.class, offer))
         .isEqualTo("WITHDRAWN");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT status FROM overtime_offer WHERE id = ?", String.class, accepted))
+        .isEqualTo("ACCEPTED");
+    // Confirming that accepted offer is refused: the shift is filled.
+    assertThat(post("/api/v1/offers/" + accepted + "/confirm", null, "m.ellis", null).statusCode())
+        .isEqualTo(409);
     Map<String, Object> stored =
         jdbc.queryForMap(
             "SELECT open_shift_id, out_of_ot_order FROM proposal_item WHERE proposal_id = ?",
@@ -636,6 +661,138 @@ class ProposalDecisionApiTest {
                 id(proposal)))
         .contains("\"outOfOvertimeOrder\": true")
         .contains("\"otOrderPosition\": 2");
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Concurrency, closed units, retired shift types (review r1)
+  // ---------------------------------------------------------------------------------------------
+
+  @Test
+  void anItemThatExpiresUnderneathTheDecisionRollsEverythingBack() throws Exception {
+    UUID openShift = insertOpenShift(UNIT_B, "D8", "2026-11-25T07:00:00-06:00");
+    UUID offer = insertOffer(openShift, OTHER);
+    jdbc.update("UPDATE employee SET seniority_date = DATE '2000-01-01' WHERE id = ?", TARA);
+    Map<String, Object> proposal =
+        send("t.nakamura", item(UNIT_B, "D8", "2026-11-25T07:00:00-06:00"));
+    // Deterministic stand-in for an expiry that lands between the check and the write: the moment
+    // the shift is inserted, the item turns EXPIRED in the same transaction.
+    jdbc.execute(
+        "CREATE OR REPLACE FUNCTION test_expire_on_insert() RETURNS trigger AS $$ BEGIN"
+            + " UPDATE proposal_item SET decision = 'EXPIRED', decided_at = now()"
+            + " WHERE employee_id = NEW.employee_id AND start_at = NEW.start_at"
+            + " AND decision = 'PENDING'; RETURN NEW; END $$ LANGUAGE plpgsql");
+    jdbc.execute(
+        "CREATE TRIGGER test_expire_on_insert AFTER INSERT ON shift_assignment"
+            + " FOR EACH ROW EXECUTE FUNCTION test_expire_on_insert()");
+    try {
+      HttpResponse<String> refused =
+          decideRaw("m.ellis", proposal, "\"0\"", accept(itemId(proposal, 0)));
+      assertThat(refused.statusCode()).as(refused.body()).isEqualTo(409);
+      assertThat((String) json(refused).get("type")).endsWith("/shift-started");
+    } finally {
+      jdbc.execute("DROP TRIGGER IF EXISTS test_expire_on_insert ON shift_assignment");
+    }
+    // Nothing the decision wrote survives: no shift, no fill, no withdrawn offer, no audit row.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM shift_assignment WHERE employee_id = ?", Integer.class, TARA))
+        .isZero();
+    assertThat(jdbc.queryForObject("SELECT status FROM open_shift WHERE id = ?", String.class, openShift))
+        .isEqualTo("OFFERED");
+    assertThat(jdbc.queryForObject("SELECT status FROM overtime_offer WHERE id = ?", String.class, offer))
+        .isEqualTo("OFFERED");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM audit_event WHERE action IN ('decide_proposal_item', 'assign_shift')"
+                    + " AND (entity_id = ? OR after->>'proposalId' = ?)",
+                Integer.class,
+                id(proposal),
+                id(proposal).toString()))
+        .isZero();
+    assertThat(
+            jdbc.queryForMap(
+                "SELECT p.version, i.decision FROM proposal p JOIN proposal_item i"
+                    + " ON i.proposal_id = p.id WHERE p.id = ?",
+                id(proposal)))
+        .containsEntry("version", 0)
+        .containsEntry("decision", "PENDING");
+  }
+
+  @Test
+  void aWithdrawThatGetsTheOfficerLockFirstWinsAndTheDecisionIsRefused() throws Exception {
+    Map<String, Object> proposal =
+        send("t.nakamura", item(UNIT_B, "D8", "2026-11-25T07:00:00-06:00"));
+    long key = TARA.getMostSignificantBits() ^ TARA.getLeastSignificantBits();
+    java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newSingleThreadExecutor();
+    try (java.sql.Connection other = dataSource.getConnection()) {
+      other.setAutoCommit(false);
+      try (java.sql.PreparedStatement lock = other.prepareStatement("SELECT pg_advisory_xact_lock(?)")) {
+        lock.setLong(1, key);
+        lock.execute();
+      }
+      // The decision starts and waits for the officer's lock, which the "withdraw" holds.
+      java.util.concurrent.Future<HttpResponse<String>> decision =
+          pool.submit(() -> decideRaw("m.ellis", proposal, "\"0\"", accept(itemId(proposal, 0))));
+      long deadline = System.currentTimeMillis() + 20_000;
+      while (jdbc.queryForObject(
+              "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND NOT granted"
+                  + " AND database = (SELECT oid FROM pg_database"
+                  + " WHERE datname = current_database())",
+              Integer.class)
+          == 0) {
+        assertThat(System.currentTimeMillis()).as("decision never waited").isLessThan(deadline);
+        Thread.onSpinWait();
+      }
+      try (java.sql.Statement withdraw = other.createStatement()) {
+        withdraw.executeUpdate(
+            "UPDATE proposal_item SET decision = 'WITHDRAWN', decided_at = now()"
+                + " WHERE proposal_id = '" + id(proposal) + "'");
+        withdraw.executeUpdate(
+            "UPDATE proposal SET status = 'WITHDRAWN', version = version + 1"
+                + " WHERE id = '" + id(proposal) + "'");
+      }
+      other.commit();
+
+      HttpResponse<String> refused = decision.get(30, java.util.concurrent.TimeUnit.SECONDS);
+      assertThat(refused.statusCode()).as(refused.body()).isEqualTo(409);
+      assertThat((String) json(refused).get("type")).endsWith("/proposal-withdrawn");
+    } finally {
+      pool.shutdownNow();
+    }
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM shift_assignment WHERE employee_id = ?", Integer.class, TARA))
+        .isZero();
+  }
+
+  @Test
+  void aClosedUnitOrARetiredShiftTypeRefusesTheApproval() throws Exception {
+    Map<String, Object> onB = send("t.nakamura", item(UNIT_B, "D8", "2026-11-25T07:00:00-06:00"));
+    Map<String, Object> evening =
+        send("t.nakamura", item(UNIT_A, "E8", "2026-11-27T15:00:00-06:00"));
+    jdbc.update("UPDATE unit SET active = false WHERE id = ?", UNIT_B);
+    jdbc.update("UPDATE shift_template SET active = false WHERE code = 'E8'");
+    try {
+      HttpResponse<String> closed = decideRaw("m.ellis", onB, "\"0\"", accept(itemId(onB, 0)));
+      assertThat(closed.statusCode()).isEqualTo(409);
+      assertThat((String) json(closed).get("type")).endsWith("/unit-closed");
+      HttpResponse<String> retired =
+          decideRaw("m.ellis", evening, "\"0\"", accept(itemId(evening, 0)));
+      assertThat(retired.statusCode()).isEqualTo(409);
+      assertThat((String) json(retired).get("type")).endsWith("/shift-type-retired");
+      // Declining needs neither: the officer still gets an answer.
+      assertThat(
+              decideRaw("m.ellis", onB, "\"0\"", decline(itemId(onB, 0), "Unit B is closed then"))
+                  .statusCode())
+          .isEqualTo(200);
+    } finally {
+      jdbc.update("UPDATE unit SET active = true WHERE id = ?", UNIT_B);
+      jdbc.update("UPDATE shift_template SET active = true WHERE code = 'E8'");
+    }
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM shift_assignment WHERE employee_id = ?", Integer.class, TARA))
+        .isZero();
   }
 
   // ---------------------------------------------------------------------------------------------

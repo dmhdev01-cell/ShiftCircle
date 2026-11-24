@@ -255,7 +255,7 @@ Things the design describes that the prototype does **not** have. They are liste
 | Not built | What exists instead | Where it is designed |
 |---|---|---|
 | **Excel round-trip** for rule tables (download/upload `.xlsx`) | The in-app grid only. No export or import endpoint, no Apache POI dependency | docs/04 §2, docs/07 §4.7, FR-74 |
-| **Employee shift planner** ("Propose shifts", `/me/propose`) and the supervisor's **proposals inbox** (`/proposals`) | Placeholder pages that say what is planned; no `/proposals` api. The `! D proposed` chip exists only in the fixtures web | docs/07 §4.4, docs/ui/README §6 |
+| **Employee shift planner** ("Propose shifts", `/me/propose`) and the supervisor's **proposals inbox** (`/proposals`) | Placeholder pages that say what is planned. The `/proposals` api is built (v1.3 P1 officer side, P2 decider side, docs/07 §4.4); the screens are P3 and P4. The `! D proposed` chip exists only in the fixtures web | docs/07 §4.4, docs/ui/README §6 |
 | **My hours** (`/me/hours`) and a separate **rule version review** page (`/rules/{version}/review`) | Placeholder pages; the approver reviews and approves on the rules screen | docs/ui/README §6 |
 | **Withdrawing or expiring an overtime offer** | Offers are accepted or declined. The schema has `WITHDRAWN` and `EXPIRED` statuses, but nothing sets them | docs/07 §4.2 (move and cancel) |
 | **`ETag`/`If-Match` in general** | Only assignment move and cancel (docs/07 §4.2); rule drafts rely on the build fingerprint | docs/07 §1 |

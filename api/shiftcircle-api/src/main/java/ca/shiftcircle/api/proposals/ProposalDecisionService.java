@@ -391,7 +391,10 @@ public class ProposalDecisionService {
 
     // "Rules now" is read the way the officer's send was: each waiting item with the waiting items
     // that start before it as extra facts, so "was / now" compares like with like. None of them is
-    // in shift_assignment, so nothing is counted twice.
+    // in shift_assignment, so nothing is counted twice. Items outside the caller's scope are facts
+    // only (no evaluation is spent on them). Note for the inbox screen: the decision's own gate
+    // uses only the items accepted earlier in the same send, so an item can show a Warn here that
+    // the decision does not ask about when the earlier item is declined (docs/07 §4.4).
     Map<UUID, RuleCheckService.OutcomeView> now = new LinkedHashMap<>();
     List<ShiftFact> earlier = new ArrayList<>();
     for (Row row : proposal.items()) {
@@ -399,7 +402,9 @@ public class ProposalDecisionService {
         continue;
       }
       RuleCheckService.Change change = change(proposal.employeeId(), row);
-      now.put(row.id(), ruleChecks.evaluateWithExtras(change, earlier, live));
+      if (inScope(principal, row.unitCode())) {
+        now.put(row.id(), ruleChecks.evaluateWithExtras(change, earlier, live));
+      }
       earlier.add(ruleChecks.factOf(change, "waiting-" + row.id()));
     }
 
@@ -433,7 +438,7 @@ public class ProposalDecisionService {
       if (pending) {
         UUID openShiftId = matchOpenShift(row);
         if (openShiftId != null) {
-          match = matchView(openShiftId, proposal.employeeId(), principal);
+          match = matchView(openShiftId, proposal.employeeId(), principal, live);
         }
       }
       items.add(
@@ -531,6 +536,13 @@ public class ProposalDecisionService {
     shifts.stream().distinct().sorted().forEach(this::lockOpenShift);
     lockOfficer(employeeId);
     expiry.apply(employeeId);
+    // The item rows are locked for the rest of the decision. The hourly sweep takes no officer
+    // lock, but it skips locked rows (SKIP LOCKED), so nothing can expire or change an item between
+    // the state check below and the write; the rowcount checks at the write are the backstop.
+    jdbc.queryForList(
+        "SELECT id FROM proposal_item WHERE proposal_id = ? ORDER BY id FOR UPDATE",
+        UUID.class,
+        proposalId);
 
     Proposal proposal = load(proposalId);
     if ("WITHDRAWN".equals(proposal.status())) {
@@ -592,13 +604,15 @@ public class ProposalDecisionService {
       acceptedEarlier.add(ruleChecks.factOf(change, "accepted-" + row.id()));
       UUID openShiftId = matchOpenShift(row);
       OvertimeService.OrderPosition order =
-          openShiftId == null ? null : overtime.orderPosition(openShiftId, employeeId, principal);
+          openShiftId == null
+              ? null
+              : overtime.orderPosition(openShiftId, employeeId, principal, live);
       planned.add(new Planned(row, input, outcome, openShiftId, order));
     }
     refuseIfRulesSayNo(planned);
 
-    // Write, in start order. The writer checks the rules again against what is now stored (the
-    // items written just before are real shifts by then), so the result is the one above.
+    // Write, in start order. The writer is handed the result checked above, so the rule result
+    // that is enforced is the one stored and audited (one evaluation per item, one rule snapshot).
     Timestamp decidedAt = Timestamp.from(clock.now());
     for (Planned plan : planned) {
       Row row = plan.row();
@@ -611,7 +625,8 @@ public class ProposalDecisionService {
       after.put("template", row.templateCode());
       after.put("startAt", row.startAt().toString());
       if (plan.outcome() == null) {
-        jdbc.update(
+        int declined =
+            jdbc.update(
             "UPDATE proposal_item SET decision = 'DECLINED', decided_by ="
                 + " (SELECT id FROM app_user WHERE username = ?), decided_at = ?, comment = ?"
                 + " WHERE id = ? AND decision = 'PENDING'",
@@ -619,6 +634,7 @@ public class ProposalDecisionService {
             decidedAt,
             comment,
             row.id());
+        requireOneRow(declined, row);
         after.put("decision", "DECLINED");
         after.put("comment", comment);
         audit(principal, "decide_proposal_item", "proposal", proposalId, after);
@@ -638,7 +654,8 @@ public class ProposalDecisionService {
                   null,
                   false,
                   "PROPOSAL",
-                  extras),
+                  extras,
+                  plan.outcome()),
               principal);
 
       int offersWithdrawn = 0;
@@ -657,17 +674,18 @@ public class ProposalDecisionService {
               "The matching open shift was filled meanwhile",
               "Reload the proposal and decide again.");
         }
-        // The shift is taken: live offers for it are withdrawn, so nobody accepts or confirms a
-        // shift that no longer exists. The answered ones keep their history.
+        // The shift is taken: the offers still waiting for an answer are withdrawn (plan §4), so
+        // nobody accepts a shift that no longer exists. An offer the officer already ACCEPTED is
+        // left as it is: the overtime confirm refuses it with its own 409 "already filled".
         offersWithdrawn =
             jdbc.update(
-                "UPDATE overtime_offer SET status = 'WITHDRAWN', responded_at = coalesce(responded_at, now()),"
-                    + " version = version + 1"
-                    + " WHERE open_shift_id = ? AND status IN ('OFFERED', 'ACCEPTED')",
+                "UPDATE overtime_offer SET status = 'WITHDRAWN', version = version + 1"
+                    + " WHERE open_shift_id = ? AND status = 'OFFERED'",
                 plan.openShiftId());
       }
 
-      jdbc.update(
+      int accepted =
+          jdbc.update(
           "UPDATE proposal_item SET decision = 'ACCEPTED', decided_by ="
               + " (SELECT id FROM app_user WHERE username = ?), decided_at = ?, comment = ?,"
               + " assignment_id = ?, decision_snapshot = ?::jsonb, acknowledged_codes = ?,"
@@ -682,6 +700,7 @@ public class ProposalDecisionService {
           outOfOrder,
           plan.openShiftId(),
           row.id());
+      requireOneRow(accepted, row);
       after.put("decision", "ACCEPTED");
       after.put("comment", comment);
       after.put("outcomeNow", plan.outcome().outcome());
@@ -697,16 +716,52 @@ public class ProposalDecisionService {
       audit(principal, "decide_proposal_item", "proposal", proposalId, after);
     }
 
-    jdbc.update(
-        "UPDATE proposal SET version = version + 1, decided_by ="
-            + " (SELECT id FROM app_user WHERE username = ?), decided_at = ?, status ="
-            + " CASE WHEN EXISTS (SELECT 1 FROM proposal_item WHERE proposal_id = proposal.id"
-            + "                   AND decision = 'PENDING') THEN 'WAITING' ELSE 'DECIDED' END"
-            + " WHERE id = ?",
-        principal.username(),
-        decidedAt,
-        proposalId);
+    int bumped =
+        jdbc.update(
+            "UPDATE proposal SET version = version + 1, decided_by ="
+                + " (SELECT id FROM app_user WHERE username = ?), decided_at = ?, status ="
+                + " CASE WHEN EXISTS (SELECT 1 FROM proposal_item WHERE proposal_id = proposal.id"
+                + "                   AND decision = 'PENDING') THEN 'WAITING' ELSE 'DECIDED' END"
+                + " WHERE id = ? AND version = ? AND status = 'WAITING'",
+            principal.username(),
+            decidedAt,
+            proposalId,
+            proposal.version());
+    if (bumped != 1) {
+      // Something changed the proposal underneath: throwing rolls back every shift, fill and
+      // audit row this decision wrote.
+      throw ProposalProblemException.of(
+          412,
+          "stale-version",
+          "This proposal changed since you read it",
+          "Reload the proposal and decide again.");
+    }
     return view(load(proposalId), principal);
+  }
+
+  /**
+   * One item row must change. Zero means it was expired, withdrawn or answered underneath this
+   * decision; the exception rolls back everything the decision wrote (no orphan shift, no audit).
+   */
+  private void requireOneRow(int updated, Row row) {
+    if (updated == 1) {
+      return;
+    }
+    String now =
+        jdbc.queryForObject(
+            "SELECT decision FROM proposal_item WHERE id = ?", String.class, row.id());
+    if ("EXPIRED".equals(now)) {
+      throw ProposalProblemException.of(
+          409,
+          "shift-started",
+          "This shift has already started",
+          "The shift on " + row.workDate() + " started before anyone answered, so it expired.");
+    }
+    throw ProposalProblemException.of(
+        409,
+        "already-decided",
+        "This shift was already answered",
+        "The shift on " + row.workDate() + " changed while you decided. Reload the proposal.");
   }
 
   /** Block first, then unacknowledged warnings, then the overtime order: one 422 per send. */
@@ -788,6 +843,10 @@ public class ProposalDecisionService {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST, "Each item needs id and accept (true or false)");
       }
+      if (item.acknowledgeWarnings() != null && item.acknowledgeWarnings().size() > 50) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST, "acknowledgeWarnings lists at most 50 codes");
+      }
       if (wanted.put(item.id(), item) != null) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST, "Item " + item.id() + " is listed twice");
@@ -831,6 +890,17 @@ public class ProposalDecisionService {
           "unit-closed",
           "That unit is closed on that date",
           row.unitCode() + " is closed on " + row.workDate() + ", so it needs no extra staff then.");
+    }
+    Boolean templateActive =
+        jdbc.queryForObject(
+            "SELECT active FROM shift_template WHERE id = ?", Boolean.class, row.templateId());
+    if (!Boolean.TRUE.equals(templateActive)) {
+      throw ProposalProblemException.of(
+          409,
+          "shift-type-retired",
+          "That shift type was retired",
+          "The " + row.templateCode() + " shift on " + row.workDate() + " uses a shift type that"
+              + " was retired after it was sent. Decline it; the officer can propose another.");
     }
   }
 
@@ -878,16 +948,25 @@ public class ProposalDecisionService {
             end);
     double before = round2(sum == null ? 0 : sum);
     double after = round2(before + itemHours);
-    double overtime =
-        Math.max(
-            0,
-            round2(
-                classifier.classify(after, policy).overtimeHours()
-                    - classifier.classify(before, policy).overtimeHours()));
+    double overtime = overtimeAdded(classifier, before, itemHours, policy);
     double threshold = policy.thresholdHours();
     String status =
         after >= threshold ? "IN_OVERTIME" : after >= threshold - 8 ? "APPROACHING" : "UNDER";
     return new PayPeriodView(start, end, before, after, threshold, overtime, status);
+  }
+
+  /**
+   * The overtime hours an extra shift adds to a pay period that already holds {@code before} hours:
+   * the P-01 threshold and the P-04 minimum decide it, exactly as payroll will.
+   */
+  static double overtimeAdded(
+      PayClassifier classifier, double before, double itemHours, PayPolicy policy) {
+    double after = round2(before + itemHours);
+    return Math.max(
+        0,
+        round2(
+            classifier.classify(after, policy).overtimeHours()
+                - classifier.classify(before, policy).overtimeHours()));
   }
 
   /**
@@ -906,7 +985,8 @@ public class ProposalDecisionService {
     return ids.isEmpty() ? null : ids.get(0);
   }
 
-  private OpenShiftMatch matchView(UUID openShiftId, UUID employeeId, AuthPrincipal principal) {
+  private OpenShiftMatch matchView(
+      UUID openShiftId, UUID employeeId, AuthPrincipal principal, PublishedRuleSet.Snapshot live) {
     String status =
         jdbc.queryForObject("SELECT status FROM open_shift WHERE id = ?", String.class, openShiftId);
     Integer offers =
@@ -916,7 +996,7 @@ public class ProposalDecisionService {
             Integer.class,
             openShiftId);
     OvertimeService.OrderPosition order =
-        overtime.orderPosition(openShiftId, employeeId, principal);
+        overtime.orderPosition(openShiftId, employeeId, principal, live);
     return new OpenShiftMatch(
         openShiftId,
         "OFFERED".equals(status) ? "OFFERS_SENT" : status,

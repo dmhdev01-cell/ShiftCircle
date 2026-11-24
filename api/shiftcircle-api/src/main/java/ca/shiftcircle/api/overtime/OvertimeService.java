@@ -324,9 +324,14 @@ public class OvertimeService {
   /**
    * The officer's place in the ranked list a decider sees for this open shift. The pool is the one
    * the Overtime board shows the decider (a supervisor's units; every active officer for the
-   * planner, who has no unit scope), plus the officer, so their place is always known.
+   * planner, who has no unit scope), plus the officer, so their place is always known. The caller
+   * passes the rule snapshot it already evaluates with, so both read the same rule set.
    */
-  public OrderPosition orderPosition(UUID openShiftId, UUID employeeId, AuthPrincipal principal) {
+  public OrderPosition orderPosition(
+      UUID openShiftId,
+      UUID employeeId,
+      AuthPrincipal principal,
+      PublishedRuleSet.Snapshot live) {
     Map<String, Object> shift = shiftRow(openShiftId);
     List<Map<String, Object>> pool = new ArrayList<>();
     boolean present = false;
@@ -343,7 +348,7 @@ public class OvertimeService {
       return new OrderPosition(null, 0, "UNAVAILABLE", false);
     }
     List<OvertimeRanker.Ranked> ranked =
-        rank(shift, pool, publishedRuleSet.snapshot(), new LinkedHashMap<>());
+        rank(shift, pool, live, new LinkedHashMap<>());
     int eligible = 0;
     Integer position = null;
     String eligibility = "UNAVAILABLE";

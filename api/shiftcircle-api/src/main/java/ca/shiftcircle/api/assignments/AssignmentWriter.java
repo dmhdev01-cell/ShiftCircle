@@ -51,6 +51,10 @@ public class AssignmentWriter {
    * @param source the {@code shift_assignment.source}: MANUAL, OVERTIME_OFFER or PROPOSAL
    * @param auditExtras extra keys for the {@code assign_shift} audit row (for example the
    *     proposal id), or an empty map
+   * @param checked a rule result the caller already evaluated for exactly this shift under its own
+   *     locks (the proposal decision, which checks every item before writing any), or null to
+   *     evaluate here. Passing it means one evaluation per shift and the enforced result is the one
+   *     the caller stores and audits.
    */
   public record NewShift(
       RuleCheckService.Change change,
@@ -58,18 +62,35 @@ public class AssignmentWriter {
       RuleCheckRequest.Override override,
       boolean allowOverride,
       String source,
-      Map<String, Object> auditExtras) {}
+      Map<String, Object> auditExtras,
+      RuleCheckService.OutcomeView checked) {
+
+    /** A shift whose rules are evaluated by the writer (the board and the overtime confirm). */
+    public NewShift(
+        RuleCheckService.Change change,
+        List<String> acknowledgeWarnings,
+        RuleCheckRequest.Override override,
+        boolean allowOverride,
+        String source,
+        Map<String, Object> auditExtras) {
+      this(change, acknowledgeWarnings, override, allowOverride, source, auditExtras, null);
+    }
+  }
 
   public record Written(UUID assignmentId, RuleCheckService.OutcomeView outcome, UUID overrideId) {}
 
-  /** Evaluate the rules now, decide, insert and audit. Throws {@link RuleViolationException}. */
+  /**
+   * Evaluate the rules now (unless the caller passed its result), decide, insert and audit. Throws
+   * {@link RuleViolationException}.
+   */
   public Written create(NewShift shift, AuthPrincipal principal) {
     RuleCheckService.Change change = shift.change();
     Map<String, Object> template = activeTemplate(change.shiftTemplate());
     String unitCode =
         jdbc.queryForObject("SELECT code FROM unit WHERE id = ?", String.class, change.unitId());
 
-    RuleCheckService.OutcomeView outcome = ruleChecks.evaluate(change);
+    RuleCheckService.OutcomeView outcome =
+        shift.checked() != null ? shift.checked() : ruleChecks.evaluate(change);
     UUID overrideId =
         decide(
             outcome,
