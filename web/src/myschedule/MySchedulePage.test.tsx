@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
@@ -9,6 +9,7 @@ import { api } from '../api/client';
 import { createFixtureApi } from '../api/fixtures/api';
 import { createHttpApi } from '../api/http';
 import { RoleProvider } from '../shell/nav';
+import { sortOffers } from './useMySchedule';
 import { theme } from '../theme/theme';
 
 function renderMySchedule() {
@@ -201,6 +202,111 @@ describe('the employee My schedule', () => {
     expect(await screen.findByText(/offered 20 Nov 08:45/)).toBeInTheDocument();
     expect(screen.queryByText(/offered by\s+at/)).not.toBeInTheDocument();
     expect(screen.queryByText(/2026-11-20T08:45/)).not.toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+  // Demo verification D1: an offer sent while My schedule was open only showed
+  // after a page refresh, and it was the 4th card, below the fold.
+  it('D1: lists open offers first, the newest first', async () => {
+    const [base] = await api.getMyOffers();
+    const offer = (id: string, offeredAt: string, status: typeof base.status) => ({
+      ...base,
+      id,
+      offeredAt,
+      status,
+    });
+    const sorted = sortOffers([
+      offer('dec-13', '2026-11-19T08:00:00-06:00', 'OFFERED'),
+      offer('done', '2026-11-24T10:00:00-06:00', 'ACCEPTED'),
+      offer('nov-25', '2026-11-20T08:00:00-06:00', 'OFFERED'),
+      offer('nov-21', '2026-11-24T09:07:00-06:00', 'OFFERED'),
+    ]);
+    expect(sorted.map((entry) => entry.id)).toEqual(['nov-21', 'nov-25', 'dec-13', 'done']);
+    // Review S3: a time that parses comes before one that does not.
+    expect(
+      sortOffers([offer('old', '14:20', 'OFFERED'), offer('new', new Date().toISOString(), 'OFFERED')]).map(
+        (entry) => entry.id,
+      ),
+    ).toEqual(['new', 'old']);
+    // Times that do not parse keep the api's order among themselves.
+    expect(
+      sortOffers([offer('a', '14:20', 'OFFERED'), offer('b', '15:05', 'OFFERED')]).map((entry) => entry.id),
+    ).toEqual(['a', 'b']);
+  });
+
+  it('D1: fetches the offers again when the window regains focus or becomes visible', async () => {
+    const offers = await api.getMyOffers();
+    let now = 1_000_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    const spy = vi.spyOn(api, 'getMyOffers').mockResolvedValue([offers[0]]);
+
+    renderMySchedule();
+    await screen.findByText(/Sam Abara/);
+    expect(await screen.findAllByRole('region', { name: 'Overtime offer' })).toHaveLength(1);
+
+    // A supervisor sends a second offer while the page is open.
+    spy.mockResolvedValue([offers[0], offers[1]]);
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(await screen.findAllByRole('region', { name: 'Overtime offer' })).toHaveLength(2);
+
+    // Later, the tab becomes visible again: another fetch.
+    now += 5_000;
+    const calls = spy.mock.calls.length;
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(spy.mock.calls.length).toBe(calls + 1);
+
+    // A failed background refresh keeps the offers on screen, with a quiet note.
+    now += 5_000;
+    spy.mockRejectedValue(new Error('offline'));
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(screen.getAllByRole('region', { name: 'Overtime offer' })).toHaveLength(2);
+    expect(await screen.findByText(/could not be refreshed just now/)).toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+
+  // Review S2: one return to the tab fires visibilitychange and focus; that is
+  // one GET, and an older answer that arrives late does not replace a newer one.
+  it('S2: one return sends one request, and a late older answer is dropped', async () => {
+    const offers = await api.getMyOffers();
+    let now = 2_000_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    const spy = vi.spyOn(api, 'getMyOffers').mockResolvedValue([offers[0]]);
+
+    renderMySchedule();
+    await screen.findByText(/Sam Abara/);
+    expect(await screen.findAllByRole('region', { name: 'Overtime offer' })).toHaveLength(1);
+    const afterMount = spy.mock.calls.length;
+
+    // One return: both events, one request. This request is slow.
+    let resolveOld: (value: typeof offers) => void = () => undefined;
+    spy.mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve; }));
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(spy.mock.calls.length).toBe(afterMount + 1);
+
+    // The next return answers quickly with the newer list (two offers).
+    now += 5_000;
+    spy.mockResolvedValueOnce([offers[0], offers[1]]);
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(spy.mock.calls.length).toBe(afterMount + 2);
+    expect(await screen.findAllByRole('region', { name: 'Overtime offer' })).toHaveLength(2);
+
+    // The slow, older request now answers with no offers: it is ignored.
+    await act(async () => {
+      resolveOld([]);
+    });
+    expect(screen.getAllByRole('region', { name: 'Overtime offer' })).toHaveLength(2);
+    expect(screen.queryByText('No overtime is offered to you right now.')).not.toBeInTheDocument();
     vi.restoreAllMocks();
   });
 });

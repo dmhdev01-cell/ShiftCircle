@@ -35,3 +35,30 @@ export function whenWords(instant: string): string {
   }).format(parsed);
   return `${day} ${month}, ${time}`;
 }
+
+/**
+ * "24 Nov 2026, 09:08": an api instant (ISO, UTC) read in Regina time, with the
+ * year, for lines that can be weeks old (the rule-set version history). A
+ * date-only value reads as its calendar date; anything else is shown as sent.
+ */
+export function dateTimeWords(instant: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(instant)) return plainDate(instant);
+  // Only an ISO instant: Date also parses loose text like "20 Nov 13:50".
+  if (!/^\d{4}-\d{2}-\d{2}T/.test(instant)) return instant;
+  const parsed = new Date(instant);
+  if (Number.isNaN(parsed.getTime())) return instant;
+  const zone = 'America/Regina';
+  const date = new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: zone,
+  }).format(parsed);
+  const time = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: zone,
+  }).format(parsed);
+  return `${date}, ${time}`;
+}
