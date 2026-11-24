@@ -55,11 +55,13 @@ You must write the reason as a real sentence. It goes to the audit log, and the 
 
 <!-- No screenshot yet: desktop__supervisor__override-dialog (no clean capture from the gated build) -->
 
-### Publish a pay period
+### Publish a roster week
 
 **Publish period** records your unit's roster for the period as published, and the board marks it so. Your name and the time are recorded. In this prototype publishing is a recorded state, not an access gate: My schedule does not yet filter by period status (docs/02 FR-06, partial).
 
 Publishing is one-way in this prototype: a later correction is a further assignment, and the board marks it as unpublished.
+
+A roster week is not a pay period: pay periods (two weeks) are locked on **Time & attendance**.
 
 ### Shifts from the quarter plan
 
@@ -137,7 +139,7 @@ It is a shared screen, so it shows counts only, no names. **Leave the wall displ
 
 ## Employee view
 
-Employee view shows an officer's schedule exactly as they see it.
+Employee view opens **My schedule** for the officer record linked to your account, exactly as an officer sees it. It appears in your menu only when your account is linked to an officer; the demo supervisors (M. Ellis, J. Chen) are not, so they don't see it. Sign in as T. Nakamura to see an officer's view.
 
 ## What you can't do here
 

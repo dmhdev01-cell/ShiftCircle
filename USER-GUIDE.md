@@ -35,9 +35,8 @@ Everyone also has **About & version**. The unit office TV uses the **Wall displa
 - **Override:** a supervisor's recorded decision to go ahead despite a Block. The reason goes to the audit log.
 - **Gap:** a shift block (Day, Evening or Night) in a unit with fewer officers than its minimum.
 - **Block-day:** one block on one day, for example "Unit A, Night, Tue 9 Feb".
-- **Pay period:** two weeks.
-  - A supervisor publishes a period: the publish is recorded (one-way, audited) and shown on the planning board. My schedule does not yet filter by period status (docs/02 FR-06, partial).
-  - A supervisor locks a period after its time is recorded.
+- **Pay period:** two weeks. A supervisor locks a pay period after its time is recorded, then exports it to payroll.
+- **Roster week:** one unit's Monday-to-Sunday schedule. A supervisor publishes it: the publish is recorded (one-way, audited) and shown on the planning board. My schedule does not yet filter by period status (docs/02 FR-06, partial).
 - **Draft and committed:**
   - The planner's quarter plan starts as a draft that only the planner sees.
   - Committing writes it to the planning board, where supervisors and officers see it.

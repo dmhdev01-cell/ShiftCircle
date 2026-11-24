@@ -110,11 +110,11 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 - **Interactions to build:** click an empty cell → choose a shift template → live rule preview → save; click a chip → move/cancel; drag and drop is a "could".
 
 ### 5.2 My schedule (employee) — `screens/MySchedule.dc.html`
-- **Route:** `/me/schedule` · **API:** `GET /me/schedule`, `GET /me/offers`, `POST /offers/{id}/accept|decline`, `POST /rule-checks`, `POST /proposals`
+- **Route:** `/me/schedule` · **API:** `GET /me/schedule`, `GET /me/offers`, `POST /offers/{id}/accept|decline`, `POST /rule-checks`. *(`POST /proposals` is not built.)*
 - **Top cards:** next shift (blue card), pay-period hours with a progress bar (worked vs still scheduled), overtime this quarter and place on the overtime list.
 - **Month calendar:** Mon–Sun grid, 6 weeks; out-of-month days dimmed; today outlined in blue; chips as §3.2; ‹ Oct / Dec › navigation.
 - **Overtime offer card** (green border): shift, unit, who offered and when; "Rules OK for you" with rest and hours facts; Accept (yellow) / Decline (white) → confirmation message ("Accepted. Your supervisor will confirm the assignment.").
-- **Propose shifts:** draft items, each with a live rule result (Passes / Warning + reason); note to supervisor; "Send to supervisor" and "Add a shift".
+- **Propose shifts:** draft items, each with a live rule result (Passes / Warning + reason) and "Add a shift". *As built (M1): the note field and "Send to supervisor" are gone, because there is no proposals endpoint or inbox; the card says that sending a proposal is not available in this prototype.*
 - **Privacy:** employees never see colleagues' hours, absences or overtime totals.
 
 ### 5.3 Overtime board (supervisor) — `screens/Overtime.dc.html`
@@ -136,7 +136,7 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 
 ### 5.5 Reports — `screens/Reports.dc.html`
 - **Route:** `/reports/{coverage|hours|overtime}` · **API:** `GET /reports/*`, `GET /pay-periods/{id}/payroll-export`
-- **Tabs:** Coverage / Hours / Overtime. **Filters:** from, to, unit, officer; "Export CSV".
+- **Tabs:** Coverage / Hours / Overtime (the build adds Overrides). **Filters as built (S1):** a date range (From, To, with Apply and Reset) and a unit picker limited to the caller's scope, shared by every tab; the API refuses a reversed range or one over 366 days in plain words. The officer filter exists on the API (`employeeId`, hours report only) and is not on the screen. "Export CSV" respects the chosen range and unit.
 - **KPI tiles:** scheduled hours, worked hours, overtime hours, blocks fully covered, emergency overrides.
 - **Coverage chart:** weekly grouped bars (scheduled = Flax, actual = Midnight Sky) as % of required, with a dashed 100% line; **the axis starts at 94% and says so**; future week marked planned. Needs an accessible text alternative (the mock has an `aria-label` summary; the build should also offer the data table).
 - **Overtime by officer:** top 8 horizontal bars with hours; facility average.
@@ -147,10 +147,12 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 - **Route:** `/display` (signed in as the DISPLAY device account) · **API:** `GET /display/today` every 60 s
 - **Fixed 1920×1080, dark theme:** bg `#1E2327`, cards `#2C3136`. Large clock and date; title "Today's coverage" with the current block.
 - **Six unit cards:** unit name, status pill (Covered = green, Short = Canola with dark text, +1 extra = Buffalo Grass), on-duty count `n / required` at 112px, next block's count.
-- **Side panels:** open shifts in the next 48 h; facility totals (on duty, on overtime, gaps tonight).
+- **Side panels:** open shifts in the next 48 h *(not built: the api returns counts of today's open shifts only)*; facility totals (on duty, on overtime, gaps tonight).
 - **Privacy:** counts only, **no names**, because it's a shared screen (stated in the footer line).
 
 ## 6. Screens not yet designed (build from the patterns above)
+
+**Build status (23 Nov 2026):** Sign-in, Time & attendance and the tablet layouts are built. Shift types is built as the rule table SHIFT_LENGTHS (allowed lengths), not as a shift-template editor. **Proposals inbox, Rule version review and My hours are placeholder pages** that say they are not built yet (`docs/10-testing.md` §8).
 
 | Screen | Route | Notes |
 |---|---|---|

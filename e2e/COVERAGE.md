@@ -1,7 +1,7 @@
 # UI test coverage (Playwright, Chromium only)
 
 What the end-to-end suite covers, screen by role by state, and what it cannot.
-Written for the UI test plan, phase B (2026-11-20). Every row names the spec
+Written for the UI test plan, phase B (2026-11-20) and kept current since (23 Nov 2026: 38 spec files, 114 tests on the real api per viewport). Every row names the spec
 that proves it. **Real api** means the compose stack; **fixtures** means the
 fixtures-mode web (tag `@fixtures`). Run against the real api with
 `--grep-invert @fixtures`, **one viewport per fresh stack** (the specs change
@@ -24,17 +24,19 @@ to `SHOTS_DIR` (default `/private/tmp/sc-ui-shots/<RUN_ID>`, outside the repo).
 
 ## Defects found by these specs
 
-| ID | Severity | What happens | Evidence | Spec |
-|---|---|---|---|---|
-| D1 | Medium (every screen) | The top bar shows **Wed 18 Nov 2026** on the demo day, Thu 19 Nov: `asOf` is parsed as UTC midnight and formatted in Regina time | `web/src/shell/TopBar.tsx:47-53`; every capture | session-and-nav |
-| D2 | Low | An empty Overrides report shows an empty table and no sentence | `web/src/reports/ReportsPage.tsx:353-372`; `desktop__supervisor__reports__overrides.png` | reports |
-| D3 | Low | `/reports/hours` (any tab in the address) opens Coverage; the route parameter is ignored | `ReportsPage.tsx:75` | reports |
-| D4 | Medium | If the reports fail to load, the screen stays empty with no message (no error handling) | `ReportsPage.tsx:85-96` | routes-and-errors |
-| D5 | Medium (safeguard UX) | A **filled** open shift still shows **Confirm** on a leftover accepted offer; the api refuses (409 since F8) but the screen invites a second fill. Almost every seeded filled shift has one | `web/src/overtime/OvertimePage.tsx:500` | overtime-decline-filled |
-| D6 | Low | The plain-language rule sentence reads "After **.\***, an officer needs … the change is **block**." (U-01, U-04; "is warn" elsewhere) | api `GET /rule-sets/1/tables/REST` field `sentence`; `desktop__rules-admin__rules__landing.png` | rules-refusals |
-| D8 | Low | The sign-in screen (signed out) shows the full **supervisor** side navigation | `web/src/shell/nav.tsx:37,40`; `desktop__anonymous__login__normal.png` | session-and-nav |
-| D9 | Medium | After Assign, Acknowledge and assign, or an emergency override, the board is **not reloaded**: the saved cell still reads "Off" until the person leaves the screen (and may try again) | `web/src/planning/PlanningPage.tsx` wires `reload` only at :330 (publish) and :519 (move/cancel) | planning-override |
-| D10 | Serious (axe, tablet) | At 768 px the overtime candidate table and the Hours report scroll sideways with no keyboard access (`scrollable-region-focusable`) | `web/src/overtime/CandidateTable.tsx:50`, `ReportsPage.tsx:41` | a11y-every-screen |
+All nine defects below (D1 to D6 and D8 to D10; there was no D7) were fixed on `main`: no spec carries a `test.fail` marker any more (`grep -rn "test.fail" e2e/tests` finds only a stale comment in `planning-override.spec.ts`). The file and line evidence is as it stood when each was found, so it no longer matches the code.
+
+| ID | Severity | What happened | Evidence at the time | Spec | Now |
+|---|---|---|---|---|---|
+| D1 | Medium (every screen) | The top bar shows **Wed 18 Nov 2026** on the demo day, Thu 19 Nov: `asOf` is parsed as UTC midnight and formatted in Regina time | `web/src/shell/TopBar.tsx:47-53`; every capture | session-and-nav | **Fixed**: the spec asserts the correct behaviour and its `test.fail` marker is gone |
+| D2 | Low | An empty Overrides report shows an empty table and no sentence | `web/src/reports/ReportsPage.tsx:353-372`; `desktop__supervisor__reports__overrides.png` | reports | **Fixed**: the spec asserts the correct behaviour and its `test.fail` marker is gone |
+| D3 | Low | `/reports/hours` (any tab in the address) opens Coverage; the route parameter is ignored | `ReportsPage.tsx:75` | reports | **Fixed**: the spec asserts the correct behaviour and its `test.fail` marker is gone |
+| D4 | Medium | If the reports fail to load, the screen stays empty with no message (no error handling) | `ReportsPage.tsx:85-96` | routes-and-errors | **Fixed**: the spec asserts the correct behaviour and its `test.fail` marker is gone |
+| D5 | Medium (safeguard UX) | A **filled** open shift still shows **Confirm** on a leftover accepted offer; the api refuses (409 since F8) but the screen invites a second fill. Almost every seeded filled shift has one | `web/src/overtime/OvertimePage.tsx:500` | overtime-decline-filled | **Fixed**: the spec asserts the correct behaviour and its `test.fail` marker is gone |
+| D6 | Low | The plain-language rule sentence reads "After **.\***, an officer needs … the change is **block**." (U-01, U-04; "is warn" elsewhere) | api `GET /rule-sets/1/tables/REST` field `sentence`; `desktop__rules-admin__rules__landing.png` | rules-refusals | **Fixed**: the spec asserts the correct behaviour and its `test.fail` marker is gone |
+| D8 | Low | The sign-in screen (signed out) shows the full **supervisor** side navigation | `web/src/shell/nav.tsx:37,40`; `desktop__anonymous__login__normal.png` | session-and-nav | **Fixed**: the spec asserts the correct behaviour and its `test.fail` marker is gone |
+| D9 | Medium | After Assign, Acknowledge and assign, or an emergency override, the board is **not reloaded**: the saved cell still reads "Off" until the person leaves the screen (and may try again) | `web/src/planning/PlanningPage.tsx` wires `reload` only at :330 (publish) and :519 (move/cancel) | planning-override | **Fixed**: the spec asserts the correct behaviour and its `test.fail` marker is gone |
+| D10 | Serious (axe, tablet) | At 768 px the overtime candidate table and the Hours report scroll sideways with no keyboard access (`scrollable-region-focusable`) | `web/src/overtime/CandidateTable.tsx:50`, `ReportsPage.tsx:41` | a11y-every-screen | **Fixed**: the spec asserts the correct behaviour and its `test.fail` marker is gone |
 
 Cosmetic, for the visual review: the planning board's "api unreachable" panel
 shows the browser's raw "Failed to fetch"; the report export status names the
@@ -54,9 +56,9 @@ fixtures-only · **—** not coverable, with the reason.
 | TV account: no navigation | display | session-and-nav | N |
 | Sign out; a screen afterwards asks for sign-in; no "session ended" notice | supervisor | session-and-nav | N |
 | 401 after token loss → sign-in with "Your session ended. Sign in again." | supervisor | session-and-nav | N |
-| Signed-out visitor sees no supervisor nav | anonymous | session-and-nav (D8) | N, known defect |
+| Signed-out visitor sees no supervisor nav | anonymous | session-and-nav (D8) | N (defect fixed) |
 | About & version shows the stack's commit and live rule set | approver | session-and-nav | N |
-| Top bar date is the demo day | supervisor | session-and-nav (D1) | N, known defect |
+| Top bar date is the demo day | supervisor | session-and-nav (D1) | N (defect fixed) |
 | Footer line on every route incl. `/login` and `/display`; no coat of arms / logo / background image | supervisor, display | session-and-nav, e5-wall-display | N, E |
 
 ### Planning board
@@ -67,7 +69,7 @@ fixtures-only · **—** not coverable, with the reason.
 | PC-01 Block with reasons, no save, no override | supervisor | e1-blocked-assignment (@api), keyboard-api | E, N |
 | Emergency-only Block → override dialog: empty, 9 chars, 10 spaces refused; valid reason saves; audited | supervisor | planning-override, audit | N, E |
 | Warning only → "Acknowledge and assign" (no override, no plain save) → saved | supervisor | planning-override | N |
-| Board refreshes after a save | supervisor | planning-override (D9) | N, known defect |
+| Board refreshes after a save | supervisor | planning-override (D9) | N (defect fixed) |
 | Move and cancel with reason (If-Match) | supervisor | move-cancel (@api) | E |
 | Publish period, audit row | supervisor, auditor | publish-period (@api), screenshots | E |
 | Read-only board | auditor | screenshots, a11y-every-screen | N |
@@ -83,7 +85,7 @@ fixtures-only · **—** not coverable, with the reason.
 | Offer → accept → confirm, D · extra | supervisor, employee | e2-offer-accept-confirm | E |
 | Offer → **decline** → supervisor sees Declined, no Confirm | supervisor, employee | overtime-decline-filled | N |
 | Filled shift: no checkbox, Offer, Assign directly | supervisor | overtime-decline-filled | N |
-| Filled shift: no Confirm on a leftover accepted offer | supervisor | overtime-decline-filled (D5) | N, known defect |
+| Filled shift: no Confirm on a leftover accepted offer | supervisor | overtime-decline-filled (D5) | N (defect fixed) |
 | Employee sees no colleague hours | employee | e2-offer-accept-confirm | E |
 
 ### Time & attendance
@@ -103,9 +105,9 @@ fixtures-only · **—** not coverable, with the reason.
 | Coverage, Hours, Overtime, Overrides tabs; CSV export from each | supervisor | reports | N |
 | Planted PC-03 override (reason, U-05, Unit C) in the table and CSV | auditor | reports | N |
 | Range and unit picker: defaults, scope-limited units, refusals, ranged reports and CSV, reset | supervisor, auditor | reports (S1) | N |
-| Empty overrides report says so | supervisor | reports (D2) | N, known defect |
-| Tab in the address opens that tab | auditor | reports (D3) | N, known defect |
-| Data cannot be loaded → message | auditor | routes-and-errors (D4) | N, known defect |
+| Empty overrides report says so | supervisor | reports (D2) | N (defect fixed) |
+| Tab in the address opens that tab | auditor | reports (D3) | N (defect fixed) |
+| Data cannot be loaded → message | auditor | routes-and-errors (D4) | N (defect fixed) |
 | Broken data → error boundary panel, nav and footer alive | auditor | routes-and-errors, screenshots | N |
 
 ### Rules admin
@@ -116,7 +118,7 @@ fixtures-only · **—** not coverable, with the reason.
 | Rest hours 7 and 25 refused in plain words, nothing stored (api checked) | admin | rules-refusals | N |
 | Approver cannot edit a draft or start one | approver | rules-refusals | N |
 | Supervisor reads only | supervisor | e3-rule-change | E |
-| Plain-language sentence is words | admin | rules-refusals (D6) | N, known defect |
+| Plain-language sentence is words | admin | rules-refusals (D6) | N (defect fixed) |
 | Hostile shift-kind pattern | admin | — through the screen: the column is a select of named kinds, so no pattern can be typed; the api refusal is pinned by `RuleRowEditApiTest` and review rounds R39/R40 | — |
 
 ### Audit log
@@ -149,6 +151,31 @@ fixtures-only · **—** not coverable, with the reason.
 | Keyboard only, real api: audit filters in reading order, Enter applies, Clear | auditor | keyboard-api | N |
 | Keyboard only, fixtures: E1 chip, skip link, E3 | supervisor, admin, approver | keyboard | E (F) |
 | axe WCAG 2.1 AA (serious/critical fail) on every screen per role, both viewports | all | a11y-every-screen (+ flow specs on dialogs and panels) | N |
+
+### Quarter planner, preferences, datasets and units (added after phase B)
+
+| Flow / state | Roles | Spec | Status |
+|---|---|---|---|
+| Generate, read, commit a quarter draft; a supervisor then changes one shift | planner, supervisor | planner | N |
+| Draft hand edits: a Block refuses, a Warn needs acknowledging, remove a shift, then commit | planner | planner-draft-edit (runs on fixtures and the real api) | N |
+| Landing, scorecard, gaps pass axe; the commit dialog works by keyboard | planner | planner-a11y | N |
+| Committed plan keeps its tabs after a reload, with the FTE bands | planner | planner-committed | N |
+| Planned absences skip the officer and are counted on the scorecard | planner | planner-absences | N |
+| Preferences after a commit: an N12 officer who asked for 12 h nights reads Met | planner | planner-preferences-committed | N |
+| Officer preference card: a mix of day parts survives a reload | employee | preferences-multi | N |
+| Officer pattern: an 8 h officer changes, a 12 h officer is read-only | planner | officer-pattern | N |
+| Dataset 120: gaps, D12/N12 chips, fill one gap, a fifth 12 h day refused | planner, supervisor | dataset120 | N |
+| Demo reset: 100 to 120 and back; a committed 2027 plan is erased | planner | reset-datasets, reset | N |
+| Dataset notice on the Quarter plan when Dataset 100 is loaded, with a link to About & version (S6); the Other absence code (S8) | planner, supervisor | s6-s8-dataset-notice-other-absence | N |
+| Close Unit C from a date, plan without it, reopen it | planner | unit-closure | N |
+| Planning board week navigation, and a week and unit opened from the address | supervisor | week-navigation | N |
+| Absence correction (sick to worked and back); clear a recorded actual back to "needs actual" | supervisor | absence-correction, clear-actual | N |
+| Record-actual drawer: the grid keeps its place, closes with X or Escape, says Done | supervisor | time-grid-refresh | N |
+| Not-built states say so: Propose shifts sends nothing (M1); Find eligible officer on a slot with no open shift (M3) | employee, supervisor | not-built-states | N |
+| Demo session: a refresh keeps the person signed in on the same screen; sign-out and a `401` clear it (S11) | supervisor | session-and-nav | N |
+| Reports date range and unit picker (S1) | supervisor, auditor | reports | N |
+
+**Not covered by Playwright:** the planner is refused every report by the API (`403`), and since PR #14 the menu has no Reports item for the planner; no spec asserts the absence of the item.
 
 ## Not coverable here, and why
 

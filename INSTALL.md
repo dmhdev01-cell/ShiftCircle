@@ -16,8 +16,8 @@ the host.
   old `docker-compose` binary.
 - About **2 GB of free memory** for the containers (the guide budgets 64 MB for web,
   768 MB for the api and 256 MB for the database).
-- One free host port. The web publishes **127.0.0.1:8080** by default; the api and
-  database are internal to the Docker network.
+- One free host port. The web publishes **127.0.0.1:8080** by default (loopback only, not
+  the LAN); the api and database are internal to the Docker network.
 - Internet access for the first build: it downloads the base images and the Maven and
   pnpm dependencies. After the images are built, the stack runs offline (the font
   fallback is a system font).
@@ -57,6 +57,7 @@ SC_JWT_SECRET=<the second generated value>
 `SC_PROFILE=demo` is already set in the example. It seeds synthetic data and enables the
 mock sign-in screen; `prod-like` disables both. `SC_DEMO_TODAY` and `SC_DEMO_SEED` fix
 the demo's "today" and its data generator seed, so the same seed rebuilds the same data.
+The other settings are listed in [§11, Settings reference](#11-settings-reference).
 
 Optional: to show a commit at `/api/v1/version`, run `git rev-parse --short HEAD` and
 replace the empty `SC_GIT_COMMIT=` line in `.env` with `SC_GIT_COMMIT=<that value>`
@@ -89,7 +90,10 @@ On a shared machine, give this stack its own Compose project name with `-p`:
 `docker-compose.yml` pins `name: shiftcircle`, so a plain `docker compose up` adopts an
 existing stack with that name instead of starting a separate one. Use the same `-p` on
 every command for this checkout, for example
-`docker compose -p shiftcircle-guide up -d --build --wait`.
+`docker compose -p shiftcircle-guide up -d --build --wait`. Setting
+`COMPOSE_PROJECT_NAME=shiftcircle-guide` in the shell has the same effect (the `-p` flag
+wins over the variable, and the variable wins over the file's `name:`; checked). Each
+project has its own `pgdata` volume, so a second stack never shares data with the first.
 
 ## 5. Health check
 
@@ -102,14 +106,17 @@ curl -fsS http://localhost:8080/healthz
 curl -fsS http://localhost:8080/api/v1/version
 ```
 
-The version response names the api build, the commit baked into the image, the live
-rule-set version, the active profile, the demo date, the available datasets and the
-dataset loaded now (`activeDataset`), for
-example:
+The version response names the api build (`name`, `version`, `buildTime`), the commit
+baked into the image, the live rule-set version, the active profile, the demo date
+(`asOf`), `demoMode`, the available datasets and the dataset loaded now
+(`activeDataset`), for example:
 
 ```json
-{"name":"shiftcircle-api","version":"0.1.0-SNAPSHOT","gitCommit":"<commit>","ruleSetVersion":"v3","profiles":"demo","asOf":"2026-11-19","demoMode":true,"datasets":["100","120","150"],"activeDataset":"100"}
+{"name":"shiftcircle-api","version":"0.1.0-SNAPSHOT","buildTime":"<ISO instant>","gitCommit":"<commit>","ruleSetVersion":"v3","profiles":"demo","asOf":"2026-11-19","demoMode":true,"datasets":["100","120","150"],"activeDataset":"100"}
 ```
+
+On the `prod-like` profile `demoMode` is `false`, `datasets` is empty and `activeDataset`
+is `null`.
 
 `gitCommit` reads `unknown` when `SC_GIT_COMMIT` was not set before the build; set it
 and rebuild to change that.
@@ -209,3 +216,22 @@ Images stay on the machine after `down`; the next `up --build` reuses the build 
 | A second checkout conflicts with the first | `docker-compose.yml` fixes the project name to `shiftcircle`. For a second copy, use a unique project and port: `docker compose -p shiftcircle-test up -d --build --wait` with a different `SC_WEB_PORT`. |
 | Apple Silicon | No `--platform` override is needed; the stack uses multi-arch official images. If Docker warns about amd64 emulation, fix Docker Desktop's architecture setting rather than adding a flag. |
 | Running the Playwright suite from Linux | The install itself needs no extra flag. A browser container cannot reach the stack at `localhost:8080`; use `BASE_URL=http://host.docker.internal:8080` and add `--add-host=host.docker.internal:host-gateway` (macOS/Windows do not need it). See [`e2e/README.md`](e2e/README.md); Linux is unverified in this repository. |
+
+## 11. Settings reference
+
+Set these in `.env` (Compose reads it automatically). Only the first two have no default.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `POSTGRES_PASSWORD` | none, required | Database password, at least 8 characters. Compose refuses to start without it. |
+| `SC_JWT_SECRET` | none, required | Signs the mock sign-in tokens (HS256), at least 32 characters. The api refuses to start without it. |
+| `POSTGRES_DB`, `POSTGRES_USER` | `shiftcircle` | Database name and user. |
+| `SC_PROFILE` | `demo` | `demo`: synthetic data, mock sign-in and the reset card. `prod-like`: neither. |
+| `SC_DEMO_TODAY` | `2026-11-19` | The "today" the demo pretends it is. |
+| `SC_DEMO_SEED` | `20261001` | Seed for the demo data generator. |
+| `SC_GIT_COMMIT` | `unknown` | Build information only: the commit shown at `/api/v1/version`. Baked in at build time (§3). |
+| `SC_WEB_PORT` | `8080` | Host port of the web, bound to `127.0.0.1` (§4). |
+| `VITE_PERSIST_DEMO_SESSION` | unset (persistence on) | Demo session kill switch, build time. On the `demo` profile the web keeps the sign-in in `sessionStorage` so a refresh does not sign you out (ADR-025 amendment). Set it to exactly `false` in `.env` and rebuild (`docker compose up -d --build --wait`) to build a web that never stores the session; a refresh then asks for sign-in again. It is ignored on `prod-like`, which never persists. |
+| `SC_API_PORT`, `SC_DB_PORT` | `8081`, `5433` | Only with the debugging override `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build`, which publishes the api and the database on `127.0.0.1` only. Not needed for a normal install. |
+
+`SC_BUSINESS_TZ` (`America/Regina`) is fixed in `docker-compose.yml`.

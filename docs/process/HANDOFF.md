@@ -26,8 +26,11 @@ ShiftCircle is a **working prototype** for the *AI Solutions Architect – Scree
 | Test strategy and demo dataset spec | ✅ Written (`docs/10-testing.md`) |
 | UI design: 6 screens + full UI spec | ✅ In `docs/ui/` |
 | AI development log | ✅ Started (`docs/process/ai-dev-log.md`); **keep it updated** |
-| Code | ❌ Nothing yet: no `api/`, `web/` or `docker-compose.yml` |
-| Build record, demo script, recording | ❌ Not started |
+| Code | ✅ Built and on `main`: `api/` (Java 21, Spring Boot 4.x, Drools), `web/` (React), `docker-compose.yml`, `e2e/`, GitHub Actions CI. Every development step in §6 is done except the items listed as not built in `docs/10-testing.md` §8 |
+| Build record, demo script | ✅ `BUILD_RECORD.md`, `docs/demo-script.md` |
+| Demo recording (§6 step 13) | ⏳ With the project lead; not part of the repository |
+
+*This note was written on 2026-11-19, before any code existed. §2 was brought up to date on 2026-11-24; the rest is kept as the brief the team worked from. Where §3 to §9 and the current docs differ, the current docs win (`docs/index.md` has the map).*
 
 ## 3. Repo map
 
@@ -46,7 +49,7 @@ docs/09-access-control.md    roles, permission matrix, enforcement, mock sign-in
 docs/10-testing.md           test layers, rule boundary matrix, scenarios, E2E flows, dataset spec
 docs/ui/README.md            UI spec: tokens (Sask palette), components, every screen, routes
 docs/ui/screens/*.dc.html    exact design files (reference markup, not runnable)
-docs/decisions.md            ADR-001 … ADR-014
+docs/decisions.md            the decision log (ADR-001 … ADR-030)
 docs/process/ai-dev-log.md   AI-assisted development log (assessment requirement)
 ```
 
@@ -131,11 +134,11 @@ Until answered, build with the documented defaults; they're all configuration (r
 
 - **UI mockups show old 12 h times** (07–19 / 19–07, chips `D12`/`N12`). Build with the ADR-015 defaults (00–12 / 12–24, chips `A12`/`P12`; 16 h is 12 h + extension; L16 is retired). Mockup "OT" chips mean "extra shift"; overtime is the period status pill (ADR-016).
 - **UI sample numbers vs generator:** the design files show illustrative staffing (e.g. Unit B needing 5/4/3; wall display Escort 7/6). The generator config in `10-testing.md` §6.2 is authoritative; align the UI's demo data to it when building.
-- **Not yet designed:** sign-in picker, time & attendance, proposals inbox, rule version review, tablet layouts (see `docs/ui/README.md` §6). Build them from the documented patterns.
-- `01-scope-and-plan.md` still has a day-by-day plan from before the Drools and spec work; **§6 of this note supersedes it**.
+- *(Built since, from the documented patterns, except the proposals inbox, rule version review and My hours, which are placeholders: `docs/10-testing.md` §8.)* **Not yet designed:** sign-in picker, time & attendance, proposals inbox, rule version review, tablet layouts (see `docs/ui/README.md` §6). Build them from the documented patterns.
+- *(Historical.)* `01-scope-and-plan.md` still has a day-by-day plan from before the Drools and spec work; **§6 of this note supersedes it**.
 - `02-requirements.md` §4 keeps the older R- rule IDs as a summary; the authoritative IDs are U-/P-/S-/O-/L- in `05-union-rules.md`.
 - ADR-006 is partly superseded (middle tier is Java, not .NET); kept for history.
-- Not yet specified in detail: frontend state/routing beyond `docs/ui/README.md` §7, and CI. Add if time allows.
+- Not yet specified in detail: frontend state/routing beyond `docs/ui/README.md` §7. *(CI now exists: `.github/workflows/ci.yml`, `docs/08-deployment.md` §10.)*
 
 ## 10. Suggested demo storyline (≤ 5 minutes)
 
