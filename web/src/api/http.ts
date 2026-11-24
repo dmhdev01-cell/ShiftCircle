@@ -40,7 +40,6 @@ import type {
   OpenShiftQuery,
   ProblemDetails,
   PublishedPeriod,
-  RuleCheckChange,
   RuleCheckOutcome,
   BuildReport,
   ReportQuery,
@@ -483,16 +482,6 @@ export function createHttpApi(): ShiftCircleApi {
     respondToOffer(offerId: string, response: OfferResponse): Promise<MyOffer> {
       return request<MyOffer>(`/offers/${offerId}/${response.toLowerCase()}`, {
         method: 'POST',
-      });
-    },
-
-    submitProposals(
-      note: string,
-      items: RuleCheckChange[],
-    ): Promise<{ id: string; accepted: number }> {
-      return request<{ id: string; accepted: number }>('/proposals', {
-        method: 'POST',
-        body: JSON.stringify({ note, items }),
       });
     },
 
