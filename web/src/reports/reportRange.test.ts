@@ -79,7 +79,7 @@ describe('rangeWords and unitsInScope', () => {
     expect(rangeWords({ from: '2026-10-01', to: '2026-12-29' })).toBe('1 Oct 2026 – 29 Dec 2026');
   });
 
-  it("offers only the units the account carries, or every unit when nobody is signed in", () => {
+  it("offers the units the account carries, every unit to the auditor or when nobody is signed in", () => {
     const unit = (code: string): Unit => ({
       id: `id-${code}`,
       code,
@@ -89,9 +89,11 @@ describe('rangeWords and unitsInScope', () => {
       allows_16h: false,
     });
     const units = [unit('A'), unit('B'), unit('C')];
-    const supervisor = { units: ['A', 'B'] } as DemoUser;
+    const supervisor = { roles: ['SUPERVISOR', 'EMPLOYEE'], units: ['A', 'B'] } as DemoUser;
     expect(unitsInScope(units, supervisor).map((u) => u.code)).toEqual(['A', 'B']);
-    expect(unitsInScope(units, { units: [] as string[] } as DemoUser)).toEqual([]);
+    expect(unitsInScope(units, { roles: ['EMPLOYEE'], units: [] as string[] } as DemoUser)).toEqual([]);
+    // The api's auditor account carries no unit codes; the role reads every unit.
+    expect(unitsInScope(units, { roles: ['AUDITOR'], units: [] as string[] } as DemoUser)).toEqual(units);
     expect(unitsInScope(units, null)).toEqual(units);
   });
 });

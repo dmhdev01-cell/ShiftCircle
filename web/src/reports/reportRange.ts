@@ -86,11 +86,12 @@ export function rangeWords(range: DateRange): string {
 }
 
 /**
- * The units the signed-in person may report on: the codes their account
- * carries (an auditor's covers every unit). Without a signed-in user (the
- * fixtures role switch) every unit is offered and the api still checks.
+ * The units the signed-in person may report on, as ReportsService decides:
+ * an auditor reads every unit (the account carries no codes), anyone else the
+ * codes their account carries. Without a signed-in user (the fixtures role
+ * switch) every unit is offered and the api still checks.
  */
 export function unitsInScope(units: Unit[], user: DemoUser | null): Unit[] {
-  if (!user) return units;
+  if (!user || user.roles.includes('AUDITOR')) return units;
   return units.filter((unit) => user.units.includes(unit.code));
 }
