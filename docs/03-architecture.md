@@ -26,7 +26,7 @@ flowchart LR
         PG[(PostgreSQL 17)]
     end
 
-    U -->|HTTPS :8080| NG
+    U -->|HTTP 127.0.0.1:8080| NG
     NG -->|static files| SPA
     NG -->|/api/* reverse proxy| API
     API --> SVC --> RE

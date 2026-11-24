@@ -73,7 +73,7 @@ docker compose up -d --build --wait
 
 `--wait` returns when all three containers are healthy: the database first, then the API (after it has run the Flyway migrations and generated the synthetic dataset), then the web. Then open **http://localhost:8080** and you see the mock sign-in screen with the demo users.
 
-**How long:** with Docker's build cache warm, `up -d --build --wait` took **31 s** on 2026-11-20 and **50 s** on 2026-11-24, and the demo data took about 3 s of that (`Demo data generated in … ms` in `docker compose logs api`). The very first build also downloads the base images and the Maven and pnpm dependencies, which takes several minutes depending on the network (**UNVERIFIED** on a machine with an empty cache). The default dataset: 100 fictional officers, 1 Oct – 29 Dec 2026, "today" fixed at 19 Nov 2026, seed 20261001. The About reset card can also load Dataset 120 and Dataset 150 (see "Demo data and the quarter planner").
+**How long:** with Docker's build cache warm, `up -d --build --wait` took **31 s** on 2026-11-20 and **50 s** on 2026-11-24, and the demo data took about 6.6 s of that (`Demo data generated in … ms` in `docker compose logs api`). The very first build also downloads the base images and the Maven and pnpm dependencies, which takes several minutes depending on the network (**UNVERIFIED** on a machine with an empty cache). The default dataset: 100 fictional officers, 1 Oct – 29 Dec 2026, "today" fixed at 19 Nov 2026, seed 20261001. The About reset card can also load Dataset 120 and Dataset 150 (see "Demo data and the quarter planner").
 
 **Ports in use?** Only the web publishes a port, and it is bound to **127.0.0.1** (not the LAN) because the demo has mock sign-in and a destructive reset. Set `SC_WEB_PORT` in `.env`, for example `SC_WEB_PORT=18080`, and open that port instead. For local debugging, `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build` also publishes the API (`SC_API_PORT`, default 8081) and the database (`SC_DB_PORT`, default 5433), both on 127.0.0.1 only.
 
@@ -154,8 +154,10 @@ docker run --rm -v "$PWD/e2e":/app -w /app node:24-alpine \
   sh -c "corepack enable && pnpm install --frozen-lockfile"
 # 2. Run the browser in a container. host.docker.internal reaches the host's port 8080 on
 #    Docker Desktop (macOS, Windows); --add-host makes the same name work on Linux.
+#    EXPECT_COMMIT is required: the suite refuses a stack built from any other commit
+#    (use the value you set as SC_GIT_COMMIT, or `git rev-parse --short HEAD`).
 docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work -w /work \
-  -e BASE_URL=http://host.docker.internal:8080 \
+  -e BASE_URL=http://host.docker.internal:8080 -e EXPECT_COMMIT=<the commit you built> \
   mcr.microsoft.com/playwright:v1.65.1-noble npx playwright test --grep-invert @fixtures --project desktop
 ```
 
