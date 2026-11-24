@@ -45,16 +45,16 @@ Good to know:
 
 ## Propose a shift
 
-**Propose shifts** lets you ask for a shift you'd like to work.
+**Propose shifts** lets you check a shift you'd like to work against the rules before you ask for it.
 
 1. Press **Add a shift**, pick the day and shift, then press **Add and check the rules**.
 2. The answer shows right away:
    - **Rules OK for you**;
    - **Rules OK, with a warning**;
    - **A rule blocks this for you**.
-3. Add a **Note to your supervisor** if you like, then press **Send to supervisor**.
+3. Ask your supervisor directly. Sending a proposal from ShiftCircle is **not available in this prototype**: there is no proposals inbox yet, and the card says so.
 
-A proposal is a request: only a supervisor can authorise an extra shift.
+Only a supervisor can authorise an extra shift.
 
 <!-- No screenshot yet: desktop__employee__my-schedule__rule-result (no clean capture from the gated build) -->
 
