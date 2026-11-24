@@ -106,8 +106,16 @@ export async function checkQuarterPlanReadability(
   await weeks.selectOption(mondayOf(item.date));
   const marker = page.getByRole('img', { name: `Rule warning: ${group.ruleName}: ${item.message}` }).first();
   await expect(marker).toBeVisible({ timeout: 15_000 });
+  // Hover opens the tooltip; so does keyboard focus (MUI opens it on
+  // :focus-visible, which Chromium sets once a key has been pressed).
+  await marker.hover();
+  await expect(page.getByRole('tooltip')).toContainText(item.message);
+  await page.mouse.move(0, 0);
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
+  await page.keyboard.press('Shift');
   await marker.focus();
   await expect(page.getByRole('tooltip')).toContainText(item.message);
+  await marker.blur();
   await expect(page.locator(`td[data-date="${item.date}"]`).getByRole('img', { name: /^Rule warning/ }).first()).toBeVisible();
   await expectAccessible(page, testInfo, 'planner-roster-quarter', '[role="tabpanel"]');
   await marker.scrollIntoViewIfNeeded();
