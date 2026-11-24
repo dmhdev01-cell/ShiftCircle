@@ -31,6 +31,7 @@ import type {
   PlannerDraft,
   PlannerGap,
   PlannerPlan,
+  PlanInputs,
   PlannerWarningGroup,
   RecordActualInput,
   RecordActualResult,
@@ -229,6 +230,9 @@ export function createHttpApi(): ShiftCircleApi {
     // the draft version the planner saw.
     getPlannerPlan(): Promise<PlannerPlan> {
       return request<PlannerPlan>('/planner/plan');
+    },
+    getPlannerInputs(): Promise<PlanInputs> {
+      return request<PlanInputs>('/planner/inputs');
     },
     createPlannerDraft(body: PlannerDraftCreation): Promise<PlannerDraft> {
       return request<PlannerDraft>('/planner/drafts', {

@@ -54,6 +54,7 @@ PY
 SUPERVISOR=$(login m.ellis)
 AUDITOR=$(login a.reviewer)
 EMPLOYEE=$(login t.nakamura)
+PLANNER=$(login p.planner)
 
 save version /api/v1/version "$SUPERVISOR"
 save units /api/v1/units "$SUPERVISOR"
@@ -75,6 +76,7 @@ save rule-sets /api/v1/rule-sets "$SUPERVISOR"
 save pay-periods /api/v1/pay-periods "$SUPERVISOR"
 save me-schedule "/api/v1/me/schedule" "$EMPLOYEE"
 save me-offers "/api/v1/me/offers" "$EMPLOYEE"
+save planner-inputs "/api/v1/planner/inputs" "$PLANNER"
 
 # The candidates of the first open shift, and the time entries of the first
 # pay period: both need an id from another answer.

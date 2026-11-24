@@ -244,6 +244,17 @@ class PlannerOptionsApiTest {
             planner,
             "{\"seed\":20261001,\"partTimeFill\":\"UP_TO_FTE\",\"crossUnitFill\":\"ON\"}");
     assertThat(capacity(both)).isEqualTo(new Capacity(9584, 10080, 496, 72, 71));
+    // The draft's plan-inputs snapshot (PR-M) carries the options and their fill-order steps.
+    Map<String, Object> inputs =
+        (Map<String, Object>) ((Map<String, Object>) both.get("scorecard")).get("inputs");
+    assertThat((Map<String, Object>) inputs.get("options"))
+        .containsEntry("staffTypes", List.of("FULL_TIME", "PART_TIME"))
+        .containsEntry("partTimeFill", "UP_TO_FTE")
+        .containsEntry("crossUnitFill", "ON");
+    List<String> fillOrder =
+        (List<String>) ((Map<String, Object>) inputs.get("rules")).get("fillOrder");
+    assertThat(fillOrder).hasSize(7);
+    assertThat(fillOrder.get(4)).startsWith("Each gap still open is then offered");
     UUID bothId = UUID.fromString((String) both.get("id"));
     Map<String, Object> preview =
         mapper.readValue(

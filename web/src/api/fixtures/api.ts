@@ -99,6 +99,7 @@ import {
   saveMyPreferences,
   plannerDraft,
   plannerGaps,
+  plannerInputs,
   plannerPlan,
   plannerWarnings,
   resetPlannerFixtures,
@@ -538,6 +539,11 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
     async getPlannerPlan() {
       await pause();
       return plannerPlan();
+    },
+
+    async getPlannerInputs() {
+      await pause();
+      return plannerInputs();
     },
 
     async createPlannerDraft(body: PlannerDraftCreation) {

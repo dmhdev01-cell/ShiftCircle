@@ -38,6 +38,7 @@ const STACK_SPECS = [
   /\/planner-a11y\.spec\.ts$/,
   /\/planner-absences\.spec\.ts$/,
   /\/planner-committed\.spec\.ts$/,
+  /\/planner-inputs\.spec\.ts$/,
   /\/planner-draft-edit\.spec\.ts$/,
   /\/planner-options\.spec\.ts$/,
   /\/planner-preferences-committed\.spec\.ts$/,

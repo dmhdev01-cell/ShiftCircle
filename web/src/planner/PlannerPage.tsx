@@ -24,6 +24,7 @@ import type {
   PlannerScorecard,
   PlannerWarningGroup,
   PlannerCompare,
+  PlanInputs,
   PlanOptions,
   StaffingReport,
   FlaggedShift,
@@ -37,6 +38,7 @@ import { FlaggedShiftsCard } from './FlaggedShiftsCard';
 import { GapStrip } from './GapStrip';
 import { gapRuns, partTimeCapacity, quarterWeeks, reasonWords, shortWords, staffedWords } from './quarterPlan';
 import { DatasetBanner } from './DatasetBanner';
+import { PlanInputsCard } from './PlanInputsCard';
 import { PlanOptionsFields } from './PlanOptionsFields';
 import {
   DEFAULT_PLAN_OPTIONS,
@@ -174,6 +176,8 @@ export function PlannerPage() {
   const navigate = useNavigate();
   const [plan, setPlan] = useState<PlannerPlan | null>(null);
   const [staffing, setStaffing] = useState<StaffingReport | null>(null);
+  // What Generate would use now (PR-M); a draft carries its own snapshot.
+  const [liveInputs, setLiveInputs] = useState<PlanInputs | null>(null);
   const [flagged, setFlagged] = useState<FlaggedShift[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [message, setMessage] = useState<string | null>(null);
@@ -209,6 +213,13 @@ export function PlannerPage() {
   const [refusal, setRefusal] = useState<{ title: string; body: string; detail?: string } | null>(null);
   const [replaceOpen, setReplaceOpen] = useState(false);
 
+  // Only the planner may call the planner api: another role sees the refusal card and fires no
+  // request that would answer 403 (UI test L-4).
+  const isPlanner = role.id === 'PLANNER';
+  // Bumped only by the events that change what Generate would use (a generate, discard, commit or
+  // staffing change), so the live inputs are fetched once on mount and again after each of them.
+  const [inputsVersion, setInputsVersion] = useState(0);
+
   const load = useCallback(async () => {
     try {
       const next = await api.getPlannerPlan();
@@ -236,10 +247,28 @@ export function PlannerPage() {
   }, []);
 
   useEffect(() => {
+    if (!isPlanner) return;
     void load();
-  }, [load]);
+  }, [load, isPlanner]);
+
+  useEffect(() => {
+    if (!isPlanner) return;
+    let active = true;
+    void api
+      .getPlannerInputs()
+      .then((next) => {
+        if (active) setLiveInputs(next);
+      })
+      .catch(() => {
+        if (active) setLiveInputs(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isPlanner, inputsVersion]);
 
   const refreshStaffing = useCallback(async () => {
+    setInputsVersion((value) => value + 1);
     try {
       setStaffing(await api.getStaffing());
     } catch {
@@ -248,6 +277,7 @@ export function PlannerPage() {
   }, []);
 
   useEffect(() => {
+    if (!isPlanner) return;
     let active = true;
     void api
       .getStaffing()
@@ -268,10 +298,11 @@ export function PlannerPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isPlanner]);
 
   // The roster's unit picker: the same units the board offers.
   useEffect(() => {
+    if (!isPlanner) return;
     let active = true;
     void api
       .getUnits()
@@ -284,13 +315,15 @@ export function PlannerPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isPlanner]);
 
   const draft: PlannerDraft | null = plan?.draft ?? null;
   // A committed plan has no open draft; its summary carries the same scorecard
   // and its id answers the read-only tabs (dev-build's committed-plan API).
   const planDraft: PlannerDraft | null = draft ?? plan?.committedDraft ?? null;
   const scorecard: PlannerScorecard | null = planDraft?.scorecard ?? null;
+  const draftInputs: PlanInputs | null = planDraft?.scorecard.inputs ?? null;
+  const shownInputs: PlanInputs | null = draftInputs ?? liveInputs;
   const planCommitted = plan?.state === 'COMMITTED';
 
   if (role.id !== 'PLANNER') {
@@ -360,6 +393,7 @@ export function PlannerPage() {
         ...optionsForRequest(options),
       });
       setPlan({ ...plan, draft: created, state: 'DRAFT' });
+      setInputsVersion((value) => value + 1);
       setTab('scorecard');
       const [gapRows, warningRows, comparison] = await Promise.all([
         api.getPlannerGaps(created.id),
@@ -428,6 +462,7 @@ export function PlannerPage() {
       );
       setCommitted(result);
       setCommitOpen(false);
+      setInputsVersion((value) => value + 1);
       await load();
     } catch (error) {
       setCommitOpen(false);
@@ -473,6 +508,7 @@ export function PlannerPage() {
       setDiscardOpen(false);
       setCommitted(null);
       setMessage('The draft was discarded. Nothing on the planning board changed.');
+      setInputsVersion((value) => value + 1);
       // The landing card starts again from the defaults it describes.
       setOptions(DEFAULT_PLAN_OPTIONS);
       setDelta(null);
@@ -608,10 +644,9 @@ export function PlannerPage() {
 
       {busy === 'generate' ? (
         <Typography role="status" sx={{ fontSize: 14, color: colour.text.secondary }}>
-          Building a plan for{' '}
-          {staffing?.periods[0]
-            ? `${staffing.periods[0].totals.filled.toLocaleString('en-CA')} officers`
-            : 'every officer'}{' '}
+          {liveInputs
+            ? `Building a plan for ${liveInputs.officers.total.toLocaleString('en-CA')} officers`
+            : 'Building a plan'}{' '}
           and checking every shift against the rules. This usually takes a few seconds.
         </Typography>
       ) : null}
@@ -735,6 +770,15 @@ export function PlannerPage() {
             <PlanOptionsFields value={options} onChange={setOptions} disabled={busy !== null} />
           </CardContent>
         </Card>
+      ) : null}
+
+      {shownInputs && !committed ? (
+        <PlanInputsCard
+          inputs={shownInputs}
+          live={liveInputs}
+          fromDraft={draftInputs !== null}
+          draftWithoutRecord={planDraft !== null && draftInputs === null}
+        />
       ) : null}
 
       {!planDraft && staffing ? (

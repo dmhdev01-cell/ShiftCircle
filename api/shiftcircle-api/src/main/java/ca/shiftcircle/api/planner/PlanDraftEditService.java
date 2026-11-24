@@ -316,7 +316,7 @@ public class PlanDraftEditService {
     existing.addAll(
         planner.historyFor(
             input.employeeId(),
-            PlanGenerator.FROM.minusDays(35).atStartOfDay(REGINA).toInstant(),
+            PlanGenerator.FROM.minusDays(PlanGenerator.HISTORY_DAYS).atStartOfDay(REGINA).toInstant(),
             PlanGenerator.TO.plusDays(1).atStartOfDay(REGINA).toInstant()));
     jdbc.query(
         "SELECT a.id, a.employee_id, e.employee_no, a.unit_id, u.code AS unit_code,"

@@ -76,6 +76,16 @@ public class PlannerController {
     return planner.state();
   }
 
+  /**
+   * Plan inputs (PR-M): what Generate would use now: officers by unit, employment and pattern,
+   * FTE, planned leave, preferences, seniority, unit minimums, the rule set and the fill order.
+   * Counts only. A draft carries its own snapshot in {@code scorecard.inputs}.
+   */
+  @GetMapping("/inputs")
+  public Map<String, Object> inputs() {
+    return planner.inputs();
+  }
+
   @PostMapping("/drafts")
   @ResponseStatus(HttpStatus.CREATED)
   public PlannerViews.DraftSummary generate(
