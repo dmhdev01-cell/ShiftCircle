@@ -1,7 +1,7 @@
 # ShiftCircle web
 
 React + TypeScript + Vite + MUI. `pnpm install`, then `pnpm dev` for the dev server on http://localhost:5173.
-`pnpm build` type-checks and builds to `dist/`, `pnpm lint` runs oxlint (4 warnings, 0 errors is the baseline), `pnpm exec tsc -b` type-checks on its own, and `pnpm test` runs the Vitest suite (548 tests in 55 files on the v1.2 plan-inputs branch, 24 Nov 2026). CI runs lint, `tsc -b`, the tests and the build.
+`pnpm build` type-checks and builds to `dist/`, `pnpm lint` runs oxlint (4 warnings, 0 errors is the baseline), `pnpm exec tsc -b` type-checks on its own, and `pnpm test` runs the Vitest suite (567 tests in 56 files on the v1.2 branch after PR-O and PR-M, 24 Nov 2026). CI runs lint, `tsc -b`, the tests and the build.
 `VITE_API_MODE=fixtures pnpm dev` runs the screens on built-in fixtures with no api (what the `@fixtures` Playwright specs use).
 The api is called through `/api/` - proxied to `http://localhost:8081` in dev and to the api container by nginx in Docker.
 `docker build .` builds the image: nginx serves `dist/` on port 80 and proxies `/api/` to `http://api:8081`, with `/healthz` for the health check.
