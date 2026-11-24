@@ -1,7 +1,7 @@
 import Box from '@mui/material/Box';
 
 import type { BlockCoverage, ShortHourRange } from '../api/types';
-import { coverageTones } from '../theme/tokens';
+import { colour, coverageTones, focusRing } from '../theme/tokens';
 
 function shortRangeLabel(range: ShortHourRange): string {
   const from = range.from.endsWith(':00') ? range.from.slice(0, -3) : range.from;
@@ -18,6 +18,31 @@ interface CoverageCellProps {
    * colour; the short hours stay in the title and the accessible name.
    */
   compact?: boolean;
+  /**
+   * A2: open the gap-fill panel for this block-day. Given, a short cell for
+   * today or later is a button; every other cell stays as it is.
+   */
+  onFill?: (block: BlockCoverage) => void;
+  /** A2: this cell's gap is the one the fill panel shows. */
+  selected?: boolean;
+}
+
+const VISUALLY_HIDDEN = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+} as const;
+
+const BLOCK_NAME = { DAY: 'days', EVENING: 'evenings', NIGHT: 'nights' } as const;
+
+function gapDay(date: string): string {
+  const parsed = new Date(`${date}T00:00:00Z`);
+  const fmt = (options: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat('en-CA', { ...options, timeZone: 'UTC' }).format(parsed);
+  return `${fmt({ weekday: 'short' })} ${fmt({ day: 'numeric' })} ${fmt({ month: 'short' })}`;
 }
 
 /**
@@ -25,7 +50,13 @@ interface CoverageCellProps {
  * headcount in the block over the requirement, and names the hours that fall
  * short - one number per block can hide a two-hour gap.
  */
-export function CoverageCell({ block, today, compact = false }: CoverageCellProps) {
+export function CoverageCell({
+  block,
+  today,
+  compact = false,
+  onFill,
+  selected = false,
+}: CoverageCellProps) {
   // Today and the days after it are shown as planned: the recorded actuals for
   // a day in progress are a handful of hours, and reading them as the day's
   // coverage said "0 / 5" at 10 a.m. for a shift that is 5/5. Past days keep
@@ -69,6 +100,49 @@ export function CoverageCell({ block, today, compact = false }: CoverageCellProp
     .filter(Boolean)
     .join(' · ');
 
+  // A2: a short block on a day still to come opens the fill panel.
+  const fillable = onFill !== undefined && short && !showingActual && block.date >= today;
+  const fillProps = fillable
+    ? {
+        component: 'button' as const,
+        type: 'button' as const,
+        onClick: () => onFill(block),
+        // It opens the gap panel: a disclosure, not a toggle.
+        'aria-expanded': selected,
+        ...(selected ? { 'aria-controls': 'gap-fill-panel' } : {}),
+        // No aria-label: the name is the hidden prefix plus the visible
+        // figures, so it keeps the visible text (WCAG 2.5.3).
+        'aria-label': undefined,
+        // A button, not the plain cell's image.
+        role: undefined,
+        title: `${title} · Fill this gap`,
+      }
+    : {};
+  const fillPrefix = fillable ? (
+    <Box component="span" sx={VISUALLY_HIDDEN}>
+      {`Fill gap: ${gapDay(block.date)} ${BLOCK_NAME[block.block]}, `}
+    </Box>
+  ) : null;
+  const fillSuffix = fillable ? (
+    <Box component="span" sx={VISUALLY_HIDDEN}>
+      {`. ${title}`}
+    </Box>
+  ) : null;
+  const fillSx = fillable
+    ? {
+        border: 0,
+        fontFamily: 'inherit',
+        position: 'relative' as const,
+        cursor: 'pointer',
+        outline: selected ? `2px solid ${colour.brand.primary}` : undefined,
+        outlineOffset: '1px',
+        textDecoration: 'underline',
+        textUnderlineOffset: '2px',
+        '&:hover': { boxShadow: `inset 0 0 0 1px ${tone.text}` },
+        '&:focus-visible': { outline: `3px solid ${focusRing.onLight}`, outlineOffset: '1px' },
+      }
+    : {};
+
   if (compact) {
     return (
       <Box
@@ -77,6 +151,7 @@ export function CoverageCell({ block, today, compact = false }: CoverageCellProp
         title={title}
         role="img"
         aria-label={`${lowest} of ${block.required}. ${title}`}
+        {...fillProps}
         sx={{
           display: 'inline-block',
           minWidth: 34,
@@ -89,9 +164,12 @@ export function CoverageCell({ block, today, compact = false }: CoverageCellProp
           fontWeight: 700,
           textAlign: 'center',
           whiteSpace: 'nowrap',
+          ...fillSx,
         }}
       >
+        {fillPrefix}
         {lowest}/{block.required}
+        {compact ? fillSuffix : null}
       </Box>
     );
   }
@@ -99,6 +177,7 @@ export function CoverageCell({ block, today, compact = false }: CoverageCellProp
   return (
     <Box
       title={title}
+      {...fillProps}
       sx={{
         display: 'flex',
         flexDirection: 'column',
@@ -109,8 +188,11 @@ export function CoverageCell({ block, today, compact = false }: CoverageCellProp
         color: tone.text,
         fontSize: 12,
         fontWeight: 600,
+        ...(fillable ? { width: '100%', textAlign: 'left' } : {}),
+        ...fillSx,
       }}
     >
+      {fillPrefix}
       <Box className="num">
         {lowest} / {block.required}
       </Box>

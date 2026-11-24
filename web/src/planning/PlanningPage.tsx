@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -13,13 +14,15 @@ import Typography from '@mui/material/Typography';
 
 import { qualificationLabel } from '../api/qualifications';
 import { assignableTemplates, shiftTemplates } from '../api/shiftTemplates';
-import type { OfficerRow, ShiftItem, Unit } from '../api/types';
+import type { Block, BlockCoverage, OfficerRow, ShiftItem, Unit } from '../api/types';
 import { useUnits } from '../api/useUnits';
 import { useVersion } from '../api/useVersion';
 import { useRole } from '../shell/nav';
 import { boardPrintStyles } from '../theme/print';
 import { colour, focusRing } from '../theme/tokens';
 import { addDays, weekdayDateWords } from '../planner/unitDates';
+import { GAP_PANEL_HEADING_ID, GapFillPanel } from './GapFillPanel';
+import { BLOCK_TEMPLATES, dayWords, isFillable } from './gapFill';
 import { KpiTile } from './KpiTile';
 import {
   BOARD_VIEWS,
@@ -187,6 +190,28 @@ export function PlanningPage() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportStatus, setExportStatus] = useState('');
   const lastFocus = useRef<HTMLElement | null>(null);
+  // A2: the gap the fill panel shows, its template and what opened it.
+  const [gap, setGap] = useState<{ date: string; block: Block } | null>(null);
+  const [gapTemplate, setGapTemplate] = useState('D8');
+  const gapTrigger = useRef<HTMLElement | null>(null);
+  // A2: the API's pay-period hours are for the period of the board's first
+  // day. A gap in another period (a month view) reads that period's own
+  // schedule, so the ranking and the OT hints use the right hours.
+  const boardFirstDay = state.kind === 'ready' ? state.payload.days[0] : undefined;
+  const gapPeriod =
+    gap && boardFirstDay && payPeriodOf(gap.date).from !== payPeriodOf(boardFirstDay).from
+      ? payPeriodOf(gap.date)
+      : null;
+  const gapPeriodSchedule = useSchedule(
+    gapPeriod ? activeUnitId : undefined,
+    gapPeriod?.from,
+    gapPeriod?.to,
+  );
+  /** A saved change moves the board and, in a month, the gap's own period. */
+  const reloadAll = () => {
+    reload();
+    if (gapPeriod) gapPeriodSchedule.reload();
+  };
 
   // Only a supervisor publishes a roster; the api refuses everyone else.
   const canPublish = role.id === 'SUPERVISOR';
@@ -198,8 +223,24 @@ export function PlanningPage() {
   const restoreFocus = () => {
     const target = lastFocus.current;
     lastFocus.current = null;
-    window.setTimeout(() => target?.focus?.({ preventScroll: true }), 0);
+    window.setTimeout(() => {
+      // A2: a "Check & assign" button is gone once its officer is assigned;
+      // the gap panel's heading takes the focus instead.
+      if (target && !target.isConnected) {
+        document.getElementById(GAP_PANEL_HEADING_ID)?.focus({ preventScroll: true });
+        return;
+      }
+      target?.focus?.({ preventScroll: true });
+    }, 0);
   };
+
+  /** A2: close the gap panel and put focus back on the gap that opened it. */
+  const closeGap = useCallback(() => {
+    setGap(null);
+    const target = gapTrigger.current;
+    gapTrigger.current = null;
+    window.setTimeout(() => target?.focus?.({ preventScroll: true }), 0);
+  }, []);
 
   // Keep the evidence beside the verdict: a non-modal bottom sheet, and the
   // selected cell scrolled above it.
@@ -253,6 +294,19 @@ export function PlanningPage() {
     return () => document.removeEventListener('keydown', onKey);
   }, [ruleCheckOpen, mutation]);
 
+  // A2: Escape closes the gap panel when nothing sits above it.
+  const gapPanelShown = gap !== null && !ruleCheckOpen && pending === null;
+  useEffect(() => {
+    if (!gapPanelShown) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (document.querySelector('[role="dialog"]')) return;
+      closeGap();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [gapPanelShown, closeGap]);
+
   if (state.kind === 'loading') {
     return (
       <>
@@ -305,6 +359,50 @@ export function PlanningPage() {
     payload.days.length > 7 && gapWords.length > 3
       ? `${gapWords.slice(0, 3).join(', ')} and ${gapWords.length - 3} more`
       : gapWords.join(', ');
+  // A2: the gap words become buttons that open the fill panel (a supervisor,
+  // today or later); past gaps stay words.
+  const canFill = (block: BlockCoverage) => !readOnly && isFillable(block, today);
+  // A long span names the same first three as the plain note and counts the
+  // rest, so no button is clipped out of sight in the compact chip.
+  const namedGaps = payload.days.length > 7 && gapWords.length > 3 ? 3 : gapWords.length;
+  const gapNoteContent = gapBlocks.slice(0, namedGaps).some(canFill)
+    ? [
+        ...gapBlocks.slice(0, namedGaps).map((block, index) => {
+        const words = gapWords[index];
+        return (
+          <Fragment key={`${block.date}-${block.block}`}>
+            {index > 0 ? ', ' : ''}
+            {canFill(block) ? (
+              <Box
+                component="button"
+                type="button"
+                onClick={() => openGap(block)}
+                aria-label={`Fill gap: ${words}, ${dayWords(block.date)}`}
+                sx={{
+                  p: 0,
+                  border: 0,
+                  background: 'none',
+                  fontFamily: 'inherit',
+                  fontSize: 'inherit',
+                  fontWeight: 600,
+                  color: colour.brand.link,
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  '&:hover': { color: colour.brand.linkHover },
+                  '&:focus-visible': { outline: `3px solid ${focusRing.onLight}`, outlineOffset: '1px' },
+                }}
+              >
+                {words}
+              </Box>
+            ) : (
+              words
+            )}
+          </Fragment>
+        );
+      }),
+        namedGaps < gapWords.length ? ` and ${gapWords.length - namedGaps} more` : null,
+      ]
+    : undefined;
   const inOvertime = payload.officers.filter((officer) => officer.overtimeStatus === 'IN_OVERTIME');
   const approaching = payload.officers.filter((officer) => officer.overtimeStatus === 'APPROACHING');
   const threshold = payload.officers[0]?.payPeriodThreshold ?? 80;
@@ -329,8 +427,20 @@ export function PlanningPage() {
     view === 'month' && firstPayPeriod
       ? `pay period ${rangeWords(firstPayPeriod.from, firstPayPeriod.to)}`
       : 'this pay period';
-  const kpis: { label: string; value: number; note: string; highlight?: boolean }[] = [
-    { label: 'Coverage gaps', value: gapBlocks.length, note: gapNote, highlight: gapBlocks.length > 0 },
+  const kpis: {
+    label: string;
+    value: number;
+    note: string;
+    highlight?: boolean;
+    noteContent?: ReactNode;
+  }[] = [
+    {
+      label: 'Coverage gaps',
+      value: gapBlocks.length,
+      note: gapNote,
+      highlight: gapBlocks.length > 0,
+      noteContent: gapNoteContent,
+    },
     { label: 'In overtime', value: inOvertime.length, note: overtimeNote },
     { label: 'Approaching overtime', value: approaching.length, note: `within 8 h of ${threshold} h` },
     {
@@ -425,6 +535,7 @@ export function PlanningPage() {
     setProposal(null);
     setShiftActions(null);
     setHelpOpen(false);
+    setGap(null);
     mutation.reset();
   };
 
@@ -451,6 +562,7 @@ export function PlanningPage() {
 
   const changeUnit = (value: string) => {
     setUnitId(value);
+    setGap(null);
     writeParams(focus, value);
   };
 
@@ -482,6 +594,39 @@ export function PlanningPage() {
     setShiftActions({ officer, item });
   };
 
+  /** A2: a short coverage cell or a gap word opens the fill panel. */
+  const openGap = (block: BlockCoverage) => {
+    // The latest gap button is where Close and Escape return.
+    gapTrigger.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (mutation.state.kind !== 'idle' || pending || proposal) {
+      setPending(null);
+      setProposal(null);
+      mutation.reset();
+    }
+    setGap({ date: block.date, block: block.block });
+    setGapTemplate(BLOCK_TEMPLATES[block.block][0]);
+  };
+
+  /**
+   * A2: "Check & assign" from the panel is the empty cell's flow with the
+   * officer and template already chosen: the same preview, the same dock.
+   */
+  const checkFromGap = (officer: OfficerRow, template: string) => {
+    if (!gap) return;
+    lastFocus.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setProposal(null);
+    setPending({ officer, date: gap.date, template });
+    void mutation.preview({
+      type: 'ASSIGN',
+      employeeId: officer.employeeId,
+      unitId: payload.unit.id,
+      shiftTemplate: template,
+      startAt: `${gap.date}T${shiftTemplates[template].start}:00${REGINA_OFFSET}`,
+    });
+  };
+
   const chooseTemplate = (template: string) => {
     if (!pending) return;
     const chosen = { ...pending, template };
@@ -502,6 +647,9 @@ export function PlanningPage() {
   };
 
   const template = pending ? shiftTemplates[pending.template] : undefined;
+  const gapEntry = gap
+    ? payload.coverage.find((block) => block.date === gap.date && block.block === gap.block)
+    : undefined;
   // "Find eligible officer" takes the slot with it: the unit and the start
   // instant are what the overtime board can match against an open shift.
   const requestedStart = pending && template ? `${pending.date}T${template.start}:00${REGINA_OFFSET}` : proposal?.item.startAt;
@@ -774,7 +922,9 @@ export function PlanningPage() {
           density={density}
           officers={shownOfficers}
           filtered={filtered}
-          {...(readOnly ? {} : { onEmptyCell: startChoose, onPickChip: pickChip })}
+          {...(readOnly
+            ? {}
+            : { onEmptyCell: startChoose, onPickChip: pickChip, onFillGap: openGap, selectedGap: gap })}
         />
       </Box>
 
@@ -808,14 +958,14 @@ export function PlanningPage() {
               // A saved change moves the board: read it again (D9).
               if (mutation.state.change) {
                 void mutation.save(mutation.state.change).then((saved) => {
-                  if (saved) reload();
+                  if (saved) reloadAll();
                 });
               }
             }}
             onAcknowledge={(codes) => {
               if (mutation.state.change) {
                 void mutation.save(mutation.state.change, { acknowledgeWarnings: codes }).then((saved) => {
-                  if (saved) reload();
+                  if (saved) reloadAll();
                 });
               }
             }}
@@ -867,6 +1017,39 @@ export function PlanningPage() {
         </DialogActions>
       </Dialog>
 
+      {gapEntry ? (
+        <GapFillPanel
+          payload={payload}
+          gap={gapEntry}
+          template={gapTemplate}
+          onTemplate={setGapTemplate}
+          onCheck={checkFromGap}
+          onClose={closeGap}
+          findEligibleHref={`/overtime?unit=${encodeURIComponent(payload.unit.id)}&startAt=${encodeURIComponent(
+            `${gapEntry.date}T${shiftTemplates[gapTemplate].start}:00${REGINA_OFFSET}`,
+          )}`}
+          hidden={!gapPanelShown}
+          {...(gapPeriod
+            ? {
+                period: {
+                  label: rangeWords(gapPeriod.from, gapPeriod.to),
+                  state: gapPeriodSchedule.state.kind,
+                  ...(gapPeriodSchedule.state.kind === 'ready'
+                    ? {
+                        hours: new Map(
+                          gapPeriodSchedule.state.payload.officers.map((officer) => [
+                            officer.employeeId,
+                            officer,
+                          ]),
+                        ),
+                      }
+                    : {}),
+                },
+              }
+            : {})}
+        />
+      ) : null}
+
       {shiftActions ? (
         <ShiftActionsDialog
           officer={shiftActions.officer}
@@ -897,7 +1080,7 @@ export function PlanningPage() {
                 ...(warnCodes.length > 0 ? { acknowledgeWarnings: warnCodes } : {}),
               })
               .then((saved) => {
-                if (saved) reload();
+                if (saved) reloadAll();
               });
           }
         }}
