@@ -192,9 +192,9 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
 
 **Port:** the e2e commands read `SC_WEB_PORT` from your shell and fall back to 8080. If you changed the port in `.env`, also `export SC_WEB_PORT=<port>` in the shell where you run them (or edit `BASE_URL`). `host.docker.internal` reaches the host from a container on Docker Desktop; the `--add-host` line makes the same name work on Docker Engine (run on macOS; on Linux it is **UNVERIFIED**, and `--network host` with `BASE_URL=http://localhost:${SC_WEB_PORT:-8080}` is the alternative). `E2E_WORKERS` (default 2) sets parallelism; `tests/screenshots.spec.ts` writes full-page captures and `index.json` to `SHOTS_DIR` (default `/private/tmp/sc-ui-shots/<RUN_ID>`, outside the repository: mount it the same way when the browser runs in Docker); the HTML report is `playwright-report/`. The fixtures-mode web and the `@api` / `@fixtures` tags are in `e2e/README.md`.
 
-**Count:** run on `bf148e3` (24 Nov 2026: release 11 plus the PR-H rules-wording fix), on a fresh stack per viewport (the API suite in GitHub CI, `mvn verify` on PR #19):
+**Count:** run on `5a38580` (24 Nov 2026: release 11 plus the PR-H rules-wording fix), on a fresh stack per viewport (the API suite in GitHub CI, `mvn verify` on PR #19):
 - API: **470 = 127 rules + 28 infrastructure + 315 api tests**, `mvn verify` green in the default class order, 0 failures/errors/skipped.
-- Web unit tests: **523** in 53 files; lint 0 errors (4 warnings); `tsc -b` clean.
+- Web unit tests: **514** in 53 files; lint 0 errors (4 warnings); `tsc -b` clean.
 - Playwright against the real API, whole suite per viewport (`--project desktop-datasets` and `--project tablet-datasets`, which run the parallel specs and then the stack-wide specs one at a time): desktop **124 passed**; tablet **123 passed and 1 skipped** (the TV-size check runs on desktop only); no failures on either.
 - Fixtures: **23 passed**, 79 skipped (they need the real API), no failures.
 
