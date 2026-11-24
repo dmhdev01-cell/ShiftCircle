@@ -11,6 +11,7 @@ import type {
   PlannerAssignmentResult,
   PlannerGap,
   PlannerUnitCoverage,
+  PlannerWarningGroup,
   SchedulePayload,
   ShiftItem,
 } from '../api/types';
@@ -19,6 +20,7 @@ import { RosterGrid } from '../planning/RosterGrid';
 import { colour } from '../theme/tokens';
 import { weekdayDateWords } from './unitDates';
 import { DraftAddDialog } from './DraftAddDialog';
+import { warningIndex } from './quarterPlan';
 import { DraftShiftDialog } from './DraftShiftDialog';
 import type { DraftOfficerChoice, DraftUnitChoice } from './DraftShiftDialog';
 
@@ -52,8 +54,15 @@ function rangeWords(from: string, to: string): string {
     new Intl.DateTimeFormat('en-CA', { month: 'short', timeZone: 'UTC' }).format(value);
   const year = (value: Date) =>
     new Intl.DateTimeFormat('en-CA', { year: 'numeric', timeZone: 'UTC' }).format(value);
-  return `${day(start)} – ${day(end)} ${month(end)} ${year(end)}`;
+  // A week across two months names both ("29 Mar – 4 Apr 2027").
+  const startMonth = month(start) === month(end) ? '' : ` ${month(start)}`;
+  return `${day(start)}${startMonth} – ${day(end)} ${month(end)} ${year(end)}`;
 }
+
+function countWords(count: number): string {
+  return count === 0 ? 'no gaps' : `${count} gap${count === 1 ? '' : 's'}`;
+}
+
 
 interface PlannerRosterTabProps {
   draftId: string;
@@ -62,6 +71,8 @@ interface PlannerRosterTabProps {
   units: { id: string; name: string }[];
   unitParam: string | null;
   weekParam: string | null;
+  /** The draft's rule warnings, marked on their chips (A8). */
+  warnings?: PlannerWarningGroup[];
   onChange: (next: { unit?: string; week?: string }) => void;
   /** Release 7: the draft's version, hand-edit count and editability. */
   version?: number;
@@ -84,6 +95,7 @@ export function PlannerRosterTab({
   unitParam,
   weekParam,
   onChange,
+  warnings = [],
   version = 0,
   handEdits = 0,
   editable = false,
@@ -98,13 +110,27 @@ export function PlannerRosterTab({
     units.find((entry) => gaps.some((gap) => gap.unitId === entry.id && gap.date >= week && gap.date < addDays(week, 7))) ??
     units[0];
 
-  /** The visible week's gaps per unit, for the picker's own labels. */
+  /**
+   * The picker's own labels (Q4): the visible week's gaps per unit, said to be
+   * this week's, and the unit's quarter total when it has any.
+   */
   const gapWords = (unitId: string): string => {
-    const count = gaps.filter(
-      (gap) => gap.unitId === unitId && gap.date >= week && gap.date < addDays(week, 7),
-    ).length;
-    return count === 0 ? 'no gaps' : `${count} gap${count === 1 ? '' : 's'}`;
+    const own = gaps.filter((gap) => gap.unitId === unitId);
+    const count = own.filter((gap) => gap.date >= week && gap.date < addDays(week, 7)).length;
+    return `${countWords(count)} this week${own.length > 0 ? `, ${own.length} in the quarter` : ''}`;
   };
+
+  /** A6: every week of the quarter, with its gaps across all units. */
+  const weeks: { monday: string; gaps: number }[] = [];
+  for (let monday = firstWeek; monday <= lastWeek; monday = addDays(monday, 7)) {
+    const end = addDays(monday, 7);
+    weeks.push({ monday, gaps: gaps.filter((gap) => gap.date >= monday && gap.date < end).length });
+  }
+
+  const warningsByChip = warningIndex(warnings);
+  const chipWarning = (officer: OfficerRow, item: ShiftItem, date: string): string | null =>
+    warningsByChip.get(`${officer.name}|${date}|${item.shiftTemplate}`) ?? null;
+  const [allUnitsOpen, setAllUnitsOpen] = useState(false);
 
   const [payload, setPayload] = useState<SchedulePayload | null>(null);
   const [strip, setStrip] = useState<PlannerUnitCoverage[]>([]);
@@ -249,6 +275,33 @@ export function PlannerRosterTab({
             </Box>
           </Box>
 
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, fontSize: 12, fontWeight: 600, color: colour.text.secondary }}>
+            Go to week
+            <Box
+              component="select"
+              aria-label="Go to week"
+              value={week}
+              onChange={(event: { target: { value: string } }) => onChange({ week: event.target.value })}
+              sx={{
+                minHeight: 44,
+                px: 3,
+                border: `1px solid ${colour.border.input}`,
+                borderRadius: '2px',
+                fontFamily: 'inherit',
+                fontSize: 14,
+                color: colour.text.primary,
+                backgroundColor: colour.bg.surface,
+              }}
+            >
+              {weeks.map((entry, index) => (
+                <option key={entry.monday} value={entry.monday}>
+                  Week {index + 1} · {rangeWords(entry.monday, addDays(entry.monday, 6))} ·{' '}
+                  {countWords(entry.gaps)}
+                </option>
+              ))}
+            </Box>
+          </Box>
+
           <Box role="group" aria-label="Week" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
             <Button
               variant="outlined"
@@ -276,10 +329,23 @@ export function PlannerRosterTab({
         </Box>
 
         <Box component="section" aria-label={`All units · ${rangeWords(boardWeek.from, boardWeek.to)}`} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
-            All units · {rangeWords(boardWeek.from, boardWeek.to)}
-          </Typography>
-          <Box sx={{ overflowX: 'auto' }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
+            <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
+              All units · {rangeWords(boardWeek.from, boardWeek.to)}
+            </Typography>
+            <Button
+              variant="text"
+              color="primary"
+              aria-expanded={allUnitsOpen}
+              aria-controls="planner-all-units"
+              onClick={() => setAllUnitsOpen((open) => !open)}
+              sx={{ minHeight: 44 }}
+            >
+              {allUnitsOpen ? 'Hide all units' : 'Show all units'}
+            </Button>
+          </Box>
+          {allUnitsOpen ? (
+          <Box id="planner-all-units" sx={{ overflowX: 'auto' }}>
             <table style={{ borderCollapse: 'collapse', fontSize: 11, width: '100%' }}>
               <thead>
                 <tr>
@@ -340,6 +406,7 @@ export function PlannerRosterTab({
               </tbody>
             </table>
           </Box>
+          ) : null}
         </Box>
 
         <Box
@@ -407,6 +474,7 @@ export function PlannerRosterTab({
             <RosterGrid
               payload={payload}
               today={payload.asOf}
+              chipWarning={chipWarning}
               onEmptyCell={
                 editable
                   ? (officer, date) => {
