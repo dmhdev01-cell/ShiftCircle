@@ -91,7 +91,7 @@ test.describe('the planning board filters and export', () => {
     const rotation = page.getByRole('combobox', { name: 'Rotation' });
     await expect(rotation.getByRole('option')).toHaveText(['All', '8 h', '12 h']);
     await rotation.selectOption({ label: '12 h' });
-    const twelve = await shownCount(page, /officers · works nights, 12 h rotation$/);
+    const twelve = await shownCount(page, /officers · 12 h rotation, works nights$/);
     await expect(officerRows(page)).toHaveCount(twelve);
     await rotation.selectOption({ label: 'All' });
     // Qualification, with the footer saying it sums the officers shown.
