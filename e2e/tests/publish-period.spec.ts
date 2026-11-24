@@ -46,7 +46,8 @@ test.describe('publish the roster period', () => {
       await publish.click();
       const dialog = page.getByRole('dialog');
       await expect(dialog).toContainText(period.label);
-      await expect(dialog).toContainText('the roster is final');
+      await expect(dialog).toContainText('as published');
+      await expect(dialog).not.toContainText('final');
       await dialog.getByRole('button', { name: 'Publish period' }).click();
 
       await expect(page.getByText('Published', { exact: true })).toBeVisible();

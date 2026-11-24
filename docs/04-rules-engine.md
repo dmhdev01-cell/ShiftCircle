@@ -50,7 +50,7 @@ Each rule table is shown as a simple grid. Example, **Rest between shifts**:
 |---|---|---|---|---|---|
 | U-01 | Any shift (within any 24 h) | 8 | Block | Emergency only | Less than 8 hours' rest in 24 hours (Employment Act minimum). |
 | U-02 | Regular shift | 12 | Warn | — | Less than the 12-hour rest target between shifts. |
-| U-03 | 16-hour shift | 12 | Block | Emergency only | Needs 12 hours off after a 16-hour shift. |
+| U-03 | 16-hour shift | 12 | Block | Emergency only | Needs 12 hours off after a 16-hour shift. **Dormant:** keyed to the retired `L16` template, so it never fires in the demo data (see `05-union-rules.md`). |
 | U-04 | Overtime extension of 4 h or more | 10 | Warn | — | Short rest after a long overtime extension. |
 
 Under each row the screen shows a generated **plain-language sentence**:
@@ -119,7 +119,7 @@ build validator refuses a stored one):
 1. **Edit**: a rules admin changes rows in a **draft** version (an Excel upload is future work, not built).
 2. **Validate**: types, ranges and sanity checks (e.g. minimum rest must be between 8 and 24 hours; a Block rule can't be switched to Info without a reason). Errors are shown in plain language.
 3. **Compile**: Drools builds a **staging** rule base from templates plus rows. Compilation problems are translated into "row 3, column *Minimum rest*: must be a number".
-4. **Test**: the automated regression scenarios run (T1–T9 and the boundary cases), plus a **dry run** against the current roster: "This change adds 14 warnings and 2 blocks on the published schedule."
+4. **Test**: the automated regression scenarios run (the pipeline runs T1–T6 and the boundary cases; T7–T14 are API/database tests, `10-testing.md` §4), plus a **dry run** against the current roster: "This change adds 14 warnings and 2 blocks on the published schedule."
 5. **Approve (maker/checker)**: a second person with the approver role reviews the before/after comparison and the impact, then publishes. One person can't both edit and publish.
 6. **Publish**: the new rule base is swapped in live, with no restart. The version is stored with who, when, why and the effective date.
 7. **Roll back**: any earlier version can be republished through the same approval.
@@ -134,7 +134,7 @@ version 1. V12's version 3 copies version 2 unchanged and adds **U-16** (Warn, a
 work day or evening, nights are the 12-hour crews — so U-16 exists for a supervisor's manual
 assignment. Version 2 stays in the table as history. V13 is not a rule-set version: it only retires
 the L16 template (`active=false`, ADR-029). Every 16 h rule (L-01, S-03, U-03/U-04/U-05/U-11) and
-the extension tests stay, because a "16 h shift" in the rules means a 12 h shift plus an extension.
+the extension tests stay in the table, but U-03 and U-11 are **dormant**: their rows key on `L16`, so they never fire on a 12 h shift plus an extension (U-04 and U-05 still do). The tests stay because a "16 h shift" in the rules means a 12 h shift plus an extension.
 
 ## 7. Runtime evaluation
 

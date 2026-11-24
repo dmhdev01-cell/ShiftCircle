@@ -85,7 +85,7 @@ export interface RosterGridProps {
    * sums the officers shown, and the coverage rows say they are the whole unit.
    */
   filtered?: boolean;
-  /** A rule warning for a chip, shown as a ⚠ beside it (planner draft, A8). */
+  /** A rule warning for a chip, shown as a ⚠ beside it (planner draft, A8; PR-C). */
   chipWarning?: (officer: OfficerRow, item: ShiftItem, date: string) => string | null;
 }
 
@@ -125,11 +125,43 @@ function CellChips({
               onClick={onPick ? () => onPick(item) : undefined}
               context={`for ${officerName} on ${date}`}
             />
-            <ChipWarning message={warningFor?.(item) ?? null} />
+            <ChipWarning message={warningFor?.(item) ?? null} compact={compact} />
           </Fragment>
         ),
       )}
     </>
+  );
+}
+
+/**
+ * A rule warning beside a chip: a ⚠ named by its message. It takes focus, and
+ * its tooltip opens on focus as well as hover, so a keyboard user can read it.
+ */
+function ChipWarning({ message, compact = false }: { message: string | null; compact?: boolean }) {
+  if (!message) return null;
+  return (
+    <Tooltip title={message} describeChild>
+      <Box
+        component="span"
+        role="img"
+        tabIndex={0}
+        aria-label={`Rule warning: ${message}`}
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          height: compact ? 24 : 30,
+          px: 0.5,
+          fontSize: 14,
+          lineHeight: 1,
+          color: colour.status.warn.text,
+          cursor: 'help',
+          borderRadius: '4px',
+          '&:focus-visible': { outline: `2px solid ${colour.brand.link}`, outlineOffset: 1 },
+        }}
+      >
+        ⚠
+      </Box>
+    </Tooltip>
   );
 }
 
@@ -173,38 +205,6 @@ function QualificationBadges({ codes, compact }: { codes: string[]; compact: boo
         </Box>
       ))}
     </Box>
-  );
-}
-
-/**
- * A rule warning beside a chip: a ⚠ named by its message. It takes focus, and
- * its tooltip opens on focus as well as hover, so a keyboard user can read it.
- */
-function ChipWarning({ message }: { message: string | null }) {
-  if (!message) return null;
-  return (
-    <Tooltip title={message} describeChild>
-      <Box
-        component="span"
-        role="img"
-        tabIndex={0}
-        aria-label={`Rule warning: ${message}`}
-        sx={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          height: 30,
-          px: 0.5,
-          fontSize: 14,
-          lineHeight: 1,
-          color: colour.status.warn.text,
-          cursor: 'help',
-          borderRadius: '4px',
-          '&:focus-visible': { outline: `2px solid ${colour.brand.link}`, outlineOffset: 1 },
-        }}
-      >
-        ⚠
-      </Box>
-    </Tooltip>
   );
 }
 
@@ -517,7 +517,7 @@ export function RosterGrid({
                               gap: 0.5,
                               justifyContent: compact ? 'center' : undefined,
                               // A one-letter compact chip stays a readable block.
-                              ...(compact ? { '& > *': { minWidth: 28 } } : {}),
+                              ...(compact ? { '& > :not([role="img"])': { minWidth: 28 } } : {}),
                             }}
                           >
                             <CellChips

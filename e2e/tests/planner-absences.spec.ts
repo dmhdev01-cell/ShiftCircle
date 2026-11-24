@@ -30,7 +30,7 @@ interface Unit {
 interface OfficerRow {
   employeeId: string;
   name: string;
-  cells: { date: string; items: { shiftTemplate: string }[] }[];
+  cells: { date: string; items: ({ type: 'SHIFT'; shiftTemplate: string } | { type: 'ABSENCE'; absenceType: string })[] }[];
 }
 
 interface Schedule {
@@ -80,7 +80,12 @@ test.describe('planned absences', () => {
       );
       for (const officer of schedule.officers) {
         for (const cell of officer.cells) {
-          if (cell.date >= '2027-01-05' && cell.date <= '2027-01-08' && cell.items.length > 0) {
+          // A day with a shift and no leave: since PR-D a leave day carries an ABSENCE item,
+          // and re-posting a kept absence on a rerun would answer 200, not 201.
+          const working =
+            cell.items.some((item) => item.type === 'SHIFT') &&
+            !cell.items.some((item) => item.type === 'ABSENCE');
+          if (cell.date >= '2027-01-05' && cell.date <= '2027-01-08' && working) {
             found ??= { unitId: unit.id, name: officer.name, employeeId: officer.employeeId, date: cell.date };
           }
         }
@@ -122,7 +127,10 @@ test.describe('planned absences', () => {
     expect(officer, `${absence.name} is still on the roster`).toBeTruthy();
     const cell = officer!.cells.find((entry) => entry.date === absence.date);
     expect(cell, `${absence.name} has a ${absence.date} cell`).toBeTruthy();
-    expect(cell!.items, `${absence.name} on leave on ${absence.date}`).toHaveLength(0);
+    // No shift that day; since PR-D the draft roster shows the leave itself (a Vac chip, not Off).
+    expect(cell!.items, `${absence.name} on leave on ${absence.date}`).toEqual([
+      { type: 'ABSENCE', absenceType: 'VACATION' },
+    ]);
 
     // Leave no open draft behind (the absence row stays: it is a plan input).
     await api.post(`/planner/drafts/${draft.id}/discard`);

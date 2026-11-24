@@ -354,6 +354,21 @@ export type OfferResponse = 'ACCEPT' | 'DECLINE';
 /** The api's absence codes (FR-51): sick, vacation, other. */
 export type AbsenceType = 'SICK' | 'VACATION' | 'OTHER';
 
+/**
+ * POST /planner/absences (ADR-026): one officer, one date, type only. No reason
+ * or free text is stored (FOIP data minimisation, absence table). The same
+ * officer/date/type again answers the existing row; a different type is a 409.
+ */
+export interface PlannedAbsenceInput {
+  employeeId: string;
+  date: string;
+  type: AbsenceType;
+}
+
+export interface PlannedAbsence extends PlannedAbsenceInput {
+  id: string;
+}
+
 export interface PayCode {
   code: string;
   hours: number;
@@ -1107,6 +1122,8 @@ export interface ShiftCircleApi {
   /** Quarter planner (PLANNER role): plan, drafts, gaps, warnings, commit. */
   getPlannerPlan(): Promise<PlannerPlan>;
   createPlannerDraft(body: { seed: number; pattern8h?: string }): Promise<PlannerDraft>;
+  /** POST /planner/absences: the planner records one day of planned leave (PR-D, fit-gap A9). */
+  planAbsence(input: PlannedAbsenceInput): Promise<PlannedAbsence>;
   /** PUT /planner/preferences/{employeeId}/pattern: the planner sets an 8 h officer's pattern. */
   setPlannerOfficerPattern(employeeId: string, pattern: string): Promise<PlannerPreferenceRow>;
   getPlannerDraft(draftId: string): Promise<PlannerDraft>;
