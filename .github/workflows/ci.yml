@@ -32,6 +32,10 @@ jobs:
         run: |
           bash -n install.sh
           shellcheck install.sh
+          # The pin must match the README/INSTALL URLs; that the tag exists on the remote
+          # is checked at release time (scripts/check-install-pin.sh --remote), because
+          # the tag cannot exist before the release commit does.
+          ./scripts/check-install-pin.sh
       # The dev override must keep db, api and web on loopback only (3 bindings).
       - name: Loopback port bindings
         run: |
