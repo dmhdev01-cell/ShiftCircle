@@ -50,7 +50,9 @@ test.describe('the officer preference card', () => {
       .poll(async () => (await preferences(request)).timesOfDay.slice().sort())
       .toEqual(['DAY', 'EVENING']);
 
-    // A reload loses the in-memory session; signing in again shows the saved set.
+    // With no saved session (the memory-only case; the demo keeps it in
+    // sessionStorage), a reload asks for sign-in and the api's saved set shows.
+    await page.evaluate(() => window.sessionStorage.clear());
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible();
     await signInAgain(page, 'T. Nakamura');
