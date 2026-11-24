@@ -129,7 +129,7 @@ docker compose logs -f api
 ```
 
 When a browser or test runs inside another container, `localhost:8080` means that
-container, not this machine; use `http://host.docker.internal:8080` for the stack.
+container, not this machine; use `http://host.docker.internal:8080` (or your `SC_WEB_PORT`) for the stack.
 
 ## 6. Demo profile, datasets and reset
 
@@ -215,7 +215,7 @@ Images stay on the machine after `down`; the next `up --build` reuses the build 
 | The reset card shows `FAILED` | Retry the reset. A reset and a planner generate/commit cannot run at the same time; wait for the other operation to finish. |
 | A second checkout conflicts with the first | `docker-compose.yml` fixes the project name to `shiftcircle`. For a second copy, use a unique project and port: `docker compose -p shiftcircle-test up -d --build --wait` with a different `SC_WEB_PORT`. |
 | Apple Silicon | No `--platform` override is needed; the stack uses multi-arch official images. If Docker warns about amd64 emulation, fix Docker Desktop's architecture setting rather than adding a flag. |
-| Running the Playwright suite from Linux | The install itself needs no extra flag. A browser container cannot reach the stack at `localhost:8080`; use `BASE_URL=http://host.docker.internal:8080` and add `--add-host=host.docker.internal:host-gateway` (macOS/Windows do not need it). See [`e2e/README.md`](e2e/README.md); Linux is unverified in this repository. |
+| Running the Playwright suite from Linux | The install itself needs no extra flag. A browser container cannot reach the stack at `localhost:8080`; use `BASE_URL=http://host.docker.internal:8080` (or your `SC_WEB_PORT`) and add `--add-host=host.docker.internal:host-gateway` (macOS/Windows do not need it). See [`e2e/README.md`](e2e/README.md); Linux is unverified in this repository. |
 
 ## 11. Settings reference
 
