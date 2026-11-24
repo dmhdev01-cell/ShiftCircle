@@ -86,4 +86,4 @@ For the next release, not the v1.1.1 submission. The owner asked for "options to
 
 **Defaults unchanged:** with the options omitted or sent at their defaults, the 100/120/150 plan fingerprints, warning totals and row counts are identical (`GeneratorCharacterizationTest` generates both ways). Dataset checksums and the payroll golden are unchanged. Commit, the rules and payroll are untouched; the live planning board's payload is unchanged (the `homeUnit` marker is sent only on the draft roster).
 
-**Counts on the PR-N branch:** COUNTS_PLACEHOLDER
+**Counts on the PR-N branch:** author run, 24 Nov 2026, not yet a release gate. API **484 = 127 rules + 28 infrastructure + 329 api** (the API count from the GitHub CI `mvn verify` on this branch; a local `api-test` run on the loaded shared host lost a database connection in an infrastructure test, unrelated); web unit tests **543** in 55 files, lint 4 warnings and 0 errors, `tsc -b` clean; Playwright against the real API, a fresh stack per viewport (`E2E_WORKERS=1`): `desktop-datasets` **125 passed**, `tablet-datasets` **124 passed and 1 skipped** (the TV-size check is desktop-only), 0 failed.
