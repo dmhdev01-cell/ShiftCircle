@@ -1,6 +1,6 @@
 # ShiftCircle
 
-A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervisors plan 8- and 12-hour shifts (a 16 h day is a 12 h shift plus an extension) against a **configurable rules engine** (rest and hours limits, consecutive shifts, staffing, qualifications, overtime). A planner builds a whole-quarter draft through the same engine, changes single shifts in it by hand, and commits it to the planning board. Employees see their schedule and hours and propose shifts. Time feeds a payroll export, and reports show coverage and overtime as planned vs. actual.
+A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervisors plan 8- and 12-hour shifts (a 16 h day is a 12 h shift plus an extension) against a **configurable rules engine** (rest and hours limits, consecutive shifts, staffing, qualifications, overtime). A planner builds a whole-quarter draft through the same engine, changes single shifts in it by hand, and commits it to the planning board. Employees see their schedule and hours and can draft and rule-check shift ideas (sending them to a supervisor is not available yet). Time feeds a payroll export, and reports show coverage and overtime as planned vs. actual.
 
 > A prototype. **All data is synthetic.** Payroll and sign-on are simulated. The default demo seeds 100 fictional officers over 90 days; the About reset card can also load Dataset 120 and Dataset 150 for the quarter planner.
 
@@ -8,7 +8,7 @@ A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervis
 
 ## Architecture at a glance
 
-Three containers: **web** (nginx + React) · **api** (Java 21 + Spring Boot 4.x + Drools rules engine) · **db** (PostgreSQL). See [docs/03-architecture.md](docs/03-architecture.md).
+Three containers: **web** (nginx + React) · **api** (Java 21 + Spring Boot 4.x, JdbcTemplate + Flyway, Drools rules engine) · **db** (PostgreSQL). See [docs/03-architecture.md](docs/03-architecture.md).
 
 ## Documentation
 
@@ -18,7 +18,7 @@ Three containers: **web** (nginx + React) · **api** (Java 21 + Spring Boot 4.x 
 | [USER-GUIDE.md](USER-GUIDE.md) | How to use it, per role: officer, supervisor, planner, auditor, rules admin and approver |
 | [docs/01-scope-and-plan.md](docs/01-scope-and-plan.md) | Problem, users, outcomes, feature priorities, assumptions, plan, open questions |
 | [docs/02-requirements.md](docs/02-requirements.md) | Screens, functional and non-functional requirements, rules catalogue, data model, test cases |
-| [docs/03-architecture.md](docs/03-architecture.md) | Containers, layers, change flow, frontend, security |
+| [docs/03-architecture.md](docs/03-architecture.md) | Containers, feature slices, JdbcTemplate persistence, change flow, frontend, JWT security |
 | [docs/04-rules-engine.md](docs/04-rules-engine.md) | Rules engine design: Drools decision tables a non-technical admin can edit |
 | [docs/05-union-rules.md](docs/05-union-rules.md) | Mock collective-agreement rule set, with each rule's source |
 | [docs/06-data-model.md](docs/06-data-model.md) | PostgreSQL tables, constraints, ER diagram, migrations and seed |
@@ -27,6 +27,7 @@ Three containers: **web** (nginx + React) · **api** (Java 21 + Spring Boot 4.x 
 | [docs/09-access-control.md](docs/09-access-control.md) | Roles, permission matrix, enforcement, mock sign-in, privacy |
 | [docs/10-testing.md](docs/10-testing.md) | Test strategy, rule boundary matrix, scenarios, E2E flows, demo dataset spec |
 | [docs/ui/README.md](docs/ui/README.md) | UI spec: Sask design tokens, components, every screen; design files in `docs/ui/screens/` |
+| [docs/roadmap.md](docs/roadmap.md) | Known limits, staffing findings and the ordered post-submission roadmap |
 | [docs/decisions.md](docs/decisions.md) | Decision log (ADRs) |
 
 ## How this was built
@@ -115,6 +116,10 @@ Before committing, the planner can **change single shifts in the draft**: move o
 Commit re-checks every shift, hand edits included, needs the warning list accepted once, and refuses a stale draft or a locked period. On Dataset 120 the measured draft is 38 gaps of 1,764 (all Escort evening), 7 warnings, zero Block, and 5,103 shifts on commit. The demo script in [`docs/demo-script.md`](docs/demo-script.md) §7 walks it.
 
 **Known limits**, stated on the scorecard and in [`BUILD_RECORD.md`](BUILD_RECORD.md):
+- **Rules (mock values, known defects):** U-03 and U-11 are dormant, because they key on the retired L16 template, so a 12 h shift plus an extension is guarded only by U-04 (Warn) and U-05 (Block). L-01 still lists 16 h as a regular length (a 16 h day is 12 h + extension). P-01's 80 h per-period threshold makes 4-on/4-off 12 h crews built-in overtime, because U-13 cycle averaging is not built.
+- **Planner:** qualifications are not used for placement; part-timers get no floor or fair share (casuals fill leftovers, home unit only, newest-first); seniority orders nights and overtime but not the casual pool; the quarter window is fixed and a plan commits once.
+- **Leave and sick:** leave is skipped by the planner but not shown on the board, with no request, approval or limits; sick is recorded after the fact, with no call-out flow.
+- **Staffing:** Dataset 150 has enough people (138 FTE against about 123 needed); its gaps come from the part-time fill order, and Unit C has only 4 first-aiders for four 12 h crews. Dataset 100 is deliberately tight. See [`docs/roadmap.md`](docs/roadmap.md) for the findings and the ordered roadmap.
 - The planner does not enforce qualifications; the Qualified staff card only reports them, and it does not read qualification start dates.
 - The demo plan has no leave unless you enter it with `POST /api/v1/planner/absences` (PLANNER only, a read-only skip, no approval flow).
 - Payroll overtime stays per pay period (P-01).

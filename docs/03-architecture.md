@@ -1,6 +1,6 @@
 # ShiftCircle — Architecture
 
-**Status:** Draft v0.5 · 2026-11-19 · Middle tier: Java + Spring Boot (ADR-011); rules engine: Drools decision tables (ADR-012).
+**Status:** v0.6 · 2026-11-24 (describes the system as built) · Middle tier: Java + Spring Boot (ADR-011); rules engine: Drools decision tables (ADR-012).
 
 **Detailed specs:** data model `06-data-model.md` · API `07-api-spec.md` · deployment `08-deployment.md` · access control `09-access-control.md` · testing `10-testing.md` · UI `ui/README.md`. Handover: `process/HANDOFF.md`.
 
@@ -18,8 +18,8 @@ flowchart LR
     subgraph C2["Container 2: api"]
         API[Spring Boot 4.x REST API<br/>Java 21 LTS]
         RE[Drools rules engine<br/>decision tables + Java fact builders]
-        SVC[Domain services<br/>scheduling · overtime<br/>time · reports]
-        EF[Spring Data JPA / Hibernate<br/>Flyway migrations]
+        SVC[Feature services<br/>schedule · overtime · planner<br/>time · reports]
+        EF[JdbcTemplate, explicit SQL<br/>Flyway migrations]
     end
 
     subgraph C3["Container 3: db"]
@@ -44,20 +44,28 @@ flowchart LR
 - **Container 1, web:** nginx serves the compiled React app and reverse-proxies `/api` to the API. Everything comes from one origin, so there's no CORS setup.
 - **Container 2, api:** a stateless Spring Boot REST API, built with Maven and run on an Eclipse Temurin JRE 21 image (multi-stage Docker build). Spring Boot Actuator provides health checks for compose. The rules engine (Drools, embedded) is a separate Maven module, so it can be unit-tested on its own and reused later by a batch validator.
 - **Container 3, db:** PostgreSQL, with a named volume. Flyway migrations run on API startup; the synthetic seed generator runs under the `demo` Spring profile.
-- **Simulated integrations** live inside the API and DB as tables, endpoints and screens, so there's no fourth container. Payroll is a CSV download; identity is a header set by the mock sign-in.
+- **Simulated integrations** live inside the API and DB as tables, endpoints and screens, so there's no fourth container. Payroll is a CSV download; identity is a mock sign-in that issues an HS256 bearer JWT, which the API validates on every request.
 
 ## 2. Logical layers (api)
 
 ```
 Maven multi-module build (ca.shiftcircle.*)
 
-shiftcircle-api            → @RestController endpoints, Spring Security config, springdoc OpenAPI, DTOs, validation
-shiftcircle-application    → @Service use cases (AssignShift, OfferOvertime, SubmitProposal, LockPayPeriod, …), @Transactional boundaries
-shiftcircle-rules          → Drools rule templates, fact builders (rest gaps, rolling hours, consecutive runs), rule-base compiler and publish pipeline; no Spring dependency
-shiftcircle-domain         → entities and value objects (Shift, Block, Employee, Post, TimeEntry), Java records where immutable
-shiftcircle-infrastructure → Spring Data JPA repositories, Flyway migrations, simulation seed generator, CSV export
-tests (per module)         → JUnit 5 + AssertJ for rules boundary tests; Spring Boot tests with Testcontainers PostgreSQL for use cases
+shiftcircle-api            → the Spring Boot app. Feature-sliced packages (assignments, audit, auth, coverage, csv, demo,
+                             display, overtime, payroll, planner, reports, rulesets, schedule, time, units, …); each slice holds its
+                             @RestController, its service and its JdbcTemplate SQL. Also Spring Security, the JWT filter, error mapping
+shiftcircle-rules          → Drools rule templates, fact builders (rest gaps, rolling hours, consecutive runs), rule-base compiler and
+                             publish pipeline; no Spring dependency, unit-tested on its own
+shiftcircle-infrastructure → shared plumbing (health, the demo seed generator)
+shiftcircle-domain         → empty placeholder (a package-info only)
+shiftcircle-application    → empty placeholder (a package-info only)
+tests                      → JUnit 5 + AssertJ for the rules boundary tests; Spring Boot tests with Testcontainers PostgreSQL for
+                             the api and repositories
 ```
+
+**What is real, and what isn't.** The design started with a layered `domain` / `application` / `infrastructure` split (entities in `domain`, use cases in `application`). The build did not follow it: each feature is a vertical slice in `shiftcircle-api` (controller → service → SQL), and only the rules engine is a separate module, because it has no Spring dependency and is tested by itself. The `domain` and `application` modules are **kept as empty placeholders** so the module list stays stable; they hold no code, and nothing depends on them for behaviour. Extracting a real domain layer is a roadmap item (`docs/roadmap.md`, package 10), not a prototype goal.
+
+**Persistence is explicit SQL, not an ORM.** Every query is a `JdbcTemplate` call with parameters (`?`/named), which keeps the data access visible and reviewable (and the audit and locked-period triggers live in the schema, not in entity callbacks). There is **no JPA/Hibernate, no springdoc/OpenAPI and no Bean Validation** in the build: request checks are written in the services, and `web/src/api/types.ts` is kept in step with the API by hand (NFR-09 and the generated contract are roadmap items).
 
 ## 3. Key flow: any schedule change
 
@@ -91,12 +99,12 @@ Write operations take a "preview" flag, so the UI can show rule results live bef
 
 | Concern | Choice |
 |---|---|
-| Runtime | Java 21 (LTS), Spring Boot 4.x, subject to the Day 1 Drools compatibility spike (fallback: Spring Boot 3.5.x) |
+| Runtime | Java 21 (LTS), Spring Boot 4.x |
 | Rules | Drools 10.x (Apache KIE) embedded via the KIE API: `drools-templates`, `drools-decisiontables`; Apache POI for Excel import/export (future work: not built, not a dependency in the prototype) |
-| Web / API | Spring Web MVC, Bean Validation, springdoc-openapi (Swagger UI in dev) |
-| Persistence | Spring Data JPA (Hibernate), PostgreSQL JDBC driver, Flyway |
+| Web / API | Spring Web MVC. Request validation is hand-written in the services; there is no Bean Validation and no springdoc/OpenAPI (not built) |
+| Persistence | Spring `JdbcTemplate` with explicit, parameterised SQL; PostgreSQL JDBC driver; Flyway. No JPA/Hibernate |
 | Rule tables | Rows stored in PostgreSQL with versions; compiled into a Drools KieBase on publish |
-| Security | Spring Security: a dev-only signed token from the mock sign-in; method-level role checks (`@PreAuthorize`) |
+| Security | Spring Security: an HS256 JWT sent as `Authorization: Bearer …`, issued by the mock sign-in and validated on every request (`JwtService`); method-level role checks (`@PreAuthorize`) and unit scope (`ScopeGuard`) |
 | Ops | Spring Boot Actuator (health, info); structured JSON logs |
 | Tests | JUnit 5, AssertJ, Spring Boot Test, Testcontainers (PostgreSQL) |
 | Build | Maven (wrapper included), multi-stage Dockerfile |
@@ -105,7 +113,7 @@ Write operations take a "preview" flag, so the UI can show rule results live bef
 
 | Concern | Prototype | For a pilot |
 |---|---|---|
-| Identity | Mock role picker; API checks roles from a signed dev token | Government SSO (e.g. Entra ID / OIDC); roles from HR groups |
+| Identity | Mock role picker; API reads roles from the HS256 bearer JWT | Government SSO (e.g. Entra ID / OIDC); roles from HR groups |
 | Secrets | `.env.example` only; local defaults | Secrets store; no defaults |
 | Data | Synthetic only | Privacy impact assessment (PIA) under FOIP; retention schedule; residency in Canada |
 | Audit | Append-only table (no update or delete through the API) | Database role permissions, log shipping, tamper evidence |

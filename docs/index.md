@@ -32,6 +32,7 @@ This page is plain Markdown with relative links. It reads on GitHub as it is. It
 | [Access control](09-access-control.md) | Roles, permission matrix, mock sign-in, privacy |
 | [Testing](10-testing.md) | Test layers, rule boundary matrix, scenarios, end-to-end flows |
 | [Traceability](traceability.md) | Each requirement mapped to the test that proves it |
+| [Roadmap and known limits](roadmap.md) | What isn't built, staffing findings, the ordered post-submission roadmap |
 | [Decisions](decisions.md) | The decision log (ADRs) |
 | [UI specification](ui/README.md) | Design tokens, components and every screen |
 

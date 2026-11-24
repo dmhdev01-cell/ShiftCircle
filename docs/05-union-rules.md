@@ -26,7 +26,7 @@ Severity: **Block** = can't be saved. An emergency override exists only where ma
 |---|---|---|---|---|
 | U-01 | At least **8 consecutive hours** of rest in any 24-hour period | 8 h | Block (emergency override) | **SEA** (statutory floor) |
 | U-02 | **Target 12 hours** between the end of one regular shift and the start of the next | 12 h | Warn | **MOCK**, aimed above the floor. CX makes 8 h a "reasonable effort" target |
-| U-03 | After a **16-hour shift**, at least 12 hours off before the next shift | 12 h | Block (emergency override) | **MOCK**. No public rule found. CX gives 12 h rest after court attendance, which is an analogous concept |
+| U-03 | After a **16-hour shift**, at least 12 hours off before the next shift. **DORMANT:** the live row is keyed to the retired `L16` template, so a 12 h shift plus an extension never matches it (only U-04 Warn and U-05 Block guard that day) | 12 h | Block (emergency override) | **MOCK**. No public rule found. CX gives 12 h rest after court attendance, which is an analogous concept |
 | U-04 | After an **overtime extension of 4 h or more**, at least 10 hours off before the next shift | 10 h | Warn | **MOCK** |
 | U-05 | No more than **16 hours worked in any 24-hour period** | 16 h | Block (emergency override) | **SEA** |
 | U-06 | No more than **16 consecutive hours** on duty, and no more than **2 shifts back-to-back** | 16 h / 2 | Block (emergency override), specified but not in rule set v1 (§3) | **NU** |
@@ -39,14 +39,14 @@ Severity: **Block** = can't be saved. An emergency override exists only where ma
 | U-08 | Maximum **consecutive work days** (8-hour pattern) | 7 | Block (scheduled), no emergency override in v1 (override policy ACKNOWLEDGE; editable per rule through the rules admin approval flow); Warn (overtime-caused) | **NWT**, **NU** (7); CX allows up to 8 |
 | U-09 | Maximum **consecutive 12-hour shifts** | 4 | Block (scheduled), no emergency override in v1 (override policy ACKNOWLEDGE; editable per rule through the rules admin approval flow); Warn (overtime-caused) | **MOCK**, matching common "4 on, 4 off" patterns |
 | U-10 | Maximum **consecutive 12-hour overnight shifts** (19:00–07:00; A12 00:00–12:00 and N12 19:00–07:00 count) | 4 | Warn | **MOCK** (fatigue) |
-| U-11 | Maximum **16-hour shifts**: 3 in any 7 days, 10 in any 28 days | 3 / 7 d · 10 / 28 d | Warn | **MOCK**, inspired by CX limits on 16-hour shifts within a work cycle |
+| U-11 | Maximum **16-hour shifts**: 3 in any 7 days, 10 in any 28 days. **DORMANT:** it counts `L16` shifts only (retired), so it never fires | 3 / 7 d · 10 / 28 d | Warn | **MOCK**, inspired by CX limits on 16-hour shifts within a work cycle |
 | U-12 | At least **2 consecutive days of rest** in each 7-day period; a break of 24 h or less doesn't count as a day of rest | 2 days / 7 | Warn | **CX**, **PSGE** (two consecutive rest days normally), **NU** |
 
 ### C. Hours over a period
 
 | ID | Rule | Default | Severity | Based on |
 |---|---|---|---|---|
-| U-13 | Regular hours **average** 8 h × working days over the rotation cycle | per pattern | Info | **PSGE** (modified patterns) |
+| U-13 | Regular hours **average** 8 h × working days over the rotation cycle. **Not built**, so P-01 is not cycle-averaged | per pattern | Info | **PSGE** (modified patterns) |
 | U-14 | **Weekly ceiling**, including overtime: warn above 48 h, block above 60 h (the limit itself passes, like every other limit; exactly 60 h is a warning). The planner's warning group is named by the warning level, **"Week over 48 hours"** | 48 / 60 | Warn above 48 h; Block above 60 h, no emergency override in v1 (override policy ACKNOWLEDGE; editable per rule through the rules admin approval flow) | **MOCK** |
 | U-15 | **Overtime status** shown on the planning board: under / approaching (within 8 h of the threshold) / in overtime | per period | Info | **MOCK** (feature) |
 
@@ -54,7 +54,7 @@ Severity: **Block** = can't be saved. An emergency override exists only where ma
 
 | ID | Rule | Default | Severity | Based on |
 |---|---|---|---|---|
-| P-01 | **Overtime is based on total hours in the period:** hours worked beyond the threshold (default **80 h per 2-week pay period**; a weekly 40 h threshold can be selected) are overtime. Rostered 12 h and 16 h shifts aren't overtime by themselves. | 80 h / pay period | Pay | Lead's direction; relies on an averaging / modified work arrangement (SEA, **PSGE** 9.3.5.2) |
+| P-01 | **Overtime is based on total hours in the period** (**known limit:** a 4-on/4-off 12 h crew works 84 to 96 h per 14-day period, so with the 80 h threshold it is in built-in overtime until U-13 averaging is built): hours worked beyond the threshold (default **80 h per 2-week pay period**; a weekly 40 h threshold can be selected) are overtime. Rostered 12 h and 16 h shifts aren't overtime by themselves. | 80 h / pay period | Pay | Lead's direction; relies on an averaging / modified work arrangement (SEA, **PSGE** 9.3.5.2) |
 | P-01b | Overtime rate bands in a pay period: default **all overtime hours at 1.5×**; an optional band (e.g. 2× beyond a set number of overtime hours) can be switched on | 1.5× | Pay | **MOCK** (PSGE pays 1.5× for the first 4 h then 2× per occurrence; confirm local practice) |
 | P-02 | Any hours on an **assigned day of rest**: **2×**, with a **2-hour minimum** | 2× / 2 h · **off by default** | Pay | **PSGE**; confirm whether it applies alongside period-based overtime |
 | P-03 | **Call-back:** minimum 2 hours at overtime rates | 2 h | Pay | **PSGE** |
@@ -86,7 +86,7 @@ Severity: **Block** = can't be saved. An emergency override exists only where ma
 
 | ID | Rule | Default | Severity | Based on |
 |---|---|---|---|---|
-| L-01 | Allowed regular lengths: **8 h, 12 h and 16 h** (16 h default 20:00–12:00). 12 h and 16 h only on units with a local agreement (S-03). | — | Block | Lead's direction + **PSGE** (modified work patterns over 8 h need a local agreement) |
+| L-01 | Allowed regular lengths: **8 h and 12 h**. There is no 16 h regular shift: a 16 h day is a 12 h shift plus a 4 h extension. 12 h only on units with a local agreement (S-03). **Known defect:** the live rule row still lists `[8,12,16]` and its message says "8, 12 and 16-hour"; the fix is a new rule version (roadmap package 1). | — | Block | Lead's direction + **PSGE** (modified work patterns over 8 h need a local agreement) |
 | L-02 | Breaks: 2 × 15 min per 8-hour shift, 3 per 12-hour shift (shown only; not scheduled) | — | Info | **PSGE** |
 
 ## 3. What the prototype implements
@@ -96,6 +96,8 @@ To keep the build realistic, the prototype implements a core set and documents t
 | Implement (Must) | Document only (future) |
 |---|---|
 | U-01, U-02, U-03, U-04, U-05, U-08, U-09, U-10, U-11, U-12, U-14, U-15 · P-01, P-01b, P-04 · S-03, S-04 (workflow, ADR-019) · O-01, O-02, O-03 · L-01 | U-06, U-07, U-13 · P-02, P-03, P-05, P-06 · S-01, S-02 · O-04 · L-02 |
+
+**Known defects (2026-11-24).** U-03 and U-11 are dormant (keyed to the retired `L16`); L-01 still allows `[8,12,16]`; P-01's 80 h threshold makes 4-on/4-off crews built-in overtime and U-13 averaging is not built. Fixes need new rule rows (a v4 seed), changes to the demo's version numbers, OT figures and payroll golden, so they are on the roadmap, not in this submission (`docs/roadmap.md`, package 1).
 
 **Implementation notes (2026-11-20).** U-04 is a live Warn row in rule set v1 (docs/04 §3 and docs/10 §3 already require its boundary tests; 4 h extension trigger, 10 h rest). U-15 stays a Must **feature** but is **not** a decision-table row: under / approaching / in-overtime is a pay-period status, computed with the pay classification (P-01) and shown on the planning board — a rolling hours window cannot express it. S-04 is enforced by the workflow (ADR-019). Override policy (ADR-023): U-01, U-03 and U-05 are `EMERGENCY` (overridable with a reason of ≥ 10 characters, audited). U-08, U-09 and U-14 are Blocks with policy `ACKNOWLEDGE`, so the api refuses any override. The policy is a column of each rule row, changed through maker/checker like any value. Rule set v1 therefore has 19 rows across the 8 tables.
 

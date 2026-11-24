@@ -54,9 +54,13 @@ A change is previewed, saved, refused with plain reasons, then acknowledged or e
   - **Guardrail 4 exception: no human reviewed the rule boundary tests.** The lead waived it on 2026-11-20; AI verifiers reviewed them (R4 to R7).
   - **Locked periods:** time entries are guarded by api and trigger, shifts only by the api (R38). A legal but wrong rule value is caught only by maker/checker and the dry run (R40).
   - **Tokens:** 8 h, no revocation; memory-only on prod-like, sessionStorage on the demo (ADR-025); mock issuer. **Not built:** Excel round-trip, offer withdrawal, payroll-clerk role, OpenAPI (docs/10).
-  - **Planner:** qualifications warn-only; no planned leave in the planner's 2027 window by default (the 100 seed's absences fall in 2026); a late actual is not re-checked.
+  - **Rules:** U-03, U-11 dormant (retired L16 key); L-01 still lists 16 h; P-01 makes 4-on/4-off crews built-in overtime (no U-13).
+  - **Planner:** qualifications warn-only; no part-time floor; leave not on the board; Unit C has 4 first-aiders (`docs/roadmap.md`); no planned leave in the planner's 2027 window by default (the 100 seed's absences fall in 2026); a late actual is not re-checked.
 
 ## 6. Next steps (pilot)
 
 1. **Restore human review:** a practitioner reviews the rule boundary tests and validates the MOCK values.
 2. Government SSO with short-lived tokens; a payroll-clerk role; separate database roles with insert-only audit and a locked-period shift guard (ADR-018); non-root containers, TLS, secrets manager, CI scanning (`docs/08` §9).
+
+**Since v1.0-submission:** limits stated honestly, demo script re-walked, docs matched to the code (`docs/roadmap.md`).
+<!-- TODO(PR-E, end of sprint): when PRs A-D land, update this line and the "Current gate" counts in section 4 (API, web, Playwright) from the final CI and e2e runs, then re-check it still fits 2 pages at Letter 11pt. -->
