@@ -52,6 +52,16 @@ describe('About page', () => {
     expect(screen.getByText('demo')).toBeInTheDocument();
   });
 
+  it('names the 8 and 12 hour shifts, with 16 hours as a 12 hour shift plus an extension', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(apiVersionBody));
+
+    renderAbout();
+
+    const line = await screen.findByText(/schedules 8 and 12 hour shifts/);
+    expect(line).toHaveTextContent('a 16 hour day is a 12 hour shift plus an extension');
+    expect(line).not.toHaveTextContent(/8, 12 and 16/);
+  });
+
   it('labels each build fact', async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(apiVersionBody));
 

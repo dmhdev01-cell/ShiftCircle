@@ -87,6 +87,29 @@ test.describe('E1 blocked assignment (PC-01)', () => {
     await expect(page.getByText(/Less than 8 hours rest/)).toBeVisible();
     // The seed repair restores PC-01's U-14 meaning: 64 h in the week.
     await expect(page.getByText(/U-14 · Weekly ceiling/)).toBeVisible();
+    // D4 (demo verification): Blocks come first, and identical results are
+    // one row with a count (U-16 Warn was listed 14 times, and U-14 sat below
+    // the Warns, out of the dock).
+    const rows = page
+      .getByRole('list')
+      .filter({ has: page.getByText('U-01 · Minimum rest') })
+      .getByRole('listitem');
+    const codes = (await rows.allTextContents()).map((text) => /U-\d+/.exec(text)?.[0]);
+    const blocks = await rows.filter({ hasText: /^Block/ }).count();
+    expect(blocks).toBeGreaterThanOrEqual(3);
+    expect(codes.slice(0, blocks)).toContain('U-14');
+    for (let index = 0; index < blocks; index += 1) {
+      await expect(rows.nth(index)).toContainText(/^Block/);
+    }
+    if (codes.includes('U-16')) {
+      expect(codes.filter((code) => code === 'U-16').length).toBe(1);
+    }
+    if ((page.viewportSize()?.height ?? 0) >= 900 && (page.viewportSize()?.width ?? 0) >= 1440) {
+      // Every Block is readable in the dock without scrolling it (demo §2).
+      for (let index = 0; index < blocks; index += 1) {
+        await expect(rows.nth(index)).toBeInViewport({ ratio: 1 });
+      }
+    }
     await expect(page.getByRole('button', { name: /^Assign shift$/ })).toHaveCount(0);
     // U-14 is a Block row whose policy is ACKNOWLEDGE, so the api refuses an
     // override and the screen must not offer the dialog.

@@ -23,6 +23,9 @@ test.describe('E3 rule change with maker/checker', () => {
     // The real api starts with the live version and no draft; the screen creates one.
     // The fixtures already have draft v8, so this step is skipped there.
     if (await page.getByRole('button', { name: 'Start a draft' }).isVisible().catch(() => false)) {
+      // D2: the live version is not a draft, so there is no "in draft" pill
+      // ("Live v3 · no draft" showed "1 change in draft").
+      await expect(page.getByText(/in draft$/)).toHaveCount(0);
       await page
         .getByLabel('Why is this change needed?')
         .fill('Raise the rest target between shifts to 14 hours');
@@ -88,7 +91,15 @@ test.describe('E3 rule change with maker/checker', () => {
     await page.getByRole('button', { name: 'Approve' }).click();
     await expect(page.getByText('The version is approved. It can be published.')).toBeVisible();
     await page.getByRole('button', { name: 'Publish' }).click();
-    await expect(page.getByText(/Version \d+ is live from/)).toBeVisible();
+    await expect(page.getByText(/^Version \d+ is live now\.$/)).toBeVisible();
+    // D2/D3: the now-live version has no "in draft" pill, and the version
+    // history reads its dates for people, never a raw ISO stamp.
+    await expect(page.getByText(/in draft$/)).toHaveCount(0);
+    const history = page.getByRole('heading', { name: 'Version history' }).locator('..');
+    await expect(history).not.toContainText(/\d{4}-\d{2}-\d{2}T/);
+    if ((await page.getByText('Demo fixtures').count()) === 0) {
+      await expect(history).toContainText(/\d{1,2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2}/);
+    }
 
     // The hot swap really happened: the version endpoint reports the new live rule set.
     // The fixtures have no version endpoint, so this check is real-api only.

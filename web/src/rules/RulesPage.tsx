@@ -18,6 +18,7 @@ import type {
 import { StatusPill } from '../components/StatusPill';
 import { useRole } from '../shell/nav';
 import { colour } from '../theme/tokens';
+import { dateTimeWords } from '../planner/plannerTime';
 import { DecisionTable } from './DecisionTable';
 import { PublishChecklist } from './PublishChecklist';
 
@@ -61,6 +62,14 @@ const TABLE_NAMES: Record<string, string> = {
  * change cannot approve it: a second approver reviews the before-and-after and
  * the impact (docs/process/HANDOFF.md §5.3).
  */
+/** A version on its way to live: a draft, submitted or approved, not live yet. */
+function isPendingVersion(entry: RuleSetVersion): boolean {
+  return (
+    !entry.live &&
+    (entry.status === 'DRAFT' || entry.status === 'SUBMITTED' || entry.status === 'APPROVED')
+  );
+}
+
 export function RulesPage() {
   const { role, userName } = useRole();
   const navigate = useNavigate();
@@ -141,11 +150,7 @@ export function RulesPage() {
   // The version on screen is not necessarily the draft: /rules/7 (the
   // supervisor link) shows the live version. The header and the checklist name
   // the real live and draft versions, not whatever the route happens to show.
-  const pending = versions.find(
-    (entry) =>
-      !entry.live &&
-      (entry.status === 'DRAFT' || entry.status === 'SUBMITTED' || entry.status === 'APPROVED'),
-  );
+  const pending = versions.find(isPendingVersion);
   const tableKey = table ? `${draft.version}:${table.code}:${table.rows.length}:${table.changed}` : '';
   const rows = table && edits?.key === tableKey ? edits.rows : (table?.rows ?? []);
   const edited = table && edits?.key === tableKey ? edits.edited : {};
@@ -354,6 +359,7 @@ export function RulesPage() {
             <DecisionTable
               table={table}
               readOnly={!canEdit}
+              inDraft={isPendingVersion(draft)}
               rows={rows}
               edited={edited}
               saving={saving}
@@ -408,13 +414,19 @@ export function RulesPage() {
               }}
               onPublished={(published) => {
                 setDraft(published);
+                // The published version replaces its entry, so the status
+                // pill reads Published, not the stale Approved (D3).
                 setVersions((current) =>
-                  (current ?? []).map((entry) => ({
-                    ...entry,
-                    live: entry.version === published.version,
-                  })),
+                  (current ?? []).map((entry) =>
+                    entry.version === published.version
+                      ? { ...published, live: true }
+                      : { ...entry, live: false },
+                  ),
                 );
-                setMessage(`Version ${published.version} is live from ${published.publishedAt}.`);
+                // "Live now": the api's publishedAt is the real moment of
+                // publishing, not the demo day, and the raw ISO stamp read badly
+                // on screen (demo verification D3). The history says when.
+                setMessage(`Version ${published.version} is live now.`);
               }}
             />
           ) : null}
@@ -447,7 +459,7 @@ export function RulesPage() {
                 <Box component="span" sx={{ fontSize: 14, fontWeight: 600 }}>
                   v{entry.version}{' '}
                   <Box component="span" sx={{ fontWeight: 500, color: colour.text.secondary }}>
-                    · {entry.publishedAt ?? entry.createdAt ?? ''}
+                    · {dateTimeWords(entry.publishedAt ?? entry.createdAt ?? '')}
                   </Box>
                 </Box>
                 <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>

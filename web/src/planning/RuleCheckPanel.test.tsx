@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
@@ -99,6 +99,110 @@ describe('the rule-check panel', () => {
     expect(screen.getByText('52 hours this week, over the 48 h warning level.')).toBeInTheDocument();
   });
 
+  // Demo verification D4: Nia's Sat 21 Nov check returned U-16 Warn 14 times
+  // with the same text, and U-14 (the fourth Block) came after the Warns, out
+  // of the dock's visible part.
+  it('D4: lists Blocks first and shows identical results once with a count', () => {
+    const warn = (ruleCode: string, message: string, label?: string) => ({
+      ruleCode,
+      ruleTable: 'X',
+      outcome: 'WARN' as const,
+      overridePolicy: 'ACKNOWLEDGE' as const,
+      message,
+      evidence: label ? [{ label }] : undefined,
+    });
+    const block = (ruleCode: string, message: string) => ({
+      ruleCode,
+      ruleTable: 'X',
+      outcome: 'BLOCK' as const,
+      overridePolicy: 'ACKNOWLEDGE' as const,
+      message,
+    });
+    renderPanel({
+      ...blockedState,
+      outcome: {
+        ...blockedOutcome,
+        overridable: false,
+        ruleResults: [
+          block('U-01', 'Rest too short.'),
+          block('U-08', 'More than 7 consecutive work days.'),
+          block('U-05', 'More than 16 hours in 24.'),
+          warn('U-12', 'Short-notice change.'),
+          warn('U-02', 'Rest target not met.', 'after Thu'),
+          warn('U-02', 'Rest target not met.', 'after Fri'),
+          block('U-14', 'More than 60 hours in the week.'),
+          ...Array.from({ length: 14 }, () =>
+            warn('U-16', 'Night shifts on the unit.', 'N8 of 480 min on unit B'),
+          ),
+        ],
+      },
+    });
+
+    expect(screen.getByRole('status')).toHaveTextContent('Blocked: 4 rules fail');
+    const rows = screen.getAllByRole('listitem');
+    // 4 Blocks, U-12, U-02 twice (different evidence), U-16 once.
+    expect(rows).toHaveLength(8);
+    expect(rows.map((row) => /U-\d+/.exec(row.textContent ?? '')?.[0])).toEqual([
+      'U-01', 'U-08', 'U-05', 'U-14', 'U-12', 'U-02', 'U-02', 'U-16',
+    ]);
+    expect(rows.slice(0, 4).every((row) => within(row).queryByText('Block'))).toBe(true);
+    expect(rows[7]).toHaveTextContent('×14');
+    // The count is read out as words too (the ×14 is hidden from screen readers).
+    expect(within(rows[7]).getByText('14 times')).toBeInTheDocument();
+    expect(rows[7]).toHaveTextContent('Evidence: N8 of 480 min on unit B');
+    expect(within(rows[5]).queryByText(/times$/)).not.toBeInTheDocument();
+  });
+
+  it('S1: a warn-only check counts rules like the rows do, and acknowledges each rule once', async () => {
+    const onAcknowledge = vi.fn();
+    const u16 = {
+      ruleCode: 'U-16',
+      ruleTable: 'X',
+      outcome: 'WARN' as const,
+      overridePolicy: 'ACKNOWLEDGE' as const,
+      message: 'Night shifts on the unit.',
+      evidence: [{ label: 'N8 of 480 min on unit B' }],
+    };
+    render(
+      <ThemeProvider theme={theme}>
+        <MemoryRouter>
+          <RuleCheckPanel
+            state={{
+              ...blockedState,
+              outcome: { ...blockedOutcome, outcome: 'WARN', overridable: false, ruleResults: Array.from({ length: 14 }, () => u16) },
+            }}
+            title="t"
+            detail="d"
+            onSave={vi.fn()}
+            onAcknowledge={onAcknowledge}
+            onOverride={vi.fn()}
+            onCancel={vi.fn()}
+          />
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('1 rule needs acknowledging (14 warnings)');
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Acknowledge and assign' }));
+    expect(onAcknowledge).toHaveBeenCalledWith(['U-16']);
+  });
+
+  it('S1: a duplicated Block counts as one failing rule', () => {
+    const block = {
+      ruleCode: 'U-08',
+      ruleTable: 'CONSECUTIVE',
+      outcome: 'BLOCK' as const,
+      overridePolicy: 'ACKNOWLEDGE' as const,
+      message: 'More than 7 consecutive work days.',
+    };
+    renderPanel({
+      ...blockedState,
+      outcome: { ...blockedOutcome, overridable: false, ruleResults: [block, block] },
+    });
+    expect(screen.getByRole('status')).toHaveTextContent('Blocked: 1 rule fails (2 results)');
+  });
+
   it('shows the evidence and the source the api sent', () => {
     renderPanel();
     expect(screen.getByText(/Source: Saskatchewan Employment Act/)).toBeInTheDocument();
@@ -183,7 +287,7 @@ describe('the rule-check panel', () => {
       },
     });
 
-    expect(screen.getByRole('status')).toHaveTextContent('1 warning need acknowledging');
+    expect(screen.getByRole('status')).toHaveTextContent('1 rule needs acknowledging');
     // The label says that acknowledging saves the change.
     expect(screen.getByRole('button', { name: 'Acknowledge and assign' })).toBeInTheDocument();
   });
