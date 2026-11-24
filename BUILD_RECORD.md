@@ -40,7 +40,7 @@ A change is previewed, then saved, refused with plain reasons, or acknowledged o
 | T8 | Payroll export, locked period | equals the golden file | byte-identical |
 | T9 | 17 h cover in a lockdown | Block; with a written reason it saves, audited | pinned |
 
-**Last full gate (`5a3be22`, release 11, 24 Nov 2026):** API 470 tests, web 463, Playwright desktop 124 passed, tablet 123 passed and 1 skipped, 0 failed; golden unchanged. Release 11 added board views, export, a gap panel, planned leave and CI. No human has walked the demo.
+**Last full gate (`5a38580`, 24 Nov 2026):** API 470 tests, web 514, Playwright desktop 124 passed, tablet 123 passed and 1 skipped, 0 failed; golden unchanged. Release 11 added board views, export, a gap panel, planned leave and CI. No human has walked the demo.
 
 ## 5. Governance and ministry suitability
 

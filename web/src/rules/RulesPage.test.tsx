@@ -72,7 +72,7 @@ describe('Rules admin', () => {
     ).toBeInTheDocument();
   });
 
-  it('composes the sentence with an article ("After a 16 h shift")', async () => {
+  it('composes the sentence with an article ("After a 16-hour shift")', async () => {
     const user = userEvent.setup();
     renderRules();
     await screen.findByRole('heading', { name: 'Rest between shifts' });
@@ -82,7 +82,32 @@ describe('Rules admin', () => {
     await user.clear(u03);
     await user.type(u03, '14');
 
-    expect(await screen.findByText(/After a 16 h shift, an officer needs at least 14 hours off/)).toBeInTheDocument();
+    expect(await screen.findByText(/After a 16-hour shift, an officer needs at least 14 hours off/)).toBeInTheDocument();
+  });
+
+  // Demo §4 / E3: the edit is U-02 12 -> 14 h. Its shift kind is stored as a
+  // pattern; the sentence used to read "After (d8|e8|n8|a12|p12|d12|n12), ...
+  // has to acknowledge it, and the supervisor has to acknowledge it."
+  it('E3: U-02 at 14 h reads in plain words, with the shift kind named and the outcome said once', async () => {
+    const user = userEvent.setup();
+    renderRules();
+    await screen.findByRole('heading', { name: 'Rest between shifts' });
+    await actAsRulesAdmin(user);
+
+    const kind = screen.getByLabelText('Shift kind for U-02');
+    expect(kind).toHaveDisplayValue('D8, E8, N8, A12, P12, D12 or N12');
+
+    const u02 = screen.getByLabelText('Minimum hours off for U-02');
+    await user.clear(u02);
+    await user.type(u02, '14');
+
+    const sentence = await screen.findByText(
+      'After a D8, E8, N8, A12, P12, D12 or N12 shift, an officer needs at least 14 hours off within 24 hours; otherwise the change is warned. A supervisor must acknowledge it before the change is saved.',
+    );
+    expect(sentence.textContent).not.toMatch(/[|()]/);
+    expect(sentence.textContent?.match(/acknowledge/g)).toHaveLength(1);
+    // The select still holds the stored pattern, so saving does not change the rule's scope.
+    expect((kind as HTMLSelectElement).value).toBe('(D8|E8|N8|A12|P12|D12|N12)');
   });
 
   it('makes the read-only decision table a focusable scroll region', async () => {
@@ -117,7 +142,7 @@ describe('Rules admin', () => {
 
     expect(await screen.findByText('13 / 13 test scenarios passed.')).toBeInTheDocument();
     expect(
-      screen.getByText(/3 published shifts in Unit C, 24 – 28 Nov, would now break U-03/),
+      await screen.findByText('3 officers in Unit C go from Pass to Block under U-03'),
     ).toBeInTheDocument();
     // The impact is counts, never names (ADR-017).
     expect(screen.queryByText('Tara Nakamura')).not.toBeInTheDocument();
@@ -129,10 +154,10 @@ describe('Rules admin', () => {
     await screen.findByRole('heading', { name: 'Rest between shifts' });
     await actAsRulesAdmin(user);
 
-    // E3: the admin raises U-03 from 12 to 14 hours but does not press Save.
-    const u03 = screen.getByLabelText('Minimum hours off for U-03');
-    await user.clear(u03);
-    await user.type(u03, '14');
+    // E3: the admin raises U-02 from 12 to 14 hours but does not press Save.
+    const u02 = screen.getByLabelText('Minimum hours off for U-02');
+    await user.clear(u02);
+    await user.type(u02, '14');
 
     expect(
       screen.getByText('You have unsaved edits. Build and Submit save them first.'),
@@ -146,13 +171,13 @@ describe('Rules admin', () => {
       ),
     ).toBeInTheDocument();
     const saved = await api.getRuleTable(8, 'rest-between-shifts');
-    expect(saved.rows.find((row) => row.ruleCode === 'U-03')?.minHours).toBe(14);
+    expect(saved.rows.find((row) => row.ruleCode === 'U-02')?.minHours).toBe(14);
 
     // Submit saves a later edit too, and rebuilds before the draft goes to
     // the approver.
-    const u02 = screen.getByLabelText('Minimum hours off for U-02');
-    await user.clear(u02);
-    await user.type(u02, '16');
+    const u03 = screen.getByLabelText('Minimum hours off for U-03');
+    await user.clear(u03);
+    await user.type(u03, '16');
     await user.click(screen.getByRole('button', { name: 'Submit for approval' }));
 
     expect(
@@ -161,7 +186,7 @@ describe('Rules admin', () => {
       ),
     ).toBeInTheDocument();
     const submitted = await api.getRuleTable(8, 'rest-between-shifts');
-    expect(submitted.rows.find((row) => row.ruleCode === 'U-02')?.minHours).toBe(16);
+    expect(submitted.rows.find((row) => row.ruleCode === 'U-03')?.minHours).toBe(16);
   });
 
   it('starts a draft when the live version has none', async () => {
@@ -174,7 +199,7 @@ describe('Rules admin', () => {
 
     await user.type(
       screen.getByLabelText('Why is this change needed?'),
-      'Raise the 16-hour rest to 14 hours',
+      'Raise the rest target between shifts to 14 hours',
     );
     await user.click(screen.getByRole('button', { name: 'Start a draft' }));
 
@@ -199,16 +224,16 @@ describe('Rules admin', () => {
     const user = userEvent.setup();
     renderRules('/login');
 
-    // The rules admin signs in, raises U-03, builds and submits.
+    // The rules admin signs in, raises U-02, builds and submits.
     await signInAs(user, 'L. Fraser');
     // The page draws this heading while it loads and again when it is ready, so
     // wait on the content below instead of on the node this find returns.
     await screen.findByRole('heading', { name: 'Rules' });
     await screen.findByRole('heading', { name: 'Rest between shifts' });
 
-    const u03 = screen.getByLabelText('Minimum hours off for U-03');
-    await user.clear(u03);
-    await user.type(u03, '14');
+    const u02 = screen.getByLabelText('Minimum hours off for U-02');
+    await user.clear(u02);
+    await user.type(u02, '14');
     await user.click(screen.getByRole('button', { name: 'Build and check' }));
     await screen.findByText('13 / 13 test scenarios passed.');
     await user.click(screen.getByRole('button', { name: 'Submit for approval' }));

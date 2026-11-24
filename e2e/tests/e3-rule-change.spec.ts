@@ -1,16 +1,20 @@
 import { expect, test } from '@playwright/test';
 
+import { apiAs } from './api';
 import { expectAccessible, signIn, signInAgain, signOut } from './support';
 
 /**
- * E3 (docs/10-testing.md section 5): the rules admin changes U-03 from 12 to
- * 14 h, builds and submits; the author cannot approve; a second person
- * approves and publishes. No code change.
+ * E3 (docs/10-testing.md section 5): the rules admin changes U-02 (the rest
+ * target between shifts) from 12 to 14 h, builds and submits; the author
+ * cannot approve; a second person approves and publishes. No code change.
+ *
+ * A stack-wide spec (STACK_SPECS in playwright.config.ts): on the real api it
+ * publishes an effective rule change, so it runs one at a time, last.
  */
 
 test.describe('E3 rule change with maker/checker', () => {
   test('admin edits, builds and submits; approver approves and publishes', async ({ page }, testInfo) => {
-    // Fixture-only: it publishes a new live rule version (v8 in the fixtures).
+    // Writes state: it publishes a new live rule version (v8 in the fixtures, v4 on a fresh real api).
     await signIn(page, 'L. Fraser');
     await expect(page.getByRole('heading', { name: 'Rules', level: 1 })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Rest between shifts' })).toBeVisible();
@@ -21,23 +25,49 @@ test.describe('E3 rule change with maker/checker', () => {
     if (await page.getByRole('button', { name: 'Start a draft' }).isVisible().catch(() => false)) {
       await page
         .getByLabel('Why is this change needed?')
-        .fill('Raise the 16-hour rest target to 14 hours');
+        .fill('Raise the rest target between shifts to 14 hours');
       await page.getByRole('button', { name: 'Start a draft' }).click();
     }
     await expect(page.getByRole('button', { name: 'Build and check' })).toBeVisible();
 
-    const u03 = page.getByLabel('Minimum hours off for U-03');
+    const u02 = page.getByLabel('Minimum hours off for U-02');
     // A person clicks into the field, which selects the row.
-    await u03.click();
-    await u03.fill('14');
+    await u02.click();
+    await u02.fill('14');
     await expect(page.getByText('1 change in draft')).toBeVisible();
-    // The plain-language sentence for the selected row follows the value.
-    await expect(page.getByText(/16 h shift, an officer needs at least 14 hours off/)).toBeVisible();
+    // The plain-language sentence for the selected row follows the value, in
+    // words: the shift kind is named, never the stored pattern, and the
+    // outcome is said once (it read "After (d8|e8|...), ... has to acknowledge
+    // it, and the supervisor has to acknowledge it.").
+    const sentence = page.getByText(
+      'After a D8, E8, N8, A12, P12, D12 or N12 shift, an officer needs at least 14 hours off within 24 hours; otherwise the change is warned. A supervisor must acknowledge it before the change is saved.',
+    );
+    await expect(sentence).toBeVisible();
+    await expect(sentence).not.toContainText('|');
+    const composed = await sentence.textContent();
     // Build saves the unsaved edit first (R3).
     await expect(page.getByText('You have unsaved edits. Build and Submit save them first.')).toBeVisible();
 
     await page.getByRole('button', { name: 'Build and check' }).click();
     await expect(page.getByText(/test scenarios passed/)).toBeVisible();
+    // Unlike the dormant U-03, the U-02 edit has an effect the dry run shows
+    // (demo §4: one result, U-02, Unit A, Pass -> Warn). The fixtures' build
+    // report is canned, so this check is real-api only.
+    if ((await page.getByText('Demo fixtures').count()) === 0) {
+      await expect(page.getByText(/\d+ result\(s\) change on the current roster\./)).toBeVisible();
+      await expect(page.getByText(/^\d+ officers? in Unit A goe?s? from Pass to Warn under U-02$/)).toBeVisible();
+
+      // Contract: the sentence the web composed while typing is the one the
+      // api keeps with the saved row (RuleSentence.java), word for word.
+      const api = await apiAs(page.request, 'l.fraser');
+      const versions = await api.get<{ version: number; status: string }[]>('/rule-sets');
+      const draft = versions.find((entry) => entry.status === 'DRAFT');
+      expect(draft, 'the draft E3 just built').toBeTruthy();
+      const rest = await api.get<{ rows: { ruleCode: string; sentence: string }[] }>(
+        `/rule-sets/${draft!.version}/tables/rest-between-shifts`,
+      );
+      expect(rest.rows.find((row) => row.ruleCode === 'U-02')?.sentence).toBe(composed);
+    }
     await page.getByRole('button', { name: 'Submit for approval' }).click();
     await expect(page.getByText(/is submitted for approval/)).toBeVisible();
 

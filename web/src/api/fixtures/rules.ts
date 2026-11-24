@@ -45,14 +45,21 @@ const restRows: RuleTableRow[] = [
   {
     ruleCode: 'U-02',
     enabled: true,
-    after: 'Any shift',
+    // As the api sends it since rule set v2: the stored pattern, which the
+    // grid shows as "D8, E8, N8, A12, P12, D12 or N12".
+    after: '(D8|E8|N8|A12|P12|D12|N12)',
     minHours: 12,
     result: 'WARN',
     override: 'ACKNOWLEDGE',
     source: 'Mock agreement',
-    params: { afterShiftKind: '.*', windowHours: 24, minExtensionMinutes: 0, minRestHours: 12 },
+    params: {
+      afterShiftKind: '(D8|E8|N8|A12|P12|D12|N12)',
+      windowHours: 24,
+      minExtensionMinutes: 0,
+      minRestHours: 12,
+    },
     sentence:
-      'Between regular shifts an officer should get at least 12 hours off. If they would not, the supervisor is warned and has to acknowledge it.',
+      'After a D8, E8, N8, A12, P12, D12 or N12 shift, an officer needs at least 12 hours off within 24 hours; otherwise the change is warned. A supervisor must acknowledge it before the change is saved.',
   },
   {
     ruleCode: 'U-03',
@@ -361,7 +368,7 @@ export const demoRuleTables: RuleTable[] = [
 ];
 
 /**
- * The build report. The dry-run impact is counts by rule, unit and date - no
+ * The build report. The dry-run impact is counts by rule, unit and result - no
  * names, because the approver has no roster access (ADR-017).
  */
 export const demoBuildReport: BuildReport = {
@@ -373,11 +380,10 @@ export const demoBuildReport: BuildReport = {
     {
       key: 'impact',
       title: 'Impact on the published roster',
-      detail: '3 published shifts in Unit C, 24 – 28 Nov, would now break U-03.',
+      detail: '3 result(s) change on the current roster.',
       done: false,
-      impact: [
-        { ruleCode: 'U-03', unit: 'Unit C · Living unit', from: '2026-11-24', to: '2026-11-28', count: 3 },
-      ],
+      // The api's shape: unit code and the result before and after.
+      impact: [{ ruleCode: 'U-03', unit: 'C', from: 'PASS', to: 'BLOCK', count: 3 }],
     },
     { key: 'approver', title: 'Second approver', detail: 'A second person has to review this change.', done: false },
     { key: 'live', title: 'Go live', detail: 'The live rules switch on the effective date.', done: false },

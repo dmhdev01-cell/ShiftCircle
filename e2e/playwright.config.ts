@@ -29,6 +29,9 @@ process.env.RUN_ID ??= new Date().toISOString().replace(/[:.]/g, '-').slice(0, 1
  */
 const STACK_SPECS = [
   /\/dataset120\.spec\.ts$/,
+  // E3 publishes an effective U-02 change (12 -> 14 h), which changes rule
+  // results for every spec that runs after it.
+  /\/e3-rule-change\.spec\.ts$/,
   /\/e4-lock-and-payroll\.spec\.ts$/,
   /\/planned-leave\.spec\.ts$/,
   /\/planner\.spec\.ts$/,

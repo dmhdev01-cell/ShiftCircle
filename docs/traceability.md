@@ -1,9 +1,9 @@
 # ShiftCircle — requirement-to-proof traceability
 
-**Current status (24 Nov 2026, `main` at `5a3be22`).** Every test class and method named in this
+**Current status (24 Nov 2026, `5a3be22`; counts re-run at `5a38580`).** Every test class and method named in this
 file was checked against the sources (all exist; the rows added for release 11 name test files and
 e2e specs). Counts today, all run: API **470 = 127 rules + 28 infrastructure + 315 api** (`mvn verify`, green),
-web unit tests **463** in 51 files, Playwright against the real API `desktop-datasets` **124 passed** and
+web unit tests **514** in 53 files, Playwright against the real API `desktop-datasets` **124 passed** and
 `tablet-datasets` **123 passed + 1 skipped**, fixtures **23 passed**. The sources for each number are in
 `docs/10-testing.md` ("Current counts"). Rows added since the first derivation cover the not-built
 states (FR-30/31, M1, M3), the Reports pickers (S1), the dataset notice and Other absence (S6, S8), the
