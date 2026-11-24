@@ -53,6 +53,8 @@ public class ReportsService {
   private static final DateTimeFormatter STAMP =
       DateTimeFormatter.ofPattern("d MMM HH:mm", Locale.CANADA);
   private static final int MAX_DAYS = 366;
+  private static final int MIN_YEAR = 1900;
+  private static final int MAX_YEAR = 2999;
 
   private final JdbcTemplate jdbc;
   private final ScopeGuard scopeGuard;
@@ -357,7 +359,9 @@ public class ReportsService {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found");
     }
 
-    boolean facility = employeeRole || principal.hasRole("AUDITOR");
+    // The auditor reads the whole facility unless they pick a unit (FR-60/61/62).
+    boolean facility =
+        employeeRole || (principal.hasRole("AUDITOR") && (unitId == null || unitId.isBlank()));
 
     List<Object> hoursArgs = new ArrayList<>(List.of(from, to));
     if (!facility) {
@@ -640,7 +644,8 @@ public class ReportsService {
     validate(from, to);
 
     Scope scope = scope(principal, unitId);
-    boolean facility = principal.hasRole("AUDITOR");
+    // The auditor reads the whole facility unless they pick a unit (FR-60/61/62).
+    boolean facility = principal.hasRole("AUDITOR") && (unitId == null || unitId.isBlank());
     if (!facility && scope.unitIds().isEmpty()) {
       return List.of();
     }
@@ -889,6 +894,13 @@ public class ReportsService {
   }
 
   private static void validate(LocalDate from, LocalDate to) {
+    // ISO dates accept expanded years (+999999999-12-31); the day arithmetic below and in the
+    // reports would overflow LocalDate.MAX and answer 500, so refuse such years as a bad request.
+    if (from.getYear() < MIN_YEAR || from.getYear() > MAX_YEAR
+        || to.getYear() < MIN_YEAR || to.getYear() > MAX_YEAR) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "Dates must be between " + MIN_YEAR + " and " + MAX_YEAR);
+    }
     if (to.isBefore(from)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "to must not be before from");
     }

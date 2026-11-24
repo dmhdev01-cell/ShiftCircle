@@ -102,6 +102,7 @@ fixtures-only · **—** not coverable, with the reason.
 |---|---|---|---|
 | Coverage, Hours, Overtime, Overrides tabs; CSV export from each | supervisor | reports | N |
 | Planted PC-03 override (reason, U-05, Unit C) in the table and CSV | auditor | reports | N |
+| Range and unit picker: defaults, scope-limited units, refusals, ranged reports and CSV, reset | supervisor, auditor | reports (S1) | N |
 | Empty overrides report says so | supervisor | reports (D2) | N, known defect |
 | Tab in the address opens that tab | auditor | reports (D3) | N, known defect |
 | Data cannot be loaded → message | auditor | routes-and-errors (D4) | N, known defect |
