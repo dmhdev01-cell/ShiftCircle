@@ -3,7 +3,6 @@ package ca.shiftcircle.api.assignments;
 import ca.shiftcircle.api.payroll.LockedPeriodException;
 import ca.shiftcircle.api.rules.RuleCheckRequest;
 import ca.shiftcircle.api.rules.RuleCheckService;
-import ca.shiftcircle.api.rules.RuleViolationException;
 import ca.shiftcircle.api.security.AuthPrincipal;
 import ca.shiftcircle.api.security.ScopeGuard;
 import ca.shiftcircle.api.time.BusinessClock;
@@ -27,7 +26,9 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <p>Warn results need an explicit acknowledgement; Block results need an emergency override with a
  * reason of at least ten characters. Every save writes the override row and an audit event with the
- * actor and time (S-04, ADR-019: extra shifts are a supervisor action, never auto-approved).
+ * actor and time (S-04, ADR-019: extra shifts are a supervisor action, never auto-approved). The
+ * rule decision, the insert and the audit row live in {@link AssignmentWriter}, which the overtime
+ * confirm (through {@link #assign}) and the shift-proposal decision share (v1.3 P2).
  *
  * <p>Move runs the same pipeline against the target with the assignment's own current slot left
  * out, under the same per-officer advisory locks. Cancel never deletes a row and never needs a rule
@@ -44,17 +45,20 @@ public class AssignmentService {
   private final RuleCheckService ruleChecks;
   private final ScopeGuard scopeGuard;
   private final BusinessClock clock;
+  private final AssignmentWriter writer;
   private final ObjectMapper mapper = new ObjectMapper();
 
   public AssignmentService(
       JdbcTemplate jdbc,
       RuleCheckService ruleChecks,
       ScopeGuard scopeGuard,
-      BusinessClock clock) {
+      BusinessClock clock,
+      AssignmentWriter writer) {
     this.jdbc = jdbc;
     this.ruleChecks = ruleChecks;
     this.scopeGuard = scopeGuard;
     this.clock = clock;
+    this.writer = writer;
   }
 
   public record SaveView(UUID id, String status, int version) {}
@@ -99,44 +103,26 @@ public class AssignmentService {
     String unitCode = unitCode(request.change().unitId());
     scopeGuard.requireUnit(principal, unitCode);
     requireOpenPayPeriod(request.change().startAt());
-    Map<String, Object> template = activeTemplate(request.change().shiftTemplate());
+    writer.activeTemplate(request.change().shiftTemplate());
 
     // Two supervisors (or a double click) must not both pass the rules against the same old roster:
     // the exclusion constraint catches true overlaps, but two saves close together can break rest
     // rules without overlapping. Serialising on the officer closes that window (review-r2 S2).
     lockOfficer(request.change().employeeId());
 
-    RuleCheckService.OutcomeView outcome = ruleChecks.evaluate(change(request));
-    UUID overrideId = decide(outcome, request, principal);
-
-    UUID assignmentId = UUID.randomUUID();
-    Instant end = endAt(request.change().startAt(), template);
-
-    jdbc.update(
-        "INSERT INTO shift_assignment (id, employee_id, unit_id, shift_template_id, start_at, end_at,"
-            + " work_date, kind, source, override_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'MANUAL', ?)",
-        assignmentId,
-        request.change().employeeId(),
-        request.change().unitId(),
-        template.get("id"),
-        java.sql.Timestamp.from(request.change().startAt()),
-        java.sql.Timestamp.from(end),
-        request.change().startAt().atZone(REGINA).toLocalDate(),
-        "EXTRA".equals(request.change().type()) ? "EXTRA" : "ROSTERED",
-        overrideId);
-
-    audit(
-        principal,
-        "assign_shift",
-        assignmentId,
-        Map.of(
-            "employeeId", request.change().employeeId().toString(),
-            "unit", unitCode,
-            "template", request.change().shiftTemplate(),
-            "startAt", request.change().startAt().toString(),
-            "kind", request.change().typeOrAssign(),
-            "outcome", outcome.outcome(),
-            "overrideId", overrideId == null ? "" : overrideId.toString()));
+    // The rules, the insert and the assign_shift audit row are the shared write path (v1.3 P2).
+    UUID assignmentId =
+        writer
+            .create(
+                new AssignmentWriter.NewShift(
+                    change(request),
+                    request.acknowledgeWarnings(),
+                    request.override(),
+                    true,
+                    "MANUAL",
+                    Map.of()),
+                principal)
+            .assignmentId();
     return new SaveView(assignmentId, "PLANNED", 0);
   }
 
@@ -159,7 +145,7 @@ public class AssignmentService {
     String targetUnitCode = unitCode(request.change().unitId());
     scopeGuard.requireUnit(principal, targetUnitCode);
     requireValidChange(request);
-    Map<String, Object> template = activeTemplate(request.change().shiftTemplate());
+    Map<String, Object> template = writer.activeTemplate(request.change().shiftTemplate());
     int expected = parseIfMatch(ifMatch);
 
     // If the officer changes, take both locks in id order so two opposite moves cannot deadlock.
@@ -195,7 +181,9 @@ public class AssignmentService {
             request.change().shiftTemplate(),
             request.change().startAt());
     RuleCheckService.OutcomeView outcome = ruleChecks.evaluate(change, assignmentId);
-    UUID overrideId = decide(outcome, request, principal);
+    UUID overrideId =
+        writer.decide(
+            outcome, request.acknowledgeWarnings(), request.override(), true, principal);
 
     Instant end = endAt(request.change().startAt(), template);
     LocalDate workDate = request.change().startAt().atZone(REGINA).toLocalDate();
@@ -384,36 +372,6 @@ public class AssignmentService {
     }
   }
 
-  /**
-   * The shared rule contract: Block needs an overridable result and a reason of ten characters,
-   * and an override excuses blocks, never warnings. Nothing auto-approves (docs/07 §3).
-   */
-  private UUID decide(
-      RuleCheckService.OutcomeView outcome, RuleCheckRequest request, AuthPrincipal principal) {
-    boolean blocked = "BLOCK".equals(outcome.outcome());
-    List<String> warnCodes = warnCodes(outcome);
-    List<String> acknowledged =
-        request.acknowledgeWarnings() == null ? List.of() : request.acknowledgeWarnings();
-    boolean allWarningsAcknowledged = acknowledged.containsAll(warnCodes);
-
-    if (blocked) {
-      if (!outcome.overridable()
-          || request.override() == null
-          || request.override().reason() == null
-          || request.override().reason().trim().length() < 10) {
-        throw new RuleViolationException(RuleViolationException.Kind.BLOCKED, outcome);
-      }
-      if (!allWarningsAcknowledged) {
-        throw new RuleViolationException(RuleViolationException.Kind.WARNINGS, outcome);
-      }
-      return createOverride(request.override().reason(), blockingCodes(outcome), principal);
-    }
-    if (!warnCodes.isEmpty() && !allWarningsAcknowledged) {
-      throw new RuleViolationException(RuleViolationException.Kind.WARNINGS, outcome);
-    }
-    return null;
-  }
-
   private void lockOfficer(UUID employeeId) {
     long key = employeeId.getMostSignificantBits() ^ employeeId.getLeastSignificantBits();
     jdbc.queryForList("SELECT pg_advisory_xact_lock(?)", Object.class, key);
@@ -501,51 +459,8 @@ public class AssignmentService {
     }
   }
 
-  private List<String> warnCodes(RuleCheckService.OutcomeView outcome) {
-    return outcome.ruleResults().stream()
-        .filter(result -> "WARN".equals(result.outcome()))
-        .map(RuleCheckService.ResultView::ruleCode)
-        .toList();
-  }
-
-  /**
-   * A new assignment or move may only name an active template. A retired template (L16 since V13)
-   * still renders on old rows, but it cannot be selected for new work.
-   */
-  private Map<String, Object> activeTemplate(String code) {
-    List<Map<String, Object>> rows =
-        jdbc.queryForList(
-            "SELECT id, duration_minutes FROM shift_template WHERE code = ? AND active", code);
-    if (rows.isEmpty()) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "That shift type is retired; choose another shift type.");
-    }
-    return rows.get(0);
-  }
-
   private String unitCode(UUID unitId) {
     return jdbc.queryForObject("SELECT code FROM unit WHERE id = ?", String.class, unitId);
-  }
-
-  private List<String> blockingCodes(RuleCheckService.OutcomeView outcome) {
-    return outcome.ruleResults().stream()
-        .filter(result -> "BLOCK".equals(result.outcome()))
-        .map(RuleCheckService.ResultView::ruleCode)
-        .toList();
-  }
-
-  private UUID createOverride(String reason, List<String> ruleCodes, AuthPrincipal principal) {
-    UUID id = UUID.randomUUID();
-    jdbc.update(
-        "INSERT INTO override (id, reason, rule_codes, rule_set_version_id, created_by)"
-            + " VALUES (?, ?, ?, (SELECT id FROM rule_set_version WHERE status = 'PUBLISHED'),"
-            + " (SELECT id FROM app_user WHERE username = ?))",
-        id,
-        reason,
-        ruleCodes.toArray(new String[0]),
-        principal.username());
-    audit(principal, "override_rule", id, Map.of("reason", reason, "rules", ruleCodes.toString()));
-    return id;
   }
 
   private Map<String, Object> snapshot(AssignmentRow row, int version) {
@@ -566,11 +481,6 @@ public class AssignmentService {
 
   private Map<String, Object> snapshot(AssignmentRow row) {
     return snapshot(row, row.version());
-  }
-
-  private void audit(
-      AuthPrincipal principal, String action, UUID entityId, Map<String, Object> after) {
-    audit(principal, action, entityId, null, after);
   }
 
   private void audit(

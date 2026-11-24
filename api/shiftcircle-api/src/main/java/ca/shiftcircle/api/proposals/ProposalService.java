@@ -28,7 +28,8 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * An officer's shift proposals: preview, send, list their own and withdraw (v1.3 P1, plan
- * .factory/plans/v1.2-proposals.md; docs/07 §4.4). Deciding is the next release step.
+ * .factory/plans/v1.2-proposals.md; docs/07 §4.4). The decider's side is {@link
+ * ProposalDecisionService} (P2).
  *
  * <p>A proposal is a set of "add this extra shift" items. Each item is rule-checked as an EXTRA
  * shift together with the officer's real shifts and with the other items of the same proposal, so
@@ -660,19 +661,24 @@ public class ProposalService {
 
   /** Waiting, Approved, Partly approved, Declined, Withdrawn or Expired (plan §1.1). */
   static String displayState(String status, List<ItemView> items) {
+    return displayStateOf(status, items.stream().map(ItemView::decision).toList());
+  }
+
+  /** The same, from the items' decision words only (the decider's inbox reads no more). */
+  static String displayStateOf(String status, List<String> decisions) {
     if ("WITHDRAWN".equals(status)) {
       return "WITHDRAWN";
     }
-    long pending = items.stream().filter(i -> "PENDING".equals(i.decision())).count();
-    long accepted = items.stream().filter(i -> "ACCEPTED".equals(i.decision())).count();
-    long declined = items.stream().filter(i -> "DECLINED".equals(i.decision())).count();
+    long pending = decisions.stream().filter("PENDING"::equals).count();
+    long accepted = decisions.stream().filter("ACCEPTED"::equals).count();
+    long declined = decisions.stream().filter("DECLINED"::equals).count();
     if (pending > 0) {
       return "WAITING";
     }
     if (accepted > 0) {
-      return accepted == items.size() ? "APPROVED" : "PARTLY_APPROVED";
+      return accepted == decisions.size() ? "APPROVED" : "PARTLY_APPROVED";
     }
-    if (declined > 0 && declined == items.size()) {
+    if (declined > 0 && declined == decisions.size()) {
       return "DECLINED";
     }
     return "EXPIRED";
