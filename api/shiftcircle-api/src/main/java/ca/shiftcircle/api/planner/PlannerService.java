@@ -618,6 +618,7 @@ public class PlannerService {
         to,
         days,
         LocalDate.now(REGINA).toString(),
+        null,
         coverage,
         officers,
         ((Number) draft.get("warning_count")).intValue(),

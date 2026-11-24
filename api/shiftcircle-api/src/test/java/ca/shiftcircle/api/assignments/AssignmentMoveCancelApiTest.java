@@ -398,6 +398,54 @@ class AssignmentMoveCancelApiTest {
         .endsWith("/shift-started");
   }
 
+  /**
+   * PR-O review S1: a move whose target start has already passed is refused by the same business
+   * clock as a started shift (noon on Thu 19 Nov 2026 in the demo), with or without an override,
+   * before the rules run. Exactly now is started (start <= now); a later start on the same day is not.
+   */
+  @Test
+  void movingToATargetThatHasAlreadyStartedIsRefused() throws Exception {
+    UUID id = insertAssignment("D8", "2027-02-01T07:00:00-06:00", "ROSTERED");
+    String token = login("m.ellis");
+
+    HttpResponse<String> past =
+        send("PATCH", "/api/v1/assignments/" + id,
+            moveBody(UNIT_B, EMPLOYEE, "D8", "2026-11-16T07:00:00-06:00"), token, "\"0\"");
+    assertThat(past.statusCode()).isEqualTo(409);
+    Map<?, ?> problem = mapper.readValue(past.body(), Map.class);
+    assertThat((String) problem.get("type")).endsWith("/target-started");
+    assertThat(problem.get("title")).isEqualTo("The new start has already passed");
+    assertThat((String) problem.get("detail")).startsWith("Pick a date and shift that start later.");
+
+    String withOverride =
+        "{\"change\":{\"type\":\"ASSIGN\",\"employeeId\":\"" + EMPLOYEE + "\",\"unitId\":\""
+            + UNIT_B + "\",\"shiftTemplate\":\"D8\",\"startAt\":\"2026-11-16T07:00:00-06:00\"},"
+            + "\"override\":{\"reason\":\"Emergency relief for the unit\"}}";
+    HttpResponse<String> overridden =
+        send("PATCH", "/api/v1/assignments/" + id, withOverride, token, "\"0\"");
+    assertThat(overridden.statusCode()).as("an override does not excuse a past start").isEqualTo(409);
+    assertThat((String) mapper.readValue(overridden.body(), Map.class).get("type"))
+        .endsWith("/target-started");
+
+    HttpResponse<String> exactlyNow =
+        send("PATCH", "/api/v1/assignments/" + id,
+            moveBody(UNIT_B, EMPLOYEE, "P12", "2026-11-19T12:00:00-06:00"), token, "\"0\"");
+    assertThat(exactlyNow.statusCode()).isEqualTo(409);
+    assertThat((String) mapper.readValue(exactlyNow.body(), Map.class).get("type"))
+        .endsWith("/target-started");
+    assertThat(versionOf(id)).as("nothing was saved").isEqualTo(0);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT start_at FROM shift_assignment WHERE id = ?", Timestamp.class, id)
+                .toInstant())
+        .isEqualTo(Instant.parse("2027-02-01T13:00:00Z"));
+
+    HttpResponse<String> later =
+        send("PATCH", "/api/v1/assignments/" + id,
+            moveBody(UNIT_B, EMPLOYEE, "E8", "2026-11-19T15:00:00-06:00"), token, "\"0\"");
+    assertThat(later.statusCode()).as("15:00 on the demo day has not started").isNotEqualTo(409);
+  }
+
   @Test
   void movingAShiftThatFilledAnOpenShiftIsRefused() throws Exception {
     UUID id = insertAssignment("D8", "2027-02-01T07:00:00-06:00", "EXTRA");
