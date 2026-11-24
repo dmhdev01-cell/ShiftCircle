@@ -20,8 +20,8 @@ process.env.RUN_ID ??= new Date().toISOString().replace(/[:.]/g, '-').slice(0, 1
  */
 /**
  * The stack-wide specs: they reset the one shared demo database to another
- * dataset (120 or 150, and back to 100), or generate, commit or discard the one
- * quarter plan. Under fullyParallel two of them in flight corrupt each other's
+ * dataset (120 or 150, and back to 100), generate, commit or discard the one
+ * quarter plan, or lock the demo pay period (E4). Under fullyParallel two of them in flight corrupt each other's
  * data, and a reset or generate racing another answers 409 ("A demo reset or
  * another planner run is in progress"). They run in their own
  * `<viewport>-datasets` project: one worker, and only after the parallel
@@ -29,6 +29,7 @@ process.env.RUN_ID ??= new Date().toISOString().replace(/[:.]/g, '-').slice(0, 1
  */
 const STACK_SPECS = [
   /\/dataset120\.spec\.ts$/,
+  /\/e4-lock-and-payroll\.spec\.ts$/,
   /\/planned-leave\.spec\.ts$/,
   /\/planner\.spec\.ts$/,
   /\/planner-a11y\.spec\.ts$/,

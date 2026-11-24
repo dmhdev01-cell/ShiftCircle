@@ -79,7 +79,7 @@ The real-api specs change the data (offer confirmed, rule version published, per
 
 ### Stack-wide specs run one at a time, last
 
-Eleven specs change state the whole stack shares: they reset the one demo database to another dataset (120 or 150) and back to 100, or generate, commit or discard the one quarter plan. They are `dataset120`, `planned-leave`, `planner`, `planner-a11y`, `planner-absences`, `planner-committed`, `planner-draft-edit`, `planner-preferences-committed`, `reset-datasets`, `reset` and `unit-closure` (the `STACK_SPECS` list in `playwright.config.ts`). Under `fullyParallel`, two of them in flight corrupt each other's data, and a reset or generate racing another answers 409 ("A demo reset or another planner run is in progress"). So each viewport has two projects:
+Twelve specs change state the whole stack shares: they reset the one demo database to another dataset (120 or 150) and back to 100, generate, commit or discard the one quarter plan, or lock the demo pay period (E4, which another spec's actual edit in that period would otherwise disable mid-test). They are `dataset120`, `e4-lock-and-payroll`, `planned-leave`, `planner`, `planner-a11y`, `planner-absences`, `planner-committed`, `planner-draft-edit`, `planner-preferences-committed`, `reset-datasets`, `reset` and `unit-closure` (the `STACK_SPECS` list in `playwright.config.ts`). Under `fullyParallel`, two of them in flight corrupt each other's data, and a reset or generate racing another answers 409 ("A demo reset or another planner run is in progress"). So each viewport has two projects:
 
 | Project | Runs | Workers |
 |---|---|---|
@@ -89,4 +89,4 @@ Eleven specs change state the whole stack shares: they reset the one demo databa
 - **Whole suite for a viewport:** `--project desktop-datasets`. It runs `desktop` first, then the stack-wide specs one at a time. `--project desktop` alone skips the stack-wide specs.
 - **Tags:** CLI `--grep`/`--grep-invert` do not reach a dependency project, so the projects filter by mode themselves: a real-api run never runs `@fixtures` tests, and a run with `E2E_MODE=fixtures` never runs `@api` tests. The documented `--grep-invert @fixtures` is kept and is harmless.
 - **One stack-wide spec on its own:** add `--no-deps`, for example `npx playwright test tests/planned-leave.spec.ts --project desktop-datasets --no-deps`. Without it, Playwright runs the whole `desktop` project first, because CLI file filters do not apply to dependency projects either.
-- **A new spec that resets the dataset or generates, commits or discards a plan** goes into `STACK_SPECS`.
+- **A new spec that resets the dataset, generates, commits or discards a plan, or locks a pay period** goes into `STACK_SPECS`.
