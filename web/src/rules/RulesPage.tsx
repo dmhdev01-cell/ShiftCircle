@@ -415,11 +415,14 @@ export function RulesPage() {
               }}
               onPublished={(published) => {
                 setDraft(published);
+                // The published version replaces its entry, so the status
+                // pill reads Published, not the stale Approved (D3).
                 setVersions((current) =>
-                  (current ?? []).map((entry) => ({
-                    ...entry,
-                    live: entry.version === published.version,
-                  })),
+                  (current ?? []).map((entry) =>
+                    entry.version === published.version
+                      ? { ...published, live: true }
+                      : { ...entry, live: false },
+                  ),
                 );
                 // "Live now": the api's publishedAt is the real moment of
                 // publishing, not the demo day, and the raw ISO stamp read badly

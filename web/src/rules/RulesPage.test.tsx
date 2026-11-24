@@ -261,6 +261,9 @@ describe('Rules admin', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Publish' }));
     expect(await screen.findByText('Version 8 is live now.')).toBeInTheDocument();
+    // D3: the status pill follows the publish; it read "Approved" next to "Live v8".
+    expect(screen.getByText('Live v8 · no draft')).toBeInTheDocument();
+    expect(screen.queryByText('Approved', { exact: true })).not.toBeInTheDocument();
 
     const versions = await api.getRuleSets();
     const published = versions.find((entry) => entry.version === 8);
