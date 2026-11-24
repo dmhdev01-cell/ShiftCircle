@@ -181,6 +181,11 @@ public class AssignmentService {
       throw new AssignmentProblemException(AssignmentProblemException.Kind.FILLS_OPEN_SHIFT);
     }
     requireOpenPayPeriod(request.change().startAt());
+    // The target must not have started either, by the same business clock (PR-O review S1): a
+    // planned shift in the past could not be moved again, only corrected in Time & attendance.
+    if (!request.change().startAt().isAfter(clock.now())) {
+      throw new AssignmentProblemException(AssignmentProblemException.Kind.TARGET_STARTED);
+    }
 
     RuleCheckService.Change change =
         new RuleCheckService.Change(

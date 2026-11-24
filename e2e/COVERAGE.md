@@ -77,6 +77,7 @@ fixtures-only · **—** not coverable, with the reason.
 | Warning only → "Acknowledge and assign" (no override, no plain save) → saved | supervisor | planning-override | N |
 | Board refreshes after a save | supervisor | planning-override (D9) | N (defect fixed) |
 | Move and cancel with reason (If-Match) | supervisor | move-cancel (@api) | E |
+| Started shift (v1.2): no Move or Cancel, plain notice, link opens Time & attendance on that shift (period, unit, record panel); a future shift still moves and a start that has passed is refused before submit | supervisor | started-shift-dialog (@api) | N |
 | Publish period, audit row | supervisor, auditor | publish-period (@api), screenshots | E |
 | Read-only board | auditor | screenshots, a11y-every-screen | N |
 | Wrong role (employee) → plain refusal, no blank page | employee | routes-and-errors | N |
