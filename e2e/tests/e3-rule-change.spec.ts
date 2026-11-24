@@ -1,16 +1,20 @@
 import { expect, test } from '@playwright/test';
 
+import { apiAs } from './api';
 import { expectAccessible, signIn, signInAgain, signOut } from './support';
 
 /**
  * E3 (docs/10-testing.md section 5): the rules admin changes U-02 (the rest
- * target between shifts) from 12 to 14 h, builds and submits; the author cannot approve; a second person
- * approves and publishes. No code change.
+ * target between shifts) from 12 to 14 h, builds and submits; the author
+ * cannot approve; a second person approves and publishes. No code change.
+ *
+ * A stack-wide spec (STACK_SPECS in playwright.config.ts): on the real api it
+ * publishes an effective rule change, so it runs one at a time, last.
  */
 
 test.describe('E3 rule change with maker/checker', () => {
   test('admin edits, builds and submits; approver approves and publishes', async ({ page }, testInfo) => {
-    // Fixture-only: it publishes a new live rule version (v8 in the fixtures).
+    // Writes state: it publishes a new live rule version (v8 in the fixtures, v4 on a fresh real api).
     await signIn(page, 'L. Fraser');
     await expect(page.getByRole('heading', { name: 'Rules', level: 1 })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Rest between shifts' })).toBeVisible();
@@ -40,6 +44,7 @@ test.describe('E3 rule change with maker/checker', () => {
     );
     await expect(sentence).toBeVisible();
     await expect(sentence).not.toContainText('|');
+    const composed = await sentence.textContent();
     // Build saves the unsaved edit first (R3).
     await expect(page.getByText('You have unsaved edits. Build and Submit save them first.')).toBeVisible();
 
@@ -51,6 +56,17 @@ test.describe('E3 rule change with maker/checker', () => {
     if ((await page.getByText('Demo fixtures').count()) === 0) {
       await expect(page.getByText(/\d+ result\(s\) change on the current roster\./)).toBeVisible();
       await expect(page.getByText(/^\d+ officers? in Unit A goe?s? from Pass to Warn under U-02$/)).toBeVisible();
+
+      // Contract: the sentence the web composed while typing is the one the
+      // api keeps with the saved row (RuleSentence.java), word for word.
+      const api = await apiAs(page.request, 'l.fraser');
+      const versions = await api.get<{ version: number; status: string }[]>('/rule-sets');
+      const draft = versions.find((entry) => entry.status === 'DRAFT');
+      expect(draft, 'the draft E3 just built').toBeTruthy();
+      const rest = await api.get<{ rows: { ruleCode: string; sentence: string }[] }>(
+        `/rule-sets/${draft!.version}/tables/rest-between-shifts`,
+      );
+      expect(rest.rows.find((row) => row.ruleCode === 'U-02')?.sentence).toBe(composed);
     }
     await page.getByRole('button', { name: 'Submit for approval' }).click();
     await expect(page.getByText(/is submitted for approval/)).toBeVisible();

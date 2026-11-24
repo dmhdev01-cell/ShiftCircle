@@ -15,6 +15,9 @@ export function composeSentence(tableCode: string, row: RuleTableRow): string {
   const outcome = outcomeText(row.result);
   const override = overrideText(row.override, row.result);
 
+  // row.minHours is the table's hours param (minRestHours, maxHours, max,
+  // maxIn7Days, daysOff): the api derives it from that param
+  // (RuleSetService.rowView) and RulesPage.update writes both on an edit.
   switch (tableKey(tableCode)) {
     case 'REST':
       return (

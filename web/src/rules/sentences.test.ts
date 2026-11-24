@@ -59,8 +59,13 @@ function expectPlain(sentence: string) {
 }
 
 describe('composeSentence', () => {
-  it.each(LIVE_V3.map(([table, r]) => [r.ruleCode, table, r] as const))(
-    '%s: an unedited row reads exactly as the api sentence',
+  // The 11 composed rows (rest, hours, runs, 16 h, days off). The 9 message
+  // rows pass the api sentence through and are covered further down.
+  const COMPOSED = new Set(['REST', 'MAX_HOURS', 'CONSECUTIVE', 'LONG_SHIFTS', 'DAYS_OFF']);
+  it.each(
+    LIVE_V3.filter(([table]) => COMPOSED.has(table)).map(([table, r]) => [r.ruleCode, table, r] as const),
+  )(
+    '%s: an unedited row composes exactly the api sentence',
     (_code, table, r) => {
       expect(composeSentence(table, r)).toBe(r.sentence);
       expectPlain(composeSentence(table, r));
