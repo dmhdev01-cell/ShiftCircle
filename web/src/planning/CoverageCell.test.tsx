@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ThemeProvider } from '@mui/material/styles';
 
@@ -76,4 +76,44 @@ describe('a compact coverage heat cell (A1)', () => {
     // Two or more short is the orange heat tone.
     expect(cell).toHaveStyle({ backgroundColor: '#F6B26B' });
   });
+
+  it('A2: a short cell today or later is a button that opens the fill panel', async () => {
+    const onFill = vi.fn();
+    const short = block({
+      date: '2026-11-21',
+      scheduled: { lowestHourly: 3, shortHours: [{ from: '07:00', to: '15:00', count: 3 }], maxHourly: 3 },
+      actual: undefined,
+      covered: false,
+    });
+    render(
+      <ThemeProvider theme={theme}>
+        <CoverageCell block={short} today={TODAY} onFill={onFill} />
+        <CoverageCell block={short} today={TODAY} compact onFill={onFill} selected />
+      </ThemeProvider>,
+    );
+    const buttons = screen.getAllByRole('button', { name: /^Fill gap: Sat 21 Nov days, 3 of 5/ });
+    expect(buttons).toHaveLength(2);
+    expect(buttons[1]).toHaveAttribute('aria-pressed', 'true');
+    buttons[0].click();
+    expect(onFill).toHaveBeenCalledWith(short);
+  });
+
+  it('A2: a met cell, a past cell or a cell without a handler stays plain', () => {
+    const onFill = vi.fn();
+    const shortPast = block({
+      date: '2026-11-18',
+      scheduled: { lowestHourly: 3, shortHours: [{ from: '07:00', to: '15:00', count: 3 }], maxHourly: 3 },
+      actual: undefined,
+      covered: false,
+    });
+    render(
+      <ThemeProvider theme={theme}>
+        <CoverageCell block={block({ date: '2026-11-21' })} today={TODAY} onFill={onFill} />
+        <CoverageCell block={shortPast} today={TODAY} onFill={onFill} />
+        <CoverageCell block={{ ...shortPast, date: '2026-11-21' }} today={TODAY} />
+      </ThemeProvider>,
+    );
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
 });
+

@@ -153,7 +153,143 @@ describe('the planning board', () => {
     const card = tile.closest('div');
     expect(card).not.toBeNull();
     expect(within(card as HTMLElement).getByText('2')).toBeInTheDocument();
-    expect(within(card as HTMLElement).getByText('Sat days, Fri evenings')).toBeInTheDocument();
+    // A2: the gap words are buttons that open the fill panel.
+    expect(within(card as HTMLElement).getByRole('button', { name: /^Fill gap: Sat days/ })).toHaveTextContent('Sat days');
+    expect(within(card as HTMLElement).getByRole('button', { name: /^Fill gap: Fri evenings/ })).toBeInTheDocument();
+    expect(card).toHaveTextContent('Sat days, Fri evenings');
+  });
+
+  describe('A2: fill a gap from the board', () => {
+    const BLOCKED = {
+      outcome: 'BLOCK' as const,
+      ruleSetVersion: 7,
+      overridable: false,
+      ruleResults: [
+        {
+          ruleCode: 'U-01',
+          ruleTable: 'rest',
+          outcome: 'BLOCK' as const,
+          message: 'Less than 8 hours rest between shifts',
+          overridePolicy: 'ACKNOWLEDGE' as const,
+        },
+      ],
+    };
+
+    it('opens the panel from a gap word, lists the free officers ranked, and Close returns focus', async () => {
+      const user = userEvent.setup();
+      renderBoard();
+
+      const word = await screen.findByRole('button', { name: /^Fill gap: Sat days/ });
+      await user.click(word);
+
+      const panel = await screen.findByRole('region', { name: /Sat 21 Nov · Days 07:00 – 15:00/ });
+      expect(within(panel).getByRole('heading', { level: 2 })).toHaveFocus();
+      // The template defaults to the block's 8 h shift.
+      expect(within(panel).getByRole('button', { name: /^D8 / })).toHaveAttribute('aria-pressed', 'true');
+      const rows = within(within(panel).getByRole('list', { name: 'Free officers' })).getAllByRole('listitem');
+      expect(rows.length).toBeGreaterThan(0);
+      const hours = rows.map((row) => Number(/(\d+) h this pay period/.exec(row.textContent ?? '')?.[1]));
+      expect(hours).toEqual([...hours].sort((a, b) => a - b));
+      // Nia's Saturday holds the proposal, so she is not free.
+      expect(within(panel).queryByText('Nia Thompson')).not.toBeInTheDocument();
+      expect(within(panel).getByRole('link', { name: /Overtime board/ })).toHaveAttribute(
+        'href',
+        '/overtime?unit=unit-b&startAt=2026-11-21T07%3A00%3A00-06%3A00',
+      );
+
+      await user.click(within(panel).getByRole('button', { name: 'Close' }));
+      expect(screen.queryByRole('region', { name: /Sat 21 Nov · Days/ })).not.toBeInTheDocument();
+      await waitFor(() => expect(word).toHaveFocus());
+    });
+
+    it('opens from the short coverage cell, and Escape closes it', async () => {
+      const user = userEvent.setup();
+      renderBoard();
+
+      const cell = await screen.findByRole('button', { name: /^Fill gap: Fri 20 Nov evenings, 4 of 5/ });
+      await user.click(cell);
+      expect(cell).toHaveAttribute('aria-pressed', 'true');
+      const panel = await screen.findByRole('region', { name: /Fri 20 Nov · Evenings 15:00 – 23:00/ });
+      expect(within(panel).getByRole('button', { name: /^E8 / })).toHaveAttribute('aria-pressed', 'true');
+
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('region', { name: /Fri 20 Nov · Evenings/ })).not.toBeInTheDocument();
+      await waitFor(() => expect(cell).toHaveFocus());
+    });
+
+    it('Check & assign runs the existing rule check; a Block shows the reasons and no assign', async () => {
+      const user = userEvent.setup();
+      const preview = vi.spyOn(api, 'previewRuleCheck').mockResolvedValue(BLOCKED);
+      const save = vi.spyOn(api, 'saveChange');
+      renderBoard();
+
+      await user.click(await screen.findByRole('button', { name: /^Fill gap: Sat days/ }));
+      const panel = await screen.findByRole('region', { name: /Sat 21 Nov · Days/ });
+      await user.click(within(panel).getByRole('button', { name: /^D12 / }));
+      const first = within(panel).getAllByRole('button', { name: /^Check & assign .* to D12 on Sat 21 Nov$/ })[0];
+      const name = /Check & assign (.*) to D12/.exec(first.getAttribute('aria-label') ?? '')?.[1];
+      await user.click(first);
+
+      expect(preview).toHaveBeenCalledWith({
+        change: expect.objectContaining({
+          type: 'ASSIGN',
+          unitId: 'unit-b',
+          shiftTemplate: 'D12',
+          startAt: '2026-11-21T07:00:00-06:00',
+        }),
+      });
+      const dock = await screen.findByRole('region', { name: 'Rule check' });
+      expect(within(dock).getByRole('heading', { name: new RegExp(`Assign ${name}`) })).toBeInTheDocument();
+      expect(await within(dock).findByText(/U-01 · Minimum rest/)).toBeInTheDocument();
+      expect(within(dock).queryByRole('button', { name: /^Assign shift$/ })).not.toBeInTheDocument();
+      // The panel steps aside while the verdict is open, then comes back.
+      expect(screen.queryByRole('region', { name: /Sat 21 Nov · Days/ })).not.toBeInTheDocument();
+      expect(save).not.toHaveBeenCalled();
+
+      await user.click(within(dock).getByRole('button', { name: 'Close' }));
+      expect(await screen.findByRole('region', { name: /Sat 21 Nov · Days/ })).toBeInTheDocument();
+      await waitFor(() => expect(first).toHaveFocus());
+      vi.restoreAllMocks();
+    });
+
+    it('saves through the existing flow and reloads the board', async () => {
+      const user = userEvent.setup();
+      const schedule = vi.spyOn(api, 'getSchedule');
+      vi.spyOn(api, 'previewRuleCheck').mockResolvedValue({
+        outcome: 'PASS',
+        ruleSetVersion: 7,
+        overridable: false,
+        ruleResults: [],
+      });
+      const save = vi.spyOn(api, 'saveChange').mockResolvedValue({
+        assignmentId: 'assignment-new',
+        version: 0,
+        status: 'PLANNED',
+        ruleOutcome: { outcome: 'PASS', ruleSetVersion: 7, overridable: false, ruleResults: [] },
+      } as never);
+      renderBoard();
+
+      await user.click(await screen.findByRole('button', { name: /^Fill gap: Sat days/ }));
+      const panel = await screen.findByRole('region', { name: /Sat 21 Nov · Days/ });
+      await user.click(within(panel).getAllByRole('button', { name: /^Check & assign / })[0]);
+      await user.click(await screen.findByRole('button', { name: 'Assign shift' }));
+
+      expect(save).toHaveBeenCalledWith(
+        expect.objectContaining({ change: expect.objectContaining({ shiftTemplate: 'D8' }) }),
+      );
+      await waitFor(() => expect(schedule.mock.calls.length).toBeGreaterThanOrEqual(2));
+      vi.restoreAllMocks();
+    });
+
+    it('keeps the empty-cell flow as it was (demo §2)', async () => {
+      const user = userEvent.setup();
+      renderBoard();
+      await user.click(
+        await screen.findByRole('button', { name: /assign a shift to Aiden Bergeron on 2026-11-19/ }),
+      );
+      expect(await screen.findByRole('dialog', { name: /Assign a shift to Aiden Bergeron/ })).toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: /· Days|· Evenings|· Nights/ })).not.toBeInTheDocument();
+    });
   });
 
   it('names the hours that fall short instead of only showing a count', async () => {

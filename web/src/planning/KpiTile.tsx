@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import Box from '@mui/material/Box';
 
 import { StatusPill } from '../components/StatusPill';
@@ -19,6 +20,11 @@ interface KpiTileProps {
   variant?: 'tile' | 'chip';
   /** Chip only: tint the chip as a warning (a gap count above zero). */
   highlight?: boolean;
+  /**
+   * A2: what the note shows, when it holds more than words (the gap words as
+   * buttons). `note` stays the plain text for the chip's title.
+   */
+  noteContent?: ReactNode;
 }
 
 /** A KPI tile (docs/ui/README.md §5.1): a label, a figure and a note. */
@@ -29,7 +35,16 @@ const TONE_COLOUR = {
   info: colour.status.info.text,
 } as const;
 
-export function KpiTile({ label, value, note, tone, pill, variant = 'tile', highlight = false }: KpiTileProps) {
+export function KpiTile({
+  label,
+  value,
+  note,
+  tone,
+  pill,
+  variant = 'tile',
+  highlight = false,
+  noteContent,
+}: KpiTileProps) {
   if (variant === 'chip') {
     return (
       <Box
@@ -64,7 +79,7 @@ export function KpiTile({ label, value, note, tone, pill, variant = 'tile', high
             component="span"
             sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}
           >
-            · {note}
+            · {noteContent ?? note}
           </Box>
         ) : null}
       </Box>
@@ -105,7 +120,7 @@ export function KpiTile({ label, value, note, tone, pill, variant = 'tile', high
       ) : null}
       {note ? (
         <Box component="span" sx={{ fontSize: 12, color: colour.text.muted }}>
-          {note}
+          {noteContent ?? note}
         </Box>
       ) : null}
     </Box>

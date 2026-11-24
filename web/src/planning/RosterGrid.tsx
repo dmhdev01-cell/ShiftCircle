@@ -5,7 +5,7 @@ import { AbsenceChip, OffChip, ShiftChip } from '../components/ShiftChip';
 import { ScrollShadows } from '../components/ScrollShadows';
 import { StatusPill } from '../components/StatusPill';
 import { qualificationLabel, qualificationShortLabel } from '../api/qualifications';
-import type { Block, CellItem, OfficerRow, SchedulePayload, ShiftItem } from '../api/types';
+import type { Block, BlockCoverage, CellItem, OfficerRow, SchedulePayload, ShiftItem } from '../api/types';
 import { colour, grid } from '../theme/tokens';
 import { CoverageCell } from './CoverageCell';
 import { dayTotals, isWeekend, officerTotals, payPeriodOf, rangeWords } from './rosterView';
@@ -72,6 +72,10 @@ export interface RosterGridProps {
    * day-totals footer sums the rows shown.
    */
   officers?: OfficerRow[];
+  /** A2: a short coverage cell (today or later) is picked; opens the gap-fill panel. */
+  onFillGap?: (block: BlockCoverage) => void;
+  /** A2: the gap the fill panel shows, outlined in the grid. */
+  selectedGap?: { date: string; block: Block } | null;
 }
 
 function CellChips({
@@ -170,6 +174,8 @@ export function RosterGrid({
   onPickChip,
   density = 'comfortable',
   officers: shownOfficers,
+  onFillGap,
+  selectedGap = null,
 }: RosterGridProps) {
   const officers = shownOfficers ?? payload.officers;
   const threshold = payload.officers[0]?.payPeriodThreshold ?? 80;
@@ -315,7 +321,15 @@ export function RosterGrid({
                           ...dayStyle(date, index),
                         }}
                       >
-                        {entry ? <CoverageCell block={entry} today={today} compact={compact} /> : null}
+                        {entry ? (
+                          <CoverageCell
+                            block={entry}
+                            today={today}
+                            compact={compact}
+                            onFill={onFillGap}
+                            selected={selectedGap?.date === date && selectedGap.block === block}
+                          />
+                        ) : null}
                       </td>
                     );
                   })}
