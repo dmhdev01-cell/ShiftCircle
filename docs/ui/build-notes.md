@@ -142,7 +142,7 @@ All of these use the shared layout (README §4), the tokens (§3), **one yellow 
     - A new row gets a "New" pill (pass tint). A removed row is struck through with a "Removed" pill.
   - **Plain-language panel:** **Before** (live v7) and **After** (v8) sentences for the selected row.
   - **Build report:** `PublishChecklist` read-only, covering values checked, compiled, scenarios ("13 / 13 passed") and dry-run impact.
-- **Dry-run impact, privacy:** the approver role can't see the roster (`09-access-control.md` §2). Show **counts by rule, unit and date** ("3 published shifts in Unit C, 24–28 Nov, would now break U-03"), **no names**.
+- **Dry-run impact, privacy:** the approver role can't see the roster (`09-access-control.md` §2). Show **counts by rule, unit and result** ("3 officers in Unit C go from Pass to Block under U-03"), **no names**.
 - **Decision:**
   - Comment box: required to reject, optional to approve.
   - "Approve" is the yellow button; "Reject…" is white.
