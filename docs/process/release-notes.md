@@ -42,4 +42,4 @@ Screenshots from the gated build in the user guide, the repository made public (
 
 ## Release 10: neutral wording (docs only)
 
-The README no longer describes the repository's purpose beyond "a prototype", and the design-canvas sentence and two process-record wordings were reworded. No code, test or data change; counts as at release 9.
+The README no longer describes the repository's purpose beyond "a prototype", and the design-canvas sentence and two process-record wordings were reworded. No code, test or data change; counts as at release 8.

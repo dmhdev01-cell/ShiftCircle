@@ -1206,7 +1206,7 @@ export interface ShiftCircleApi {
   getMySchedule(query: ScheduleQuery): Promise<MySchedulePayload>;
   getMyOffers(): Promise<MyOffer[]>;
   respondToOffer(offerId: string, response: OfferResponse): Promise<MyOffer>;
-  submitProposals(note: string, items: RuleCheckChange[]): Promise<{ id: string; accepted: number }>;
+  // Sending proposals is not built: the api has no /proposals endpoint (M1).
 
   // Reference data.
   getUnits(): Promise<Unit[]>;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -7,6 +7,7 @@ import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 
 import { api } from '../api/client';
+import { useUnits } from '../api/useUnits';
 import { shiftTemplates } from '../api/shiftTemplates';
 import type { OpenShift, RuleCheckChange } from '../api/types';
 import { useVersion } from '../api/useVersion';
@@ -70,6 +71,57 @@ const OFFER_TEXT = {
 } as const;
 
 /**
+ * The slot the planning board asked about has no open shift (M3). Creating an
+ * open shift from here is not built, so the next step is the planning board.
+ */
+function MissingSlot({ unitId, startAt }: { unitId: string | null; startAt: string | null }) {
+  // Units are read only here, so the normal board keeps its request count.
+  const units = useUnits();
+  const unitName =
+    units.kind === 'ready' ? units.units.find((unit) => unit.id === unitId)?.name : undefined;
+  // The planning board writes a local time with an offset, so the date and
+  // the clock time are read straight from the string.
+  const local = startAt?.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+  const slot = [unitName, local ? `${shortDay(local[1])} ${local[2]}` : null]
+    .filter(Boolean)
+    .join(' · ');
+  const params = new URLSearchParams();
+  if (unitId) params.set('unit', unitId);
+  if (local) params.set('week', local[1]);
+  const query = params.toString();
+  return (
+    <Box
+      role="note"
+      aria-label="No open shift for this slot"
+      sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+    >
+      <Typography component="h2" sx={{ m: 0, fontSize: 18, fontWeight: 700 }}>
+        No open shift for this slot yet
+      </Typography>
+      {slot ? (
+        <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{slot}</Typography>
+      ) : null}
+      <Typography sx={{ fontSize: 14, color: colour.text.secondary, lineHeight: 1.5 }}>
+        This slot is not on the overtime board, so there is no ranked list of officers for it.
+        Posting a new open shift from here is not available in this prototype. Next step: go back
+        to the planning board and assign another officer to the slot, or pick an open shift on
+        this board.
+      </Typography>
+      <Box>
+        <Button
+          variant="contained"
+          color="primary"
+          component={Link}
+          to={query ? `/planning?${query}` : '/planning'}
+        >
+          Back to the planning board
+        </Button>
+      </Box>
+    </Box>
+  );
+}
+
+/**
  * The overtime board (docs/ui/README.md §5.3). The open shifts come from the
  * api and the ranked list comes from the overtime-ranking rule table, so the
  * screen never makes up an order or a reason.
@@ -103,10 +155,19 @@ export function OvertimePage() {
         new Date(shift.startAt).getTime() === new Date(requestedStart).getTime(),
     ) ??
     null;
+  // M3: a slot the planning board sent that has no open shift must not open
+  // some other shift's ranked list as if it were the answer. Say so instead.
+  const slotMissing =
+    shiftsState.kind === 'ready' &&
+    requested === null &&
+    (requestedId !== null || (requestedUnit !== null && requestedStart !== null));
   // The requested shift is selected until the supervisor picks another; with
   // no request the board opens on the nearest current need, not on the oldest
   // filled shift in the data (V7).
-  const activeId = pickedId ?? requested?.id ?? current[0]?.id ?? others[0]?.id ?? null;
+  const activeId =
+    pickedId ??
+    requested?.id ??
+    (slotMissing ? null : (current[0]?.id ?? others[0]?.id ?? null));
   const { state: candidatesState, reload: reloadCandidates } = useOpenShiftCandidates(activeId);
   const [selected, setSelected] = useState<string[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -355,7 +416,11 @@ export function OvertimePage() {
             gap: 3,
           }}
         >
-          {!activeShift ? (
+          {!activeShift && slotMissing ? (
+            <MissingSlot unitId={requestedUnit} startAt={requestedStart} />
+          ) : null}
+
+          {!activeShift && !slotMissing ? (
             <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
               No open shift is selected.
             </Typography>
