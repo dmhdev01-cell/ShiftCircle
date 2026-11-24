@@ -75,9 +75,9 @@ describe('the roster tab unit picker', () => {
 
     expect(await screen.findByRole('heading', { name: 'Unit A · Living unit' })).toBeInTheDocument();
     expect(options()).toEqual([
-      'Unit A · Living unit · 1 gap',
-      'Unit B · Living unit · no gaps',
-      'Control · 2 gaps',
+      'Unit A · Living unit · 1 gap this week, 1 in the quarter',
+      'Unit B · Living unit · no gaps this week, 1 in the quarter',
+      'Control · 2 gaps this week, 2 in the quarter',
     ]);
   });
 
@@ -86,9 +86,9 @@ describe('the roster tab unit picker', () => {
 
     expect(await screen.findByRole('heading', { name: 'Unit B · Living unit' })).toBeInTheDocument();
     expect(options()).toEqual([
-      'Unit A · Living unit · no gaps',
-      'Unit B · Living unit · 1 gap',
-      'Control · no gaps',
+      'Unit A · Living unit · no gaps this week, 1 in the quarter',
+      'Unit B · Living unit · 1 gap this week, 1 in the quarter',
+      'Control · no gaps this week, 2 in the quarter',
     ]);
   });
 
@@ -121,6 +121,9 @@ describe('the roster tab unit picker', () => {
     );
 
     const strip = await screen.findByRole('region', { name: /All units · 4 – 10 Jan 2027/ });
+    // Q3: the all-units table starts collapsed under its heading.
+    expect(within(strip).queryByRole('table')).toBeNull();
+    await user.click(within(strip).getByRole('button', { name: 'Show all units' }));
     await user.click(within(strip).getByRole('button', { name: 'Unit A · Living unit' }));
     expect(changes).toContainEqual({ unit: 'unit-a' });
   });
@@ -169,6 +172,7 @@ describe('the roster tab unit picker', () => {
     expect(await screen.findByRole('heading', { name: 'Unit C · Living unit' })).toBeInTheDocument();
     expect(options()[0]).toContain('(closed from 15 Feb 2027)');
     expect(screen.getByText(/Unit C is closed from Mon 15 Feb 2027/)).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Show all units' }));
     expect(screen.getAllByText('Closed').length).toBeGreaterThanOrEqual(7);
   });
 });
@@ -305,5 +309,99 @@ describe('draft editing on the roster tab', () => {
       screen.queryByRole('button', { name: /for .+ on \d{4}-\d{2}-\d{2}/ }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText(/hand edits so far/)).not.toBeInTheDocument();
+  });
+});
+
+describe('the quarter plan navigation and draft warnings (A6, A8)', () => {
+  it('lists all 14 weeks with their gaps and jumps to the one picked', async () => {
+    const user = userEvent.setup();
+    const changes: { unit?: string; week?: string }[] = [];
+    vi.spyOn(api, 'getPlannerSchedule').mockImplementation(async (_draftId, query) => plannerSchedule(query));
+    vi.spyOn(api, 'getPlannerCoverage').mockResolvedValue([]);
+    render(
+      <ThemeProvider theme={theme}>
+        <PlannerRosterTab
+          draftId="draft-1"
+          window={{ from: '2027-01-04', to: '2027-04-11' }}
+          gaps={GAPS}
+          units={UNITS}
+          unitParam="unit-a"
+          weekParam={null}
+          onChange={(next) => changes.push(next)}
+        />
+      </ThemeProvider>,
+    );
+
+    const picker = await screen.findByLabelText('Go to week');
+    const weeks = within(picker).getAllByRole('option').map((option) => option.textContent);
+    expect(weeks).toHaveLength(14);
+    expect(weeks[0]).toBe('Week 1 · 4 – 10 Jan 2027 · 3 gaps in all units');
+    expect(weeks[1]).toBe('Week 2 · 11 – 17 Jan 2027 · 1 gap in all units');
+    expect(weeks[12]).toBe('Week 13 · 29 Mar – 4 Apr 2027 · no gaps in all units');
+    expect(weeks[13]).toBe('Week 14 · 5 – 11 Apr 2027 · no gaps in all units');
+
+    await user.selectOptions(picker, '2027-03-08');
+    expect(changes).toContainEqual({ week: '2027-03-08' });
+  });
+
+  it('marks a chip named in the draft warnings with a ⚠ and the message as its tooltip', async () => {
+    const base = plannerSchedule({ unitId: 'unit-a', from: '2027-01-04', to: '2027-01-10' });
+    const officer = base.officers[0];
+    officer.cells = base.days.map((date, index) => ({
+      date,
+      items:
+        index === 2
+          ? [
+              {
+                type: 'SHIFT' as const,
+                assignmentId: 'w1',
+                shiftTemplate: 'D8',
+                startAt: `${date}T07:00:00-06:00`,
+                endAt: `${date}T15:00:00-06:00`,
+                kind: 'ROSTERED' as const,
+                worked: false,
+                version: 1,
+              },
+            ]
+          : [],
+    }));
+    const cell = officer.cells[2];
+    const template = 'D8 07:00–15:00';
+    vi.spyOn(api, 'getPlannerSchedule').mockResolvedValue(base);
+    vi.spyOn(api, 'getPlannerCoverage').mockResolvedValue([]);
+    render(
+      <ThemeProvider theme={theme}>
+        <PlannerRosterTab
+          draftId="draft-1"
+          window={{ from: '2027-01-04', to: '2027-04-11' }}
+          gaps={[]}
+          units={UNITS}
+          unitParam="unit-a"
+          weekParam={null}
+          onChange={() => undefined}
+          warnings={[
+            {
+              ruleName: 'Week over 48 hours',
+              count: 1,
+              items: [
+                { unitCode: 'A', date: cell.date, employeeName: officer.name, shift: template, message: '56 hours this week' },
+                // Another officer's warning on a day nobody here works marks nothing.
+                { unitCode: 'A', date: '2027-01-05', employeeName: 'Nobody Here', shift: 'D8', message: 'x' },
+              ],
+            },
+          ]}
+        />
+      </ThemeProvider>,
+    );
+
+    const marker = await screen.findByRole('img', {
+      name: 'Rule warning: Week over 48 hours: 56 hours this week',
+    });
+    // The marker takes focus and its tooltip opens on focus, for keyboard users.
+    marker.focus();
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Week over 48 hours: 56 hours this week');
+    expect(marker.closest('td')).toHaveAttribute('data-date', cell.date);
+    expect(marker.closest('td')).toHaveAttribute('data-officer-id', officer.employeeId);
+    expect(screen.getAllByRole('img', { name: /^Rule warning/ })).toHaveLength(1);
   });
 });
