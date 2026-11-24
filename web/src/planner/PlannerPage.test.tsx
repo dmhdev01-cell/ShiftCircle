@@ -246,9 +246,60 @@ describe('the quarter plan', () => {
     await user.click(await screen.findByRole('tab', { name: /Gaps/ }));
 
     const panel = await screen.findByRole('tabpanel');
-    const table = within(panel).getByRole('table');
+    const table = within(panel).getByRole('table', { name: 'Gaps grouped into runs' });
     expect(within(table).getAllByText(/Unit A · Living unit/).length).toBeGreaterThan(0);
     expect(within(table).getAllByRole('button', { name: /Show week of/ }).length).toBeGreaterThan(0);
+  });
+
+  it('groups the gaps into runs under a weeks x units strip that opens a week (A7)', async () => {
+    const user = userEvent.setup();
+    renderPlanner();
+    await asPlanner(user);
+    await user.click(await screen.findByRole('button', { name: 'Generate draft' }));
+    await user.click(await screen.findByRole('tab', { name: /Gaps/ }));
+
+    const panel = await screen.findByRole('tabpanel');
+    const strip = within(panel).getByRole('table', { name: 'Gaps by week and unit' });
+    // 14 week columns plus the unit column.
+    expect(within(strip).getAllByRole('columnheader')).toHaveLength(15);
+    const runs = within(panel).getByRole('table', { name: 'Gaps grouped into runs' });
+    // The api's generic reason goes through the plain-words mapping, which
+    // claims no cause the api did not give; any other reason is shown as sent.
+    expect(
+      within(runs).getByText(
+        'No eligible officer was free without breaking a blocking rule. A supervisor fills it on the planning board.',
+      ),
+    ).toBeInTheDocument();
+    expect(within(runs).queryByText(/No eligible officer left without a Block rule/)).toBeNull();
+    expect(within(runs).getByText('No officer with Control training had enough rest')).toBeInTheDocument();
+    expect(within(runs).getAllByText('—').length).toBeGreaterThan(0);
+    expect(within(panel).getByText(/short block-days? in \d+ runs?/)).toBeInTheDocument();
+
+    // The strip follows the Unit filter, like the runs.
+    await user.selectOptions(within(panel).getByLabelText('Filter by unit'), 'Control');
+    expect(within(strip).queryByRole('button', { name: /^Unit A · Living unit/ })).toBeNull();
+    expect(within(strip).getAllByRole('button', { name: /^Control, week of/ }).length).toBeGreaterThan(0);
+    await user.selectOptions(within(panel).getByLabelText('Filter by unit'), '');
+
+    await user.click(within(strip).getByRole('button', { name: /^Unit A · Living unit, week of 4 Jan: 1 gap/ }));
+    expect(screen.getByTestId('search').textContent).toContain('tab=roster');
+    expect(screen.getByTestId('search').textContent).toContain('unit=unit-a');
+    expect(screen.getByTestId('search').textContent).toContain('week=2027-01-04');
+  });
+
+  it('says how much part-time capacity the plan leaves unused, from the FTE bands', async () => {
+    const user = userEvent.setup();
+    renderPlanner();
+    await asPlanner(user);
+    await user.click(await screen.findByRole('button', { name: 'Generate draft' }));
+
+    // Fixture bands: 12 x 430 + 8 x 210 = 6,840 h planned of 12 x 448 + 8 x 224 = 7,168 h.
+    const line = await screen.findByRole('note', { name: 'Unused part-time capacity' });
+    expect(line).toHaveTextContent('Unused part-time capacity: 328 h.');
+    expect(line).toHaveTextContent(/planned 6,840 h of their 7,168 h target/);
+    // The line states the planner's method, not a cause it cannot measure.
+    expect(line).toHaveTextContent(/planned only into shifts still open in their home unit, up to their FTE target\./);
+    expect(line).not.toHaveTextContent(/not offered/);
   });
 
   it('generates without a facility pattern: each officer keeps their own', async () => {
@@ -302,7 +353,9 @@ describe('the quarter plan', () => {
       within(screen.getByLabelText('Unit'))
         .getAllByRole('option')
         .map((option) => option.textContent ?? '');
-    expect(options().every((text) => / · (no gaps|1 gap|\d+ gaps)$/.test(text))).toBe(true);
+    expect(
+      options().every((text) => / · (no gaps|1 gap|\d+ gaps) this week(, \d+ in the quarter)?$/.test(text)),
+    ).toBe(true);
 
     const week = screen.getByRole('group', { name: 'Week' });
     expect(week).toHaveTextContent('4 – 10 Jan 2027');
