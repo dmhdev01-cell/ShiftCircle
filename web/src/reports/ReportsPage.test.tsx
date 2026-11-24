@@ -292,12 +292,16 @@ describe('the report range and unit (FR-60/61/62)', () => {
       await screen.findByRole('heading', { name: 'Hours by officer · 1 Nov 2026 – 14 Nov 2026' }),
     ).toBeInTheDocument();
     expect(from).toHaveValue('2026-11-01');
+    // The default period's lock badge does not describe a custom range.
+    expect(screen.queryByText('Locked')).not.toBeInTheDocument();
+    expect(screen.getByText('Custom range · totals in hours')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Reset' }));
     await waitFor(() =>
       expect(hours).toHaveBeenLastCalledWith({ from: undefined, to: undefined, unitId: undefined }),
     );
     await waitFor(() => expect(from).toHaveValue('2026-10-26'));
     expect(await screen.findByRole('heading', { name: /Hours by officer · pay period/ })).toBeInTheDocument();
+    expect(await screen.findByText('Locked')).toBeInTheDocument();
     vi.restoreAllMocks();
   });
 
@@ -321,6 +325,10 @@ describe('the report range and unit (FR-60/61/62)', () => {
       'The To date must be on or after the From date.',
     );
     expect(from).toHaveAttribute('aria-invalid', 'true');
+    // Correcting a date takes the message away until the next Apply.
+    await user.clear(from);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(from).toHaveAttribute('aria-invalid', 'false');
 
     await user.clear(from);
     await user.type(from, '2025-01-01');
@@ -328,7 +336,7 @@ describe('the report range and unit (FR-60/61/62)', () => {
     await user.type(to, '2026-11-01');
     await user.click(screen.getByRole('button', { name: 'Apply' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'The range can be at most 366 days. Choose a shorter range.',
+      'The To date can be at most 366 days after the From date. Choose a shorter range.',
     );
 
     await user.clear(to);
@@ -336,6 +344,23 @@ describe('the report range and unit (FR-60/61/62)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Choose both a From and a To date.');
     expect(coverage.mock.calls.length).toBe(callsBefore);
     coverage.mockRestore();
+  });
+
+  it('offers the auditor every unit under "All units"', async () => {
+    signInAs('A. Reviewer');
+    vi.spyOn(api, 'getUnits').mockResolvedValue([unit('A'), unit('B'), unit('C')]);
+    renderReports();
+    const unitPicker = await screen.findByLabelText('Unit');
+    await waitFor(() =>
+      expect(within(unitPicker).getAllByRole('option').map((option) => option.textContent)).toEqual([
+        'All units',
+        'Unit A',
+        'Unit B',
+        'Unit C',
+      ]),
+    );
+    expect(screen.getByText(/· All units$/)).toBeInTheDocument();
+    vi.restoreAllMocks();
   });
 
   it('has no unit picker for an account with no unit scope', async () => {

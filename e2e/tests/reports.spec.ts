@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
-import { isFixtures } from './api';
+import { apiAs, isFixtures } from './api';
 import { navTo, signIn } from './support';
 
 /**
@@ -91,17 +91,31 @@ test.describe('reports', () => {
     await expect(page.getByText(/no (emergency )?overrides/i)).toBeVisible({ timeout: 5_000 });
   });
 
-  test('a supervisor picks a range and a unit in scope, and the reports and CSV follow', async ({ page }) => {
+  test('a supervisor picks a range and a unit in scope, and the reports and CSV follow', async ({
+    page,
+    request,
+  }) => {
     // S1 (FR-60/61/62 "any range"): the screen had no range or unit picker.
     await signIn(page, 'M. Ellis');
     await navTo(page, 'Reports');
     await openTab(page, 'Hours');
 
     // The inputs open on the report's own default: the last locked pay period.
+    // Which period that is depends on the specs that lock and unlock periods in
+    // parallel (E4, screenshots), so check it is a pay period, not a fixed date.
     const from = page.getByLabel('From', { exact: true });
     const to = page.getByLabel('To', { exact: true });
-    await expect(from).toHaveValue('2026-10-26');
-    await expect(to).toHaveValue('2026-11-08');
+    await expect(from).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
+    await expect(to).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
+    const defaultFrom = await from.inputValue();
+    const defaultTo = await to.inputValue();
+    const periods = await (await apiAs(request, 'm.ellis')).get<{ from: string; to: string }[]>(
+      '/pay-periods',
+    );
+    expect(
+      periods.some((period) => period.from === defaultFrom && period.to === defaultTo),
+      `the default ${defaultFrom}–${defaultTo} is a pay period`,
+    ).toBe(true);
 
     // Only the units in M. Ellis's scope (A and B) are offered.
     const unit = page.getByLabel('Unit', { exact: true });
@@ -149,7 +163,8 @@ test.describe('reports', () => {
     // Reset goes back to each report's default.
     await page.getByRole('button', { name: 'Reset' }).click();
     await expect(page.getByRole('heading', { name: /Hours by officer · pay period/ })).toBeVisible();
-    await expect(from).toHaveValue('2026-10-26');
+    await expect(from).toHaveValue(defaultFrom);
+    await expect(to).toHaveValue(defaultTo);
   });
 
   test('the auditor narrows the overrides to a unit and a range', async ({ page }) => {
@@ -186,7 +201,7 @@ test.describe('reports', () => {
     await page.getByLabel('From', { exact: true }).fill('2025-01-01');
     await page.getByRole('button', { name: 'Apply' }).click();
     await expect(page.getByRole('alert')).toHaveText(
-      'The range can be at most 366 days. Choose a shorter range.',
+      'The To date can be at most 366 days after the From date. Choose a shorter range.',
     );
   });
 

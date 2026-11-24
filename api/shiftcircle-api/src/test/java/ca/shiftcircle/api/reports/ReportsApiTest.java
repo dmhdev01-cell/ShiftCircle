@@ -444,11 +444,21 @@ class ReportsApiTest {
       "/api/v1/reports/coverage?from=2025-01-01&to=2026-12-31",
       "/api/v1/reports/hours?from=2025-01-01&to=2026-12-31",
       "/api/v1/reports/overtime?from=2025-01-01&to=2026-12-31",
-      "/api/v1/reports/overrides?from=2025-01-01&to=2026-12-31"
+      "/api/v1/reports/overrides?from=2025-01-01&to=2026-12-31",
+      // An expanded ISO year overflowed LocalDate in the range arithmetic and answered 500.
+      "/api/v1/reports/coverage?from=%2B999999999-12-31&to=%2B999999999-12-31",
+      "/api/v1/reports/hours?from=%2B999999999-12-31&to=%2B999999999-12-31",
+      "/api/v1/reports/overtime?from=%2B999999999-12-31&to=%2B999999999-12-31",
+      "/api/v1/reports/overrides?from=%2B999999999-12-31&to=%2B999999999-12-31",
+      "/api/v1/reports/overrides?from=%2B999999999-12-01&to=%2B999999999-12-31",
+      "/api/v1/reports/overrides?from=-999999999-01-01&to=-999999999-01-02"
     };
     for (String path : paths) {
       assertThat(get(path, tokens.get("a.reviewer"), null).statusCode())
           .as(path)
+          .isEqualTo(400);
+      assertThat(get(path, tokens.get("a.reviewer"), "text/csv").statusCode())
+          .as(path + " as CSV")
           .isEqualTo(400);
     }
   }

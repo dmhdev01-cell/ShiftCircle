@@ -33,6 +33,8 @@ type Tab = ReportTab;
 interface ReportFilter {
   range?: DateRange;
   unitId: string;
+  /** The chosen unit's name, kept so the summary never falls back while units load. */
+  unitName?: string;
 }
 
 const TABS: { id: Tab; label: string }[] = [
@@ -127,7 +129,10 @@ export function ReportsPage() {
   const unitsState = useUnits();
   const sessionUser = useSyncExternalStore(subscribeSession, getSession).user;
   const scopedUnits = unitsInScope(unitsState.kind === 'ready' ? unitsState.units : [], sessionUser);
-  const [payPeriods, setPayPeriods] = useState<PayPeriod[]>([]);
+  // Undefined until the periods arrive (or if they cannot be read): the Hours
+  // inputs then stay empty rather than name a range the report may not use.
+  const [payPeriods, setPayPeriods] = useState<PayPeriod[] | undefined>(undefined);
+  const allUnitsLabel = sessionUser?.roles.includes('AUDITOR') ? 'All units' : 'All my units';
   const [filter, setFilter] = useState<ReportFilter>({ unitId: '' });
   const [draftFrom, setDraftFrom] = useState<string | null>(null);
   const [draftTo, setDraftTo] = useState<string | null>(null);
@@ -141,10 +146,12 @@ export function ReportsPage() {
     to: filter.range?.to,
     unitId: filter.unitId || undefined,
   };
-  const unitName = scopedUnits.find((unit) => unit.id === filter.unitId)?.name;
+  const unitName = filter.unitId
+    ? (scopedUnits.find((unit) => unit.id === filter.unitId)?.name ?? filter.unitName ?? 'The chosen unit')
+    : allUnitsLabel;
 
   // The hours default is a pay period; the list is only for the inputs, so a
-  // refusal leaves the hours inputs on the fallback range.
+  // refusal leaves the hours inputs empty (the report still uses its default).
   useEffect(() => {
     let active = true;
     api.getPayPeriods().then(
@@ -183,6 +190,7 @@ export function ReportsPage() {
     setFilter({
       range: touched ? { from: fromValue, to: toValue } : undefined,
       unitId: draftUnit,
+      unitName: scopedUnits.find((unit) => unit.id === draftUnit)?.name,
     });
   };
 
@@ -336,7 +344,10 @@ export function ReportsPage() {
             size="small"
             value={fromValue}
             error={rangeError !== null}
-            onChange={(event) => setDraftFrom(event.target.value)}
+            onChange={(event) => {
+              setDraftFrom(event.target.value);
+              setRangeError(null);
+            }}
             slotProps={{
               inputLabel: { shrink: true },
               htmlInput: { 'aria-describedby': rangeError ? 'report-range-error' : undefined },
@@ -348,7 +359,10 @@ export function ReportsPage() {
             size="small"
             value={toValue}
             error={rangeError !== null}
-            onChange={(event) => setDraftTo(event.target.value)}
+            onChange={(event) => {
+              setDraftTo(event.target.value);
+              setRangeError(null);
+            }}
             slotProps={{
               inputLabel: { shrink: true },
               htmlInput: { 'aria-describedby': rangeError ? 'report-range-error' : undefined },
@@ -364,7 +378,7 @@ export function ReportsPage() {
               slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
               sx={{ minWidth: 200 }}
             >
-              <option value="">All my units</option>
+              <option value="">{allUnitsLabel}</option>
               {scopedUnits.map((unit) => (
                 <option key={unit.id} value={unit.id}>
                   {unit.name}
@@ -394,7 +408,7 @@ export function ReportsPage() {
               {filter.range
                 ? `Every report covers ${rangeWords(filter.range)}`
                 : "Each report covers its own default range"}
-              {` · ${unitName ?? 'All my units'}`}
+              {` · ${unitName}`}
             </Typography>
           </Box>
         </CardContent>
@@ -471,14 +485,22 @@ export function ReportsPage() {
                 component="span"
                 sx={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 13, color: colour.text.secondary }}
               >
-                {hours?.period.status === 'LOCKED' ? (
-                  <StatusPill tone="pass">Locked</StatusPill>
+                {/* The lock state belongs to the default pay period; a custom
+                    range can span several periods, so it says so instead. */}
+                {filter.range ? (
+                  'Custom range · totals in hours'
                 ) : (
-                  <StatusPill tone="info">Open</StatusPill>
+                  <>
+                    {hours?.period.status === 'LOCKED' ? (
+                      <StatusPill tone="pass">Locked</StatusPill>
+                    ) : (
+                      <StatusPill tone="info">Open</StatusPill>
+                    )}
+                    {hours?.period.lockedBy
+                      ? `by ${hours.period.lockedBy} on ${hours.period.lockedAt} · totals in hours`
+                      : 'totals in hours'}
+                  </>
                 )}
-                {hours?.period.lockedBy
-                  ? `by ${hours.period.lockedBy} on ${hours.period.lockedAt} · totals in hours`
-                  : 'totals in hours'}
               </Box>
             </Box>
             <Button variant="contained" color="primary" onClick={() => void exportCsv()}>

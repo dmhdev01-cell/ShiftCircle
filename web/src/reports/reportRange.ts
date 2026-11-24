@@ -38,7 +38,7 @@ function daysBetween(from: string, to: string): number {
 export function defaultRange(
   tab: ReportTab,
   asOf: string | undefined,
-  payPeriods: PayPeriod[] = [],
+  payPeriods?: PayPeriod[],
 ): DateRange | undefined {
   if (!asOf || !isIsoDate(asOf)) return undefined;
   switch (tab) {
@@ -49,7 +49,9 @@ export function defaultRange(
       return { from: addDays(monday, -35), to: addDays(monday, 13) };
     }
     case 'hours': {
-      // The last locked pay period, else the one today falls in.
+      // The last locked pay period, else the one today falls in. Unknown until
+      // the periods are read.
+      if (!payPeriods) return undefined;
       const locked = payPeriods
         .filter((period) => period.status === 'LOCKED')
         .sort((a, b) => b.to.localeCompare(a.to))[0];
@@ -73,9 +75,12 @@ export function rangeProblem(from: string, to: string): string | null {
   if (!from || !to) return 'Choose both a From and a To date.';
   if (!isIsoDate(from)) return 'The From date is not a valid date.';
   if (!isIsoDate(to)) return 'The To date is not a valid date.';
+  if ([from, to].some((date) => date < '1900-01-01' || date > '2999-12-31')) {
+    return 'Choose dates between 1900 and 2999.';
+  }
   if (to < from) return 'The To date must be on or after the From date.';
   if (daysBetween(from, to) > MAX_RANGE_DAYS) {
-    return `The range can be at most ${MAX_RANGE_DAYS} days. Choose a shorter range.`;
+    return `The To date can be at most ${MAX_RANGE_DAYS} days after the From date. Choose a shorter range.`;
   }
   return null;
 }

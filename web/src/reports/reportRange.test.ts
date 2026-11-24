@@ -36,6 +36,8 @@ describe('defaultRange: the range each report reads when none is asked for', () 
       to: '2026-11-22',
     });
     expect(defaultRange('hours', asOf, [])).toEqual({ from: '2026-11-06', to: asOf });
+    // Before the periods are read (or when they cannot be), the screen does not guess.
+    expect(defaultRange('hours', asOf, undefined)).toBeUndefined();
   });
 
   it('overtime: the quarter so far', () => {
@@ -65,11 +67,13 @@ describe('rangeProblem', () => {
     expect(rangeProblem('2026-11-19', '')).toBe('Choose both a From and a To date.');
     expect(rangeProblem('2026-02-30', '2026-03-01')).toBe('The From date is not a valid date.');
     expect(rangeProblem('2026-02-01', '2026-13-01')).toBe('The To date is not a valid date.');
+    expect(rangeProblem('1899-12-31', '1900-01-02')).toBe('Choose dates between 1900 and 2999.');
+    expect(rangeProblem('2999-12-01', '3000-01-01')).toBe('Choose dates between 1900 and 2999.');
     expect(rangeProblem('2026-11-20', '2026-11-19')).toBe(
       'The To date must be on or after the From date.',
     );
     expect(rangeProblem('2026-01-01', '2027-01-03')).toBe(
-      `The range can be at most ${MAX_RANGE_DAYS} days. Choose a shorter range.`,
+      `The To date can be at most ${MAX_RANGE_DAYS} days after the From date. Choose a shorter range.`,
     );
   });
 });
