@@ -6,9 +6,9 @@ import type { PlanInputs } from '../types';
  */
 export const PLAN_INPUTS_120: PlanInputs = {
   "window": {
-    "periods": 7,
     "from": "2027-01-04",
-    "to": "2027-04-11"
+    "to": "2027-04-11",
+    "periods": 7
   },
   "options": {
     "seed": 20261001,
@@ -20,6 +20,9 @@ export const PLAN_INPUTS_120: PlanInputs = {
     "partTime": 20,
     "fte": 112.0,
     "neededFte": 127,
+    "neededFrom": "2027-01-04",
+    "neededTo": "2027-04-11",
+    "neededPeriods": 1,
     "units": 6
   },
   "units": [

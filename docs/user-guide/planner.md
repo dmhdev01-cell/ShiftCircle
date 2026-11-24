@@ -28,13 +28,16 @@ The **Plan inputs** card sits above the scorecard (and on the empty quarter befo
 
 > Planning 150 officers in 6 units · 120 full-time, 30 part-time or casual · 138 FTE against about 127 needed · 4 Jan – 11 Apr 2027
 
-The line under it gives the seed, the 8 h pattern ("8 h officers on their own pattern" unless one pattern was forced for everyone), the rule set version, the planned leave days and how many officers have preferences on file. "About … needed" is the same floor as the **Staffing by unit** card.
+The line under it gives the Generate options (before a draft, the **default seed**; with a draft, the seed it used), the 8 h pattern ("8 h officers on their own pattern" unless one pattern was forced for everyone, in which case the table groups the 8 h officers under that pattern too), any other option the draft was made with, the rule set version, the planned leave days and how many officers have preferences on file.
+
+"About … needed" is the **Staffing by unit** floor. When no unit closes in the quarter it covers the whole quarter. When a closure splits the quarter into stretches, the headline gives the busiest stretch and its dates, for example "about 127 needed at the busiest (4 Jan – 14 Feb)".
 
 **Show plan inputs** opens the detail:
 - **Officers by unit:** full-time and part-time or casual officers, their FTE and their shift patterns (12 h day or night crew, 8 h day or evening crew, an 8 h rotation, or the relief pool with no fixed rotation), and each unit's minimum for night, day and evening. A closed-days column appears when a unit is closed for part of the quarter.
 - **Planned leave in the quarter:** leave days by type (Vacation, Sick, Other) and how many officers have leave. An officer is never rostered on a leave day.
 - **Preferences on file:** how many officers asked for each shift length, time of day and days off. 16 h wishes are counted but never rostered.
-- **Seniority and rules:** the oldest and newest seniority dates, the rule set, the seed and the pay periods.
+- **Seniority and rules:** the oldest and newest seniority dates, the rule set, the pay periods and the staffing floor.
+- **Generate options:** every option the draft was made with (or Generate's defaults before a draft), one line each, in words.
 - **How the plan is filled:** the order the generator follows, in plain words:
   1. Day by day and unit by unit, night then day then evening, full-time officers whose rotation has them on fill the unit's minimum. Only 12 h officers work nights: those who asked for nights first (most senior first), then the newest. Day and evening go first to officers whose preferred time matches, then by seniority.
   2. Every other full-time officer whose rotation has them on that day is rostered too, even above the minimum.
@@ -44,7 +47,7 @@ The line under it gives the seed, the 8 h pattern ("8 h officers on their own pa
 
 The generator does not tell part-time from casual: every officer under 1.0 FTE is filled the same way, so the card counts them together.
 
-With a draft open, the card shows **what this draft was generated with**: the draft keeps its own copy, so it still reads true if staff, leave or preferences change later. If they have changed, a yellow note says what ("now 151 officers (was 150) …") and suggests generating again. The card shows counts only, never an officer's name.
+With a draft open, the card shows **what this draft was generated with**: the draft keeps its own copy, so it still reads true if staff, leave or preferences change later. If they have changed (officers, FTE, planned leave or preferences), a yellow note says what ("The plan's inputs have changed since this draft was generated: now 151 officers (was 150) …") and suggests generating again. A draft made before v1.2 kept no record, so with one open the card shows today's inputs and says so. The card shows counts only, never an officer's name.
 
 ![Quarter plan with no draft on Dataset 150: the Plan inputs card open, its headline Planning 150 officers in 6 units, and the Officers by unit table with each unit's crews and minimums](img/planner-inputs-open.png)
 
