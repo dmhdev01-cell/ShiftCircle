@@ -73,6 +73,10 @@ test.describe('E2 overtime offer, accept, confirm', () => {
     const position = cards.findIndex((text) => text.includes('Sat 21 Nov') && text.includes('Unit B'));
     expect(position).toBeGreaterThanOrEqual(0);
     expect(cards.slice(0, position).filter((text) => / Dec /.test(text))).toEqual([]);
+    if (fixtures) {
+      // The fixtures give the new offer a real instant, so it is the first card (review S3).
+      expect(position).toBe(0);
+    }
     // The offer says what the rules said, and never promises overtime pay (ADR-016).
     await expect(offer.getByText(/paid at overtime rates/)).toHaveCount(0);
     await offer.getByRole('button', { name: 'Accept' }).click();

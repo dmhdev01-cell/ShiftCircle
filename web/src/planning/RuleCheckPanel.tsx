@@ -64,6 +64,20 @@ function groupRuleResults(results: RuleResult[]): { result: RuleResult; count: n
     .map(({ row }) => row);
 }
 
+/** The rule codes of these results, each once, in order. */
+function distinctCodes(results: RuleResult[]): string[] {
+  return [...new Set(results.map((result) => result.ruleCode))];
+}
+
+const VISUALLY_HIDDEN = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+} as const;
+
 interface Banner {
   text: string;
   bg: string;
@@ -88,18 +102,26 @@ function bannerFor(state: RuleCheckedState): Banner | null {
 
   const blocking = state.outcome.ruleResults.filter((result) => result.outcome === 'BLOCK');
   const warnings = state.outcome.ruleResults.filter((result) => result.outcome === 'WARN');
+  // The banner counts rules, as the rows below do: 14 identical U-16 results
+  // are one row with ×14, so the banner says "1 rule … (14 warnings)", not
+  // "14 warnings" beside a single row.
+  const blockRules = distinctCodes(blocking).length;
+  const warnRules = distinctCodes(warnings).length;
 
-  if (blocking.length > 0) {
-    const rules = blocking.length === 1 ? 'rule' : 'rules';
+  if (blockRules > 0) {
     return {
-      text: `Blocked: ${blocking.length} ${rules} fail${blocking.length === 1 ? 's' : ''}`,
+      text:
+        `Blocked: ${blockRules} ${blockRules === 1 ? 'rule fails' : 'rules fail'}` +
+        (blocking.length > blockRules ? ` (${blocking.length} results)` : ''),
       bg: colour.status.block.bg,
       color: colour.status.block.text,
     };
   }
-  if (warnings.length > 0) {
+  if (warnRules > 0) {
     return {
-      text: `${warnings.length} warning${warnings.length === 1 ? '' : 's'} need acknowledging`,
+      text:
+        `${warnRules} ${warnRules === 1 ? 'rule needs' : 'rules need'} acknowledging` +
+        (warnings.length > warnRules ? ` (${warnings.length} warnings)` : ''),
       bg: colour.status.warn.bg,
       color: colour.status.warn.text,
     };
@@ -257,7 +279,7 @@ export function RuleCheckPanel({
           <Button
             variant="contained"
             color="primary"
-            onClick={() => onAcknowledge(unacknowledged.map((result) => result.ruleCode))}
+            onClick={() => onAcknowledge(distinctCodes(unacknowledged))}
           >
             Acknowledge and assign
           </Button>
@@ -304,12 +326,11 @@ export function RuleCheckPanel({
                   {ruleNameFor(result.ruleCode) ? ` · ${ruleNameFor(result.ruleCode)}` : ''}
                 </span>
                 {count > 1 ? (
-                  <Box
-                    component="span"
-                    aria-label={`${count} times`}
-                    sx={{ ml: 1, color: colour.text.primary }}
-                  >
-                    ×{count}
+                  <Box component="span" sx={{ ml: 1, color: colour.text.primary }}>
+                    <span aria-hidden="true">×{count}</span>
+                    <Box component="span" sx={VISUALLY_HIDDEN}>
+                      {count} times
+                    </Box>
                   </Box>
                 ) : null}
               </Box>

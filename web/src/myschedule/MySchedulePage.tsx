@@ -488,6 +488,11 @@ export function MySchedulePage() {
         </Box>
 
         <Box sx={{ flex: '1 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {offersState.kind === 'ready' && offersState.refreshFailed ? (
+            <Box component="p" role="status" sx={{ m: 0, fontSize: 12, color: colour.text.secondary }}>
+              Your offers could not be refreshed just now. These are the last ones loaded.
+            </Box>
+          ) : null}
           {offers.length === 0 ? (
             <Box
               component="section"

@@ -361,6 +361,13 @@ describe('Rules admin', () => {
     expect(screen.queryByText(/in draft/)).not.toBeInTheDocument();
   });
 
+  it('D2: a submitted version (the approver\'s screen) still shows its changes in the pill', async () => {
+    demoRuleSets[1].status = 'SUBMITTED';
+    renderRules();
+    expect(await screen.findByText('Submitted')).toBeInTheDocument();
+    expect(await screen.findByText(/^\d+ changes? in draft$/)).toBeInTheDocument();
+  });
+
   it('D3: the version history reads an api instant as a date and time in Regina, not raw ISO', async () => {
     const live = demoRuleSets.find((entry) => entry.version === 7)!;
     const before = live.publishedAt;

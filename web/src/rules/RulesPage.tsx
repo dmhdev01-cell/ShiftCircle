@@ -62,6 +62,14 @@ const TABLE_NAMES: Record<string, string> = {
  * change cannot approve it: a second approver reviews the before-and-after and
  * the impact (docs/process/HANDOFF.md §5.3).
  */
+/** A version on its way to live: a draft, submitted or approved, not live yet. */
+function isPendingVersion(entry: RuleSetVersion): boolean {
+  return (
+    !entry.live &&
+    (entry.status === 'DRAFT' || entry.status === 'SUBMITTED' || entry.status === 'APPROVED')
+  );
+}
+
 export function RulesPage() {
   const { role, userName } = useRole();
   const navigate = useNavigate();
@@ -142,11 +150,7 @@ export function RulesPage() {
   // The version on screen is not necessarily the draft: /rules/7 (the
   // supervisor link) shows the live version. The header and the checklist name
   // the real live and draft versions, not whatever the route happens to show.
-  const pending = versions.find(
-    (entry) =>
-      !entry.live &&
-      (entry.status === 'DRAFT' || entry.status === 'SUBMITTED' || entry.status === 'APPROVED'),
-  );
+  const pending = versions.find(isPendingVersion);
   const tableKey = table ? `${draft.version}:${table.code}:${table.rows.length}:${table.changed}` : '';
   const rows = table && edits?.key === tableKey ? edits.rows : (table?.rows ?? []);
   const edited = table && edits?.key === tableKey ? edits.edited : {};
@@ -355,12 +359,7 @@ export function RulesPage() {
             <DecisionTable
               table={table}
               readOnly={!canEdit}
-              inDraft={
-                !draft.live &&
-                (draft.status === 'DRAFT' ||
-                  draft.status === 'SUBMITTED' ||
-                  draft.status === 'APPROVED')
-              }
+              inDraft={isPendingVersion(draft)}
               rows={rows}
               edited={edited}
               saving={saving}

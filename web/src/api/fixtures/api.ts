@@ -792,14 +792,18 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
         const offerId = `offer-${openShift.id}-${employeeId}`;
 
         const existing = demoMyOffers.find((offer) => offer.id === offerId);
+        // A real instant, so the new offer sorts first on My schedule (the
+        // seeded offers carry clock times that do not parse; review S3).
+        const offeredAt = new Date().toISOString();
         if (existing) {
           existing.status = 'OFFERED';
+          existing.offeredAt = offeredAt;
         } else {
           demoMyOffers.push({
             id: offerId,
             openShift,
             offeredBy: 'M. Ellis',
-            offeredAt: 'now',
+            offeredAt,
             eligibility: candidate?.eligibility ?? 'ELIGIBLE',
             ...(candidate?.reason ? { reason: candidate.reason } : {}),
             status: 'OFFERED',
