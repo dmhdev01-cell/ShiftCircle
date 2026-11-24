@@ -17,6 +17,7 @@ import type {
   PlannerGap,
   PlannerPlan,
   PlannerWarningGroup,
+  PlanInputs,
   MyPreferences,
   MyPreferencesInput,
   PlannerPreferenceRow,
@@ -25,6 +26,7 @@ import type {
 } from '../types';
 import { PATTERN_WORDS } from '../../planner/patternWords';
 import { scheduleForRange } from './schedule';
+import { PLAN_INPUTS_120 } from './planInputs';
 
 export const PLANNER_WINDOW = { from: '2027-01-04', to: '2027-04-11', periods: 7 };
 export const PLANNER_DEFAULT_SEED = 20261001;
@@ -152,6 +154,11 @@ function scorecard(seed: number) {
   };
 }
 
+/** What Generate would use now: Dataset 120's captured inputs (PR-M). */
+export function plannerInputs(): PlanInputs {
+  return JSON.parse(JSON.stringify(PLAN_INPUTS_120)) as PlanInputs;
+}
+
 export function plannerPlan(): PlannerPlan {
   return {
     window: PLANNER_WINDOW,
@@ -174,7 +181,10 @@ export function generatePlannerDraft(seed: number, pattern8h?: string): PlannerD
     createdAt: '2026-11-21T09:14:00-06:00',
     createdBy: 'P. Planner',
     generatedMs: 2400,
-    scorecard: scorecard(seed),
+    scorecard: {
+      ...scorecard(seed),
+      inputs: { ...plannerInputs(), options: { seed, pattern8h: pattern8h ?? null } },
+    },
   };
   return draft;
 }
@@ -252,7 +262,7 @@ let myPreferences: MyPreferences = {
   timesOfDay: [],
   daysOff: [],
   maxDaysOff: 2,
-  allowedLengths: [8, 12, 16],
+  allowedLengths: [8, 12],
   updatedAt: null,
 };
 
@@ -457,7 +467,7 @@ export function resetPlannerFixtures(): void {
     timesOfDay: [],
     daysOff: [],
     maxDaysOff: 2,
-    allowedLengths: [8, 12, 16],
+    allowedLengths: [8, 12],
     updatedAt: null,
   };
 }

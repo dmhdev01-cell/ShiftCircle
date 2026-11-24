@@ -265,16 +265,7 @@ public class UnitsService {
 
   public UnitsViews.StaffingReport staffing() {
     double leave = leaveAllowance();
-    List<LocalDate> boundaries = staffingBoundaries();
-    List<UnitsViews.StaffingPeriod> periods = new ArrayList<>();
-    for (int index = 0; index + 1 < boundaries.size(); index++) {
-      LocalDate from = boundaries.get(index);
-      LocalDate to = boundaries.get(index + 1).minusDays(1);
-      if (to.isBefore(from)) {
-        continue;
-      }
-      periods.add(period(from, to, leave));
-    }
+    List<UnitsViews.StaffingPeriod> periods = new ArrayList<>(staffingPeriods(leave));
     boolean truncated = periods.size() > 3;
     if (truncated) {
       periods =
@@ -443,6 +434,28 @@ public class UnitsService {
         shortfall,
         new UnitsViews.StaffingBreakdown(
             posts12Day, posts12Night, posts8, round1(rawNeeded), leave, needed));
+  }
+
+  /**
+   * Every staffing period of the quarter, untruncated: one per stretch between closures. The
+   * Staffing card shows at most three; the plan inputs read them all (PR-M).
+   */
+  public List<UnitsViews.StaffingPeriod> staffingPeriods() {
+    return staffingPeriods(leaveAllowance());
+  }
+
+  private List<UnitsViews.StaffingPeriod> staffingPeriods(double leave) {
+    List<LocalDate> boundaries = staffingBoundaries();
+    List<UnitsViews.StaffingPeriod> periods = new ArrayList<>();
+    for (int index = 0; index + 1 < boundaries.size(); index++) {
+      LocalDate from = boundaries.get(index);
+      LocalDate to = boundaries.get(index + 1).minusDays(1);
+      if (to.isBefore(from)) {
+        continue;
+      }
+      periods.add(period(from, to, leave));
+    }
+    return periods;
   }
 
   private List<LocalDate> staffingBoundaries() {

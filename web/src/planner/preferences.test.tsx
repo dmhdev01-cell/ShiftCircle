@@ -86,6 +86,36 @@ describe('preferences', () => {
     vi.restoreAllMocks();
   });
 
+  it('offers 8 h and 12 h only; 16 h is retired and shows as unavailable when on file', async () => {
+    renderAt('/me/schedule');
+    await screen.findByRole('heading', { name: 'My preferences' });
+    expect(screen.getByRole('radio', { name: '8 h' })).toBeEnabled();
+    expect(screen.getByRole('radio', { name: '12 h' })).toBeEnabled();
+    expect(screen.queryByRole('radio', { name: /^16 h/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/16-hour shifts are no longer offered/)).not.toBeInTheDocument();
+  });
+
+  it('shows a 16 h wish saved before L16 was retired as checked but not offered', async () => {
+    vi.spyOn(api, 'getMyPreferences').mockResolvedValue({
+      shiftLength: 16,
+      timesOfDay: ['DAY'],
+      daysOff: [],
+      maxDaysOff: 2,
+      allowedLengths: [8, 12],
+      updatedAt: '2026-11-21T14:55:00Z',
+    });
+    renderAt('/me/schedule');
+    await screen.findByRole('heading', { name: 'My preferences' });
+
+    const sixteen = await screen.findByRole('radio', { name: '16 h (no longer offered)' });
+    expect(sixteen).toBeChecked();
+    expect(sixteen).toBeDisabled();
+        expect(
+      screen.getByText(/16-hour shifts are no longer offered: a 16-hour day is a 12-hour shift plus an extension/),
+    ).toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+
   it('shows the planner every officer\'s wishes, read-only', async () => {
     const user = userEvent.setup();
     renderAt('/planner/preferences');

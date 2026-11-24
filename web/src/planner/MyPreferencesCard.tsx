@@ -95,7 +95,11 @@ export function MyPreferencesCard() {
     (shiftLength !== prefs.shiftLength ||
       !sameParts(timesOfDay, prefs.timesOfDay) ||
       daysOff.join(',') !== prefs.daysOff.join(','));
-  const singleLength = prefs !== null && prefs.allowedLengths.length === 1;
+  const singleLength =
+    prefs !== null && prefs.allowedLengths.filter((length) => length !== 16).length === 1;
+  // A 16 h wish saved before L16 was retired still reads back; it shows as unavailable.
+  const has16 = shiftLength === 16 || prefs?.shiftLength === 16;
+  const lengthChoices: PreferenceShiftLength[] = has16 ? [8, 12, 16] : [8, 12];
 
   /** Any edit makes an earlier "Saved" message stale: clear it. */
   const touch = () => setStatus(null);
@@ -165,8 +169,9 @@ export function MyPreferencesCard() {
               Shift length
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {([8, 12, 16] as PreferenceShiftLength[]).map((length) => {
-                const allowed = prefs?.allowedLengths.includes(length) ?? true;
+              {lengthChoices.map((length) => {
+                // L16 is retired (ADR-029): 16 h is never offered, only shown when it is on file.
+                const allowed = length !== 16 && (prefs?.allowedLengths.includes(length) ?? true);
                 return (
                   <FormControlLabel
                     key={length}
@@ -178,10 +183,18 @@ export function MyPreferencesCard() {
                           touch();
                           setShiftLength(length);
                         }}
-                        slotProps={{ input: { 'aria-label': `${length} h` } }}
+                        slotProps={{
+                          input: {
+                            'aria-label': length === 16 ? '16 h (no longer offered)' : `${length} h`,
+                          },
+                        }}
                       />
                     }
-                    label={<span style={{ fontSize: 14 }}>{length} h</span>}
+                    label={
+                      <span style={{ fontSize: 14 }}>
+                        {length === 16 ? '16 h (no longer offered)' : `${length} h`}
+                      </span>
+                    }
                   />
                 );
               })}
@@ -198,6 +211,12 @@ export function MyPreferencesCard() {
                 label={<span style={{ fontSize: 14 }}>No preference</span>}
               />
             </Box>
+            {has16 ? (
+              <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
+                16-hour shifts are no longer offered: a 16-hour day is a 12-hour shift plus an
+                extension. Choose 8 h, 12 h or No preference.
+              </Typography>
+            ) : null}
             {singleLength ? (
               <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
                 Your unit uses 8-hour shifts only.
