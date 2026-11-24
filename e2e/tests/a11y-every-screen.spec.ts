@@ -44,7 +44,6 @@ test.describe('accessibility on every screen', () => {
     ['Overtime', 'Overtime board', 'overtime'],
     ['Rules', 'Rules', 'rules-supervisor'],
     ['Audit log', 'Audit log', 'audit-supervisor'],
-    ['Employee view', 'My schedule', 'employee-view'],
     ['Time & attendance', 'Time & attendance', 'time'],
     ['About & version', 'About & version', 'about'],
   ] as const) {

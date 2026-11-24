@@ -92,10 +92,6 @@ test.describe('screenshots', () => {
     await settled(page, 'Audit log');
     await shot(page, testInfo, 'supervisor', 'audit', 'normal');
 
-    await navTo(page, 'Employee view');
-    await settled(page, 'My schedule');
-    await shot(page, testInfo, 'supervisor', 'my-schedule', 'no-employee-record');
-
     await navTo(page, 'Time & attendance');
     await settled(page, 'Time & attendance');
     await shot(page, testInfo, 'supervisor', 'time', 'open-period');

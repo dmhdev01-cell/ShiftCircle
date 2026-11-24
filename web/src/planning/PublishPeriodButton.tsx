@@ -41,7 +41,7 @@ export function PublishPeriodButton({ period, onPublished }: PublishPeriodButton
       await api.publishSchedulePeriod(period.id);
       setOpen(false);
       setTone('pass');
-      setMessage('Published. The officers see this roster as final.');
+      setMessage('Published. The period is recorded as published and marked on the board; My schedule does not yet filter by period status.');
       onPublished();
     } catch (error) {
       setOpen(false);

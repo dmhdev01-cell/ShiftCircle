@@ -51,7 +51,7 @@ describe('the publish period action', () => {
 
     await waitFor(() => expect(publish).toHaveBeenCalledWith('period-1'));
     expect(onPublished).toHaveBeenCalled();
-    expect(await screen.findByText('Published. The officers see this roster as final.')).toBeInTheDocument();
+    expect(await screen.findByText('Published. The period is recorded as published and marked on the board; My schedule does not yet filter by period status.')).toBeInTheDocument();
   });
 
   it('says the period is already published when the api answers 409', async () => {

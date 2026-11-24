@@ -9,7 +9,7 @@ You run your unit's roster week to week. Your menu has these screens:
 - **Rules**
 - **Audit log**
 - **Wall display**
-- **Employee view**
+- **Employee view** (only when your account is linked to an officer; the demo supervisors are not, so they don't see it)
 - **Time & attendance**
 
 ## Planning board
