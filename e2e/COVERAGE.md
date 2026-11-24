@@ -67,6 +67,7 @@ fixtures-only · **—** not coverable, with the reason.
 |---|---|---|---|
 | Board, KPI tiles, roster | supervisor | e1-blocked-assignment, layout, screenshots | E |
 | Week / Pay period / Month, Comfortable / Compact, KPI chip strip, totals column and footer, badges; axe; no page scroll at 1440 and 390 | supervisor | board-views | N |
+| Find, filter (overtime, rotation, works, qualification), sort; CSV download (BOM, formula guard, row count), copy as TSV, print media (shell hidden, full disclaimer, landscape PDF), pay period fits a landscape width, month print not offered; axe; 390 (needs the real api) | supervisor | board-filters | N |
 | PC-01 Block with reasons, no save, no override | supervisor | e1-blocked-assignment (@api), keyboard-api | E, N |
 | Fill a gap (A2): gap word or short cell opens the free-officer panel ranked by pay-period hours; rest as a fact; Check & assign → PC-01 Block with reasons, no assign; Escape; axe at 1440 and 390 | supervisor | gap-fill (@api) | N |
 | Emergency-only Block → override dialog: empty, 9 chars, 10 spaces refused; valid reason saves; audited | supervisor | planning-override, audit | N, E |
