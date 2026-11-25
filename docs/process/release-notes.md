@@ -409,7 +409,8 @@ supervisor schedule (header "Correctional supervisor"). The unit pickers, the re
 list SUP-L and SUP-O like any unit. The wall display keeps its six unit tiles (eight do not fit a
 TV); the posts get their own counts-only strip in S7. The Plan inputs headline counts
 everyone ("Planning 130 officers in 8 units" on 120) and the commit dialog says "5,595 shifts for
-107 officers" until S7 words the split.
+107 officers" until S7 words the split; the audit line reads "5,595 shifts written · 107 officers ·
+10 supervisors · 7 warnings accepted · across 8 units".
 
 **Tests.** `GeneratorCharacterizationTest` re-pinned plus the officer-only invariance for all three
 datasets and the payroll prefix; `DemoResetApiTest`, `Demo120ResetApiTest`, `Demo150ResetApiTest`,
@@ -420,7 +421,15 @@ their posts on 8 h with offers inside the rank); `SchemaConstraintsTest` (V19 co
 `reset*.spec.ts` (new 100 checksum), `session-and-nav.spec.ts` (Employee view for the supervisors),
 `planner-inputs.spec.ts` (headline and staffing totals).
 
-COUNTS_PLACEHOLDER
+**Counts at this gate** (author run, `76fd79d`: S4 with origin/sc-s3 merged in, which brings main's
+S1 #27 and P1 #26; own compose projects `sc-s4` and `sc-s4-e2e`): API **584 = 140 rules + 38
+infrastructure + 406 api** (`docker compose --profile test run --rm --build api-test`, `mvn verify`,
+BUILD SUCCESS, 0 failures, errors or skipped); web unit tests **603** in 58 files, lint 0 errors
+(4 warnings), `tsc -b` and build clean; check scripts pass; Playwright against the real API, a fresh
+stack per viewport: desktop-datasets **132 passed**, tablet-datasets **131 passed and 1 skipped**
+(the TV-size check runs on desktop only). Demo §1–6 and §7 figures re-read on the real API (see
+`docs/demo-script.md`); M. Ellis and J. Chen open Employee view → My schedule with their own shifts
+in a browser.
 
 ### Shift proposals, P1: the officer API
 
