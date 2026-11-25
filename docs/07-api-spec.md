@@ -444,7 +444,8 @@ there is a supervisor or a supervisor post (the datasets get them in S4), so eve
   units only. A `supervisors` card, present only when there is a supervisor or a supervisor post,
   carries `{supervisors, posts, coverage:{coveredBlockDays, shortBlockDays, totalBlockDays}, shifts,
   warnings, preferences, nights, overtime, fteBands, quarterHours, absences, line}` with the same
-  shapes as the officer cards. `totals` (always present) counts everyone: `{shifts, officerShifts,
+  shapes as the officer cards; its `totalBlockDays` counts only the blocks a post has a minimum for
+  (the officer `coverage` card keeps its flat × 3). `totals` (always present) counts everyone: `{shifts, officerShifts,
   supervisorShifts, people, officers, supervisors, warnings, officerPostWarnings,
   supervisorPostWarnings, line}`; shifts and people split by the person's rank, warnings by the post
   they were raised on; `line` reads "5,103 officer shifts" or "5,103 officer + 1,170 supervisor
@@ -452,7 +453,7 @@ there is a supervisor or a supervisor post (the datasets get them in S4), so eve
 - **Commit preview** adds `supervisors`, `officerShifts` and `supervisorShifts`; `shiftsToWrite`
   still counts everyone and `officers` now counts the officers only. **Commit** adds
   `officerShifts` and `supervisorShifts` beside `shiftsWritten`; the `commit_plan` audit `after`
-  adds `supervisors`. **Compare** counts `officers` as officers only and, once there is a supervisor
+  adds `supervisors` (the Audit log line names them when there are any). **Compare** counts `officers` as officers only and, once there is a supervisor
   or a supervisor post, adds the rows `officerShifts`, `supervisorShifts` and `supervisors`;
   `preferencesMet` and the weekend rows read the officers, as the scorecard does.
 - **Plan inputs** add the position dimension: `officers.byPosition:[{position: CO\|CS, supervisory,

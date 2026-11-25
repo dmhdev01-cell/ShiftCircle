@@ -101,6 +101,31 @@ describe('the audit summary', () => {
     ).toBe('6,586 shifts written · 100 officers · 7 warnings accepted · across 6 units');
   });
 
+  it('names the supervisors a committed plan wrote, and only when it has any', () => {
+    expect(
+      summaryOf(
+        event('commit_plan', {
+          assignments: 6273,
+          officers: 107,
+          supervisors: 10,
+          warnings: 7,
+          units: ['A', 'B', 'C', 'ADM', 'CTL', 'ESC', 'SUP-L', 'SUP-O'],
+        }),
+      ),
+    ).toBe('6,273 shifts written · 107 officers · 10 supervisors · 7 warnings accepted · across 8 units');
+    expect(
+      summaryOf(
+        event('commit_plan', {
+          assignments: 5103,
+          officers: 107,
+          supervisors: 0,
+          warnings: 7,
+          units: ['A', 'B', 'C', 'ADM', 'CTL', 'ESC'],
+        }),
+      ),
+    ).toBe('5,103 shifts written · 107 officers · 7 warnings accepted · across 6 units');
+  });
+
   it('reads planned leave as a date and a word', () => {
     expect(
       summaryOf(event('record_absence', { type: 'VACATION', date: '2027-01-05', employeeId: UUID })),

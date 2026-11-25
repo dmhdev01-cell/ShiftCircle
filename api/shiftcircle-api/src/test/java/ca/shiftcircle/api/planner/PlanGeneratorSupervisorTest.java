@@ -213,6 +213,8 @@ class PlanGeneratorSupervisorTest {
     assertThat(result.assignments())
         .filteredOn(
             a -> a.employeeId().equals(fullTime.id()) || a.employeeId().equals(partTime.id()))
+        .as("the guard sends them to the posts (relief and the cross-unit fill), never home")
+        .isNotEmpty()
         .allSatisfy(a -> assertThat(a.unitId()).isIn(SUP_L, SUP_O));
   }
 
@@ -274,19 +276,22 @@ class PlanGeneratorSupervisorTest {
           new PlanGenerator.Unit(
               SUP_O, "SUP-O", "Supervision · Operations", true, false,
               Map.of("DAY", 1, "EVENING", 1, "NIGHT", 1), "SUPERVISION"));
+      // Service from 1995, promoted from 2015: position_since is never before seniority_date,
+      // as the schema requires (S1).
+      int service = 1995;
       int promoted = 2015;
       for (int i = 0; i < 2; i++) {
-        employees.add(person("SUP-L", SUP_L, "N" + i, 1.0, "N12_NIGHT_4ON4OFF", 12, Position.CS, year++, promoted++));
+        employees.add(person("SUP-L", SUP_L, "N" + i, 1.0, "N12_NIGHT_4ON4OFF", 12, Position.CS, service++, promoted++));
       }
       for (int i = 0; i < 3; i++) {
-        employees.add(person("SUP-L", SUP_L, "D" + i, 1.0, "D12_DAY_4ON4OFF", 12, Position.CS, year++, promoted++));
+        employees.add(person("SUP-L", SUP_L, "D" + i, 1.0, "D12_DAY_4ON4OFF", 12, Position.CS, service++, promoted++));
       }
-      employees.add(person("SUP-L", SUP_L, "E0", 1.0, "D8_DAY_5ON2OFF", 8, Position.CS, year++, promoted++));
+      employees.add(person("SUP-L", SUP_L, "E0", 1.0, "D8_DAY_5ON2OFF", 8, Position.CS, service++, promoted++));
       for (int i = 0; i < 2; i++) {
-        employees.add(person("SUP-O", SUP_O, "N" + i, 1.0, "N12_NIGHT_4ON4OFF", 12, Position.CS, year++, promoted++));
+        employees.add(person("SUP-O", SUP_O, "N" + i, 1.0, "N12_NIGHT_4ON4OFF", 12, Position.CS, service++, promoted++));
       }
-      employees.add(person("SUP-O", SUP_O, "D0", 1.0, "D12_DAY_4ON4OFF", 12, Position.CS, year++, promoted++));
-      employees.add(person("SUP-O", SUP_O, "C0", 0.6, "CASUAL_12", 12, Position.CS, year++, promoted++));
+      employees.add(person("SUP-O", SUP_O, "D0", 1.0, "D12_DAY_4ON4OFF", 12, Position.CS, service++, promoted++));
+      employees.add(person("SUP-O", SUP_O, "C0", 0.6, "CASUAL_12", 12, Position.CS, service++, promoted++));
     }
     return new Centre(units, employees);
   }

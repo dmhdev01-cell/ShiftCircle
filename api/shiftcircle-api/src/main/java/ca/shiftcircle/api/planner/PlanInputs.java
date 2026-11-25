@@ -273,7 +273,9 @@ final class PlanInputs {
             + " rotation has them on that day fill the unit's minimum. Only 12 h officers work"
             + " nights: those who asked for nights first (most senior first), then the newest."
             + " Day and evening go first to officers whose preferred time matches, then by"
-            + " seniority. An 8 h officer keeps one block, day or evening, all quarter.");
+            + " seniority. An 8 h officer keeps one block, day or evening, all quarter. Each rank"
+            + " stays on its own posts, here and in every step below: officers fill officer posts"
+            + " and supervisors fill supervisor posts, by seniority inside the rank.");
     steps.add(
         "Every other full-time officer whose rotation has them on that day is then rostered too,"
             + " even above the minimum, so a full-time officer works their full rotation.");
@@ -282,7 +284,8 @@ final class PlanInputs {
     if (partTime) {
       steps.add(
           "Part-time and casual officers (under 1.0 FTE) then fill what is still short, in their"
-              + " home unit only, newest first, up to their FTE × 80 h in each pay period.");
+              + " home unit only, newest first, up to their FTE × 80 h in each pay period; a"
+              + " part-time supervisor fills supervisor posts the same way.");
     } else {
       steps.add(
           "Part-time and casual officers (under 1.0 FTE) are left out of this draft (Staff to"
@@ -290,14 +293,15 @@ final class PlanInputs {
     }
     steps.add(
         "Where a unit is closed on a day, its full-time officers may fill another unit's"
-            + " remaining shortage (by home unit, then seniority).");
+            + " remaining shortage in a post of their own rank (by home unit, then seniority).");
     if ("ON".equals(options.get("crossUnitFill"))) {
       steps.add(
           "Each gap still open is then offered to officers homed in another unit who hold the"
               + " block's qualification (first aid, Control or Escort, where the unit asks for"
               + " one) and have hours left under FTE × 80 h in the pay period, the lowest share"
               + " of their target first, then the newest; a Block skips that officer, and the"
-              + " roster marks them \"From\" their unit.");
+              + " roster marks them \"From\" their unit. An officer only covers an officer post,"
+              + " a supervisor only a supervisor post.");
     }
     if (partTime && "UP_TO_FTE".equals(options.get("partTimeFill"))) {
       steps.add(
@@ -311,8 +315,8 @@ final class PlanInputs {
             + ") against the officer's last "
             + PlanGenerator.HISTORY_DAYS
             + " days of shifts: a Block skips that officer, a warning is kept and counted."
-            + " Planned leave days are never rostered. Anything still short is a gap for a"
-            + " supervisor.");
+            + " Planned leave days are never rostered. Anything still short is a gap, left for"
+            + " a person to fill on the board.");
     return List.copyOf(steps);
   }
 

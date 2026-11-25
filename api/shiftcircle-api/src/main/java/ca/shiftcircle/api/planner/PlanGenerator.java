@@ -1746,15 +1746,17 @@ public final class PlanGenerator {
       Map<UUID, String> blockOf,
       Map<UUID, Set<LocalDate>> leave,
       Availability availability) {
-    long postDays = 0;
+    // Only the blocks a post has a minimum for count: a post that needs no one on nights has no
+    // night block-days to cover (the officer coverage card keeps its flat x3, unchanged).
+    long total = 0;
     for (LocalDate date = FROM; !date.isAfter(TO); date = date.plusDays(1)) {
       for (Unit post : posts) {
         if (availability.active(post.id(), date)) {
-          postDays++;
+          total +=
+              post.required().values().stream().filter(required -> required > 0).count();
         }
       }
     }
-    long total = postDays * 3;
     long covered = total - postGaps.size();
     Map<String, Object> card = new LinkedHashMap<>();
     card.put("supervisors", supervisors.size());

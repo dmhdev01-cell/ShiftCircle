@@ -331,6 +331,19 @@ the draft keeps each rank on its own posts, and the scorecard, commit preview, c
 carry the split. `UnitApiTest` (+1): closing a supervisor post is a 409 and writes nothing.
 `GeneratorCharacterizationTest` is green with no edits.
 
+**The review round (S3).** The review approved (0 must, 2 should, 6 nits) and security passed (0
+findings); fixed in one push:
+- **The Audit log names the supervisors** a committed plan wrote ("6,273 shifts written · 107
+  officers · 10 supervisors · …"), only when there are any, so today's line is unchanged.
+- **The plan inputs fill order says each rank stays on its own posts**: officers fill officer
+  posts and supervisors fill supervisor posts in every step, and the last step no longer calls a
+  gap "a gap for a supervisor" but one left for a person to fill on the board.
+- **The supervisor card counts only the blocks a post has a minimum for**, so a post with no night
+  minimum is not "covered" on nights; the API test pins `coveredBlockDays`.
+- **Tests:** the mis-homed-supervisor test also asserts they are placed (on the posts); the fixture's
+  supervisors are promoted after they joined, as the schema requires; changing a closure that
+  reached a supervisor post another way is a 409 and writes nothing.
+
 **Counts at this gate** (GitHub CI on the pull request, with main's PR-Q merged in): API **549 = 140
 rules + 36 infrastructure + 373 api** (`mvn verify`, 0 failures, errors or skipped); web unit tests
 **602** in 58 files, lint, `tsc -b` and build clean; check scripts pass. No web change, so Playwright
