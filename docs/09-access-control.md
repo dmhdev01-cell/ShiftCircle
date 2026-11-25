@@ -6,7 +6,7 @@
 
 | Role | Who | Purpose |
 |---|---|---|
-| `EMPLOYEE` | Correctional officer | Own schedule, hours, offers and preferences; proposes extra shifts (API built in v1.3, the screen is P3) |
+| `EMPLOYEE` | Correctional officer | Own schedule, hours, offers and preferences; proposes extra shifts on My schedule: drafts, sends, follows and withdraws their own proposals (v1.3) |
 | `SUPERVISOR` | Shift supervisor / scheduler | Plans and changes schedules **for the units in their scope**; overtime; actuals; pay-period lock; payroll export |
 | `RULES_ADMIN` | HR / labour relations analyst | Edits rule tables in drafts and builds them; **can't approve or publish** |
 | `RULES_APPROVER` | Senior labour relations or a manager | Approves, rejects and publishes rule versions; **can't edit drafts they approve** |

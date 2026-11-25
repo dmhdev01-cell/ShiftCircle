@@ -15,7 +15,11 @@ import type { StatusTone } from '../components/StatusPill';
 const ZONE = 'America/Regina';
 /** Regina keeps standard time all year. */
 export const REGINA_OFFSET = '-06:00';
-/** The last day a proposal may name: the end of the planned quarter (docs/07 §4.4). */
+/**
+ * The last day a proposal may name: the end of the planned quarter (docs/07 §4.4).
+ * Mirrors the api's `PlanGenerator.TO`, which no endpoint exposes yet; change
+ * both together, or the date picker and the api disagree.
+ */
 export const PROPOSAL_HORIZON = '2027-04-11';
 export const MAX_DRAFTS = 10;
 export const MAX_NOTE = 500;

@@ -277,6 +277,18 @@ export function MySchedulePage() {
             .filter((part) => typeof part === 'string' && part.trim() !== '')
             .join(' · ')}
         </Typography>
+        {/* The Propose card sits below the offers in the side column; on a
+            long page an officer must be able to find it (UI test L2, PR #33). */}
+        <Box component="nav" aria-label="On this page" sx={{ fontSize: 14, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          <span>Want an extra shift?</span>
+          <Box component="a" href="#propose" sx={{ color: colour.brand.link, fontWeight: 600 }}>
+            Propose shifts
+          </Box>
+          <span aria-hidden="true">·</span>
+          <Box component="a" href="#my-proposals" sx={{ color: colour.brand.link, fontWeight: 600 }}>
+            My proposals
+          </Box>
+        </Box>
       </Box>
 
       {/* Observation #1: the calendar's chips and the offer states had no key. */}

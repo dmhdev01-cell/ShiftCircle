@@ -53,7 +53,7 @@ Good to know:
    - **Warning** with the rule codes (for example *Warning · U-12, U-14*) and the first reason. You can still send it; your supervisor sees the warning too;
    - **Blocked** with the rule codes and the reason. A blocked shift **can't be sent**;
    - **Can't be sent** with a reason that is not a rule (for example, the pay period is locked, or you already have that shift waiting).
-   
+
    With two or more drafts, each says "Checked with your other drafts".
 3. **Remove** takes a draft off the list. Your drafts stay if you refresh the page in the same tab; they are not sent until you press Send.
 4. Optionally write a **note to your supervisor** (up to 500 characters). Don't include medical details.

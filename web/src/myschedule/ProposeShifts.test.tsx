@@ -141,6 +141,40 @@ describe('Propose shifts (v1.3 P3)', () => {
     expect(within(card).getByRole('button', { name: 'Send to supervisor' })).toBeDisabled();
   });
 
+  it('offers Check again after a failed check, and checks again on request', async () => {
+    const user = userEvent.setup();
+    const real = api.previewProposal.bind(api);
+    const preview = vi
+      .spyOn(api, 'previewProposal')
+      .mockRejectedValueOnce(
+        new ApiError('You can do this 60 times a minute. Try again in 42 seconds.', 429),
+      )
+      .mockImplementation((items) => real(items));
+    renderMySchedule();
+
+    const card = await addDraft(user, '2026-11-22', /D8 · Day 8 h/);
+    expect(
+      await within(card).findByText(/The rules could not be checked: You can do this 60 times a minute/),
+    ).toBeInTheDocument();
+    const calls = preview.mock.calls.length;
+    await user.click(within(card).getByRole('button', { name: 'Check again' }));
+
+    expect(await within(card).findByText('Passes')).toBeInTheDocument();
+    expect(preview.mock.calls.length).toBe(calls + 1);
+    expect(within(card).queryByRole('button', { name: 'Check again' })).not.toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'Send to supervisor' })).toBeEnabled();
+  });
+
+  it('links to the Propose card and My proposals from the top of the page', async () => {
+    renderMySchedule();
+
+    const nav = await screen.findByRole('navigation', { name: 'On this page' });
+    expect(within(nav).getByRole('link', { name: 'Propose shifts' })).toHaveAttribute('href', '#propose');
+    expect(within(nav).getByRole('link', { name: 'My proposals' })).toHaveAttribute('href', '#my-proposals');
+    expect(document.getElementById('propose')).toHaveAccessibleName('Propose shifts');
+    expect(document.getElementById('my-proposals')).toHaveAccessibleName('My proposals');
+  });
+
   it('limits the note to 500 characters and says not to include medical details', async () => {
     const user = userEvent.setup();
     renderMySchedule();
@@ -344,6 +378,51 @@ describe('My proposals (v1.3 P3)', () => {
       'Not withdrawn: A shift in this proposal has already been answered.',
     );
     await waitFor(() => expect(list.mock.calls.length).toBeGreaterThan(loads));
+  });
+
+  it('shows a partly approved proposal with both outcomes', async () => {
+    const shift = (id: string, day: string, decision: 'ACCEPTED' | 'DECLINED', comment: string | null) => ({
+      id,
+      unitId: 'unit-b',
+      unit: 'B',
+      unitName: 'Unit B · Living unit',
+      shiftTemplate: 'E8',
+      startAt: `${day}T15:00:00-06:00`,
+      endAt: `${day}T23:00:00-06:00`,
+      workDate: day,
+      decision,
+      outcomeAtSubmit: 'WARN' as const,
+      decidedBy: 'P. Planner',
+      decidedAt: '2026-11-19T17:00:00Z',
+      comment,
+    });
+    vi.spyOn(api, 'getMyProposals').mockResolvedValue([
+      {
+        id: 'p-partly',
+        status: 'DECIDED',
+        displayState: 'PARTLY_APPROVED',
+        note: null,
+        submittedAt: '2026-11-18T15:00:00Z',
+        withdrawnAt: null,
+        version: 2,
+        canWithdraw: false,
+        items: [
+          shift('a', '2026-11-21', 'ACCEPTED', null),
+          shift('d', '2026-11-29', 'DECLINED', 'Sunday is covered already.'),
+        ],
+      },
+    ]);
+    renderMySchedule();
+
+    const mine = await screen.findByRole('region', { name: 'My proposals' });
+    const item = await within(mine).findByRole('listitem', { name: /: Partly approved$/ });
+    expect(within(item).getByText('Partly approved')).toBeInTheDocument();
+    expect(within(item).getByText('Approved')).toBeInTheDocument();
+    expect(within(item).getByText('Declined')).toBeInTheDocument();
+    expect(within(item).getByText('Approved by P. Planner. The shift is on your schedule.')).toBeInTheDocument();
+    expect(within(item).getByText('Declined by P. Planner: “Sunday is covered already.”')).toBeInTheDocument();
+    expect(within(item).queryByRole('button', { name: /Withdraw/ })).not.toBeInTheDocument();
+    expect(within(item).queryByText(/Part of this proposal has been answered/)).not.toBeInTheDocument();
   });
 
   it('tells the officer to ask once part of a proposal is answered', async () => {

@@ -102,6 +102,9 @@ describe('proposal words', () => {
     expect(decisionLine({ decision: 'EXPIRED', decidedBy: null, comment: null })).toBe(
       'Expired: the shift started before anyone answered.',
     );
+    expect(decisionLine({ decision: 'WITHDRAWN', decidedBy: null, comment: null })).toBe(
+      'You withdrew this shift.',
+    );
     expect(decisionLine({ decision: 'PENDING', decidedBy: null, comment: null })).toBeNull();
   });
 

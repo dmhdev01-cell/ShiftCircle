@@ -9,6 +9,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { api } from '../api/client';
+import { PROPOSE_DRAFTS_PREFIX } from '../api/session';
 import { assignableTemplates } from '../api/shiftTemplates';
 import type { ProposalItemInput } from '../api/types';
 import { useUnits } from '../api/useUnits';
@@ -41,7 +42,7 @@ type Check =
   | { kind: 'done'; results: DraftResult[] }
   | { kind: 'error'; message: string };
 
-const storageKey = (employeeId: string) => `sc.propose.drafts.${employeeId}`;
+const storageKey = (employeeId: string) => `${PROPOSE_DRAFTS_PREFIX}${employeeId}`;
 
 /** Drafts survive a refresh in this tab: a per-viewer convenience, never relied on. */
 function loadDrafts(employeeId: string): Draft[] {
@@ -188,6 +189,10 @@ export function ProposeShiftsCard({
     results,
     noteLength: note.length,
   });
+
+  const canCheckAgain =
+    check.kind === 'error' ||
+    (check.kind === 'done' && check.results.some((result) => result.label === 'Not checked'));
 
   const send = async () => {
     setSending(true);
@@ -349,6 +354,13 @@ export function ProposeShiftsCard({
               <Box id={reasonId} component="span" role="status" sx={{ fontSize: 13, color: colour.text.secondary }}>
                 {blockedReason}
               </Box>
+            ) : null}
+            {canCheckAgain ? (
+              // After a failed check (a 429 "try again in N seconds", the api
+              // unreachable) nothing retries by itself: the officer asks again.
+              <Button variant="text" color="primary" onClick={() => setRecheck((count) => count + 1)}>
+                Check again
+              </Button>
             ) : null}
           </Box>
         </>

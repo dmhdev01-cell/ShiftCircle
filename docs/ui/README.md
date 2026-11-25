@@ -116,7 +116,7 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 - **Interactions to build:** click an empty cell → choose a shift template → live rule preview → save; click a chip → move/cancel; drag and drop is a "could".
 
 ### 5.2 My schedule (employee) — `screens/MySchedule.dc.html`
-- **Route:** `/me/schedule` · **API:** `GET /me/schedule`, `GET /me/offers`, `POST /offers/{id}/accept|decline`, `POST /rule-checks`. *v1.3 P3 adds `POST /proposals/preview`, `POST /proposals`, `GET /me/proposals` and `POST /proposals/{id}/withdraw` (docs/07 §4.4).*
+- **Route:** `/me/schedule` · **API:** `GET /me/schedule`, `GET /me/offers`, `POST /offers/{id}/accept|decline`, `POST /proposals/preview`, `POST /proposals`, `GET /me/proposals`, `POST /proposals/{id}/withdraw` (docs/07 §4.4; since v1.3 P3 the Propose card no longer calls `POST /rule-checks`).
 - **Top cards:** next shift (blue card), pay-period hours with a progress bar (worked vs still scheduled), overtime this quarter and place on the overtime list.
 - **Month calendar:** Mon–Sun grid, 6 weeks; out-of-month days dimmed; today outlined in blue; chips as §3.2; ‹ Oct / Dec › navigation.
 - **Overtime offer card** (green border): shift, unit, who offered and when; "Rules OK for you" with rest and hours facts; Accept (yellow) / Decline (white) → confirmation message ("Accepted. Your supervisor will confirm the assignment.").

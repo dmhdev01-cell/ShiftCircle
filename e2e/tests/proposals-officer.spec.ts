@@ -24,7 +24,12 @@ interface MyProposal {
   canWithdraw: boolean;
 }
 
-/** Withdraw whatever Tara still has waiting, so a re-run on the same stack starts clean. */
+/**
+ * Withdraw whatever Tara still has waiting: before the spec, so a re-run on the
+ * same stack starts clean, and after it, so no Waiting proposal is left for the
+ * inbox specs. Withdrawn proposals stay in her history, so the assertions below
+ * find this run's proposals by a token in their note, never by the day alone.
+ */
 async function withdrawTarasWaiting(request: APIRequestContext): Promise<void> {
   const api = await apiAs(request, 't.nakamura');
   const mine = await api.get<MyProposal[]>('/me/proposals');
@@ -55,9 +60,18 @@ test.describe('@api shift proposals, the officer side (v1.3 P3)', () => {
     await withdrawTarasWaiting(request);
   });
 
+  test.afterAll(async ({ request }) => {
+    await withdrawTarasWaiting(request);
+  });
+
   test('Tara drafts two shifts, removes one, sends with a note, a Blocked draft cannot be sent, and she withdraws a second proposal', async ({
     page,
   }, testInfo) => {
+    // This run's token: earlier runs on the same stack leave withdrawn proposals
+    // for the same days in Tara's history.
+    const token = `run ${Date.now().toString(36)}`;
+    const firstNote = `Free that Saturday evening (${token}).`;
+    const secondNote = `Friday too (${token}).`;
     await signIn(page, 'T. Nakamura');
     await expect(page.getByRole('heading', { name: 'My schedule', level: 1 })).toBeVisible();
     const card = page.getByRole('region', { name: 'Propose shifts' });
@@ -88,7 +102,7 @@ test.describe('@api shift proposals, the officer side (v1.3 P3)', () => {
     await expect(send).toBeEnabled();
 
     // Send with a note: the drafts clear and the proposal is Waiting.
-    await card.getByLabel('Note to your supervisor (optional)').fill('Free that Saturday evening.');
+    await card.getByLabel('Note to your supervisor (optional)').fill(firstNote);
     await expectAccessible(page, testInfo, 'my-schedule-propose-ready');
     await shot(page, testInfo, 'employee', 'my-schedule', 'propose-ready');
     await send.click();
@@ -97,19 +111,21 @@ test.describe('@api shift proposals, the officer side (v1.3 P3)', () => {
     ).toBeVisible();
     await expect(card.getByRole('list', { name: 'Draft shifts' })).toHaveCount(0);
     const first = mine.getByRole('listitem', { name: /^Proposal sent .*: Waiting$/ }).filter({
-      hasText: 'Sat 28 Nov',
+      hasText: firstNote,
     });
     await expect(first).toHaveCount(1);
-    await expect(first.getByText('Your note: Free that Saturday evening.')).toBeVisible();
+    await expect(first.getByText(`Your note: ${firstNote}`)).toBeVisible();
     await expect(first.getByText('Sat 28 Nov · E8 15:00 – 23:00 · Unit B · Living unit')).toBeVisible();
 
     // A second proposal, then withdraw it.
     await addDraft(page, card, '2026-12-04', /E8 · Evening 8 h/);
     await expect(draft(card, /Fri 4 Dec · E8/).getByText(/^Warning · /)).toBeVisible();
+    await card.getByLabel('Note to your supervisor (optional)').fill(secondNote);
     await send.click();
     const second = mine.getByRole('listitem', { name: /^Proposal sent .*: Waiting$/ }).filter({
-      hasText: 'Fri 4 Dec',
+      hasText: secondNote,
     });
+    await expect(second.getByText('Fri 4 Dec · E8 15:00 – 23:00 · Unit B · Living unit')).toBeVisible();
     await expect(second).toHaveCount(1);
     await expectAccessible(page, testInfo, 'my-schedule-my-proposals');
     await shot(page, testInfo, 'employee', 'my-schedule', 'my-proposals-waiting');
@@ -120,7 +136,7 @@ test.describe('@api shift proposals, the officer side (v1.3 P3)', () => {
     await confirm.getByRole('button', { name: 'Withdraw proposal' }).click();
     await expect(mine.getByText(/^Withdrawn\. Your supervisor no longer sees it/)).toBeVisible();
     const withdrawn = mine.getByRole('listitem', { name: /^Proposal sent .*: Withdrawn$/ }).filter({
-      hasText: 'Fri 4 Dec',
+      hasText: secondNote,
     });
     await expect(withdrawn).toHaveCount(1);
     await expect(withdrawn.getByRole('button', { name: /Withdraw/ })).toHaveCount(0);
@@ -129,12 +145,10 @@ test.describe('@api shift proposals, the officer side (v1.3 P3)', () => {
 
     // The api agrees: one waiting, one withdrawn.
     const api = await apiAs(page.request, 't.nakamura');
-    const states = await api.get<{ displayState: string; items: { workDate: string }[] }[]>(
-      '/me/proposals',
-    );
-    const byDay = (day: string) => states.find((entry) => entry.items.some((item) => item.workDate === day));
-    expect(byDay('2026-11-28')?.displayState).toBe('WAITING');
-    expect(byDay('2026-12-04')?.displayState).toBe('WITHDRAWN');
+    const states = await api.get<{ displayState: string; note: string | null }[]>('/me/proposals');
+    const byNote = (note: string) => states.filter((entry) => entry.note === note);
+    expect(byNote(firstNote).map((entry) => entry.displayState)).toEqual(['WAITING']);
+    expect(byNote(secondNote).map((entry) => entry.displayState)).toEqual(['WITHDRAWN']);
   });
 
   test('the old /me/propose link lands on the Propose card', async ({ page }) => {

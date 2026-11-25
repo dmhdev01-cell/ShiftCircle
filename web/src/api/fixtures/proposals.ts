@@ -149,6 +149,10 @@ export function previewProposalFixture(
     throw new ApiError('Add at least one shift.', 400);
   }
   const results: ProposalPreviewItem[] = items.map((input, index) => {
+    // The real api checks a proposal item as an EXTRA shift. The fixture
+    // evaluator's planted cases (the zero-rest A12, the warn-only officers) key
+    // on ASSIGN, and it has no rule that treats the two differently, so the
+    // draft goes in as ASSIGN to reach them (review N3, PR #33).
     const outcome = evaluate({
       change: {
         type: 'ASSIGN',
