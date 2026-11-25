@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -8,6 +8,7 @@ import { AppShellRoutes } from '../App';
 import { api } from '../api/client';
 import { RoleProvider } from '../shell/nav';
 import { sortOffers } from './useMySchedule';
+import { demoMySchedule } from '../api/fixtures/mySchedule';
 import { theme } from '../theme/theme';
 
 function renderMySchedule() {
@@ -23,6 +24,10 @@ function renderMySchedule() {
 }
 
 describe('the employee My schedule', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('shows the officer and their own hours', async () => {
     renderMySchedule();
 
@@ -143,6 +148,41 @@ describe('the employee My schedule', () => {
     expect(within(key).getAllByText('Sick').length).toBeGreaterThan(0);
     expect(within(key).getAllByText('Vacation').length).toBeGreaterThan(0);
     expect(within(key).getByText(/Offers: waiting for reply/)).toBeInTheDocument();
+  });
+
+  it('names a supervisor by position and post, not the position code (release v1.3 S7)', async () => {
+    vi.spyOn(api, 'getMySchedule').mockResolvedValue({
+      ...demoMySchedule,
+      employee: {
+        ...demoMySchedule.employee,
+        name: 'Jamie Chen',
+        role: 'CS',
+        position: 'Correctional supervisor',
+        unit: { id: 'sup-o', name: 'Supervision · Operations' },
+        post: 'Supervision · Operations (ADM, CTL, ESC)',
+        rotation: '',
+        qualifications: [],
+      },
+    });
+    renderMySchedule();
+
+    expect(
+      await screen.findByText('Jamie Chen · Correctional supervisor · Supervision · Operations (ADM, CTL, ESC)'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/No employee record/)).not.toBeInTheDocument();
+  });
+
+  it('keeps an officer on their unit when the api sends no post', async () => {
+    vi.spyOn(api, 'getMySchedule').mockResolvedValue({
+      ...demoMySchedule,
+      employee: { ...demoMySchedule.employee, role: 'CO', position: 'Correctional officer', post: null },
+    });
+    renderMySchedule();
+
+    expect(
+      await screen.findByText(/^Sam Abara · Correctional officer · Unit B · Living unit · 8 h rotation/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/· CO ·/)).not.toBeInTheDocument();
   });
 
   it('shows no colleague hours or absences', async () => {

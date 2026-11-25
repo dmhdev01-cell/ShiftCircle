@@ -267,8 +267,10 @@ export function MySchedulePage() {
         <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
           {[
             payload.employee.name,
-            payload.employee.role,
-            payload.employee.unit.name,
+            // The position in words ("Correctional supervisor"); the code only if the api sent none.
+            payload.employee.position || payload.employee.role,
+            // A supervisor's post names the units it covers (release v1.3 S7).
+            payload.employee.post || payload.employee.unit?.name,
             payload.employee.rotation,
             ...payload.employee.qualifications.map(qualificationLabel),
           ]

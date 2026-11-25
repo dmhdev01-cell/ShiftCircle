@@ -53,11 +53,13 @@ class DisplayApiTest {
   private static final UUID UNIT_A = UUID.fromString("11111111-1111-1111-1111-000000000001");
   private static final UUID EMPLOYEE = UUID.fromString("99999999-9999-9999-9999-000000000001");
   private static final UUID OPEN_SHIFT = UUID.fromString("99999999-9999-9999-9999-000000000002");
+  private static final UUID SUP_O = UUID.fromString("11111111-1111-1111-1111-000000000008");
+  private static final UUID SUPERVISOR = UUID.fromString("99999999-9999-9999-9999-000000000003");
 
   @BeforeEach
   void fixture() throws Exception {
     jdbc.update("DELETE FROM time_entry WHERE employee_id = ?", EMPLOYEE);
-    jdbc.update("DELETE FROM shift_assignment WHERE employee_id = ?", EMPLOYEE);
+    jdbc.update("DELETE FROM shift_assignment WHERE employee_id IN (?, ?)", EMPLOYEE, SUPERVISOR);
     jdbc.update("DELETE FROM open_shift WHERE id = ?", OPEN_SHIFT);
     jdbc.update(
         "INSERT INTO employee (id, employee_no, first_name, last_name, home_unit_id, seniority_date)"
@@ -66,9 +68,20 @@ class DisplayApiTest {
         EMPLOYEE,
         UNIT_A);
 
+    // Release v1.3 S7: a supervisor on the Operations post today, so the posts strip has a count
+    // and the privacy test below also covers a supervisor's name.
+    jdbc.update(
+        "INSERT INTO employee (id, employee_no, first_name, last_name, home_unit_id, seniority_date,"
+            + " classification, position_since)"
+            + " VALUES (?, 'S-WALL', 'Sunniva', 'Postwatch', ?, DATE '2010-01-01', 'CS',"
+            + " DATE '2020-01-01') ON CONFLICT (id) DO UPDATE SET active = true",
+        SUPERVISOR,
+        SUP_O);
+
     // Today's day shift, and tonight's night shift (23:00 today to 07:00 tomorrow).
     insertAssignment("D8", TODAY.atTime(7, 0));
     insertAssignment("N8", TODAY.atTime(23, 0));
+    insertAssignment(SUPERVISOR, SUP_O, "D8", TODAY.atTime(7, 0));
     jdbc.update(
         "INSERT INTO open_shift (id, unit_id, shift_template_id, start_at, end_at, reason, status)"
             + " SELECT ?, ?, t.id, ?, ?, 'SICK_CALL', 'OPEN' FROM shift_template t WHERE t.code = 'D8'",
@@ -89,13 +102,18 @@ class DisplayApiTest {
   }
 
   private void insertAssignment(String template, java.time.LocalDateTime start) {
+    insertAssignment(EMPLOYEE, UNIT_A, template, start);
+  }
+
+  private void insertAssignment(
+      UUID employee, UUID unit, String template, java.time.LocalDateTime start) {
     jdbc.update(
         "INSERT INTO shift_assignment (id, employee_id, unit_id, shift_template_id, start_at, end_at,"
             + " work_date, kind, source) SELECT ?, ?, ?, t.id, ?, ?, ?, 'ROSTERED', 'ROTATION'"
             + " FROM shift_template t WHERE t.code = ?",
         UUID.randomUUID(),
-        EMPLOYEE,
-        UNIT_A,
+        employee,
+        unit,
         Timestamp.from(start.atZone(REGINA).toInstant()),
         Timestamp.from(
             start.plusHours("N8".equals(template) ? 8 : 8).atZone(REGINA).toInstant()),
@@ -217,6 +235,35 @@ class DisplayApiTest {
 
     assertThat(((Number) unitA.get("openShifts")).intValue()).isEqualTo(1);
     assertThat(((Number) unitA.get("officersInOvertime")).intValue()).isEqualTo(1);
+  }
+
+  @Test
+  void theSupervisorPostsHaveTheirOwnCountsOnlyStrip() throws Exception {
+    Map<String, Object> body = json(get("/api/v1/display/today", "tv.display"));
+    List<Map<String, Object>> posts = (List<Map<String, Object>>) body.get("posts");
+    assertThat(posts)
+        .extracting(post -> post.get("area"))
+        .containsExactly("Living units", "Operations");
+    Map<String, Object> operations = posts.get(1);
+    assertThat(((Map<String, Object>) operations.get("post")).get("name"))
+        .isEqualTo("Supervision · Operations");
+    assertThat(operations).containsOnlyKeys("post", "area", "coverage", "openShifts");
+    Map<String, Object> day =
+        ((List<Map<String, Object>>) operations.get("coverage"))
+            .stream()
+            .filter(block -> "DAY".equals(block.get("block")))
+            .findFirst()
+            .orElseThrow();
+    assertThat(((Number) day.get("required")).intValue()).isEqualTo(1);
+    assertThat(((Number) ((Map<String, Object>) day.get("scheduled")).get("lowestHourly")).intValue())
+        .isEqualTo(1);
+    assertThat(day.get("covered")).isEqualTo(true);
+    // The unit tiles and their totals are the line units only, as before.
+    assertThat((List<?>) body.get("units")).hasSize(6);
+    assertThat(((Number) body.get("totalOpenShifts")).intValue()).isEqualTo(1);
+
+    // A supervisor sees the posts in their scope; both demo supervisors have both (V19).
+    assertThat((List<?>) json(get("/api/v1/display/today", "j.chen")).get("posts")).hasSize(2);
   }
 
   @Test

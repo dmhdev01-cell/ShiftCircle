@@ -333,8 +333,16 @@ export interface MySchedulePayload {
   employee: {
     id: string;
     name: string;
+    /** The position code (CO, CS); the fixtures carry words. */
     role: string;
+    /** The position in words, "Correctional supervisor" (release v1.3 S1). */
+    position?: string;
     unit: { id: string; name: string };
+    /**
+     * A supervisor's post and the units it covers, "Supervision · Living units (A, B, C)";
+     * null for anyone homed on a line unit (release v1.3 S7).
+     */
+    post?: string | null;
     rotation: string;
     qualifications: string[];
   };
@@ -477,6 +485,8 @@ export interface ReportQuery {
   to?: string;
   unitId?: string;
   employeeId?: string;
+  /** A position code (CO, CS): the hours and overtime reports for one rank (release v1.3 S7). */
+  position?: string;
 }
 
 /** One week of the coverage report. */
@@ -526,6 +536,8 @@ export interface OvertimeByOfficer {
   employeeId: string;
   name: string;
   hours: number;
+  /** The person's position code, CO or CS (release v1.3 S7). */
+  position?: string;
 }
 
 export interface OvertimeReport {
@@ -545,6 +557,8 @@ export interface HoursByOfficer {
   overtime20: number;
   sick: number;
   vacation: number;
+  /** The person's position code, CO or CS (release v1.3 S7). */
+  position?: string;
 }
 
 export interface HoursReport {
@@ -795,18 +809,39 @@ export interface PlanInputs {
     neededPeriods?: number;
     /** Every unit the generator plans (the rows of `units`). */
     units: number;
+    /** Release v1.3: everyone above, split by position (CO, CS). */
+    byPosition?: {
+      position: string;
+      supervisory: boolean;
+      total: number;
+      fullTime: number;
+      partTime: number;
+      fte: number;
+    }[];
+    /** Release v1.3: the officer units and the supervisor posts among `units`. */
+    lineUnits?: number;
+    posts?: number;
+    /** "150 officers + 12 supervisors in 6 units + 2 supervisor posts" (release v1.3). */
+    headline?: string;
   };
   units: {
     code: string;
     name: string;
     allows12h: boolean;
+    /** Release v1.3: SUPERVISION for a supervisor post. */
+    kind?: string;
+    supervision?: boolean;
+    /** The officers on the row (release v1.3 S7: the supervisors are counted apart). */
     officers: number;
+    supervisors?: number;
     fullTime: number;
     partTime: number;
     fte: number;
     minimums: Record<'NIGHT' | 'DAY' | 'EVENING', number>;
     closedDays: number;
     groups: {
+      /** Release v1.3: the group's position (CO, CS); `officers` counts its people. */
+      position?: string;
       employment: 'FULL_TIME' | 'PART_TIME';
       hours: number;
       pattern: string;
@@ -922,6 +957,44 @@ export interface PlannerScorecard {
   /** Hours per officer across the quarter, min/avg/max. */
   quarterHours?: { min: number; avg: number; max: number };
   weekends?: { min: number; avg: number; max: number };
+  /**
+   * Release v1.3: the supervisors and the supervisor posts, only when there are any. Every card
+   * above counts the officers and the officer units only.
+   */
+  supervisors?: PlannerSupervisorsCard;
+  /** Release v1.3: everyone, split by rank. */
+  totals?: PlannerTotals;
+}
+
+/**
+ * The supervisor card (release v1.3): the same measures as the officer cards, over the
+ * supervisors and the supervisor posts. `shifts` counts the shifts on the posts.
+ */
+export interface PlannerSupervisorsCard {
+  supervisors: number;
+  posts: number;
+  coverage: { coveredBlockDays: number; shortBlockDays: number; totalBlockDays: number };
+  shifts: number;
+  warnings: { total: number; byRule: { ruleName: string; count: number }[]; note?: string };
+  preferences: { asked: number; met: number };
+  overtime: { officersOver: number; hoursOver: number; thresholdHours: number };
+  absences?: { officers: number; days: number; coveredByRelief: number; uncovered: number };
+  line: string;
+}
+
+/** Everyone the draft places, split by the person's rank; warnings by the post they were on. */
+export interface PlannerTotals {
+  shifts: number;
+  officerShifts: number;
+  supervisorShifts: number;
+  people: number;
+  officers: number;
+  supervisors: number;
+  warnings: number;
+  lineUnitWarnings: number;
+  postWarnings: number;
+  /** "5,103 officer + 492 supervisor shifts". */
+  line: string;
 }
 
 export interface PlannerDraft {
@@ -1214,12 +1287,17 @@ export interface PlannerCompare {
 
 export interface PlannerCommitPreview {
   version: number;
+  /** Everyone's shifts; the two counts below split it by the person's rank (release v1.3). */
   shiftsToWrite: number;
+  /** Officers only since release v1.3; `supervisors` counts the supervisors. */
   officers: number;
   shortBlockDays: number;
   warningCount: number;
   from: string;
   to: string;
+  supervisors?: number;
+  officerShifts?: number;
+  supervisorShifts?: number;
 }
 
 export interface PlannerCommitResult {
@@ -1228,6 +1306,9 @@ export interface PlannerCommitResult {
   auditEventId: number;
   units: string[];
   firstWeek: string;
+  /** The rank split of `shiftsWritten` (release v1.3). */
+  officerShifts?: number;
+  supervisorShifts?: number;
 }
 
 export interface PlannerCommitFailure {
@@ -1654,6 +1735,17 @@ export interface DisplayUnit {
   closedNote?: string | null;
 }
 
+/**
+ * A supervisor post on the wall (release v1.3 S7): counts only. `area` is the
+ * post's name without "Supervision · " ("Operations").
+ */
+export interface DisplayPost {
+  post: { id: string; name: string };
+  area: string;
+  coverage: DisplayBlock[];
+  openShifts: number;
+}
+
 /** `GET /display/today`: no names, employee numbers or employee ids, by contract. */
 export interface DisplayToday {
   /** The demo day the counts are for (YYYY-MM-DD). */
@@ -1663,6 +1755,8 @@ export interface DisplayToday {
   units: DisplayUnit[];
   totalOpenShifts: number;
   totalOfficersInOvertime: number;
+  /** The supervisor posts in scope (release v1.3 S7); the unit tiles and totals exclude them. */
+  posts: DisplayPost[];
 }
 
 export interface OpenShiftQuery {

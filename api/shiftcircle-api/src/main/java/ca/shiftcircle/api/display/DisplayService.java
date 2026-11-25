@@ -37,9 +37,20 @@ public class DisplayService {
       UnitRef unit, List<DisplayBlock> coverage, int openShifts, int officersInOvertime,
       boolean closedToday, String closedNote) {}
 
+  /**
+   * A supervisor post on the wall (release v1.3 S7): counts only, like a unit. {@code area} is the
+   * post's name without "Supervision · ", so the screen can say "Supervisor on duty · Operations".
+   */
+  public record PostDisplay(
+      UnitRef post, String area, List<DisplayBlock> coverage, int openShifts) {}
+
+  /**
+   * {@code units} and the two totals are the officer units, as before; the supervisor posts are in
+   * {@code posts} (release v1.3 S7), so the unit tiles and their totals are unchanged.
+   */
   public record DisplayPayload(
       String asOf, String generatedAt, List<UnitDisplay> units, int totalOpenShifts,
-      int totalOfficersInOvertime) {}
+      int totalOfficersInOvertime, List<PostDisplay> posts) {}
 
   private final JdbcTemplate jdbc;
   private final ca.shiftcircle.api.units.ActiveUnits activeUnits;
@@ -56,8 +67,8 @@ public class DisplayService {
   }
 
   public DisplayPayload today(AuthPrincipal principal) {
-    // The supervisor posts (release v1.3) are not unit tiles: eight tiles no longer fit a TV, and
-    // the posts get their own counts-only strip with S7. Until then the display is unchanged.
+    // The supervisor posts (release v1.3) are not unit tiles: eight tiles no longer fit a TV, so
+    // the posts get their own counts-only strip (S7), read below.
     List<Map<String, Object>> units =
         jdbc.queryForList(
             "SELECT id, code, name, kind FROM unit WHERE active AND kind <> 'SUPERVISION'"
@@ -126,8 +137,51 @@ public class DisplayService {
               closedNote));
     }
 
+    List<PostDisplay> posts = new ArrayList<>();
+    for (Map<String, Object> post :
+        jdbc.queryForList(
+            "SELECT id, code, name FROM unit WHERE active AND kind = 'SUPERVISION' ORDER BY code")) {
+      String code = (String) post.get("code");
+      if (!inScope(principal, code)) {
+        continue;
+      }
+      UUID postId = (UUID) post.get("id");
+      String name = (String) post.get("name");
+      String area = name.startsWith("Supervision · ") ? name.substring("Supervision · ".length()) : name;
+      boolean closed = !activeUnits.active(postId, asOf);
+      posts.add(
+          new PostDisplay(
+              new UnitRef(postId, name),
+              area,
+              closed ? List.of() : mergedBlocks(postId, scheduled, actual),
+              closed ? 0 : openShifts.getOrDefault(postId, 0)));
+    }
+
     return new DisplayPayload(
-        asOf.toString(), Instant.now().toString(), displays, totalOpen, totalOvertime);
+        asOf.toString(), Instant.now().toString(), displays, totalOpen, totalOvertime, posts);
+  }
+
+  /** Today's blocks for one post: required, scheduled and (when recorded) actual, hourly. */
+  private List<DisplayBlock> mergedBlocks(
+      UUID unitId, Map<UUID, List<Interval>> scheduled, Map<UUID, List<Interval>> actual) {
+    Map<String, Integer> required = required(unitId);
+    List<BlockCoverage> blocks =
+        coverage.forDay(asOf, required, scheduled.getOrDefault(unitId, List.of()));
+    List<Interval> recorded = actual.getOrDefault(unitId, List.of());
+    List<BlockCoverage> actualBlocks =
+        recorded.isEmpty() ? null : coverage.forDay(asOf, required, recorded);
+    List<DisplayBlock> merged = new ArrayList<>();
+    for (int i = 0; i < blocks.size(); i++) {
+      BlockCoverage block = blocks.get(i);
+      merged.add(
+          new DisplayBlock(
+              block.block(),
+              block.required(),
+              block.coverage(),
+              actualBlocks == null ? null : actualBlocks.get(i).coverage(),
+              block.covered()));
+    }
+    return merged;
   }
 
   /** Assignments (or recorded actuals) per unit that overlap today's blocks, night tail included. */

@@ -190,6 +190,12 @@ class SupervisorDatasetsApiTest {
     assertThat(employee.get("position")).isEqualTo("Correctional supervisor");
     assertThat(((Map<String, Object>) employee.get("unit")).get("name"))
         .isEqualTo("SUP-L".equals(homePost) ? "Supervision · Living units" : "Supervision · Operations");
+    // Release v1.3 S7: the post and the line units it covers, for the My schedule header.
+    assertThat(employee.get("post"))
+        .isEqualTo(
+            "SUP-L".equals(homePost)
+                ? "Supervision · Living units (A, B, C)"
+                : "Supervision · Operations (ADM, CTL, ESC)");
     int shifts = 0;
     for (Object day : (List<Object>) body.get("shifts")) {
       for (Object item : (List<Object>) ((Map<String, Object>) day).get("items")) {
@@ -223,9 +229,13 @@ class SupervisorDatasetsApiTest {
   private int overtimeRankOf(String username) throws Exception {
     HttpResponse<String> response = send("GET", "/api/v1/me/schedule", null, login(username));
     assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
-    Map<String, Object> overtime =
-        (Map<String, Object>)
-            mapper.readValue(response.body(), Map.class).get("overtimeThisQuarter");
+    Map<String, Object> body = mapper.readValue(response.body(), Map.class);
+    Map<String, Object> employee = (Map<String, Object>) body.get("employee");
+    if ("t.nakamura".equals(username)) {
+      // An officer is homed on a line unit: no post (release v1.3 S7).
+      assertThat(employee).containsEntry("post", null);
+    }
+    Map<String, Object> overtime = (Map<String, Object>) body.get("overtimeThisQuarter");
     return ((Number) overtime.get("of")).intValue();
   }
 

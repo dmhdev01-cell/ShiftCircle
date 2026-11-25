@@ -305,6 +305,44 @@ describe('the report range and unit (FR-60/61/62)', () => {
     vi.restoreAllMocks();
   });
 
+  it('reads the hours and overtime for one rank, with a Position column (release v1.3 S7)', async () => {
+    withDemoToday();
+    signInAs('M. Ellis');
+    const coverage = vi.spyOn(api, 'getCoverageReport');
+    const hours = vi.spyOn(api, 'getHoursReport');
+    const overtime = vi.spyOn(api, 'getOvertimeReport');
+    const overrides = vi.spyOn(api, 'getOverrides');
+    const exportCsv = vi.spyOn(api, 'exportReportCsv');
+    const user = userEvent.setup();
+    renderReports('/reports/hours');
+
+    expect(await screen.findByRole('columnheader', { name: 'Position' })).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Hours by officer' })).getAllByText('Officer').length).toBeGreaterThan(0);
+
+    const picker = screen.getByLabelText('Position');
+    expect(within(picker).getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Everyone',
+      'Officers',
+      'Supervisors',
+    ]);
+    await user.selectOptions(picker, 'CS');
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
+
+    const base = { from: undefined, to: undefined, unitId: undefined };
+    await waitFor(() => expect(hours).toHaveBeenLastCalledWith({ ...base, position: 'CS' }));
+    expect(overtime).toHaveBeenLastCalledWith({ ...base, position: 'CS' });
+    // Coverage and the overrides are not split by rank.
+    expect(coverage).toHaveBeenLastCalledWith(base);
+    expect(overrides).toHaveBeenLastCalledWith(base);
+    expect(screen.getByText(/Supervisors only in hours and overtime/)).toBeInTheDocument();
+    // The fixtures have no supervisors: the table says so in its count, not "officers".
+    expect(await screen.findByText(/Showing 0 of 0 supervisors/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+    await waitFor(() => expect(exportCsv).toHaveBeenLastCalledWith('hours', { ...base, position: 'CS' }));
+    vi.restoreAllMocks();
+  });
+
   it('refuses a reversed or too long range with a clear message and asks for nothing', async () => {
     withDemoToday();
     const coverage = vi.spyOn(api, 'getCoverageReport');

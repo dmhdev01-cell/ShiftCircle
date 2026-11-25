@@ -604,6 +604,66 @@ class ReportsApiTest {
         .isPositive();
   }
 
+  @Test
+  void thePositionFilterReadsTheHoursAndOvertimeForOneRank() throws Exception {
+    // Release v1.3 S7: equity is measured inside a pool, so the hours and overtime reports carry
+    // each person's position and can be read for one rank (Dataset 100 has 10 supervisors).
+    String range = "?from=" + LOCKED_FROM + "&to=" + LOCKED_TO;
+    String token = tokens.get("a.reviewer");
+    List<Map<String, Object>> everyone = rows(json(get("/api/v1/reports/hours" + range, token, null)), "rows");
+    for (Map<String, Object> row : everyone) {
+      assertThat(row.get("position"))
+          .as("position of %s", row.get("name"))
+          .isEqualTo(
+              jdbc.queryForObject(
+                  "SELECT classification FROM employee WHERE id = ?::uuid",
+                  String.class,
+                  row.get("employeeId")));
+    }
+    List<Map<String, Object>> supervisors =
+        rows(json(get("/api/v1/reports/hours" + range + "&position=CS", token, null)), "rows");
+    List<Map<String, Object>> officers =
+        rows(json(get("/api/v1/reports/hours" + range + "&position=CO", token, null)), "rows");
+    assertThat(supervisors).isNotEmpty().allSatisfy(row -> assertThat(row.get("position")).isEqualTo("CS"));
+    assertThat(officers).isNotEmpty().allSatisfy(row -> assertThat(row.get("position")).isEqualTo("CO"));
+    assertThat(supervisors.size() + officers.size()).isEqualTo(everyone.size());
+    assertThat(supervisors).containsAnyElementsOf(everyone);
+
+    HttpResponse<String> csv = get("/api/v1/reports/hours" + range + "&position=CS", token, "text/csv");
+    assertThat(csv.statusCode()).isEqualTo(200);
+    assertThat(csv.body().lines().count()).isEqualTo(supervisors.size() + 1L);
+    assertThat(csv.body()).contains("S-0").doesNotContain("E-0");
+
+    assertThat(get("/api/v1/reports/hours" + range + "&position=XX", token, null).statusCode())
+        .isEqualTo(400);
+    assertThat(get("/api/v1/reports/overtime" + range + "&position=XX", token, null).statusCode())
+        .isEqualTo(400);
+  }
+
+  @Test
+  void theOvertimeReportsPoolIsOneRankWhenFiltered() throws Exception {
+    String range = "?from=2026-10-01&to=2026-11-19&top=100";
+    String token = tokens.get("a.reviewer");
+    Map<String, Object> all = json(get("/api/v1/reports/overtime" + range, token, null));
+    Map<String, Object> officers =
+        json(get("/api/v1/reports/overtime" + range + "&position=CO", token, null));
+    Map<String, Object> supervisors =
+        json(get("/api/v1/reports/overtime" + range + "&position=CS", token, null));
+    assertThat(rows(officers, "rows")).allSatisfy(row -> assertThat(row.get("position")).isEqualTo("CO"));
+    assertThat(rows(supervisors, "rows")).allSatisfy(row -> assertThat(row.get("position")).isEqualTo("CS"));
+    assertThat(rows(officers, "rows").size() + rows(supervisors, "rows").size())
+        .isEqualTo(rows(all, "rows").size());
+    // The average is per person in the pool: the officers' total over the officers in scope.
+    double officerTotal =
+        rows(officers, "rows").stream().mapToDouble(row -> number(row.get("hours"))).sum();
+    double average = number(officers.get("averageHours"));
+    assertThat(average).isPositive();
+    int pool = (int) Math.round(officerTotal / average);
+    assertThat(pool)
+        .as("the officers' pool excludes the supervisors")
+        .isBetween(90, 100);
+  }
+
   private double queryHours(String sql, Object... args) {
     Map<String, Object> row = jdbc.queryForMap(sql, args);
     Object value = row.values().stream().filter(java.util.Objects::nonNull).findFirst().orElse(0);

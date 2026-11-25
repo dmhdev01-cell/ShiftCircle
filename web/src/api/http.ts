@@ -191,6 +191,7 @@ function queryString(query: {
   from?: string;
   to?: string;
   status?: string;
+  position?: string;
 }): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {

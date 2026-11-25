@@ -58,14 +58,15 @@ public class ReportsController {
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
       @RequestParam(required = false) String unitId,
       @RequestParam(required = false) UUID employeeId,
+      @RequestParam(required = false) String position,
       @RequestHeader(value = HttpHeaders.ACCEPT, required = false) String accept) {
     if (csv(accept)) {
       return file(
           "hours-by-officer.csv",
-          reports.hoursCsv(scopeGuard.principal(), from, to, unitId, employeeId));
+          reports.hoursCsv(scopeGuard.principal(), from, to, unitId, employeeId, position));
     }
     return ResponseEntity.ok(
-        reports.hours(scopeGuard.principal(), from, to, unitId, employeeId));
+        reports.hours(scopeGuard.principal(), from, to, unitId, employeeId, position));
   }
 
   @GetMapping("/reports/overtime")
@@ -76,6 +77,7 @@ public class ReportsController {
       @RequestParam(required = false) String unitId,
       @RequestParam(required = false) Integer top,
       @RequestParam(required = false) UUID employeeId,
+      @RequestParam(required = false) String position,
       @RequestHeader(value = HttpHeaders.ACCEPT, required = false) String accept) {
     if (employeeId != null) {
       throw new org.springframework.web.server.ResponseStatusException(
@@ -85,9 +87,10 @@ public class ReportsController {
     if (csv(accept)) {
       return file(
           "overtime-by-officer.csv",
-          reports.overtimeCsv(scopeGuard.principal(), from, to, unitId, top));
+          reports.overtimeCsv(scopeGuard.principal(), from, to, unitId, top, position));
     }
-    return ResponseEntity.ok(reports.overtime(scopeGuard.principal(), from, to, unitId, top));
+    return ResponseEntity.ok(
+        reports.overtime(scopeGuard.principal(), from, to, unitId, top, position));
   }
 
   @GetMapping("/reports/overrides")
