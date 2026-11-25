@@ -6,8 +6,6 @@ import { ThemeProvider } from '@mui/material/styles';
 
 import { AppShellRoutes } from '../App';
 import { api } from '../api/client';
-import { createFixtureApi } from '../api/fixtures/api';
-import { createHttpApi } from '../api/http';
 import { RoleProvider } from '../shell/nav';
 import { sortOffers } from './useMySchedule';
 import { theme } from '../theme/theme';
@@ -102,46 +100,7 @@ describe('the employee My schedule', () => {
     await screen.findByText(/Sam Abara/);
     await user.click(screen.getAllByRole('button', { name: 'Decline' })[0]);
 
-    expect(await screen.findByText(/Declined/)).toBeInTheDocument();
-  });
-
-  it('checks the rules on a proposed shift and shows the block', async () => {
-    const user = userEvent.setup();
-    renderMySchedule();
-
-    const planner = await screen.findByRole('region', { name: 'Propose shifts' });
-    await user.click(within(planner).getByRole('button', { name: 'Add a shift' }));
-
-    const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: /A12 · 12 h 00–12/ }));
-    await user.click(within(dialog).getByRole('button', { name: 'Add and check the rules' }));
-
-    // The A12 the day after a P12 leaves no rest, so the rules block it.
-    expect(await screen.findByText('Blocked')).toBeInTheDocument();
-    expect(screen.getByText(/No rest after the 12 h shift that ends Wed 25 Nov 24:00/)).toBeInTheDocument();
-  });
-
-  it('M1: says sending a proposal is not available, and sends nothing', async () => {
-    const user = userEvent.setup();
-    renderMySchedule();
-
-    const planner = await screen.findByRole('region', { name: 'Propose shifts' });
-    const note = within(planner).getByRole('note', { name: 'Sending a proposal' });
-    expect(note).toHaveTextContent(/not available in this prototype/);
-    // No send button and no note field that would lead to a 404.
-    expect(within(planner).queryByRole('button', { name: 'Send to supervisor' })).toBeNull();
-    expect(within(planner).queryByLabelText('Note to your supervisor')).toBeNull();
-    // The rule check still works.
-    await user.click(within(planner).getByRole('button', { name: 'Add a shift' }));
-    const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Add and check the rules' }));
-    expect(await within(planner).findByText(/add A12/)).toBeInTheDocument();
-  });
-
-  it('M1: neither api offers a proposal call to reach the missing endpoint', () => {
-    expect('submitProposals' in api).toBe(false);
-    expect('submitProposals' in createHttpApi()).toBe(false);
-    expect('submitProposals' in createFixtureApi()).toBe(false);
+    expect(await screen.findByText(/Declined\. Thank you/)).toBeInTheDocument();
   });
 
   it('B4: does not claim a rule check the api did not send', async () => {

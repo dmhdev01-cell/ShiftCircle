@@ -4,7 +4,10 @@ import type {
   HoursReport,
   MockLoginResult,
   MyOffer,
+  MyProposal,
   MySchedulePayload,
+  ProposalItemInput,
+  ProposalPreview,
   OvertimeReport,
   OverrideRow,
   PayPeriod,
@@ -494,6 +497,32 @@ export function createHttpApi(): ShiftCircleApi {
     respondToOffer(offerId: string, response: OfferResponse): Promise<MyOffer> {
       return request<MyOffer>(`/offers/${offerId}/${response.toLowerCase()}`, {
         method: 'POST',
+      });
+    },
+
+    previewProposal(items: ProposalItemInput[]): Promise<ProposalPreview> {
+      return request<ProposalPreview>('/proposals/preview', {
+        method: 'POST',
+        body: JSON.stringify({ items }),
+      });
+    },
+
+    submitProposal(note: string, items: ProposalItemInput[]): Promise<MyProposal> {
+      const trimmed = note.trim();
+      return request<MyProposal>('/proposals', {
+        method: 'POST',
+        body: JSON.stringify({ note: trimmed === '' ? null : trimmed, items }),
+      });
+    },
+
+    getMyProposals(): Promise<MyProposal[]> {
+      return request<MyProposal[]>('/me/proposals');
+    },
+
+    withdrawProposal(proposalId: string, version: number): Promise<MyProposal> {
+      return request<MyProposal>(`/proposals/${proposalId}/withdraw`, {
+        method: 'POST',
+        headers: { 'If-Match': `"${version}"` },
       });
     },
 
