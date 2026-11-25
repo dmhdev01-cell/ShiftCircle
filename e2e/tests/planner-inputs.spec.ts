@@ -21,6 +21,17 @@ interface Inputs {
   rules: { ruleSetVersion: number };
 }
 
+interface StaffingTotals {
+  allocated: number;
+  filled: number;
+  needed: number;
+  shortfall: number;
+}
+
+interface Staffing {
+  periods: { from: string; units: { unitName: string; shortfall: number }[]; totals: StaffingTotals }[];
+}
+
 async function resetTo(request: APIRequestContext, dataset: '100' | '120' | '150'): Promise<void> {
   const api = await apiAs(request, 'p.planner');
   const started = await api.post('/demo/reset', { confirm: 'RESET', dataset });
@@ -111,4 +122,65 @@ test.describe('plan inputs on the quarter plan', () => {
     const detail = page.getByRole('region', { name: 'Plan inputs detail' });
     await expect(detail.getByRole('row', { name: /Escort/ })).toContainText('12 h relief pool, no fixed rotation');
   });
+
+  // v1.2 walk D1: the api names the figure "shortfall"; the screen read
+  // "short" and said "Short 0 · every unit meets the floor" under a headline
+  // of "112 FTE against about 127 needed". The headline, the Staffing by unit
+  // panel and the "Needed (at least)" tile now say the same thing.
+  for (const dataset of ['120', '150', '100'] as const) {
+    test(`@api Dataset ${dataset}: the headline, the staffing panel and the tile agree`, async ({
+      page,
+      request,
+    }) => {
+      await resetTo(request, dataset);
+      const api = await apiAs(request, 'p.planner');
+      const inputs = await api.get<Inputs>('/planner/inputs');
+      const staffing = await api.get<Staffing>('/planner/staffing');
+      const worst = staffing.periods.reduce(
+        (best, period) => (period.totals.shortfall > best.totals.shortfall ? period : best),
+        staffing.periods[0],
+      );
+      expect(inputs.officers.neededFte, 'the headline needs what the floor needs').toBe(worst.totals.needed);
+      if (dataset === '120') {
+        expect(staffing.periods[0].totals).toMatchObject({ needed: 127, filled: 120, shortfall: 7 });
+      }
+
+      await signIn(page, 'P. Planner');
+      await navTo(page, 'Quarter plan');
+      await expect(page.getByTestId('plan-inputs-headline')).toContainText(
+        `${inputs.officers.fte} FTE against about ${inputs.officers.neededFte} needed`,
+      );
+
+      const panel = page.locator('div').filter({ has: page.getByRole('heading', { name: 'Staffing by unit' }) }).last();
+      const totalRow = panel.getByRole('row', { name: /^All units/ });
+      const cells = staffing.periods.map((period) => String(period.totals.needed)).concat(
+        staffing.periods.map((period) => String(period.totals.shortfall)),
+      );
+      await expect(totalRow.locator('td')).toHaveText([
+        'All units',
+        String(staffing.periods[0].totals.allocated),
+        String(staffing.periods[0].totals.filled),
+        ...cells,
+      ]);
+      const first = staffing.periods[0];
+      if (first.totals.shortfall > 0) {
+        await expect(panel.getByText(`Do we need more staff? Yes, at least ${first.totals.shortfall} more:`, { exact: false })).toBeVisible();
+        for (const unit of first.units.filter((row) => row.shortfall > 0)) {
+          await expect(panel.getByRole('row', { name: unit.unitName })).toContainText(`${unit.shortfall}Short`);
+        }
+      } else {
+        await expect(panel.getByText('every unit meets the floor', { exact: false }).first()).toBeVisible();
+      }
+
+      await page.getByRole('button', { name: 'Generate draft' }).click();
+      await expect(page.getByText('Coverage gaps')).toBeVisible({ timeout: 120_000 });
+      const tile = page.locator('div').filter({ has: page.getByText('Needed (at least)', { exact: true }) }).last();
+      await expect(tile).toContainText(`Needed (at least)${worst.totals.needed}`);
+      if (worst.totals.shortfall > 0) {
+        await expect(tile).toContainText(`Short${worst.totals.filled} on staff · short ${worst.totals.shortfall}`);
+      } else {
+        await expect(tile).toContainText(`Meets the floor${worst.totals.filled} on staff`);
+      }
+    });
+  }
 });

@@ -123,7 +123,7 @@ function periodFor(from: string, to: string): StaffingPeriod {
       allocated,
       filled: unit.filled,
       needed,
-      short: Math.max(0, needed - unit.filled),
+      shortfall: Math.max(0, needed - unit.filled),
       breakdown: { ...breakdown, needed },
     };
   });
@@ -132,9 +132,9 @@ function periodFor(from: string, to: string): StaffingPeriod {
       allocated: sum.allocated + row.allocated,
       filled: sum.filled + row.filled,
       needed: sum.needed + row.needed,
-      short: sum.short + row.short,
+      shortfall: sum.shortfall + row.shortfall,
     }),
-    { allocated: 0, filled: 0, needed: 0, short: 0 },
+    { allocated: 0, filled: 0, needed: 0, shortfall: 0 },
   );
   return { from, to, units, totals };
 }

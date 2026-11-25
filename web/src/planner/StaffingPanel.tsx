@@ -34,14 +34,14 @@ function periodSentence(
   draftGaps: number | null,
 ): { tone: 'warn' | 'info' | 'pass'; text: string } {
   const prefix = index === 0 ? '' : `From ${dateWords(period.from)}: `;
-  if (period.totals.short > 0) {
+  if (period.totals.shortfall > 0) {
     const units = period.units
-      .filter((unit) => unit.short > 0)
-      .map((unit) => `${shortName(unit)} (${unit.short})`)
+      .filter((unit) => unit.shortfall > 0)
+      .map((unit) => `${shortName(unit)} (${unit.shortfall})`)
       .join(', ');
     return {
       tone: 'warn',
-      text: `${prefix}Do we need more staff? Yes, at least ${period.totals.short} more: ${units}.${
+      text: `${prefix}Do we need more staff? Yes, at least ${period.totals.shortfall} more: ${units}.${
         draftGaps !== null ? ` The draft also has ${draftGaps} block-days short.` : ''
       }`,
     };
@@ -234,9 +234,9 @@ export function StaffingPanel({
                         className="num"
                         style={{ padding: '6px 8px', borderBottom: `1px solid ${colour.border.default}` }}
                       >
-                        {entry && entry.short > 0 ? (
+                        {entry && entry.shortfall > 0 ? (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <strong>{entry.short}</strong>
+                            <strong>{entry.shortfall}</strong>
                             <StatusPill tone="warn">Short</StatusPill>
                           </Box>
                         ) : (
@@ -262,7 +262,7 @@ export function StaffingPanel({
                 ))}
                 {periods.map((period) => (
                   <td key={`total-short-${period.from}`} className="num" style={{ padding: '8px', fontWeight: 700 }}>
-                    {period.totals.short}
+                    {period.totals.shortfall}
                   </td>
                 ))}
               </tr>

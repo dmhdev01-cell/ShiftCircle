@@ -69,6 +69,32 @@ describe('the mock sign-in', () => {
     expect(screen.queryByRole('button', { name: /M. Ellis/ })).not.toBeInTheDocument();
   });
 
+  it('tries again on its own after a demo reset answers 409 (v1.2 walk D4)', async () => {
+    vi.spyOn(api, 'getDemoUsers').mockRejectedValueOnce(
+      new ApiError('The demo is reloading its seeded data. Try again in a moment.', 409),
+    );
+
+    renderLogin();
+
+    expect(
+      await screen.findByText('The demo is reloading its seeded data. Try again in a moment.'),
+    ).toBeInTheDocument();
+    // The first retry waits 1 s; no refresh is needed.
+    expect(await screen.findByRole('button', { name: /M. Ellis/ }, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.queryByText('The demo is reloading its seeded data. Try again in a moment.')).not.toBeInTheDocument();
+  });
+
+  it('offers Retry when the demo users could not be loaded', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, 'getDemoUsers').mockRejectedValueOnce(new ApiError('Service unavailable', 503));
+
+    renderLogin();
+
+    await user.click(await screen.findByRole('button', { name: 'Retry' }));
+    expect(await screen.findByRole('button', { name: /M. Ellis/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+  });
+
   it('explains an ended session', async () => {
     sessionExpired();
 

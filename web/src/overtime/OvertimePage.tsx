@@ -130,7 +130,7 @@ function MissingSlot({ unitId, startAt }: { unitId: string | null; startAt: stri
  * this is the supervisor's screen.
  */
 export function OvertimePage() {
-  const { state: shiftsState } = useOpenShifts();
+  const { state: shiftsState, reload: reloadShifts } = useOpenShifts();
   const [searchParams] = useSearchParams();
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [showOthers, setShowOthers] = useState(false);
@@ -214,6 +214,12 @@ export function OvertimePage() {
       await api.confirmOffer(offerId);
       setMessage('The accepted offer is confirmed and the shift is assigned.');
       reloadCandidates();
+      // The open shift is FILLED now: refetch the cards so this one stops
+      // saying "Offers sent" (v1.2 walk D5). It moves to the filled shifts, so
+      // keep it selected and that list open, where it now reads "Filled".
+      if (activeId) setPickedId(activeId);
+      setShowOthers(true);
+      reloadShifts();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'The offer could not be confirmed.');
     }

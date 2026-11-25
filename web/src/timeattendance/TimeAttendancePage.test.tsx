@@ -104,7 +104,9 @@ describe('Time and attendance', () => {
     const panel = await screen.findByRole('dialog', {
       name: `Record actual · ${linked.employeeName}`,
     });
-    expect(within(panel).getByText(new RegExp(`^${linked.date} · `))).toBeInTheDocument();
+    // v1.2 walk D6: a readable date, not the ISO one.
+    expect(within(panel).getByText(/^Tue 17 Nov 2026 · /)).toBeInTheDocument();
+    expect(within(panel).queryByText(/2026-11-17/)).not.toBeInTheDocument();
     expect(screen.getByLabelText('Pay period')).toHaveValue('period-2026-11-09');
   });
 
