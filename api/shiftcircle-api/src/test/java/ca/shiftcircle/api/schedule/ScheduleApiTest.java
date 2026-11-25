@@ -521,6 +521,8 @@ class ScheduleApiTest {
           officer);
       assertThat(onDutyNames(get(unitA, token).body()).get("EVENING")).isEqualTo(java.util.List.of());
       assertThat(lowest(get(post, token).body(), "EVENING")).isZero();
+      // Nor does it badge the row (or put the officer in the post's gap-fill pool).
+      assertThat(qualificationsOf(get(post, token).body(), "Olive Officer")).doesNotContain("ACTING_SUP");
 
       // Valid on the day: the acting officer covers the post and is named.
       jdbc.update(
@@ -528,6 +530,7 @@ class ScheduleApiTest {
       assertThat(onDutyNames(get(unitA, token).body()).get("EVENING"))
           .isEqualTo(java.util.List.of("Olive Officer"));
       assertThat(lowest(get(post, token).body(), "EVENING")).isEqualTo(1);
+      assertThat(qualificationsOf(get(post, token).body(), "Olive Officer")).contains("ACTING_SUP");
 
       // A caller who does not see the covering post gets no on-duty line.
       assertThat(scheduleQuery.forUnit(UNIT, day, day, code -> false).supervisorsOnDuty())
@@ -557,6 +560,16 @@ class ScheduleApiTest {
       byBlock.put((String) block.get("block"), block.get("names"));
     }
     return byBlock;
+  }
+
+  private java.util.List<?> qualificationsOf(String body, String name) throws Exception {
+    for (Object entry : (java.util.List<?>) mapper.readValue(body, Map.class).get("officers")) {
+      Map<?, ?> row = (Map<?, ?>) entry;
+      if (name.equals(row.get("name"))) {
+        return (java.util.List<?>) row.get("qualifications");
+      }
+    }
+    throw new AssertionError("no row for " + name);
   }
 
   private int lowest(String body, String block) throws Exception {

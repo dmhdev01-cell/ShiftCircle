@@ -80,10 +80,10 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 | L. Fraser | RULES_ADMIN | — |
 | P. Singh | RULES_APPROVER | — |
 | A. Reviewer | AUDITOR | all |
-
-The planning board's "Supervisor on duty" line (release v1.3 S6) names the people on a covering supervisor post only when the caller also has that post in scope; facility-wide roles see every post. Both demo supervisors hold both posts, so the line is complete for them.
 | P. Planner | PLANNER | all (read-only; preferences planning) |
 | Unit office TV | DISPLAY | all (counts only) |
+
+The planning board's "Supervisor on duty" line (release v1.3 S6) names the people on a covering supervisor post only when the caller also has that post in scope; facility-wide roles see every post. Both demo supervisors hold both posts, so the line is complete for them.
 
 ## 5. Pilot: real identity
 

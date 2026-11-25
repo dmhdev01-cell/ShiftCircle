@@ -194,7 +194,11 @@ public class ScheduleQuery {
     return jdbc.queryForObject("SELECT code FROM unit WHERE id = ?", String.class, unitId);
   }
 
-  /** The board with every covering post visible (the planner's internal gap count). */
+  /**
+   * The board with every covering post visible. Safe unscoped: its only caller is the planner's
+   * internal gap count ({@code PlannerService}), which reads the coverage and never returns the
+   * payload. Every HTTP read of the board goes through the scoped overload below.
+   */
   public SchedulePayload forUnit(UUID unitId, LocalDate from, LocalDate to) {
     return forUnit(unitId, from, to, postCode -> true);
   }
@@ -346,7 +350,7 @@ public class ScheduleQuery {
     }
 
     Map<UUID, Double> periodHours = periodHours(from);
-    Map<UUID, List<String>> qualifications = qualifications(officers.keySet());
+    Map<UUID, List<String>> qualifications = qualifications(officers.keySet(), from, to);
 
     List<OfficerRow> rows = new ArrayList<>();
     officers.forEach(
@@ -633,20 +637,28 @@ public class ScheduleQuery {
     return hours;
   }
 
-  private Map<UUID, List<String>> qualifications(java.util.Set<UUID> employeeIds) {
+  /**
+   * The qualifications held on at least one day shown (v1.3 S6 review): an expired Acting
+   * supervisor, say, no longer badges the row or puts the officer in a post's gap-fill pool.
+   */
+  private Map<UUID, List<String>> qualifications(
+      java.util.Set<UUID> employeeIds, LocalDate from, LocalDate to) {
     Map<UUID, List<String>> qualifications = new LinkedHashMap<>();
     if (employeeIds.isEmpty()) {
       return qualifications;
     }
     jdbc.query(
         "SELECT eq.employee_id, q.code FROM employee_qualification eq"
-            + " JOIN qualification q ON q.id = eq.qualification_id",
+            + " JOIN qualification q ON q.id = eq.qualification_id"
+            + " WHERE eq.valid_from <= ? AND (eq.valid_to IS NULL OR eq.valid_to >= ?)",
         (org.springframework.jdbc.core.RowCallbackHandler)
             resultSet ->
                 qualifications
                     .computeIfAbsent(
                         (UUID) resultSet.getObject("employee_id"), key -> new ArrayList<>())
-                    .add(resultSet.getString("code")));
+                    .add(resultSet.getString("code")),
+        to,
+        from);
     return qualifications;
   }
 
