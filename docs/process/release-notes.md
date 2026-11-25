@@ -389,8 +389,9 @@ file byte for byte (`9f2d51b3…04ff`) with only `S-…` rows after them. Datase
 8 h officers' are; giving some supervisors a 12 h preference was measured and left more short (286).
 
 **Visible changes before S6/S7.** M. Ellis and J. Chen get **Employee view** with their own
-supervisor schedule (header "Correctional supervisor"). The unit pickers, the wall display, the
-coverage report and Compare list SUP-L and SUP-O like any unit. The Plan inputs headline counts
+supervisor schedule (header "Correctional supervisor"). The unit pickers, the reports and Compare
+list SUP-L and SUP-O like any unit. The wall display keeps its six unit tiles (eight do not fit a
+TV); the posts get their own counts-only strip in S7. The Plan inputs headline counts
 everyone ("Planning 130 officers in 8 units" on 120) and the commit dialog says "5,595 shifts for
 107 officers" until S7 words the split.
 

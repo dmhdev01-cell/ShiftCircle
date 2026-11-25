@@ -117,12 +117,13 @@ test.describe('reports', () => {
       `the default ${defaultFrom}–${defaultTo} is a pay period`,
     ).toBe(true);
 
-    // Only the units in M. Ellis's scope (A and B) are offered.
+    // Only the units in M. Ellis's scope are offered: A and B, and since release v1.3 S4 the two
+    // supervisor posts.
     const unit = page.getByLabel('Unit', { exact: true });
-    await expect(unit.locator('option')).toHaveCount(3);
+    await expect(unit.locator('option')).toHaveCount(5);
     const labels = await unit.locator('option').allTextContents();
     expect(labels[0]).toBe('All my units');
-    expect(labels.slice(1).every((label) => /^Unit [AB]\b/.test(label))).toBe(true);
+    expect(labels.slice(1).every((label) => /^(Unit [AB]\b|Supervision · )/.test(label))).toBe(true);
 
     // A reversed range is refused with a clear message, and nothing is asked.
     await from.fill('2026-11-14');
