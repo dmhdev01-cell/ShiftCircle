@@ -182,10 +182,13 @@ someone as a supervisor by accident.
 three plan fingerprints and the payroll golden are unchanged: `GeneratorCharacterizationTest` is
 green with no edits, and the demo reset tests still read the same checksums.
 
-**Counts at this gate:** API **494 = 127 rules + 36 infrastructure + 331 api** (`mvn verify` on the
-pull request, `BUILD SUCCESS`, 0 failures, errors or skipped); web unit tests **567** in 56 files,
+**Counts at this gate:** API **517 = 127 rules + 36 infrastructure + 354 api** (`mvn verify` on the
+pull request, `BUILD SUCCESS`, 0 failures, errors or skipped); web unit tests **591** in 58 files,
 lint 0 errors, `tsc -b` clean, build clean; `check-ignored-sources.sh` OK and
-`check-audit-codes.sh` still 50 codes. Playwright: see the pull request.
+`check-audit-codes.sh` still 50 codes. Playwright against the real API, a fresh stack per viewport:
+desktop **132 passed**, tablet **131 passed and 1 skipped** (the TV-size check runs on desktop only).
+The branch carries v1.2 (`main` at `f681ae7`), so the positions migration is **V16**, after the
+quarter-plan options migrations V14 and V15.
 
 **Two things later releases still owe:** the captured contract samples
 (`web/src/api/contract-samples/`) do not carry the new `position` field yet — they are re-captured
