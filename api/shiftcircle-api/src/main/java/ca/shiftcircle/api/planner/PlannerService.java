@@ -161,6 +161,8 @@ public class PlannerService {
         (employeeId, shifts) ->
             baselineWarnings.put(employeeId, warningKeys(ruleCheck.evaluateFacts(shifts))));
 
+    // R-01/R-02 run in the planner as on the board: the post of each proposal, read once.
+    RuleCheckService.PostLookup posts = ruleCheck.posts();
     PlanGenerator.Verifier verifier =
         (employee, unit, template, start, current) -> {
           ShiftFact proposed =
@@ -175,7 +177,8 @@ public class PlannerService {
                   0,
                   unit.allows12h(),
                   unit.allows16h());
-          RuleCheckService.OutcomeView outcome = ruleCheck.evaluate(proposed, current);
+          RuleCheckService.OutcomeView outcome = ruleCheck.evaluate(
+                  proposed, current, posts.post(employee.id(), unit.id(), start));
           boolean blocked =
               outcome.ruleResults().stream().anyMatch(result -> "BLOCK".equals(result.outcome()));
 
@@ -434,6 +437,8 @@ public class PlannerService {
     history.forEach(
         (employeeId, shifts) ->
             baselineWarnings.put(employeeId, warningKeys(ruleCheck.evaluateFacts(shifts))));
+    // R-01/R-02 run in the planner as on the board: the post of each proposal, read once.
+    RuleCheckService.PostLookup posts = ruleCheck.posts();
     PlanGenerator.Verifier verifier =
         (employee, unit, template, start, current) -> {
           ShiftFact proposed =
@@ -448,7 +453,8 @@ public class PlannerService {
                   0,
                   unit.allows12h(),
                   unit.allows16h());
-          RuleCheckService.OutcomeView outcome = ruleCheck.evaluate(proposed, current);
+          RuleCheckService.OutcomeView outcome = ruleCheck.evaluate(
+                  proposed, current, posts.post(employee.id(), unit.id(), start));
           boolean blocked =
               outcome.ruleResults().stream().anyMatch(result -> "BLOCK".equals(result.outcome()));
           Set<String> baseline = baselineWarnings.getOrDefault(employee.id(), Set.of());
@@ -1070,6 +1076,7 @@ public class PlannerService {
     facts.forEach(
         (employeeId, shifts) ->
             baselineWarnings.put(employeeId, warningKeys(ruleCheck.evaluateFacts(shifts))));
+    RuleCheckService.PostLookup posts = ruleCheck.posts();
     List<PlannerViews.CommitFailure> failures = new ArrayList<>();
     Set<String> warningKeys = new HashSet<>();
     int warnings = 0;
@@ -1118,7 +1125,10 @@ public class PlannerService {
               (Boolean) row.get("allows_12h"),
               (Boolean) row.get("allows_16h"));
       RuleCheckService.OutcomeView outcome =
-          ruleCheck.evaluate(proposed, facts.getOrDefault(employeeId, List.of()));
+          ruleCheck.evaluate(
+              proposed,
+              facts.getOrDefault(employeeId, List.of()),
+              posts.post(employeeId, unitId, start));
       List<String> blocks =
           outcome.ruleResults().stream()
               .filter(result -> "BLOCK".equals(result.outcome()))

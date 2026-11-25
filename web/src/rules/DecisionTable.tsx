@@ -8,7 +8,7 @@ import type { RuleTable, RuleTableRow } from '../api/types';
 import { StatusPill } from '../components/StatusPill';
 import { ScrollShadows } from '../components/ScrollShadows';
 import { colour } from '../theme/tokens';
-import { sentenceFor, shiftKindLabel } from './sentences';
+import { POST_KINDS, POST_POSITIONS, isPostsTable, sentenceFor, shiftKindLabel } from './sentences';
 
 function sourceTone(source: string): 'pass' | 'warn' {
   return source === 'Employment Act' ? 'pass' : 'warn';
@@ -16,6 +16,100 @@ function sourceTone(source: string): 'pass' | 'warn' {
 
 /** The shift kinds a rule can apply after, from the active shift templates. */
 const SHIFT_KINDS = ['Any shift', '12 h 00–12', '12 h 12–24', '16 h shift', 'Regular shift'];
+
+const selectSx = {
+  minHeight: 40,
+  px: 2,
+  border: `1px solid ${colour.border.input}`,
+  borderRadius: '6px',
+  fontFamily: 'inherit',
+  fontSize: 13,
+  color: colour.text.primary,
+  backgroundColor: colour.bg.surface,
+};
+
+const cellStyle = { padding: '8px 10px', borderBottom: `1px solid ${colour.border.default}` };
+
+/** The stored position list as the label of the matching choice, or null when none matches. */
+function positionsChoice(raw: unknown): string | null {
+  const list = Array.isArray(raw) ? raw.map(String).sort().join(',') : '';
+  const match = POST_POSITIONS.find((choice) => [...choice.positions].sort().join(',') === list);
+  return match ? match.label : null;
+}
+
+/**
+ * The cells only the "Who can work a post" table has (R-01, R-02): the post
+ * (fixed by the unit's kind), who can work it, and whether an officer with the
+ * Acting supervisor qualification may work it with a warning instead.
+ */
+function PostCells({
+  row,
+  readOnly,
+  onUpdate,
+}: {
+  row: RuleTableRow;
+  readOnly: boolean;
+  onUpdate: DecisionTableProps['onUpdate'];
+}) {
+  const params = row.params ?? {};
+  const postKind = String(params.postKind ?? '');
+  const choice = positionsChoice(params.allowedPositions);
+  const acting = params.actingQualification === 'ACTING_SUP';
+  return (
+    <>
+      <td style={cellStyle}>{POST_KINDS[postKind] ?? postKind}</td>
+      <td style={cellStyle}>
+        <Box
+          component="select"
+          aria-label={`Who can work the post for ${row.ruleCode}`}
+          disabled={readOnly}
+          value={choice ?? ''}
+          onChange={(event) => {
+            const picked = POST_POSITIONS.find((entry) => entry.label === event.target.value);
+            if (picked) onUpdate(row.ruleCode, { params: { allowedPositions: picked.positions } });
+          }}
+          sx={selectSx}
+        >
+          {choice ? null : (
+            <option value="" disabled>
+              {Array.isArray(params.allowedPositions)
+                ? params.allowedPositions.map(String).join(', ')
+                : 'Not set'}
+            </option>
+          )}
+          {POST_POSITIONS.map((entry) => (
+            <option key={entry.label} value={entry.label}>
+              {entry.label}
+            </option>
+          ))}
+        </Box>
+      </td>
+      <td style={cellStyle}>
+        {postKind === 'SUPERVISION' ? (
+          <Box component="label" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+            <Checkbox
+              checked={acting}
+              disabled={readOnly}
+              onChange={(event) =>
+                onUpdate(row.ruleCode, {
+                  params: { actingQualification: event.target.checked ? 'ACTING_SUP' : null },
+                })
+              }
+              slotProps={{
+                input: { 'aria-label': `Acting supervisor may work the post for ${row.ruleCode}` },
+              }}
+            />
+            Warn instead
+          </Box>
+        ) : (
+          <Box component="span" sx={{ color: colour.text.secondary }}>
+            Does not apply
+          </Box>
+        )}
+      </td>
+    </>
+  );
+}
 
 interface DecisionTableProps {
   table: RuleTable;
@@ -59,6 +153,10 @@ export function DecisionTable({
   // Unsaved edits are changes in the draft too; the api's number only catches
   // what has been saved. With no draft on screen there is nothing "in draft"
   // (demo verification D2: the live v3 showed "1 change in draft").
+  const posts = isPostsTable(table.code);
+  const headings = posts
+    ? ['On', 'Rule', table.columns.after, table.columns.hours, 'Acting supervisor', table.columns.result, table.columns.override, 'Source']
+    : ['On', 'Rule', table.columns.after, table.columns.hours, table.columns.result, table.columns.override, 'Source'];
   const editCount = Object.keys(edited).length;
   const changeCount = inDraft ? Math.max(table.changed, editCount) : editCount;
 
@@ -105,7 +203,7 @@ export function DecisionTable({
         <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr>
-              {['On', 'Rule', table.columns.after, table.columns.hours, table.columns.result, table.columns.override, 'Source'].map(
+              {headings.map(
                 (heading) => (
                   <th
                     key={heading}
@@ -140,7 +238,7 @@ export function DecisionTable({
                 <td style={{ padding: '8px 10px', borderBottom: `1px solid ${colour.border.default}` }}>
                   <Checkbox
                     checked={row.enabled}
-                    disabled={readOnly}
+                    disabled={readOnly || row.must}
                     onChange={(event) => update(row.ruleCode, { enabled: event.target.checked })}
                     slotProps={{ input: { 'aria-label': `Rule ${row.ruleCode} on` } }}
                   />
@@ -154,6 +252,10 @@ export function DecisionTable({
                 >
                   {row.ruleCode}
                 </td>
+                {posts ? (
+                  <PostCells row={row} readOnly={readOnly} onUpdate={update} />
+                ) : (
+                  <>
                 <td style={{ padding: '8px 10px', borderBottom: `1px solid ${colour.border.default}` }}>
                   <Box
                     component="select"
@@ -208,11 +310,13 @@ export function DecisionTable({
                     h off
                   </Box>
                 </td>
+                  </>
+                )}
                 <td style={{ padding: '8px 10px', borderBottom: `1px solid ${colour.border.default}` }}>
                   <Box
                     component="select"
                     aria-label={`Result for ${row.ruleCode}`}
-                    disabled={readOnly}
+                    disabled={readOnly || row.must}
                     value={row.result}
                     onChange={(event) =>
                       update(row.ruleCode, { result: event.target.value as RuleTableRow['result'] })
@@ -239,7 +343,7 @@ export function DecisionTable({
                   <Box
                     component="select"
                     aria-label={`Override for ${row.ruleCode}`}
-                    disabled={readOnly}
+                    disabled={readOnly || row.must}
                     value={row.override}
                     onChange={(event) =>
                       update(row.ruleCode, {
@@ -301,8 +405,14 @@ export function DecisionTable({
       ) : null}
 
       <Typography component="p" sx={{ m: 0, fontSize: 12, color: colour.text.secondary, lineHeight: 1.5 }}>
-        U-01 cannot be set below 8 hours (the legal floor). The technical rule templates behind this
-        table are maintained by the development team and cannot be edited here.
+        {posts
+          ? 'Whether a unit is a supervisor post or an officer post comes from the unit itself. '
+          : 'U-01 cannot be set below 8 hours (the legal floor). '}
+        {rows.some((row) => row.must)
+          ? 'A rule the mock agreement requires keeps its result, override and on/off; only its values change. '
+          : ''}
+        The technical rule templates behind this table are maintained by the development team and
+        cannot be edited here.
       </Typography>
 
       {readOnly ? null : (

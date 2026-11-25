@@ -12,7 +12,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
-/** V12 publishes v3 with U-16 and keeps v2 as history. */
+/** V12 publishes v3 with U-16 and keeps v2 as history; v4 (release v1.3) keeps v3 as history. */
 @SpringBootTest
 @ActiveProfiles("demo")
 class RuleSetV3SeedTest {
@@ -25,12 +25,11 @@ class RuleSetV3SeedTest {
   @Autowired private JdbcTemplate jdbc;
 
   @Test
-  void v3IsPublishedWithU16AndV2IsRetained() {
+  void v3CarriesU16AndV2IsRetained() {
     assertThat(
             jdbc.queryForObject(
-                "SELECT max(version) FROM rule_set_version WHERE status = 'PUBLISHED'",
-                Integer.class))
-        .isEqualTo(3);
+                "SELECT status FROM rule_set_version WHERE version = 3", String.class))
+        .isEqualTo("SUPERSEDED");
     assertThat(
             jdbc.queryForObject(
                 "SELECT status FROM rule_set_version WHERE version = 2", String.class))

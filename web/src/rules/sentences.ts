@@ -47,6 +47,11 @@ export function composeSentence(tableCode: string, row: RuleTableRow): string {
         `${number(params.withinDays)} days; a break of 24 hours or less does not count, ` +
         `and otherwise the change is ${outcome}.${override}`
       );
+    case 'POSTS':
+      return (
+        `Only ${positionsText(params.allowedPositions)} can work ${postText(params.postKind)}; ` +
+        `anyone else is ${outcome}.${override}${actingText(params.actingQualification, row.result)}`
+      );
     default:
       // Pay classification, overtime ranking and shift types: the api's
       // sentence is the row's message, which the grid does not edit.
@@ -76,7 +81,25 @@ const TABLE_KEYS: Record<string, string> = {
   'pay-classification': 'PAY',
   'overtime-ranking': 'OT_RANKING',
   'shift-types': 'SHIFT_LENGTHS',
+  posts: 'POSTS',
 };
+
+/** True for the "Who can work a post" table (R-01, R-02), which has its own columns. */
+export function isPostsTable(code: string): boolean {
+  return tableKey(code) === 'POSTS';
+}
+
+/** The post kinds a post row can name, in words. */
+export const POST_KINDS: Record<string, string> = {
+  SUPERVISION: 'Supervisor post',
+  LINE: 'Officer post',
+};
+
+/** Who can work a post: the choices the grid offers, as stored position codes. */
+export const POST_POSITIONS: { label: string; positions: string[] }[] = [
+  { label: 'Supervisors', positions: ['CS'] },
+  { label: 'Officers', positions: ['CO'] },
+];
 
 /** The web uses slugs; the api's own codes (REST, MAX_HOURS, ...) work too. */
 function tableKey(code: string): string {
@@ -158,6 +181,31 @@ function counted(raw: unknown): string {
     default:
       return 'shifts';
   }
+}
+
+/** "supervisors", "officers", "officers and supervisors"; never the stored codes. */
+function positionsText(raw: unknown): string {
+  const list = Array.isArray(raw) ? raw.map(String) : [];
+  const words: string[] = [];
+  if (list.includes('CO')) words.push('officers');
+  if (list.includes('CS')) words.push('supervisors');
+  for (const item of list) {
+    if (item !== 'CO' && item !== 'CS') words.push(item);
+  }
+  if (words.length === 0) return 'nobody';
+  if (words.length === 1) return words[0];
+  return `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`;
+}
+
+function postText(raw: unknown): string {
+  return raw === 'SUPERVISION' ? 'a supervisor post' : 'an officer post';
+}
+
+/** The acting qualification only softens a Block; it says nothing otherwise. */
+function actingText(raw: unknown, result: RuleTableRow['result']): string {
+  if (raw == null || String(raw).trim() === '' || result !== 'BLOCK') return '';
+  const name = raw === 'ACTING_SUP' ? 'Acting supervisor' : String(raw);
+  return ` Someone with the ${name} qualification is warned instead, and a supervisor must acknowledge it.`;
 }
 
 function number(value: unknown): string {

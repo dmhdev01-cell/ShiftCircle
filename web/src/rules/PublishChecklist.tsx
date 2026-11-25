@@ -168,6 +168,31 @@ export function PublishChecklist({
         </Box>
       ) : null}
 
+      {report?.errors && report.errors.length > 0 ? (
+        <Box
+          role="alert"
+          aria-label="Why the build did not pass"
+          sx={{
+            p: '10px 12px',
+            borderRadius: '8px',
+            border: `1px solid ${colour.status.block.border}`,
+            backgroundColor: colour.status.block.bg,
+            color: colour.status.block.text,
+            fontSize: 13,
+            lineHeight: 1.45,
+          }}
+        >
+          <Box component="span" sx={{ fontWeight: 700 }}>
+            The build did not pass. Fix these and build again:
+          </Box>
+          <Box component="ul" sx={{ m: 0, mt: 0.5, pl: 3 }}>
+            {report.errors.map((error) => (
+              <li key={error}>{error}</li>
+            ))}
+          </Box>
+        </Box>
+      ) : null}
+
       {hasUnsavedEdits ? (
         <Box
           role="status"

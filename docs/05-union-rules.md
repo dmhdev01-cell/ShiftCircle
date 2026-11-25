@@ -82,6 +82,15 @@ Severity: **Block** = can't be saved. An emergency override exists only where ma
 | O-03 | Officers who would break a Block rule (e.g. U-01, U-03, U-05) are **skipped**, shown as "bypassed: insufficient rest", and **not penalized** in the ranking | — | Info | **MOCK**. Whether a bypassed officer loses their turn has been disputed in practice, so this is a judgment call to confirm |
 | O-04 | **Voluntary first.** Ordered (mandatory) overtime only after the voluntary list is used up, in reverse ranking, at most once per officer every 14 days | 14 d | Warn | **MOCK**. CX case law found that chronic reliance on ordered overtime to cover staffing shortages is inconsistent with the agreement |
 
+### H. Who can work a post (release v1.3, owner item 17)
+
+| ID | Rule | Default | Severity | Based on |
+|---|---|---|---|---|
+| R-01 | A **supervisor post needs a supervisor**. An officer is blocked with no override; an officer who holds the **Acting supervisor** qualification (`ACTING_SUP`) on the shift's date may work it, as a warning the supervisor acknowledges | supervisors only | Block (no override); Warn/acknowledge when acting | **Owner item 17** (placeholder) |
+| R-02 | A **supervisor on an officer post** is a warning the supervisor acknowledges; the shift counts toward the unit minimum | officers only | Warn/acknowledge | **Owner item 17** (placeholder) |
+
+Every other rule in this document applies to supervisors as written. The planner never cross-covers (it keeps each rank on its own posts), so R-01 and R-02 are for a manual assignment.
+
 ### G. Shift lengths and breaks
 
 | ID | Rule | Default | Severity | Based on |
@@ -95,13 +104,15 @@ To keep the build realistic, the prototype implements a core set and documents t
 
 | Implement (Must) | Document only (future) |
 |---|---|
-| U-01, U-02, U-03, U-04, U-05, U-08, U-09, U-10, U-11, U-12, U-14, U-15 · P-01, P-01b, P-04 · S-03, S-04 (workflow, ADR-019) · O-01, O-02, O-03 · L-01 | U-06, U-07, U-13 · P-02, P-03, P-05, P-06 · S-01, S-02 · O-04 · L-02 |
+| U-01, U-02, U-03, U-04, U-05, U-08, U-09, U-10, U-11, U-12, U-14, U-15 · P-01, P-01b, P-04 · S-03, S-04 (workflow, ADR-019) · O-01, O-02, O-03 · L-01 · R-01, R-02 (release v1.3) | U-06, U-07, U-13 · P-02, P-03, P-05, P-06 · S-01, S-02 · O-04 · L-02 |
 
-**Known defects (2026-11-24).** U-03 and U-11 are dormant (keyed to the retired `L16`); L-01 still allows `[8,12,16]`; P-01's 80 h threshold makes 4-on/4-off crews built-in overtime and U-13 averaging is not built. Fixes need new rule rows (a v4 seed), changes to the demo's version numbers, OT figures and payroll golden, so they are on the roadmap, not in this submission (`docs/roadmap.md`, package 1).
+**Known defects (2026-11-24).** U-03 and U-11 are dormant (keyed to the retired `L16`); L-01 still allows `[8,12,16]`; P-01's 80 h threshold makes 4-on/4-off crews built-in overtime and U-13 averaging is not built. Fixes need new rule rows (a new rule-set version after v4, which release v1.3 uses for who can work a post), changes to the demo's version numbers, OT figures and payroll golden, so they are on the roadmap, not in this submission (`docs/roadmap.md`, package 1).
 
 **Implementation notes (2026-11-20).** U-04 is a live Warn row in rule set v1 (docs/04 §3 and docs/10 §3 already require its boundary tests; 4 h extension trigger, 10 h rest). U-15 stays a Must **feature** but is **not** a decision-table row: under / approaching / in-overtime is a pay-period status, computed with the pay classification (P-01) and shown on the planning board — a rolling hours window cannot express it. S-04 is enforced by the workflow (ADR-019). Override policy (ADR-023): U-01, U-03 and U-05 are `EMERGENCY` (overridable with a reason of ≥ 10 characters, audited). U-08, U-09 and U-14 are Blocks with policy `ACKNOWLEDGE`, so the api refuses any override. The policy is a column of each rule row, changed through maker/checker like any value. Rule set v1 therefore has 19 rows across the 8 tables.
 
 **Release 4 (2026-11-22).** Rule set **v3** (V12) adds **U-16** to the shift-types table: an 8-hour officer assigned to a night shift is a **Warn** the supervisor acknowledges, with the message "An 8-hour officer is assigned to a night shift; 8-hour officers work day or evening." It is a person-directed safeguard, not a new clause in the agreement, and it is not in the Must list above. The planner never produces the assignment (the 100/120/150 plan fingerprints are unchanged); the row fires only for a manual assignment. Version 2 stays as history; v3 is a baseline seed like v1 and v2, so subsequent edits use maker/checker.
+
+**Release v1.3 (2026-11-24).** Rule set **v4** adds the ninth table, **Who can work a post**, with **R-01** and **R-02** (section H): an officer on a supervisor post is blocked with no override unless they hold the Acting supervisor qualification (then a Warn to acknowledge), and a supervisor on an officer post is a Warn to acknowledge. The owner approved these answers to the plan's cross-cover question. Both are Must rows from v4 on: the publish check refuses a version without them and keeps their override policy. A rules admin edits them on the rules screen (`/rules/{version}/posts`) through the same draft, build, submit, approve and publish steps as any row. The datasets have no supervisors yet, so the plan fingerprints are unchanged.
 
 ## 4. How these map onto the engine
 
@@ -120,6 +131,7 @@ The rules are grouped into Drools decision tables (see `04-rules-engine.md` §5)
 | *(none: workflow-enforced, ADR-019)* | S-04: only a `SUPERVISOR` can create or confirm `EXTRA` shifts and overtime offers (API role check), and every one writes an audit event with actor and time. No rule table. |
 | `RankingPolicy` + eligibility filter | O-01 to O-04 |
 | `AllowedShiftLengths` | L-01 |
+| `PostEligibility` (position against the post's kind, with an acting qualification) | R-01, R-02 |
 
 ## 5. Example configuration (mock; shown as data; in the app this is a decision-table grid)
 
