@@ -50,7 +50,11 @@ describe('the scorecard supervisor card (release v1.3 S7)', () => {
     expect(within(card).getByText('on 2 posts · 463 shifts on the posts')).toBeInTheDocument();
     expect(within(card).getByText('75%')).toBeInTheDocument();
     expect(within(card).getByText('8 supervisors over 80 h in a pay period')).toBeInTheDocument();
-    expect(within(card).getByText('Planned leave')).toBeInTheDocument();
+    expect(within(card).getByText('Supervisor leave')).toBeInTheDocument();
+    // Its own labels, so the officer tiles above stay the only "Rule warnings" and "Preferences met".
+    for (const label of ['Rule warnings', 'Preferences met', 'Overtime built in']) {
+      expect(within(card).queryByText(label, { exact: true })).not.toBeInTheDocument();
+    }
   });
 
   it('says the other cards are the officers only, and gives everyone with the split', () => {

@@ -166,7 +166,7 @@ Content-Type: application/problem+json
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
 | GET | `/schedule?unitId=&from=&to=` | **Planning board payload:** days, coverage per block (required / scheduled / actual, each with the lowest hourly count and the short hour ranges, see below), officer rows with assignments, overtime status per officer, warnings, `overridesThisPeriod`, `asOf` and `publishedState` (see below) | SUPERVISOR (own units), AUDITOR, PLANNER (read-only, all units) |
-| GET | `/me/schedule?from=&to=` | My shifts, hours this pay period, overtime this quarter, next shift, my position in words, `asOf` (the server's "today", as on `GET /schedule`) | any account linked to an officer (404 otherwise) |
+| GET | `/me/schedule?from=&to=` | My shifts, hours this pay period, overtime this quarter, next shift, my position in words, `asOf` (the server's "today", as on `GET /schedule`). Since release v1.3 S7 `employee.post` names a supervisor's post and the line units it covers ("Supervision · Operations (ADM, CTL, ESC)"); it is `null` for anyone homed on a line unit | any account linked to an employee record (404 otherwise) |
 | POST | `/rule-checks` | Preview any change (§3) | SUPERVISOR; EMPLOYEE for their own shifts (the *Propose shifts* check) |
 | POST | `/assignments` | Assign a shift (§3 rules apply) | SUPERVISOR |
 | PATCH | `/assignments/{id}` | Move or change a shift (`If-Match`) | SUPERVISOR |
@@ -393,8 +393,8 @@ An item outside the caller's scope is listed with its unit, time and decision on
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
 | GET | `/reports/coverage?from=&to=&unitId=&groupBy=day\|week` | Required vs scheduled vs actual staff-hours and fill rate; each bucket carries `extraHours` and `extraHoursByBlock` (`DAY`, `EVENING`, `NIGHT`) for assignments of kind `EXTRA` or source `OVERTIME_OFFER`, plus `extraPercent` (the scheduled-percent points made of those hours: `extraHours / requiredHours * 100`, 0 if none), and the CSV adds `extra_hours,extra_day,extra_evening,extra_night`. The axis floor `axisFrom` includes `scheduledPercent - extraPercent` for every week, so the regular part is never clipped. `extraHours` is scheduled extra-shift hours, not payroll overtime | SUPERVISOR, AUDITOR |
-| GET | `/reports/hours?from=&to=&unitId=&employeeId=` | Scheduled, worked, and hours by pay code per officer | SUPERVISOR, AUDITOR; EMPLOYEE (own only) |
-| GET | `/reports/overtime?from=&to=&unitId=&top=` | Overtime hours by officer and unit | SUPERVISOR, AUDITOR |
+| GET | `/reports/hours?from=&to=&unitId=&employeeId=&position=` | Scheduled, worked, and hours by pay code per person; each row carries `position` (`CO`/`CS`, release v1.3 S7) | SUPERVISOR, AUDITOR; EMPLOYEE (own only) |
+| GET | `/reports/overtime?from=&to=&unitId=&top=&position=` | Overtime hours by person and unit; each row carries `position`. With `position`, the rows and `averageHours` are that rank's pool only (release v1.3 S7) | SUPERVISOR, AUDITOR |
 | GET | `/reports/overrides?from=&to=&unitId=` | Emergency overrides with reasons | SUPERVISOR, AUDITOR |
 
 `employeeId` is read by the hours report only (an officer is always limited to their own row); the overtime and overrides reports answer `400` if it is sent. A chosen `unitId` narrows every report; a supervisor may pick only a unit in their scope (404 otherwise), and an auditor reads the whole facility when none is given. Without `from`/`to` each report uses its own default range. `to` must not be before `from` and at most 366 days after it, and both must fall in the years 1900–2999; anything else answers 400.
@@ -464,7 +464,7 @@ same validation as the grid (R24/R28: rule values are code input).
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
-| GET | `/display/today` | Counts per unit and block, open shifts and overtime counts. **No names.** | DISPLAY, SUPERVISOR (own units), AUDITOR |
+| GET | `/display/today` | Counts per unit and block, open shifts and overtime counts. **No names.** Since release v1.3 S7 a `posts` array gives each supervisor post in scope as `{post:{id, name}, area, coverage, openShifts}` (`area` = "Operations"; `coverage` in the unit block shape); `units` and the two totals stay the line units only | DISPLAY, SUPERVISOR (own units), AUDITOR |
 | GET | `/audit-events?actor=&action=&entityType=&entityId=&from=&to=&beforeId=&limit=` | Audit trail, newest first, keyset-paged (§1 Lists) | AUDITOR, SUPERVISOR (own units) |
 | GET | `/audit-events/actors` | The actors whose events the caller can see, for the filter dropdown (same scope as the trail) | AUDITOR, SUPERVISOR (own units) |
 | GET | `/version` | Build `name`, `version` and `buildTime`, `gitCommit`, live rule set version (`ruleSetVersion`, e.g. `v4`), `profiles`, `asOf` (the server's "today", so the web's clock shows the demo day), and on the demo profile `demoMode`, the reset `datasets` (`["100","120","150"]`) and `activeDataset` (the dataset loaded now; the Quarter plan warns when it is 100) | any |
@@ -519,9 +519,11 @@ there is a supervisor or a supervisor post (the datasets get them in S4), so eve
   warnings, preferences, nights, overtime, fteBands, quarterHours, absences, line}` with the same
   shapes as the officer cards; its `totalBlockDays` counts only the blocks a post has a minimum for
   (the officer `coverage` card keeps its flat × 3). `totals` (always present) counts everyone: `{shifts, officerShifts,
-  supervisorShifts, people, officers, supervisors, warnings, officerPostWarnings,
-  supervisorPostWarnings, line}`; shifts and people split by the person's rank, warnings by the post
-  they were raised on; `line` reads "5,103 officer shifts" or "5,103 officer + 1,170 supervisor
+  supervisorShifts, people, officers, supervisors, warnings, lineUnitWarnings, postWarnings,
+  line}` (the two warning keys were `officerPostWarnings`/`supervisorPostWarnings` before release v1.3
+  S7); shifts and people split by the person's rank, warnings by the post they were raised on. The
+  card's `shifts` counts the shifts **on the posts**, `totals.supervisorShifts` the shifts **by
+  supervisors**: they differ only after a hand-edited cross-cover; `line` reads "5,103 officer shifts" or "5,103 officer + 1,170 supervisor
   shifts".
 - **Commit preview** adds `supervisors`, `officerShifts` and `supervisorShifts`; `shiftsToWrite`
   still counts everyone and `officers` now counts the officers only. **Commit** adds
@@ -533,6 +535,8 @@ there is a supervisor or a supervisor post (the datasets get them in S4), so eve
   total, fullTime, partTime, fte}]` (both ranks, always), `officers.lineUnits`, `officers.posts` and
   `officers.headline` ("150 officers + 12 supervisors in 6 units + 2 supervisor posts", or "150
   officers in 6 units"); each unit row adds `kind` and `supervision`, and each group `position`.
+  Since release v1.3 S7 a unit row's `officers` counts its officers and `supervisors` its
+  supervisors (a post's row reads 0 + 5); `fullTime`, `partTime` and `fte` count both.
 
 **Draft hand edits (release 7 #27).** A PLANNER may add, move time/unit, reassign one-way, or remove one shift in an uncommitted DRAFT. Draft rows live in `plan_draft_assignment`; the live board is untouched. Every save requires `If-Match` with the draft version (428/412) and uses the planner's `RuleCheckService` seam: a Block is 422 `blocked-by-rules` with ruleResults and saves nothing; a Warn without `acknowledgeWarnings:true` is 422 `warnings-need-acknowledgement` and saves nothing; here `acknowledgeWarnings` is a **boolean** (`true` keeps every Warn shown), unlike the supervisor's `POST /assignments`, which takes an **array** of Warn codes (`["U-14"]`); a Pass or acknowledged Warn writes one row, bumps the version, writes one `edit_plan_draft` audit row and recomputes gaps, warnings and the scorecard synchronously. DRAFT only (409 after commit/discard); closed unit, duplicate `(employee,start)`, unknown id, retired template, non-PLANNER and a busy reset/generate get plain problem details. No EMERGENCY override. Success: `{draftId, assignmentId, version, handEdits, editedAssignmentIds, scorecard, warnings, warningCount, gaps}`; `DraftSummary` carries `handEdits`/`editedAssignmentIds`, and roster shift items carry `edited:true` (derived from audit rows, no migration). Generate/discard delete edits; commit still re-verifies every row, edits included.
 

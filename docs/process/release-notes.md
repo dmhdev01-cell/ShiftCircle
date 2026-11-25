@@ -495,6 +495,72 @@ own compose project `sc-sc-s5`, port 18495): API **616 = 140 rules + 38 infrastr
 `tsc -b` clean (no web code changes); Playwright against the real API, a fresh stack per viewport:
 desktop-datasets **136 passed**, tablet-datasets **135 passed and 1 skipped**.
 
+### S7 — My schedule, the wall display, reports and plan inputs (web + small API)
+
+Stacked on S5 (#37). Owner item 17: a supervisor sees their own schedule in **My schedule**; the
+rest of the screens say how many officers and how many supervisors they count. Built alongside S6
+(the board and the shift dialog), which it does not touch.
+
+**What it does.**
+- **My schedule.** The supervisor's menu item is **My schedule** (it was *Employee view*), shown
+  only to an account linked to an employee record, as before. The header names the position in
+  words and, for a supervisor, the post and the units it covers: "Jamie Chen · Correctional
+  supervisor · Supervision · Operations (ADM, CTL, ESC)". An officer's header now reads
+  "Tara Nakamura · Correctional officer · Unit B · Living unit · …" (it showed the code `CO`).
+  API: `GET /me/schedule` adds `employee.post` (null on a line unit).
+- **Wall display.** The Facility today panel gets one line per supervisor post in scope:
+  "Supervisor on duty · Living units 1 of 1", "Supervisor on duty · Operations 1 of 1", for the
+  current block, with "short n" and the warning icon when a post is short. Counts only: no name,
+  number or id (the API test and the web whitelist cover the posts too). The six unit tiles and the
+  four facility figures are unchanged (line units only). The posts sit inside the panel, not in a
+  card of their own, so a 1366×768 screen still fits with the stale banner. API: `GET
+  /display/today` adds `posts: [{post, area, coverage, openShifts}]`.
+- **Reports.** Hours and Overtime have a **Position** column, and a **Position** filter
+  (Everyone, Officers, Supervisors) next to Unit narrows those two tabs (and their CSV) to one
+  rank; with a rank chosen, the overtime average is that pool's. Coverage and Overrides are not
+  split. The hours count reads "Showing *n* of *m* people" (or "… supervisors"). API: `position`
+  on each row of `/reports/hours` and `/reports/overtime`, and `?position=CO|CS` on both (`400` for
+  an unknown code).
+- **Plan inputs.** The headline words the split: "Planning 120 officers + 10 supervisors in 6
+  units + 2 supervisor posts · 110 full-time, 20 part-time or casual · …" on Dataset 120 (it read
+  "Planning 130 officers in 8 units"); full-time, part-time, FTE and the staffing floor still count
+  both ranks. The detail lists the posts in their own **Supervisors by post** table under
+  **Officers by unit**, and says "staff" where the leave and preference counts include supervisors.
+  The fill order is the API's and unchanged (S3 already words each rank staying on its own posts).
+- **Scorecard and commit.** A **Supervisor posts** card under the tiles shows the API's supervisor
+  card: posts covered *x* of *y* block-days, supervisors and the shifts on the posts, warnings on
+  the posts, preferences, overtime built in and planned leave, then "Everyone in this draft: 5,103
+  officer + 492 supervisor shifts, 107 officers and 10 supervisors." The other cards keep counting
+  the officers only. The commit dialog reads "This writes 5,595 shifts (5,103 officer + 492
+  supervisor) for 107 officers and 10 supervisors, …" (it said "for 107 officers"), and the
+  committed box "Committed 5,595 shifts (5,103 officer + 492 supervisor) from 4 Jan 2027."; the
+  "Building a plan for …" line names both ranks.
+- **S3 review follow-ups.** A plan-inputs unit row counts `officers` and `supervisors` apart (a
+  post row read "5 officers"; N4). The scorecard `totals` warning keys are renamed to what they
+  count, `lineUnitWarnings` and `postWarnings` (they were `officerPostWarnings` and
+  `supervisorPostWarnings`; nothing read them; N6), and docs/07 says the supervisor card's `shifts`
+  are the shifts on the posts while `totals.supervisorShifts` are the supervisors' shifts.
+- **Contract samples** re-captured from a Dataset 100 stack (the S1 owe-list), with `position`,
+  `post` and `posts`; `planner-staffing.json` keeps the v1.2 walk's capture its test documents.
+
+**Pins.** None move: no dataset, plan row or payroll line changes (`GeneratorCharacterizationTest`
+fingerprints hash the draft rows only).
+
+**Tests.** API +4: `DisplayApiTest#theSupervisorPostsHaveTheirOwnCountsOnlyStrip` (and the privacy
+test now has a supervisor's name, number and id in the database), `ReportsApiTest` +2 (the position
+column and filter on hours and overtime, the CSV, `400`; the overtime pool's average), and the
+`post` assertions in `SupervisorDatasetsApiTest`, `PlanInputsApiTest` (rows 120 + 10, headline) and
+`PlannerSupervisorApiTest` (post row 0 + 4, the renamed keys). Web +13 (S7_WEB_COUNT): nav and
+roles (My schedule), My schedule header (supervisor and officer), the posts strip (covered, short,
+an older API with no posts, the whitelist), reports by position, the split headline and words, the
+posts table, the supervisor card. Playwright: new `supervisor-my-schedule.spec.ts` (J. Chen's My
+schedule, the posts strip with no names, the reports by position; read-only, figures read from the
+API first, so it holds on a reused stack); `planner-inputs.spec.ts` checks the split headline on 150
+and 120, Supervisors by post, the supervisor card ("Supervisor posts covered 495 of 588 block-days;
+93 short.") and the commit dialog's split; `session-and-nav` and `reports` follow the new wording.
+
+S7_COUNTS
+
 ### Shift proposals, P1: the officer API
 
 The first of five proposal PRs (P1 to P5; plan `v1.2-proposals`, owner answers Q1 to Q5 approved). **P1 is the API for the officer side only; there is no screen yet.** An officer can preview a multi-item proposal (each item rule-checked with the earlier items as extra facts, so rest between two drafts shows), send it (a Block can't be sent, a Warn can), list their own proposals, and withdraw one while every item still waits. A waiting item expires when its shift starts, on every read and withdraw and by an hourly sweep. Nothing creates a shift: the inbox and the decision are P2, so until then a sent proposal stays Waiting and then Expires.

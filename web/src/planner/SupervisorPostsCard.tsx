@@ -41,24 +41,24 @@ export function SupervisorPostsCard({
       note: `on ${card.posts} ${card.posts === 1 ? 'post' : 'posts'} · ${count(card.shifts)} shifts on the posts`,
     },
     {
-      label: 'Rule warnings',
+      label: 'Warnings on the posts',
       value: card.warnings.total,
-      note: 'on the supervisor posts',
+      note: 'rule warnings on the supervisor posts',
     },
     {
-      label: 'Preferences met',
+      label: 'Supervisor wishes met',
       value: asked > 0 ? `${Math.round((card.preferences.met / asked) * 100)}%` : '—',
       note: asked > 0 ? `${card.preferences.met} of ${asked} wishes` : 'no wishes on file',
     },
     {
-      label: 'Overtime built in',
+      label: 'Supervisor overtime',
       value: `${card.overtime.hoursOver} h`,
       note: `${card.overtime.officersOver} ${card.overtime.officersOver === 1 ? 'supervisor' : 'supervisors'} over ${card.overtime.thresholdHours} h in a pay period`,
     },
     ...(card.absences && card.absences.days > 0
       ? [
           {
-            label: 'Planned leave',
+            label: 'Supervisor leave',
             value: card.absences.days,
             note: `leave days kept free · ${card.absences.officers} ${card.absences.officers === 1 ? 'supervisor' : 'supervisors'}`,
           },
