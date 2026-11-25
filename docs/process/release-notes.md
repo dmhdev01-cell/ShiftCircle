@@ -500,6 +500,16 @@ own compose project `sc-sc-s5`, port 18495): API **616 = 140 rules + 38 infrastr
 `tsc -b` clean (no web code changes); Playwright against the real API, a fresh stack per viewport:
 desktop-datasets **136 passed**, tablet-datasets **135 passed and 1 skipped**.
 
+**Review round** (gates on #37: review CHANGES, security PASS with 2 lows). `origin/sc-s4` at
+`36fcff7` (S4's re-check) and main merged in, keeping S4's versions. The pool check now runs for
+every name before any offer is written (next to the self-edit check), and **confirm checks the pool
+again**, so an offer accepted before the pools (S4's offer path had no pool check) to a supervisor on
+an officer post is a plain `422 officer-unavailable` and writes nothing. docs/07's candidate-list,
+offer and proposal-order prose name the pools; docs/05's O-02 says seniority inside the rank.
+`OvertimeSupervisorPoolApiTest` +1 (the pre-S5 accepted offer) and a mixed-name list that writes
+nothing; the dataset test is renamed `theOvertimeListKeepsToThePostsPool`. API **617 = 140 rules +
+38 infrastructure + 439 api** (GitHub CI `mvn verify`).
+
 ### Shift proposals, P1: the officer API
 
 The first of five proposal PRs (P1 to P5; plan `v1.2-proposals`, owner answers Q1 to Q5 approved). **P1 is the API for the officer side only; there is no screen yet.** An officer can preview a multi-item proposal (each item rule-checked with the earlier items as extra facts, so rest between two drafts shows), send it (a Block can't be sent, a Warn can), list their own proposals, and withdraw one while every item still waits. A waiting item expires when its shift starts, on every read and withdraw and by an hourly sweep. Nothing creates a shift: the inbox and the decision are P2, so until then a sent proposal stays Waiting and then Expires.

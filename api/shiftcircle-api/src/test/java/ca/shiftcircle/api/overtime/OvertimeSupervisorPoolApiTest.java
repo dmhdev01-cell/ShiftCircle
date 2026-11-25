@@ -175,9 +175,51 @@ class OvertimeSupervisorPoolApiTest {
                 Integer.class, POST_DAY, B_DAY))
         .isZero();
 
+    // A list with one name outside the pool writes nothing, not even the in-pool name before it.
+    HttpResponse<String> mixed =
+        send("POST", "/api/v1/open-shifts/" + POST_DAY + "/offers",
+            "{\"employeeIds\":[\"" + ACTING + "\",\"" + PLAIN + "\"],\"ordered\":false}",
+            "m.ellis");
+    assertThat(mixed.statusCode()).as(mixed.body()).isEqualTo(422);
+    assertThat((String) json(mixed).get("detail")).contains("supervisor post's overtime pool");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM overtime_offer WHERE open_shift_id IN (?, ?)",
+                Integer.class, POST_DAY, B_DAY))
+        .isZero();
+    assertThat(jdbc.queryForObject("SELECT status FROM open_shift WHERE id = ?", String.class,
+        POST_DAY)).isEqualTo("OPEN");
+
     // The acting officer is in the pool: the offer is made (R-01 is a warning).
     HttpResponse<String> acting = offer(POST_DAY, ACTING, "m.ellis");
     assertThat(acting.statusCode()).as(acting.body()).isIn(200, 201);
+  }
+
+  @Test
+  void anAcceptedOfferFromBeforeThePoolsCannotBeConfirmedOutsideThePool() throws Exception {
+    // Before S5 the offer path had no pool gate: a supervisor could be offered an officer post and
+    // accept it. Confirming that offer now is a plain 422, and nothing is written.
+    UUID legacy = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO overtime_offer (id, open_shift_id, employee_id, rank, ordered, status)"
+            + " VALUES (?, ?, ?, 1, false, 'ACCEPTED')",
+        legacy, B_DAY, SENIOR_SUP);
+    jdbc.update("UPDATE open_shift SET status = 'OFFERED' WHERE id = ?", B_DAY);
+
+    HttpResponse<String> refused =
+        send("POST", "/api/v1/offers/" + legacy + "/confirm", null, "m.ellis");
+    assertThat(refused.statusCode()).as(refused.body()).isEqualTo(422);
+    assertThat((String) json(refused).get("type")).endsWith("/officer-unavailable");
+    assertThat((String) json(refused).get("detail")).contains("officer post's overtime pool");
+    assertThat(jdbc.queryForObject("SELECT status FROM overtime_offer WHERE id = ?", String.class,
+        legacy)).isEqualTo("ACCEPTED");
+    assertThat(jdbc.queryForObject("SELECT status FROM open_shift WHERE id = ?", String.class,
+        B_DAY)).isEqualTo("OFFERED");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM shift_assignment WHERE employee_id = ?", Integer.class,
+                SENIOR_SUP))
+        .isZero();
   }
 
   @Test

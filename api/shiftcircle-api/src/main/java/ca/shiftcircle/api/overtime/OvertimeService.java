@@ -290,7 +290,8 @@ public class OvertimeService {
     for (Map<String, Object> officer : officers) {
       List<String> qualifications = strings(officer.get("qualifications"));
       Pool tier =
-          pool(unitKind, (String) officer.get("classification"), qualifications.contains(ACTING));
+          poolFor(
+              unitKind, (String) officer.get("classification"), qualifications.contains(ACTING));
       if (tier == Pool.NONE) {
         continue;
       }
@@ -334,9 +335,8 @@ public class OvertimeService {
     return ranked;
   }
 
-
   /** Which overtime pool a person is in for a post (plan §2.6). */
-  enum Pool {
+  private enum Pool {
     /** The post's own rank: supervisors for a supervisor post, officers for an officer post. */
     RANK,
     /** An officer holding ACTING_SUP, for a supervisor post: ranked after every supervisor. */
@@ -345,7 +345,7 @@ public class OvertimeService {
     NONE
   }
 
-  static Pool pool(String unitKind, String classification, boolean holdsActing) {
+  private static Pool poolFor(String unitKind, String classification, boolean holdsActing) {
     boolean supervisor = Position.fromCodeOrDefault(classification).isSupervisory();
     if (!"SUPERVISION".equals(unitKind)) {
       // An officer post is never offered to a supervisor through the offer list (R-02: a
@@ -377,8 +377,8 @@ public class OvertimeService {
     }
     Map<String, Object> row = rows.get(0);
     String unitKind = (String) shift.get("unit_kind");
-    if (pool(unitKind, (String) row.get("classification"), Boolean.TRUE.equals(row.get("acting")))
-        == Pool.NONE) {
+    boolean acting = Boolean.TRUE.equals(row.get("acting"));
+    if (poolFor(unitKind, (String) row.get("classification"), acting) == Pool.NONE) {
       throw new CandidateUnavailableException(
           "SUPERVISION".equals(unitKind)
               ? "Not in this supervisor post's overtime pool: only supervisors, then officers who"
@@ -468,8 +468,12 @@ public class OvertimeService {
     }
     // Release v1.3 S4: a supervisor does not offer overtime to themselves (owner answer Q3). Every
     // name is checked before any offer is written, so a list with yourself in it writes nothing.
+    // S5: the same for the post's overtime pool, so a list with one name outside it writes nothing.
     for (UUID employeeId : request.employeeIds()) {
       SelfActionGuard.requireNotOwnSchedule(principal, employeeId);
+    }
+    for (UUID employeeId : request.employeeIds()) {
+      requireInPool(employeeId, shift);
     }
 
     UUID unitId = (UUID) shift.get("unit_id");
@@ -481,7 +485,6 @@ public class OvertimeService {
     int rank = 0;
     for (UUID employeeId : request.employeeIds()) {
       rank++;
-      requireInPool(employeeId, shift);
       requireAvailable(employeeId, shift);
       RuleCheckService.OutcomeView outcome =
           ruleChecks.evaluate(
@@ -657,6 +660,9 @@ public class OvertimeService {
     UUID unitId = (UUID) shift.get("unit_id");
     String templateCode = (String) shift.get("template_code");
     Instant startAt = ((java.sql.Timestamp) shift.get("start_at")).toInstant();
+    // S5: an offer made before the pools (S4 had none on the offer path) can't be confirmed
+    // outside the post's pool either.
+    requireInPool(employeeId, shift);
     requireAvailable(employeeId, shift);
 
     PublishedRuleSet.Snapshot live = publishedRuleSet.snapshot();
