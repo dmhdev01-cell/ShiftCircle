@@ -48,7 +48,7 @@ export async function signInAgain(page: Page, displayName: string): Promise<void
  */
 export async function resetDemoData(
   request: APIRequestContext,
-  dataset: '100' | '120' = '100',
+  dataset: '100' | '120' | '150' = '100',
 ): Promise<void> {
   const api = await apiAs(request, 'p.planner');
   const started = await api.post('/demo/reset', { confirm: 'RESET', dataset });

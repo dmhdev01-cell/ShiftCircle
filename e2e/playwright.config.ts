@@ -40,6 +40,7 @@ const STACK_SPECS = [
   /\/planner-committed\.spec\.ts$/,
   /\/planner-inputs\.spec\.ts$/,
   /\/planner-draft-edit\.spec\.ts$/,
+  /\/planner-options\.spec\.ts$/,
   /\/planner-preferences-committed\.spec\.ts$/,
   /\/reset-datasets\.spec\.ts$/,
   /\/reset\.spec\.ts$/,

@@ -76,9 +76,37 @@ describe('plan inputs words', () => {
       '8 h pattern: each officer’s own',
       'Staff to include: full-time only',
       'Part-time fill: up to each officer’s FTE',
-      'Cross-unit fill: on',
+      'Cover gaps from other units: on',
       'Weekend balance: strict even',
     ]);
+  });
+
+  it('names a tailoring option on the summary line only when it is not the default (PR-N)', () => {
+    const base = inputs();
+    const withDefaults = {
+      ...base,
+      options: { ...base.options, staffTypes: ['FULL_TIME', 'PART_TIME'], partTimeFill: 'AFTER_FULL_TIME', crossUnitFill: 'OFF' },
+    };
+    expect(optionsLine(withDefaults)).toBe(optionsLine(base));
+    const changed = { ...withDefaults, options: { ...withDefaults.options, crossUnitFill: 'ON', partTimeFill: 'UP_TO_FTE' } };
+    expect(optionsLine(changed)).toBe(
+      'Seed 20261001 · 8 h officers on their own pattern · part-time fill: up to each officer’s FTE · cover gaps from other units: on · rule set v3',
+    );
+  });
+
+  it('counts only the staff a full-time-only draft plans with (PR-N)', () => {
+    const base = inputs();
+    const fullTimeOnly = {
+      ...base,
+      officers: { ...base.officers, partTimeFte: 12 },
+      options: { ...base.options, staffTypes: ['FULL_TIME'] },
+    };
+    expect(inputsHeadline(fullTimeOnly)).toMatch(
+      /^Planning 100 officers in 6 units · full-time only, 20 part-time or casual left out · 100 FTE/,
+    );
+    expect(inputsHeadline({ ...base, officers: { ...base.officers, partTimeFte: 12 } })).toMatch(
+      /^Planning 120 officers in 6 units · 100 full-time, 20 part-time or casual · 112 FTE/,
+    );
   });
 
   it('reports what changed since a draft was generated, or nothing', () => {

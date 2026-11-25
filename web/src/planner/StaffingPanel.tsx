@@ -34,14 +34,14 @@ function periodSentence(
   draftGaps: number | null,
 ): { tone: 'warn' | 'info' | 'pass'; text: string } {
   const prefix = index === 0 ? '' : `From ${dateWords(period.from)}: `;
-  if (period.totals.short > 0) {
+  if (period.totals.shortfall > 0) {
     const units = period.units
-      .filter((unit) => unit.short > 0)
-      .map((unit) => `${shortName(unit)} (${unit.short})`)
+      .filter((unit) => unit.shortfall > 0)
+      .map((unit) => `${shortName(unit)} (${unit.shortfall})`)
       .join(', ');
     return {
       tone: 'warn',
-      text: `${prefix}Do we need more staff? Yes, at least ${period.totals.short} more: ${units}.${
+      text: `${prefix}Do we need more staff? Yes, at least ${period.totals.shortfall} more: ${units}.${
         draftGaps !== null ? ` The draft also has ${draftGaps} block-days short.` : ''
       }`,
     };
@@ -98,7 +98,7 @@ export function StaffingPanel({
   const rows = periods[0]?.units ?? [];
 
   return (
-    <Card>
+    <Card data-testid="staffing-panel">
       <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
         <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
           Staffing by unit
@@ -234,9 +234,9 @@ export function StaffingPanel({
                         className="num"
                         style={{ padding: '6px 8px', borderBottom: `1px solid ${colour.border.default}` }}
                       >
-                        {entry && entry.short > 0 ? (
+                        {entry && entry.shortfall > 0 ? (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <strong>{entry.short}</strong>
+                            <strong>{entry.shortfall}</strong>
                             <StatusPill tone="warn">Short</StatusPill>
                           </Box>
                         ) : (
@@ -262,7 +262,7 @@ export function StaffingPanel({
                 ))}
                 {periods.map((period) => (
                   <td key={`total-short-${period.from}`} className="num" style={{ padding: '8px', fontWeight: 700 }}>
-                    {period.totals.short}
+                    {period.totals.shortfall}
                   </td>
                 ))}
               </tr>
@@ -272,11 +272,6 @@ export function StaffingPanel({
         <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
           * On staff counts people, full-time and part-time alike, not hours.
         </Typography>
-        {report.truncatedNote ? (
-          <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
-            {report.truncatedNote}
-          </Typography>
-        ) : null}
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
           <Typography sx={{ fontSize: 14 }}>Leave allowance: {leavePercent}%</Typography>

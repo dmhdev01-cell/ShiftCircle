@@ -90,7 +90,12 @@ public class ScheduleQuery {
 
   public record OfficerRow(
       UUID employeeId, String name, String rotation, List<String> qualifications,
-      double payPeriodHours, double payPeriodThreshold, String overtimeStatus, List<DayCell> cells) {}
+      double payPeriodHours, double payPeriodThreshold, String overtimeStatus, List<DayCell> cells,
+      // Draft roster only: the home unit of an officer placed in another unit. Left out of the
+      // JSON when null, so the planning board's payload is unchanged.
+      @com.fasterxml.jackson.annotation.JsonInclude(
+              com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+          String homeUnit) {}
 
   /**
    * Whether the board's period is published, and how many of its shifts changed after the
@@ -294,7 +299,8 @@ public class ScheduleQuery {
                   Math.round(hours * 100.0) / 100.0,
                   80.0,
                   status,
-                  cells));
+                  cells,
+                  null));
         });
 
     // The period the board shows: the one whose dates contain the board's range. Its id is what
