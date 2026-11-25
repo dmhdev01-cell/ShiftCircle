@@ -529,7 +529,7 @@ rest of the screens say how many officers and how many supervisors they count. B
   number or id (the API test and the web whitelist cover the posts too). The six unit tiles and the
   four facility figures are unchanged (line units only). The posts sit inside the panel, not in a
   card of their own, so a 1366×768 screen still fits with the stale banner. API: `GET
-  /display/today` adds `posts: [{post, area, coverage, openShifts}]`.
+  /display/today` adds `posts: [{post, area, coverage}]`.
 - **Reports.** Hours and Overtime have a **Position** column, and a **Position** filter
   (Everyone, Officers, Supervisors) next to Unit narrows those two tabs (and their CSV) to one
   rank; with a rank chosen, the overtime average is that pool's. Coverage and Overrides are not
@@ -584,6 +584,31 @@ after that change only the overtime pools and docs. Screenshots at 1440×900 and
 `supervisor/my-schedule/j-chen`, `display/wall-display/supervisor-posts`,
 `auditor/reports/hours-supervisors`, `planner/quarter-plan/supervisor-card-150`; three are in the
 user guide.
+
+**The review round (S7).** Review APPROVE (0 must, 3 should, 6 nits), security PASS (3 info), UI
+test PASS (1 minor, 3 nits); fixed in one push:
+- **My schedule's rotation in words (UI M1).** On 120/150 the header ended with the pattern's code
+  ("… · D12_DAY_4ON4OFF"); it now reads "12 h day crew, 4 on, 4 off" (the plan inputs' words; relief
+  and casual codes too, and an unknown code never shows its underscores). A day with no pay period
+  (120/150 on 19 Nov) reads "This pay period", not "This pay period ()".
+- **The reports say "person" (review S1).** With supervisors in the rows the tabs read **Hours by
+  person** and **Overtime by person**, the first column **Name**, "Share of the top person", and the
+  overtime average is "per person", or "per supervisor"/"per officer" when Position picks one rank
+  (UI N2). The Hours and Overtime CSVs end with a `position` column (UI/review N1), added last so the
+  earlier columns keep their places; docs/07 names it and the unknown-`position` `400` (N6).
+- **The changed-since note says "staff"** when the totals include supervisors (review S2).
+- **The commit dialog names the split on Dataset 100 (UI N3).** The scorecard tiles count the
+  officer units only (727 short, 135 warnings); the dialog's totals count the posts too (957, 155).
+  It now reads "957 block-days stay short (727 on officer units + 230 on supervisor posts)" and
+  "Of these, 135 on officer units + 20 on supervisor posts. The scorecard tiles count the officer
+  units only."; on Dataset 120 (no post gaps or post warnings) it reads as before.
+- **The display's post `openShifts` is dropped (N3)**: it was sent and never shown; a post's open
+  shift already shows as "0 of 1 short 1".
+- **Nits:** `e2e/COVERAGE.md` and `docs/ui/planner.md` say My schedule (N4, N5); the fixtures'
+  overtime average is 0 for an empty rank (N2). The release notes keep S6's and S7's entries when
+  #39 merges (S3).
+
+S7_REVIEW_COUNTS
 
 ### Shift proposals, P1: the officer API
 

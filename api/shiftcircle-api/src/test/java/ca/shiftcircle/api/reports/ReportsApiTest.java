@@ -490,9 +490,9 @@ class ReportsApiTest {
             "/api/v1/reports/coverage?from=2026-10-26&to=2026-11-08",
             "week,required_hours,scheduled_hours,actual_hours,scheduled_percent,actual_percent,planned,extra_hours,extra_day,extra_evening,extra_night",
             "/api/v1/reports/hours?from=2026-10-26&to=2026-11-08",
-            "employee_no,name,scheduled,worked,regular,overtime_15,overtime_20,sick,vacation",
+            "employee_no,name,scheduled,worked,regular,overtime_15,overtime_20,sick,vacation,position",
             "/api/v1/reports/overtime?from=2026-10-26&to=2026-11-08",
-            "employee_no,name,overtime_hours",
+            "employee_no,name,overtime_hours,position",
             "/api/v1/reports/overrides?from=2026-10-01&to=2026-11-19",
             "at,employee,unit,rule_codes,actor,reason");
     headers.forEach(
@@ -633,6 +633,8 @@ class ReportsApiTest {
     assertThat(csv.statusCode()).isEqualTo(200);
     assertThat(csv.body().lines().count()).isEqualTo(supervisors.size() + 1L);
     assertThat(csv.body()).contains("S-0").doesNotContain("E-0");
+    // The rank is a column too, not only the S- number (release v1.3 S7 review N1).
+    assertThat(csv.body().lines().skip(1)).isNotEmpty().allSatisfy(line -> assertThat(line).endsWith(",CS"));
 
     assertThat(get("/api/v1/reports/hours" + range + "&position=XX", token, null).statusCode())
         .isEqualTo(400);

@@ -818,7 +818,8 @@ public class ReportsService {
     ReportsViews.HoursReport report = hours(principal, from, to, unitId, employeeId, position);
     StringBuilder csv =
         new StringBuilder(
-            "employee_no,name,scheduled,worked,regular,overtime_15,overtime_20,sick,vacation\n");
+            // position last (release v1.3 S7), so the earlier columns keep their places.
+            "employee_no,name,scheduled,worked,regular,overtime_15,overtime_20,sick,vacation,position\n");
     Map<UUID, String> numbers =
         employeeNumbers(
             report.rows().stream().map(ReportsViews.HoursByOfficer::employeeId).toList());
@@ -840,6 +841,8 @@ public class ReportsService {
           .append(money(row.sick()))
           .append(',')
           .append(money(row.vacation()))
+          .append(',')
+          .append(Csv.cell(row.position()))
           .append('\n');
     }
     return csv.toString();
@@ -855,13 +858,15 @@ public class ReportsService {
     ReportsViews.OvertimeReport report = overtime(principal, from, to, unitId, top, position);
     Map<UUID, String> numbers =
         employeeNumbers(report.rows().stream().map(ReportsViews.OvertimeByOfficer::employeeId).toList());
-    StringBuilder csv = new StringBuilder("employee_no,name,overtime_hours\n");
+    StringBuilder csv = new StringBuilder("employee_no,name,overtime_hours,position\n");
     for (ReportsViews.OvertimeByOfficer row : report.rows()) {
       csv.append(Csv.cell(numbers.getOrDefault(row.employeeId(), row.employeeId().toString())))
           .append(',')
           .append(Csv.cell(row.name()))
           .append(',')
           .append(money(row.hours()))
+          .append(',')
+          .append(Csv.cell(row.position()))
           .append('\n');
     }
     return csv.toString();

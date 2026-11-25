@@ -42,8 +42,8 @@ test.describe('reports', () => {
     expect(lines.length, 'coverage CSV has a header and rows').toBeGreaterThan(1);
 
     await openTab(page, 'Hours');
-    await expect(page.getByRole('heading', { name: /Hours by officer · pay period/ })).toBeVisible();
-    await expect(page.getByRole('columnheader', { name: 'Officer' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Hours by person · pay period/ })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Name' })).toBeVisible();
     // Release v1.3 S7: the hours list both ranks (with a Position column) unless one is chosen.
     await expect(page.getByRole('columnheader', { name: 'Position' }).first()).toBeVisible();
     await expect(page.getByText(/Showing \d+ of \d+ people/)).toBeVisible();
@@ -51,7 +51,7 @@ test.describe('reports', () => {
     expect(lines.length, 'hours CSV has a header and rows').toBeGreaterThan(1);
 
     await openTab(page, 'Overtime');
-    await expect(page.getByRole('heading', { name: 'Overtime by officer' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Overtime by person' })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: 'Overtime h' })).toBeVisible();
     lines = await downloadCsv(page, 'Export CSV');
     expect(lines.length).toBeGreaterThan(0);
@@ -149,7 +149,7 @@ test.describe('reports', () => {
     await asked;
     await expect(page.getByRole('alert')).toHaveCount(0);
     await expect(
-      page.getByRole('heading', { name: 'Hours by officer · 1 Nov 2026 – 14 Nov 2026' }),
+      page.getByRole('heading', { name: 'Hours by person · 1 Nov 2026 – 14 Nov 2026' }),
     ).toBeVisible();
     await expect(page.getByText(`Every report covers 1 Nov 2026 – 14 Nov 2026 · ${unitB}`)).toBeVisible();
 
@@ -165,7 +165,7 @@ test.describe('reports', () => {
 
     // Reset goes back to each report's default.
     await page.getByRole('button', { name: 'Reset' }).click();
-    await expect(page.getByRole('heading', { name: /Hours by officer · pay period/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Hours by person · pay period/ })).toBeVisible();
     await expect(from).toHaveValue(defaultFrom);
     await expect(to).toHaveValue(defaultTo);
   });

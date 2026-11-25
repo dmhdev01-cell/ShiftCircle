@@ -63,7 +63,7 @@ describe('Reports', () => {
     expect(screen.queryByRole('heading', { name: /Overtime this quarter/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Overtime' }));
     expect(await screen.findByRole('heading', { name: /Overtime this quarter/ })).toBeInTheDocument();
-    expect(screen.getByText(/Facility average: 12.4 h per officer/)).toBeInTheDocument();
+    expect(screen.getByText(/Facility average: 12.4 h per person/)).toBeInTheDocument();
     expect(screen.getByText('34.5 h')).toBeInTheDocument();
   });
 
@@ -74,7 +74,7 @@ describe('Reports', () => {
     await screen.findByRole('heading', { name: 'Reports' });
     await user.click(screen.getByRole('button', { name: 'Hours' }));
 
-    expect(await screen.findByRole('heading', { name: /Hours by officer/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Hours by person/ })).toBeInTheDocument();
     expect(await screen.findByText('Locked')).toBeInTheDocument();
     expect(screen.getByText(/by M. Ellis on 9 Nov/)).toBeInTheDocument();
 
@@ -134,7 +134,7 @@ describe('the coverage report against the real api shape', () => {
     // keyboard access (axe scrollable-region-focusable, serious).
     renderReports('/reports/hours');
 
-    const region = await screen.findByRole('region', { name: 'Hours by officer' });
+    const region = await screen.findByRole('region', { name: 'Hours by person' });
     expect(region).toHaveAttribute('tabindex', '0');
   });
 
@@ -181,7 +181,7 @@ describe('the coverage report against the real api shape', () => {
       'aria-pressed',
       'true',
     );
-    expect(await screen.findByRole('heading', { name: /Hours by officer/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Hours by person/ })).toBeInTheDocument();
 
     await user.click(within(group).getByRole('button', { name: 'Coverage' }));
     expect(within(group).getByRole('button', { name: 'Coverage' })).toHaveAttribute(
@@ -289,7 +289,7 @@ describe('the report range and unit (FR-60/61/62)', () => {
     // The chosen range holds on another tab, and Reset goes back to the defaults.
     await user.click(screen.getByRole('button', { name: 'Hours' }));
     expect(
-      await screen.findByRole('heading', { name: 'Hours by officer · 1 Nov 2026 – 14 Nov 2026' }),
+      await screen.findByRole('heading', { name: 'Hours by person · 1 Nov 2026 – 14 Nov 2026' }),
     ).toBeInTheDocument();
     expect(from).toHaveValue('2026-11-01');
     // The default period's lock badge does not describe a custom range.
@@ -300,7 +300,7 @@ describe('the report range and unit (FR-60/61/62)', () => {
       expect(hours).toHaveBeenLastCalledWith({ from: undefined, to: undefined, unitId: undefined }),
     );
     await waitFor(() => expect(from).toHaveValue('2026-10-26'));
-    expect(await screen.findByRole('heading', { name: /Hours by officer · pay period/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Hours by person · pay period/ })).toBeInTheDocument();
     expect(await screen.findByText('Locked')).toBeInTheDocument();
     vi.restoreAllMocks();
   });
@@ -317,7 +317,7 @@ describe('the report range and unit (FR-60/61/62)', () => {
     renderReports('/reports/hours');
 
     expect(await screen.findByRole('columnheader', { name: 'Position' })).toBeInTheDocument();
-    expect(within(screen.getByRole('region', { name: 'Hours by officer' })).getAllByText('Officer').length).toBeGreaterThan(0);
+    expect(within(screen.getByRole('region', { name: 'Hours by person' })).getAllByText('Officer').length).toBeGreaterThan(0);
 
     const picker = screen.getByLabelText('Position');
     expect(within(picker).getAllByRole('option').map((option) => option.textContent)).toEqual([
@@ -340,6 +340,11 @@ describe('the report range and unit (FR-60/61/62)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Export CSV' }));
     await waitFor(() => expect(exportCsv).toHaveBeenLastCalledWith('hours', { ...base, position: 'CS' }));
+
+    // The overtime average is the chosen rank's, and says so (UI test N2).
+    await user.click(screen.getByRole('button', { name: 'Overtime' }));
+    expect(await screen.findByText(/Facility average: 0\.0 h per supervisor/)).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
     vi.restoreAllMocks();
   });
 

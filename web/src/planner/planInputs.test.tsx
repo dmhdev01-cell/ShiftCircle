@@ -18,6 +18,7 @@ import {
   optionWords,
   peopleWords,
   shiftsWords,
+  splitWords,
 } from './planInputsWords';
 
 function inputs(overrides: Partial<PlanInputs['officers']> = {}): PlanInputs {
@@ -177,6 +178,14 @@ describe('plan inputs words', () => {
     );
   });
 
+  it('splits a commit total into officer units and supervisor posts only when the posts add to it', () => {
+    // Dataset 100: the scorecard tile says 727 short, the commit dialog 957 (UI test N3).
+    expect(splitWords(727, 230, 957)).toBe(' (727 on officer units + 230 on supervisor posts)');
+    expect(splitWords(38, 0, 38)).toBe('');
+    expect(splitWords(undefined, 5, 5)).toBe('');
+    expect(splitWords(10, 5, 16)).toBe('');
+  });
+
   it('words people and shifts with the rank split only when there are supervisors', () => {
     expect(peopleWords(107, 10)).toBe('107 officers and 10 supervisors');
     expect(peopleWords(107, 0)).toBe('107 officers');
@@ -184,6 +193,17 @@ describe('plan inputs words', () => {
     expect(shiftsWords(5595, 5103, 492)).toBe('5,595 shifts (5,103 officer + 492 supervisor)');
     expect(shiftsWords(5103, 5103, 0)).toBe('5,103 shifts');
     expect(shiftsWords(5103)).toBe('5,103 shifts');
+  });
+
+  it('says "staff" in the changed-since note once the totals include supervisors (S7 review S2)', () => {
+    const before = withSupervisors();
+    const after = withSupervisors();
+    after.officers = { ...after.officers, total: after.officers.total + 1 };
+    after.preferences = { ...after.preferences, officers: after.preferences.officers + 2 };
+    const words = changedSince(before, after) ?? '';
+    expect(words).toContain(`${after.officers.total} staff (was ${before.officers.total})`);
+    expect(words).toContain('staff with preferences');
+    expect(words).not.toMatch(/officers/);
   });
 
   it('reports what changed since a draft was generated, or nothing', () => {

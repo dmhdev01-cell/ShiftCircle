@@ -10,6 +10,7 @@ import { colour } from '../theme/tokens';
 import { plainDate } from './plannerTime';
 import {
   changedSince,
+  hasSupervisors,
   inputsHeadline,
   LEAVE_WORDS,
   neededWords,
@@ -138,7 +139,7 @@ export function PlanInputsCard({
   // Release v1.3 S7: the supervisor posts get their own table below the officer units.
   const lineRows = inputs.units.filter((unit) => !unit.supervision);
   const postRows = inputs.units.filter((unit) => unit.supervision);
-  const staff = postRows.length > 0 || (inputs.officers.byPosition ?? []).some((row) => row.supervisory && row.total > 0);
+  const staff = postRows.length > 0 || hasSupervisors(inputs);
   const needed = neededWords(inputs);
 
   return (

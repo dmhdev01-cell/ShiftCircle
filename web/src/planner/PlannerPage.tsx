@@ -54,7 +54,7 @@ import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
 import { plainDate, whenWords } from './plannerTime';
 import { unitWords, unitWordsIn } from './unitWords';
-import { peopleWords, shiftsWords } from './planInputsWords';
+import { peopleWords, shiftsWords, splitWords } from './planInputsWords';
 import { SupervisorPostsCard } from './SupervisorPostsCard';
 
 const BLOCK_WORDS: Record<string, string> = {
@@ -1634,12 +1634,23 @@ export function PlannerPage() {
                 </Typography>
               ) : null}
               <Typography sx={{ fontSize: 14 }}>
-                <strong>{preview.shortBlockDays} block-days stay short.</strong> Fill them from the
-                Overtime board after committing.
+                <strong>{preview.shortBlockDays} block-days stay short</strong>
+                {splitWords(
+                  scorecard?.coverage.shortBlockDays,
+                  scorecard?.supervisors?.coverage.shortBlockDays,
+                  preview.shortBlockDays,
+                )}
+                .{' '}Fill them from the Overtime board after committing.
               </Typography>
               <Typography component="h3" sx={{ m: 0, fontSize: 15, fontWeight: 700 }}>
                 Rule warnings in this plan ({preview.warningCount})
               </Typography>
+              {splitWords(scorecard?.totals?.lineUnitWarnings, scorecard?.totals?.postWarnings, preview.warningCount) ? (
+                <Typography sx={{ fontSize: 13, color: colour.text.secondary }}>
+                  {`Of these, ${splitWords(scorecard?.totals?.lineUnitWarnings, scorecard?.totals?.postWarnings, preview.warningCount).trim().slice(1, -1)}.`}{' '}
+                  The scorecard tiles count the officer units only.
+                </Typography>
+              ) : null}
               {preview.warningCount > 0 ? (
               <Box
                 tabIndex={0}

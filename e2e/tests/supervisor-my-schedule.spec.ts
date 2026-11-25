@@ -90,14 +90,14 @@ test.describe('supervisors in release v1.3 S7', () => {
     await page.getByLabel('Position').selectOption({ label: 'Supervisors' });
     await page.getByRole('button', { name: 'Apply' }).click();
     await expect(page.getByText(/Supervisors only in hours and overtime/)).toBeVisible();
-    const overtimeTable = page.getByRole('region', { name: 'Overtime by officer' }).getByRole('table');
+    const overtimeTable = page.getByRole('region', { name: 'Overtime by person' }).getByRole('table');
     await expect(overtimeTable.locator('tbody tr')).toHaveCount(overtime.rows.length);
     for (const cell of await overtimeTable.locator('tbody tr td:nth-child(2)').allTextContents()) {
       expect(cell).toBe('Supervisor');
     }
 
     await openReportTab(page, 'Hours');
-    const hoursTable = page.getByRole('region', { name: 'Hours by officer' }).getByRole('table');
+    const hoursTable = page.getByRole('region', { name: 'Hours by person' }).getByRole('table');
     await expect(hoursTable.locator('tbody tr')).toHaveCount(hours.rows.length);
     await expect(page.getByText(`Showing ${hours.rows.length} of ${hours.rows.length} supervisors`, { exact: false })).toBeVisible();
     for (const cell of await hoursTable.locator('tbody tr td:nth-child(2)').allTextContents()) {

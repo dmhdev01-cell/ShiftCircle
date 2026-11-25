@@ -187,7 +187,7 @@ fixtures-only · **—** not coverable, with the reason.
 | Reports date range and unit picker (S1) | supervisor, auditor | reports | N |
 | Quarter plan readability on Dataset 120: the unused part-time capacity line, gaps grouped under a weeks-by-units strip, the week picker with gap counts, the all-units table collapsed, the ⚠ on a warned shift (tooltip by hover and keyboard), axe | planner | dataset120 (calls `quarterPlanChecks.ts`) | N |
 | Planned leave (PR-D) on Dataset 150: seeded Vac and Sick chips on the draft roster, the scorecard's relief line, the Add planned leave dialog (validation, axe), three Sick days on the roster and three `record_absence` audit events; resets back to 100 | planner, auditor | planned-leave | N |
-| A supervisor with no linked officer has no Employee view (PR #14); the planner's menu without Reports is asserted by the web unit tests (`roles.test.ts`) only, not in the browser | supervisor | session-and-nav | N |
+| A supervisor with no linked employee record has no **My schedule** item (PR #14; called Employee view before release v1.3 S7, and the record can be a supervisor's since S4; `supervisor-my-schedule.spec.ts` opens J. Chen's); the planner's menu without Reports is asserted by the web unit tests (`roles.test.ts`) only, not in the browser | supervisor | session-and-nav | N |
 
 **Not covered by Playwright:** the planner is refused every report by the API (`403`), and since PR #14 the menu has no Reports item for the planner; no spec asserts the absence of the item.
 

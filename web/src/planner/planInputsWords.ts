@@ -210,11 +210,21 @@ export const PATTERN_WORDS: Record<string, string> = {
 };
 
 /** What changed between the draft's snapshot and the staff now, in words; null when nothing did. */
+/** True when the inputs count supervisors or supervisor posts with the officers (release v1.3). */
+export function hasSupervisors(inputs: PlanInputs): boolean {
+  return (
+    (inputs.officers.posts ?? 0) > 0 ||
+    (inputs.officers.byPosition ?? []).some((row) => row.supervisory && row.total > 0)
+  );
+}
+
 export function changedSince(snapshot: PlanInputs, live: PlanInputs): string | null {
   const before = snapshot.officers;
   const now = live.officers;
+  // The totals count both ranks once there are supervisors: say "staff", as the card does (S7 review S2).
+  const people = hasSupervisors(snapshot) || hasSupervisors(live) ? 'staff' : 'officers';
   const changes: string[] = [];
-  if (before.total !== now.total) changes.push(`${count(now.total)} officers (was ${count(before.total)})`);
+  if (before.total !== now.total) changes.push(`${count(now.total)} ${people} (was ${count(before.total)})`);
   if (before.fullTime !== now.fullTime) changes.push(`${count(now.fullTime)} full-time (was ${count(before.fullTime)})`);
   if (before.partTime !== now.partTime)
     changes.push(`${count(now.partTime)} part-time or casual (was ${count(before.partTime)})`);
@@ -223,7 +233,7 @@ export function changedSince(snapshot: PlanInputs, live: PlanInputs): string | n
     changes.push(`${count(live.leave.days)} planned leave days (was ${count(snapshot.leave.days)})`);
   if (snapshot.preferences.officers !== live.preferences.officers)
     changes.push(
-      `${count(live.preferences.officers)} officers with preferences (was ${count(snapshot.preferences.officers)})`,
+      `${count(live.preferences.officers)} ${people} with preferences (was ${count(snapshot.preferences.officers)})`,
     );
   return changes.length === 0 ? null : changes.join(', ');
 }
@@ -239,3 +249,14 @@ export const TIME_WORDS: Record<string, string> = {
   EVENING: 'Evenings',
   NIGHT: 'Nights',
 };
+
+/**
+ * " (727 on officer units + 230 on supervisor posts)" when the supervisor posts
+ * add to a figure, so the commit dialog's totals and the officer-only scorecard
+ * tiles visibly agree (S7 UI test N3, Dataset 100); empty otherwise.
+ */
+export function splitWords(lineUnits: number | undefined, posts: number | undefined, total: number): string {
+  if (lineUnits === undefined || !posts || lineUnits + posts !== total) return '';
+  return ` (${lineUnits.toLocaleString('en-CA')} on officer units + ${posts.toLocaleString('en-CA')} on supervisor posts)`;
+}
+

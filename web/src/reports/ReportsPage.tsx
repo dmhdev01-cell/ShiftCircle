@@ -45,6 +45,11 @@ const POSITIONS: { code: string; label: string; plural: string }[] = [
   { code: 'CS', label: 'Supervisor', plural: 'Supervisors' },
 ];
 
+/** Who a figure is per: the chosen rank, or "person" for everyone (S7 review S1, UI test N2). */
+function perWord(code: string | undefined): string {
+  return POSITIONS.find((entry) => entry.code === code)?.label.toLowerCase() ?? 'person';
+}
+
 function positionWord(code: string | undefined): string {
   return POSITIONS.find((entry) => entry.code === code)?.label ?? code ?? '—';
 }
@@ -118,8 +123,8 @@ function tabFromPath(tab: string | undefined): Tab {
 }
 
 /**
- * Reports (docs/ui/README.md §5.5): coverage, hours by officer, overtime by
- * officer and the emergency overrides, each exportable as CSV.
+ * Reports (docs/ui/README.md §5.5): coverage, hours by person, overtime by
+ * person and the emergency overrides, each exportable as CSV.
  */
 export function ReportsPage() {
   const navigate = useNavigate();
@@ -274,8 +279,9 @@ export function ReportsPage() {
     }
   };
 
+  // Since release v1.3 S7 the rows can be supervisors: the reports say "person" (review S1).
   const hoursHeadings = [
-    'Officer',
+    'Name',
     'Position',
     'Scheduled',
     'Worked',
@@ -524,8 +530,8 @@ export function ReportsPage() {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
                 {filter.range
-                  ? `Hours by officer · ${rangeWords(filter.range)}`
-                  : `Hours by officer · pay period ${hours?.period.label ?? ''}`}
+                  ? `Hours by person · ${rangeWords(filter.range)}`
+                  : `Hours by person · pay period ${hours?.period.label ?? ''}`}
               </Typography>
               <Box
                 component="span"
@@ -555,7 +561,7 @@ export function ReportsPage() {
           </Box>
 
           {hours ? (
-            <Table headings={hoursHeadings} label="Hours by officer">
+            <Table headings={hoursHeadings} label="Hours by person">
               {hours.rows.map((row) => (
                 <tr key={row.employeeId}>
                   <td style={{ padding: '8px 10px', fontWeight: 600, borderBottom: `1px solid ${colour.border.default}` }}>
@@ -610,6 +616,7 @@ export function ReportsPage() {
               <OvertimeBars
                 report={overtime}
                 title={filter.range ? `Overtime ${rangeWords(filter.range)}` : 'Overtime this quarter'}
+                per={perWord(filter.position)}
               />
             ) : null}
           </Box>
@@ -626,9 +633,9 @@ export function ReportsPage() {
               }}
             >
               <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
-                Overtime by officer
+                Overtime by person
               </Typography>
-              <Table headings={['Officer', 'Position', 'Overtime h', 'Share of the top officer']} label="Overtime by officer">
+              <Table headings={['Name', 'Position', 'Overtime h', 'Share of the top person']} label="Overtime by person">
                 {overtime?.rows.map((row) => {
                   const top = overtime.rows[0]?.hours ?? 1;
                   return (

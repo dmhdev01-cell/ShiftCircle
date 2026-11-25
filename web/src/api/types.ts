@@ -1743,7 +1743,6 @@ export interface DisplayPost {
   post: { id: string; name: string };
   area: string;
   coverage: DisplayBlock[];
-  openShifts: number;
 }
 
 /** `GET /display/today`: no names, employee numbers or employee ids, by contract. */

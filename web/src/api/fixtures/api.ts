@@ -1173,10 +1173,9 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
     async getOvertimeReport(query?: ReportQuery): Promise<OvertimeReport> {
       await pause();
       if (!query?.position) return demoOvertimeReport;
-      return {
-        ...demoOvertimeReport,
-        rows: demoOvertimeReport.rows.filter((row) => (row.position ?? 'CO') === query.position),
-      };
+      // Like the api, the average is the chosen rank's pool: nobody in it, no average (review N2).
+      const rows = demoOvertimeReport.rows.filter((row) => (row.position ?? 'CO') === query.position);
+      return { ...demoOvertimeReport, rows, averageHours: rows.length === 0 ? 0 : demoOvertimeReport.averageHours };
     },
 
     async getOverrides(): Promise<OverrideRow[]> {

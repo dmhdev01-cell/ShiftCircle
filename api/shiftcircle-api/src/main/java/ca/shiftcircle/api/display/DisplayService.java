@@ -41,8 +41,7 @@ public class DisplayService {
    * A supervisor post on the wall (release v1.3 S7): counts only, like a unit. {@code area} is the
    * post's name without "Supervision · ", so the screen can say "Supervisor on duty · Operations".
    */
-  public record PostDisplay(
-      UnitRef post, String area, List<DisplayBlock> coverage, int openShifts) {}
+  public record PostDisplay(UnitRef post, String area, List<DisplayBlock> coverage) {}
 
   /**
    * {@code units} and the two totals are the officer units, as before; the supervisor posts are in
@@ -153,8 +152,7 @@ public class DisplayService {
           new PostDisplay(
               new UnitRef(postId, name),
               area,
-              closed ? List.of() : mergedBlocks(postId, scheduled, actual),
-              closed ? 0 : openShifts.getOrDefault(postId, 0)));
+              closed ? List.of() : mergedBlocks(postId, scheduled, actual)));
     }
 
     return new DisplayPayload(

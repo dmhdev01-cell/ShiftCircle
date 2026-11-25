@@ -247,7 +247,7 @@ class DisplayApiTest {
     Map<String, Object> operations = posts.get(1);
     assertThat(((Map<String, Object>) operations.get("post")).get("name"))
         .isEqualTo("Supervision · Operations");
-    assertThat(operations).containsOnlyKeys("post", "area", "coverage", "openShifts");
+    assertThat(operations).containsOnlyKeys("post", "area", "coverage");
     Map<String, Object> day =
         ((List<Map<String, Object>>) operations.get("coverage"))
             .stream()

@@ -160,15 +160,19 @@ describe('the employee My schedule', () => {
         position: 'Correctional supervisor',
         unit: { id: 'sup-o', name: 'Supervision · Operations' },
         post: 'Supervision · Operations (ADM, CTL, ESC)',
-        rotation: '',
+        // Datasets 120/150 send the pattern's code; the header words it (UI test M1).
+        rotation: 'D12_DAY_4ON4OFF',
         qualifications: [],
       },
     });
     renderMySchedule();
 
     expect(
-      await screen.findByText('Jamie Chen · Correctional supervisor · Supervision · Operations (ADM, CTL, ESC)'),
+      await screen.findByText(
+        'Jamie Chen · Correctional supervisor · Supervision · Operations (ADM, CTL, ESC) · 12 h day crew, 4 on, 4 off',
+      ),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/D12_DAY_4ON4OFF/)).not.toBeInTheDocument();
     expect(screen.queryByText(/No employee record/)).not.toBeInTheDocument();
   });
 

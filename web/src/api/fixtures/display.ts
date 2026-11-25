@@ -96,7 +96,6 @@ const FIXTURE_POSTS: { code: string; display: DisplayPost }[] = [
       post: { id: 'u-fixture-sup-l', name: 'Supervision · Living units' },
       area: 'Living units',
       coverage: [block('DAY', 1, 1), block('EVENING', 1, 1), block('NIGHT', 1, 1)],
-      openShifts: 0,
     },
   },
   {
@@ -105,7 +104,6 @@ const FIXTURE_POSTS: { code: string; display: DisplayPost }[] = [
       post: { id: 'u-fixture-sup-o', name: 'Supervision · Operations' },
       area: 'Operations',
       coverage: [block('DAY', 1, 1), block('EVENING', 1, 1), block('NIGHT', 1, 1)],
-      openShifts: 0,
     },
   },
 ];

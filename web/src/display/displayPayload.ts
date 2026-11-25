@@ -128,7 +128,6 @@ function post(value: unknown): DisplayPost {
     post: { id: text(ref.id, 'post id'), name: text(ref.name, 'post name') },
     area: text(raw.area, 'post area'),
     coverage: list(raw.coverage, 'post coverage').map(block),
-    openShifts: count(raw.openShifts, 'post open shifts'),
   };
 }
 
