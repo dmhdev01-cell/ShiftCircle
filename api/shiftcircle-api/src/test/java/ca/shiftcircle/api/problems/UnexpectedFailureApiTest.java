@@ -58,7 +58,7 @@ class UnexpectedFailureApiTest {
   void anUnexpectedFailureAnswersAProblemDocumentWithoutInternals(CapturedOutput output)
       throws Exception {
     when(scheduleQuery.unitCode(any())).thenReturn("A");
-    when(scheduleQuery.forUnit(any(), any(), any()))
+    when(scheduleQuery.forUnit(any(), any(), any(), any()))
         .thenThrow(new IllegalStateException("the internal detail that must not leak"));
 
     HttpResponse<String> response =
