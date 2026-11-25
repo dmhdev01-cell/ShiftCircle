@@ -1,6 +1,6 @@
 -- supervision posts migration (release v1.3 S4)
 -- The two supervisor posts, their minimums, which line units each covers, and the demo
--- supervisors' scope (docs/06-data-model.md §3.1; plan .factory/plans/v1.2-supervisors.md §2.1).
+-- supervisors' scope (docs/06-data-model.md §3.1; release v1.3 S4).
 --
 -- A supervisor post is a unit of kind SUPERVISION (V16), so the schedule, coverage, the planner,
 -- gaps, schedule periods and publishing all work on it unchanged. The supervisors who work the

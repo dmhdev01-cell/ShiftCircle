@@ -50,6 +50,10 @@ class SupervisorDatasetsApiTest {
     // The boot seeds Dataset 100: 8 h shifts in the Oct-Dec window.
     assertOwnSchedule("m.ellis", "Morgan Ellis", "SUP-L", "2026-11-16", "2026-11-22");
     assertOwnSchedule("j.chen", "Jamie Chen", "SUP-O", "2026-11-16", "2026-11-22");
+    // The overtime rank is counted inside the person's own rank: 10 supervisors, and the officer's
+    // "of 100" is what it was before the supervisors.
+    assertThat(overtimeRankOf("j.chen")).isEqualTo(10);
+    assertThat(overtimeRankOf("t.nakamura")).isEqualTo(100);
 
     // Datasets 120 and 150: the D12 crews' history runs to Sun 3 Jan 2027.
     for (String dataset : List.of("120", "150")) {
@@ -156,6 +160,16 @@ class SupervisorDatasetsApiTest {
             username,
             homePost);
     assertThat(rostered).as(username + "'s rostered shifts are on " + homePost).isZero();
+  }
+
+  @SuppressWarnings("unchecked")
+  private int overtimeRankOf(String username) throws Exception {
+    HttpResponse<String> response = send("GET", "/api/v1/me/schedule", null, login(username));
+    assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+    Map<String, Object> overtime =
+        (Map<String, Object>)
+            mapper.readValue(response.body(), Map.class).get("overtimeThisQuarter");
+    return ((Number) overtime.get("of")).intValue();
   }
 
   @SuppressWarnings("unchecked")

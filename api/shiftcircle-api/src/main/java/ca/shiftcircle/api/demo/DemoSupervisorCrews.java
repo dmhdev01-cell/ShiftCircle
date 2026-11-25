@@ -16,8 +16,7 @@ import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * The supervisors of Datasets 120 and 150 (release v1.3, S4; plan
- * .factory/plans/v1.2-supervisors.md §2.2). They are seeded after every officer row, with their own
+ * The supervisors of Datasets 120 and 150 (release v1.3, S4; docs/10-testing.md §6.4). They are seeded after every officer row, with their own
  * numbers ({@code 120-S001…}, which sort after the officers'), their own ids and, on 150, their own
  * Random, so the officers' rows, names and phases are byte-identical to the pre-supervisor dataset.
  *

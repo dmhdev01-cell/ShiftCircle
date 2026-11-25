@@ -372,6 +372,8 @@ both posts) and Q6 (Dataset 100 gets supervisors and is re-pinned once).
   (no overtime, senior service). An officer post lists officers and a supervisor post lists
   supervisors; the §3 list is unchanged (36: 18 / 10 / 8). S5 adds acting officers, rank seniority
   and the self-offer guard.
+- **My schedule's overtime rank is counted inside the person's rank**, for the same reason: an
+  officer's "Rank n of 100 on the overtime list" is unchanged, and a supervisor's reads "of 10".
 - **`DemoChecksum.officersOnly` / `officersOnlyWithNames`**: the checksum over the officers' shifts
   and the officer units' periods (with the officers' names for 120/150).
 

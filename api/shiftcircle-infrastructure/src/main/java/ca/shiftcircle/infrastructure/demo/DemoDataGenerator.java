@@ -468,7 +468,7 @@ public class DemoDataGenerator implements ApplicationRunner {
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Supervisors (release v1.3, S4; plan .factory/plans/v1.2-supervisors.md §2.2)
+  // Supervisors (release v1.3, S4; docs/10-testing.md §6.4)
   // ---------------------------------------------------------------------------------------------
 
   /** The two supervisor posts (V19), each needing one supervisor per block, 24/7. */
