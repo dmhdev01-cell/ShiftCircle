@@ -182,10 +182,13 @@ someone as a supervisor by accident.
 three plan fingerprints and the payroll golden are unchanged: `GeneratorCharacterizationTest` is
 green with no edits, and the demo reset tests still read the same checksums.
 
-**Counts at this gate:** API **494 = 127 rules + 36 infrastructure + 331 api** (`mvn verify` on the
-pull request, `BUILD SUCCESS`, 0 failures, errors or skipped); web unit tests **567** in 56 files,
+**Counts at this gate:** API **517 = 127 rules + 36 infrastructure + 354 api** (`mvn verify` on the
+pull request, `BUILD SUCCESS`, 0 failures, errors or skipped); web unit tests **591** in 58 files,
 lint 0 errors, `tsc -b` clean, build clean; `check-ignored-sources.sh` OK and
-`check-audit-codes.sh` still 50 codes. Playwright: see the pull request.
+`check-audit-codes.sh` still 50 codes. Playwright against the real API, a fresh stack per viewport:
+desktop **132 passed**, tablet **131 passed and 1 skipped** (the TV-size check runs on desktop only).
+The branch carries v1.2 (`main` at `f681ae7`), so the positions migration is **V16**, after the
+quarter-plan options migrations V14 and V15.
 
 **Two things later releases still owe:** the captured contract samples
 (`web/src/api/contract-samples/`) do not carry the new `position` field yet — they are re-captured
@@ -206,7 +209,7 @@ admin can change, not a hard-coded check.
 - A supervisor on a supervisor post and an officer on an officer post are unaffected. Every other
   rule applies to supervisors as written.
 
-**The migration (`V17__rule_set_v4_posts.sql`, the next number after S1's V16).** A ninth rule table,
+**The migration (`V18__rule_set_v4_posts.sql`, the next free number when it merged, after P1's V17 proposals).** A ninth rule table,
 `POSTS` "Who can work a post" (template `post-eligibility.drt`; columns `postKind` =
 `SUPERVISION`/`LINE`, `allowedPositions`, `actingQualification`), and **rule set v4** by the same
 baseline-seeding exception as v2 and v3: v3 becomes history, its 20 rows are copied unchanged, and
@@ -267,7 +270,7 @@ them are fixed in one push:
 - **The planner's post lookup fails closed (L2).** A person or unit it cannot resolve reads as an
   unknown position on a supervisor post, which R-01 blocks; the no-post overload is documented as a
   replay-only seam.
-- **V17 builds on whichever version is published** instead of naming v3, and stops if there is not
+- **V18 builds on whichever version is published** instead of naming v3, and stops if there is not
   exactly one (info I1). A fresh database still gets v4 = v3 + R-01/R-02.
 - **Tests.** The maker/checker flow has its own class and database, so no test depends on method
   order. `PlannerPostEligibilityApiTest` adds a test supervisor post and closes Unit C, so Unit C's
@@ -353,3 +356,17 @@ was not re-run.
 the supervisor posts and the demo supervisors in the datasets with the
 single re-pin (S4), the overtime pools and the self-edit guard (S5), and the board, My schedule,
 display and reports work (S6, S7).
+
+### Shift proposals, P1: the officer API
+
+The first of five proposal PRs (P1 to P5; plan `v1.2-proposals`, owner answers Q1 to Q5 approved). **P1 is the API for the officer side only; there is no screen yet.** An officer can preview a multi-item proposal (each item rule-checked with the earlier items as extra facts, so rest between two drafts shows), send it (a Block can't be sent, a Warn can), list their own proposals, and withdraw one while every item still waits. A waiting item expires when its shift starts, on every read and withdraw and by an hourly sweep. Nothing creates a shift: the inbox and the decision are P2, so until then a sent proposal stays Waiting and then Expires.
+
+- **Migration V17** (the next free number when it merged, after S1's V16; the v1.3 rule is that a migration takes the next free number at the moment it merges) reshapes the unused V1 `proposal` and `proposal_item` tables in place (status and decision sets, decider, comment, snapshots, a note-length check, a decline-needs-a-comment check, an ADD-needs-the-whole-shift check, and a unique index so one officer can't have the same shift waiting twice). Within the same file, `proposal.seq` gives "newest first" a deterministic order under the frozen demo clock, `proposal_item.work_date` is `NOT NULL`, and `proposal_item (proposal_id)` is indexed.
+- **Audit:** three new action codes, `submit_proposal`, `withdraw_proposal` and `expire_proposal_item`, and one entity type, `proposal`; the web labels and `check-audit-codes.sh` agree (**54** codes, was 50: the script counts actions and entity types together). `decide_proposal_item` follows in P2, which makes the release total **55**, not the plan's 54: P5 and the final README must quote 55.
+- **`SelfActionGuard`** (`ca.shiftcircle.api.security`) is the shared "not your own record" predicate. P2's decision endpoint and the supervisors' S5 self-edit guard use it, so neither feature owns it. S5 must reuse `SelfActionGuard` (not add a second guard class) so the two cannot drift. P1 only adds it and its unit test.
+- **`RuleCheckService`** gains `evaluateWithExtras(change, extraShifts, snapshot)` and `factOf(change, id)`; the existing overloads are unchanged. (The plan called this an `evaluate(change, extraFacts)` overload, but that signature is already the planner seam.)
+- **Review fixes:** withdraw is atomic against expiry (items first, same order as expiry; fewer rows changed than the proposal has items rolls back as a 409, and the proposal update is conditional on status and version). Request paths expire only the caller's own items; the hourly sweep does the global pass in id order with `SKIP LOCKED`. `evaluateWithExtras` drops an extra that already matches a stored shift, so a decision that inserts earlier items before checking later ones can't count them twice. Per-officer limits per minute: 60 previews, 10 sends, 10 withdraws, then `429 rate-limited` (in memory, per API instance).
+- Scope and limits: the proposer is always the caller (an `employeeId` in the body is a 400), at most 10 items per proposal and 20 waiting per officer, dates from now to 11 Apr 2027, any active unit.
+- **Pins:** no dataset checksum, payroll golden or plan fingerprint reads the new columns; none moved.
+
+Tests: +30 API (27 in `ProposalApiTest`, 3 in `SelfActionGuardTest`). Web: the audit labels only. Counts for the whole release are measured once at the end of v1.3.

@@ -141,7 +141,7 @@ assignment. Version 2 stays in the table as history. V13 is not a rule-set versi
 the L16 template (`active=false`, ADR-029). Every 16 h rule (L-01, S-03, U-03/U-04/U-05/U-11) and
 the extension tests stay in the table, but U-03 and U-11 are **dormant**: their rows key on `L16`, so they never fire on a 12 h shift plus an extension (U-04 and U-05 still do). The tests stay because a "16 h shift" in the rules means a 12 h shift plus an extension.
 
-**Version 4: who can work a post (release v1.3).** The `V17__rule_set_v4_posts.sql` migration adds
+**Version 4: who can work a post (release v1.3).** The `V18__rule_set_v4_posts.sql` migration adds
 a ninth table, `POSTS` ("Who can work a post", template `post-eligibility.drt`), copies version 3
 unchanged and adds **R-01** (Block, no override: a supervisor post needs a supervisor; an officer
 who holds the `ACTING_SUP` qualification on the shift's date is a Warn to acknowledge instead) and
