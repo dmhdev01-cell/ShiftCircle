@@ -1,7 +1,7 @@
 package ca.shiftcircle.rules.model;
 
 /**
- * The eight decision tables (docs/04-rules-engine.md §5). Each one has a Drools template the rules
+ * The nine decision tables (docs/04-rules-engine.md §5). Each one has a Drools template the rules
  * admin never edits, and rows the admin does edit.
  */
 public enum RuleTableCode {
@@ -12,7 +12,9 @@ public enum RuleTableCode {
   DAYS_OFF("DAYS_OFF", "min-consecutive-days-off.drt"),
   PAY("PAY", "pay-classification.drt"),
   OT_RANKING("OT_RANKING", "overtime-ranking.drt"),
-  SHIFT_LENGTHS("SHIFT_LENGTHS", "shift-lengths.drt");
+  SHIFT_LENGTHS("SHIFT_LENGTHS", "shift-lengths.drt"),
+  /** Who can work a post (release v1.3, R-01/R-02): a position against the post's kind. */
+  POSTS("POSTS", "post-eligibility.drt");
 
   private final String code;
   private final String templateFile;

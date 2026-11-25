@@ -111,6 +111,14 @@ Each rule result carries `ruleCode`, `outcome`, `message`, `facts` (`{ "required
 outcome body has `outcome`, `ruleSetVersion` (number) and `overridable`. The browser contract in
 `web/src/api/types.ts` is the implementation reference.
 
+**Who can work a post (release v1.3, rule set v4).** The check also reads the person's position, the
+qualifications they hold on the shift's date and the unit's kind, so a result can come from the
+`POSTS` table (`ruleTable: "POSTS"`): **R-01** for an officer on a supervisor post (`BLOCK` with
+`overridePolicy: "NONE"`, so `overridable` is `false`; `WARN` with `ACKNOWLEDGE` when the officer
+holds `ACTING_SUP`) and **R-02** for a supervisor on an officer post (`WARN`, `ACKNOWLEDGE`). Their
+`facts` are `{ "required": 0, "actual": 0, "unit": "post" }`; the evidence label names the person's
+number, their position in words and the post. No request field changed.
+
 **Blocked response:**
 ```json
 HTTP/1.1 422 Unprocessable Content
@@ -385,10 +393,10 @@ An item outside the caller's scope is listed with its unit, time and decision on
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
 | GET | `/rule-sets` | Versions and status | RULES_ADMIN, RULES_APPROVER, AUDITOR, SUPERVISOR (read) |
-| GET | `/rule-sets/{version}/tables/{code}` | Rows, column schema and plain-language sentences | same |
+| GET | `/rule-sets/{version}/tables/{code}` | Rows, column schema and plain-language sentences. `code` is the table code or the web's slug; release v1.3 adds `POSTS` (slug `posts`, "Who can work a post"), whose `columns` read `Post`, `Who can work it`, `If someone else`, `Override` and whose rows carry `params.postKind`, `params.allowedPositions` and `params.actingQualification`. Every row carries `must` (true for a rule the mock agreement requires: its `result`, `override` and `enabled` cannot change, and the build refuses a change; ignored on PUT) | same |
 | POST | `/rule-sets/drafts` | `{ "basedOn": 7, "reason" }` → new draft (also used to roll back to an older version) | RULES_ADMIN |
 | PUT | `/rule-sets/{version}/tables/{code}/rows` | Replace a table's rows in a draft (no `If-Match` in the prototype: saving clears the build, and a stale build can't be submitted) | RULES_ADMIN |
-| POST | `/rule-sets/{version}/build` | Validate → compile (Drools) → run test scenarios → dry run on the published roster; returns the report | RULES_ADMIN |
+| POST | `/rule-sets/{version}/build` | Validate → compile (Drools) → run test scenarios → dry run on the published roster; returns the report (`steps`, `scenarios`, and `errors`: why the build did not pass, one plain line per problem, which the screen lists under the checklist) | RULES_ADMIN |
 | POST | `/rule-sets/{version}/submit` | Submit a successfully built draft for approval | RULES_ADMIN |
 | POST | `/rule-sets/{version}/approve` · `/reject` | Second-person decision (`approved_by ≠ created_by`) | RULES_APPROVER |
 | POST | `/rule-sets/{version}/publish` | Hot-swap the live rule base at the effective date | RULES_APPROVER |
@@ -444,7 +452,7 @@ same validation as the grid (R24/R28: rule values are code input).
 | GET | `/display/today` | Counts per unit and block, open shifts and overtime counts. **No names.** | DISPLAY, SUPERVISOR (own units), AUDITOR |
 | GET | `/audit-events?actor=&action=&entityType=&entityId=&from=&to=&beforeId=&limit=` | Audit trail, newest first, keyset-paged (§1 Lists) | AUDITOR, SUPERVISOR (own units) |
 | GET | `/audit-events/actors` | The actors whose events the caller can see, for the filter dropdown (same scope as the trail) | AUDITOR, SUPERVISOR (own units) |
-| GET | `/version` | Build `name`, `version` and `buildTime`, `gitCommit`, live rule set version (`ruleSetVersion`, e.g. `v3`), `profiles`, `asOf` (the server's "today", so the web's clock shows the demo day), and on the demo profile `demoMode`, the reset `datasets` (`["100","120","150"]`) and `activeDataset` (the dataset loaded now; the Quarter plan warns when it is 100) | any |
+| GET | `/version` | Build `name`, `version` and `buildTime`, `gitCommit`, live rule set version (`ruleSetVersion`, e.g. `v4`), `profiles`, `asOf` (the server's "today", so the web's clock shows the demo day), and on the demo profile `demoMode`, the reset `datasets` (`["100","120","150"]`) and `activeDataset` (the dataset loaded now; the Quarter plan warns when it is 100) | any |
 | GET | `/actuator/health` | Liveness and readiness. Internal only, not proxied by nginx. | container network |
 
 ### 4.9 Quarter planner (ADR-026)

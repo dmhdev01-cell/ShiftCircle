@@ -64,7 +64,7 @@ Overrides (environment variables, put them before `bash install.sh`): `SC_WEB_PO
 
 ## Setup (clean clone)
 
-Everything is on `main`: the API, all the screens, the mock sign-in, the quarter planner with draft edits, and the E2E suite. [INSTALL.md](INSTALL.md) is the full install guide; this section is the short version. The steps below were re-run on 24 Nov 2026 from a fresh `git clone` of the branch for this docs pass (own compose project, `SC_WEB_PORT` set): `docker compose up -d --build --wait` built and became healthy in 50 s with warm caches, `/healthz` returned `ok`, `/api/v1/version` returned the commit, rule set v3, demo profile and Dataset 100, and the eight demo users in §3 match `GET /api/v1/auth/demo-users`. Anything not run is marked **UNVERIFIED**.
+Everything is on `main`: the API, all the screens, the mock sign-in, the quarter planner with draft edits, and the E2E suite. [INSTALL.md](INSTALL.md) is the full install guide; this section is the short version. The steps below were re-run on 24 Nov 2026 from a fresh `git clone` of the branch for this docs pass (own compose project, `SC_WEB_PORT` set): `docker compose up -d --build --wait` built and became healthy in 50 s with warm caches, `/healthz` returned `ok`, `/api/v1/version` returned the commit, rule set v3 (v4 since release v1.3), demo profile and Dataset 100, and the eight demo users in §3 match `GET /api/v1/auth/demo-users`. Anything not run is marked **UNVERIFIED**.
 
 ### Prerequisites
 
@@ -99,7 +99,7 @@ docker compose up -d --build --wait
 
 Checks once it's up (both checked):
 - `http://localhost:8080/healthz` returns `ok`
-- `http://localhost:8080/api/v1/version` returns the build, git commit, live rule-set version and `asOf`, for example `{"gitCommit":"<commit>","ruleSetVersion":"v3","profiles":"demo","asOf":"2026-11-19",…}`
+- `http://localhost:8080/api/v1/version` returns the build, git commit, live rule-set version and `asOf`, for example `{"gitCommit":"<commit>","ruleSetVersion":"v4","profiles":"demo","asOf":"2026-11-19",…}` (rule set v4 since release v1.3; v3 before it)
 
 Stop with `docker compose down`; add `-v` to delete the database and start from the seeded data again.
 

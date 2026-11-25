@@ -72,6 +72,7 @@ The admin can change numbers, choose from dropdowns (shift kinds, Block / Warn /
 | Pay classification | P-01 to P-06 | Threshold window (week / pay period) · threshold hours · whether paid leave counts · rate bands (hours, pay code, multiplier) · minimum hours |
 | Overtime ranking | O-01 to O-04 | Sort order (OT hours this quarter, seniority…) · skip if (rule result) · voluntary/ordered limits |
 | Shift types | L-01, S-03 | Shift code · start time · length · units allowed (ADR-015) |
+| Who can work a post (release v1.3) | R-01, R-02 | Post (supervisor post or officer post, from the unit's kind) · who can work it (officers or supervisors) · acting supervisor may work it with a warning (R-01) · result · override |
 
 Staffing and qualification checks (per unit) are maintained on the facility setup screen, not in the decision tables.
 
@@ -113,6 +114,10 @@ build validator refuses a stored one):
 | | `ignoreUnderMinutes` | 0–120 |
 | Shift types | `allowedLengths` | only 8, 12, 16 |
 | | `requireUnitFlagFor` | only 12, 16 |
+| Who can work a post | `postKind` | `SUPERVISION` or `LINE` |
+| | `allowedPositions` | at least one of `CO`, `CS`, and not both (a row every position may work can never fire) |
+| | `actingQualification` | `ACTING_SUP` or empty: only the supervisory qualification may soften R-01, never a common one |
+| Every Must rule (docs/05 §3) | result, override policy, on/off | as published: a Block cannot become a warning and a Must rule cannot be switched off (the screen locks these controls) |
 
 ## 6. Safe change pipeline
 
@@ -125,7 +130,7 @@ build validator refuses a stored one):
 7. **Roll back**: any earlier version can be republished through the same approval.
 
 **Baseline exception.** The seed migrations publish the baseline row set directly: V2 as version 1,
-V6 as version 2 and V12 as version 3, with `created_by`/`approved_by` NULL, a recorded
+V6 as version 2, V12 as version 3 and the posts migration (release v1.3) as version 4, with `created_by`/`approved_by` NULL, a recorded
 `change_reason` and no `audit_event` row. This is the only path that skips maker/checker; every later
 version goes through steps 1–7. V6's version 2 adds D12/N12 to U-02's kind list and says U-10 is
 "overnight (00-12 or 19-07)" because the counter still includes A12 00–12 night-block shifts as in
@@ -135,6 +140,21 @@ work day or evening, nights are the 12-hour crews — so U-16 exists for a super
 assignment. Version 2 stays in the table as history. V13 is not a rule-set version: it only retires
 the L16 template (`active=false`, ADR-029). Every 16 h rule (L-01, S-03, U-03/U-04/U-05/U-11) and
 the extension tests stay in the table, but U-03 and U-11 are **dormant**: their rows key on `L16`, so they never fire on a 12 h shift plus an extension (U-04 and U-05 still do). The tests stay because a "16 h shift" in the rules means a 12 h shift plus an extension.
+
+**Version 4: who can work a post (release v1.3).** The `V18__rule_set_v4_posts.sql` migration adds
+a ninth table, `POSTS` ("Who can work a post", template `post-eligibility.drt`), copies version 3
+unchanged and adds **R-01** (Block, no override: a supervisor post needs a supervisor; an officer
+who holds the `ACTING_SUP` qualification on the shift's date is a Warn to acknowledge instead) and
+**R-02** (Warn, acknowledge: a supervisor on an officer post). The fact (`PostEligibilityFact`) is
+built for the **proposed** shift only, from the person's position (`employee.classification`), the
+qualifications they hold that day and the unit's kind (`SUPERVISION` is a supervisor post, every
+other kind an officer post); it is not part of `ShiftFact`, so no other builder changed. The
+board's rule check, the planner's generator check, the draft edits and the commit check all pass
+it. There are no supervisors or supervisor posts in the datasets yet, so neither rule fires on the
+demo data and every plan fingerprint is unchanged. Version 3 stays as history. The build's dry run
+builds the same post fact for every shift on the published roster, so a POSTS edit reports what it
+changes before an approver sees it. The planner's one-time lookup fails closed: a person or unit it
+cannot resolve reads as an unknown position on a supervisor post, which R-01 blocks.
 
 ## 7. Runtime evaluation
 

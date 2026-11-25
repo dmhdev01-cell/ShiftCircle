@@ -67,8 +67,59 @@ public final class RuleSentence {
           + outcome
           + "."
           + override;
+      case POSTS -> "Only "
+          + positions(params.get("allowedPositions"))
+          + " can work "
+          + post(params.get("postKind"))
+          + "; anyone else is "
+          + outcome
+          + "."
+          + override
+          + acting(params.get("actingQualification"), row.severity());
       case PAY, OT_RANKING, SHIFT_LENGTHS -> prose(row.message());
     };
+  }
+
+  /** The allowed positions in words: "supervisors", "officers", "officers and supervisors". */
+  private static String positions(Object raw) {
+    java.util.List<String> words = new java.util.ArrayList<>();
+    if (raw instanceof java.util.List<?> list) {
+      if (list.contains("CO")) {
+        words.add("officers");
+      }
+      if (list.contains("CS")) {
+        words.add("supervisors");
+      }
+      for (Object item : list) {
+        if (!"CO".equals(item) && !"CS".equals(item)) {
+          words.add(String.valueOf(item));
+        }
+      }
+    }
+    if (words.isEmpty()) {
+      return "nobody";
+    }
+    if (words.size() == 1) {
+      return words.get(0);
+    }
+    return String.join(", ", words.subList(0, words.size() - 1))
+        + " and "
+        + words.get(words.size() - 1);
+  }
+
+  private static String post(Object raw) {
+    return "SUPERVISION".equals(raw) ? "a supervisor post" : "an officer post";
+  }
+
+  /** The acting qualification turns a Block into a warning; it changes nothing else. */
+  private static String acting(Object raw, RuleOutcome severity) {
+    if (raw == null || String.valueOf(raw).isBlank() || severity != RuleOutcome.BLOCK) {
+      return "";
+    }
+    String name = "ACTING_SUP".equals(raw) ? "Acting supervisor" : String.valueOf(raw);
+    return " Someone with the "
+        + name
+        + " qualification is warned instead, and a supervisor must acknowledge it.";
   }
 
   /** "any shift", "a regular shift", or the codes in words; never the stored pattern. */

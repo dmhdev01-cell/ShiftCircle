@@ -35,6 +35,10 @@ public final class RuleRowValidator {
 
   private static final Pattern SHIFT_KIND =
       Pattern.compile("\\.\\*|\\(?[A-Za-z0-9]{1,8}(\\|[A-Za-z0-9]{1,8})*\\)?");
+  /** The positions a post row can name (the position table, docs/06 §3.1). */
+  private static final Set<String> POSITIONS = Set.of("CO", "CS");
+  private static final Set<String> POST_KINDS = Set.of("SUPERVISION", "LINE");
+  private static final Pattern QUALIFICATION = Pattern.compile("[A-Z][A-Z0-9_]{0,31}");
   private static final Pattern UNSAFE_MESSAGE = Pattern.compile("[\"\\\\\r\n{}]");
   /** Every rule the mock agreement requires (docs/05 §3 says these are the Must set). */
   private static final Set<String> REQUIRED = RuleRowsV1.ruleSet().ruleCodes();
@@ -49,6 +53,22 @@ public final class RuleRowValidator {
           .collect(
               java.util.stream.Collectors.toUnmodifiableMap(
                   RuleRow::code, RuleRow::overridePolicy));
+
+  /**
+   * The result each Must rule was published with. Like the override policy, it is part of what
+   * the mock agreement requires: a Block cannot be turned into a warning, and a Must rule cannot
+   * be switched off, through the rules screen (security review I2, release v1.3).
+   */
+  private static final Map<String, ca.shiftcircle.rules.facts.RuleOutcome> REQUIRED_SEVERITIES =
+      RuleRowsV1.ruleSet().rows().stream()
+          .collect(
+              java.util.stream.Collectors.toUnmodifiableMap(RuleRow::code, RuleRow::severity));
+
+  /**
+   * The qualifications that may soften R-01: only a supervisory one. A common qualification here
+   * would turn the Block into a warning for everyone who holds it (security review L1).
+   */
+  private static final Set<String> ACTING_QUALIFICATIONS = Set.of("ACTING_SUP");
 
   /** One plain-language problem with one row. */
   public record Violation(String code, String column, String message) {
@@ -106,6 +126,24 @@ public final class RuleRowValidator {
                   + policyLabel(documented)
                   + "; a Must rule cannot be changed."));
     }
+    ca.shiftcircle.rules.facts.RuleOutcome documentedResult = REQUIRED_SEVERITIES.get(row.code());
+    if (documentedResult != null && row.severity() != documentedResult) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "Result",
+              "The documented result for this rule is "
+                  + resultLabel(documentedResult)
+                  + "; a Must rule cannot be changed."));
+    }
+    if (REQUIRED_SEVERITIES.containsKey(row.code()) && !row.enabled()) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "On",
+              "This rule is required by the mock agreement (docs/05 §3); it cannot be switched"
+                  + " off."));
+    }
     if (row.message() == null || row.message().isBlank()) {
       violations.add(new Violation(row.code(), "Message", "A rule needs a message to show."));
     } else if (UNSAFE_MESSAGE.matcher(row.message()).find()) {
@@ -124,6 +162,7 @@ public final class RuleRowValidator {
       case PAY -> validatePay(row, violations);
       case OT_RANKING -> validateRanking(row, violations);
       case SHIFT_LENGTHS -> validateShiftLengths(row, violations);
+      case POSTS -> validatePosts(row, violations);
     }
   }
 
@@ -466,6 +505,74 @@ public final class RuleRowValidator {
         }
       }
     }
+  }
+
+  private static void validatePosts(RuleRow row, List<Violation> violations) {
+    Object postKind = row.params().get("postKind");
+    if (postKind == null || !POST_KINDS.contains(postKind.toString())) {
+      violations.add(
+          new Violation(
+              row.code(), "Post", "Choose a supervisor post or an officer post."));
+    }
+    Object raw = row.params().get("allowedPositions");
+    if (!(raw instanceof List<?> positions) || positions.isEmpty()) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "Who can work it",
+              "Choose at least one position: officers, supervisors or both."));
+    } else {
+      if (positions.size() > MAX_LIST_VALUES) {
+        violations.add(
+            new Violation(
+                row.code(),
+                "Who can work it",
+                "A post row lists at most " + MAX_LIST_VALUES + " positions."));
+      }
+      int checked = 0;
+      for (Object position : positions) {
+        if (checked++ >= MAX_LIST_VALUES) {
+          break;
+        }
+        if (!POSITIONS.contains(String.valueOf(position))) {
+          violations.add(
+              new Violation(
+                  row.code(),
+                  "Who can work it",
+                  "Unknown position '"
+                      + display(String.valueOf(position))
+                      + "'. Choose officers (CO) or supervisors (CS)."));
+        }
+      }
+      if (positions.containsAll(POSITIONS)) {
+        violations.add(
+            new Violation(
+                row.code(),
+                "Who can work it",
+                "Every position may work this post, so the rule can never fire; choose one"
+                    + " position."));
+      }
+    }
+    Object acting = row.params().get("actingQualification");
+    if (acting != null
+        && !acting.toString().isBlank()
+        && (!QUALIFICATION.matcher(acting.toString()).matches()
+            || !ACTING_QUALIFICATIONS.contains(acting.toString()))) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "Acting qualification",
+              "Only the Acting supervisor qualification (ACTING_SUP) can turn this block into a"
+                  + " warning; choose it or leave it empty."));
+    }
+  }
+
+  private static String resultLabel(ca.shiftcircle.rules.facts.RuleOutcome outcome) {
+    return switch (outcome) {
+      case BLOCK -> "Block";
+      case WARN -> "Warn";
+      case INFO -> "Info";
+    };
   }
 
   private static String policyLabel(OverridePolicy policy) {

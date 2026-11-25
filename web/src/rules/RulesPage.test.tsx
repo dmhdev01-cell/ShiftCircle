@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -62,6 +62,94 @@ describe('Rules admin', () => {
     expect(
       screen.queryByRole('heading', { name: 'Rest between shifts' }),
     ).not.toBeInTheDocument();
+  });
+
+  it('opens Who can work a post with its own columns', async () => {
+    renderRules('/rules/8/posts');
+
+    const tables = await screen.findByRole('region', { name: 'Rule tables' });
+    expect(within(tables).getByRole('button', { name: 'Who can work a post' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(await screen.findByRole('heading', { name: 'Who can work a post' })).toBeInTheDocument();
+    for (const heading of ['Post', 'Who can work it', 'Acting supervisor', 'If someone else']) {
+      expect(screen.getByRole('columnheader', { name: heading })).toBeInTheDocument();
+    }
+    // No shift-kind select or hours field: those belong to the other tables.
+    expect(screen.queryByLabelText('Shift kind for R-01')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Minimum hours off for R-01')).not.toBeInTheDocument();
+    expect(screen.getByText('Supervisor post')).toBeInTheDocument();
+    expect(screen.getByText('Officer post')).toBeInTheDocument();
+    expect(screen.getByLabelText('Who can work the post for R-01')).toHaveDisplayValue('Supervisors');
+    expect(screen.getByLabelText('Who can work the post for R-02')).toHaveDisplayValue('Officers');
+    expect(screen.getByText('Does not apply')).toBeInTheDocument();
+    expect(
+      screen.getByText(/^Only supervisors can work a supervisor post; anyone else is blocked\./),
+    ).toBeInTheDocument();
+  });
+
+  it('a rules admin edits who can work a post and saves it in the draft', async () => {
+    const user = userEvent.setup();
+    renderRules('/rules/8/posts');
+    await screen.findByRole('heading', { name: 'Who can work a post' });
+    await actAsRulesAdmin(user);
+
+    const acting = screen.getByLabelText('Acting supervisor may work the post for R-01');
+    expect(acting).toBeChecked();
+    await user.click(acting);
+    expect(
+      await screen.findByText(
+        'Only supervisors can work a supervisor post; anyone else is blocked. It cannot be overridden.',
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Save the draft' }));
+    const saved = await api.getRuleTable(8, 'posts');
+    const r01 = saved.rows.find((row) => row.ruleCode === 'R-01');
+    expect(r01?.params?.actingQualification).toBeNull();
+    expect(r01?.params?.allowedPositions).toEqual(['CS']);
+  });
+
+  it('locks the result, override and on/off of a rule the agreement requires', async () => {
+    const user = userEvent.setup();
+    renderRules('/rules/8/posts');
+    await screen.findByRole('heading', { name: 'Who can work a post' });
+    await actAsRulesAdmin(user);
+
+    for (const code of ['R-01', 'R-02']) {
+      expect(screen.getByLabelText(`Result for ${code}`)).toBeDisabled();
+      expect(screen.getByLabelText(`Override for ${code}`)).toBeDisabled();
+      expect(screen.getByLabelText(`Rule ${code} on`)).toBeDisabled();
+    }
+    // The values the admin may change stay editable.
+    expect(screen.getByLabelText('Who can work the post for R-01')).toBeEnabled();
+    expect(screen.getByLabelText('Acting supervisor may work the post for R-01')).toBeEnabled();
+    expect(screen.getByText(/keeps its result, override and on\/off/)).toBeInTheDocument();
+  });
+
+  it('shows why a build did not pass', async () => {
+    const user = userEvent.setup();
+    const build = vi.spyOn(api, 'buildRuleSet').mockResolvedValueOnce({
+      steps: [
+        {
+          key: 'values',
+          title: 'Values the engine can produce',
+          detail: '1 row value(s) can never fire.',
+          done: false,
+        },
+      ],
+      scenarios: { total: 0, passed: 0 },
+      errors: ['R-02 · Who can work it: Every position may work this post, so the rule can never fire; choose one position.'],
+    });
+    renderRules('/rules/8/posts');
+    await screen.findByRole('heading', { name: 'Who can work a post' });
+    await actAsRulesAdmin(user);
+    await user.click(screen.getByRole('button', { name: 'Build and check' }));
+
+    const alert = await screen.findByRole('alert', { name: 'Why the build did not pass' });
+    expect(within(alert).getByText(/R-02 · Who can work it: Every position may work this post/)).toBeInTheDocument();
+    build.mockRestore();
   });
 
   it('shows the plain-language sentence the api sent', async () => {

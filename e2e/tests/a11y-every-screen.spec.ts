@@ -114,7 +114,7 @@ test.describe('accessibility on every screen', () => {
     await ready(page, 'Rules');
     await expectAccessible(page, testInfo, 'rules-admin');
     const tables = page.getByRole('navigation', { name: 'Rule tables' }).or(page.getByLabel('Rule tables')).first();
-    for (const table of ['Maximum hours', 'Consecutive work', '16-hour shifts', 'Days off', 'Pay classification', 'Overtime ranking', 'Shift types']) {
+    for (const table of ['Maximum hours', 'Consecutive work', '16-hour shifts', 'Days off', 'Pay classification', 'Overtime ranking', 'Shift types', 'Who can work a post']) {
       await tables.getByRole('button', { name: table, exact: true }).click();
       await page.waitForLoadState('networkidle');
       await expect(page.getByRole('heading', { name: 'Rules', level: 1 })).toBeVisible();

@@ -25,7 +25,8 @@ public final class RuleRowsV1 {
 
   public static RuleSet ruleSet() {
     return new RuleSet(VERSION, List.of(u01(), u02(), u03(), u04(), u05(), u08(), u09(), u10(),
-        u11(), u12(), u14(), p01(), p01b(), p04(), o01(), o02(), o03(), l01(), s03(), u16()));
+        u11(), u12(), u14(), p01(), p01b(), p04(), o01(), o02(), o03(), l01(), s03(), u16(),
+        r01(), r02()));
   }
 
   // A. Rest and fatigue ------------------------------------------------------------------------
@@ -329,5 +330,44 @@ public final class RuleRowsV1 {
         "Person (release 4 #10)",
         true,
         205);
+  }
+
+  // H. Who can work a post (release v1.3) -----------------------------------------------------
+
+  /**
+   * Owner item 17: a supervisor post needs a supervisor. An officer is blocked with no override;
+   * an officer who holds the Acting supervisor qualification is a warning to acknowledge instead.
+   * Published as rule-set v4; the fixture carries it so the boot-time rule base and the rule tests
+   * see the same rows as the database.
+   */
+  public static RuleRow r01() {
+    return new RuleRow(
+        "R-01",
+        RuleTableCode.POSTS,
+        true,
+        Map.of("postKind", "SUPERVISION", "allowedPositions", List.of("CS"),
+            "actingQualification", "ACTING_SUP"),
+        RuleOutcome.BLOCK,
+        OverridePolicy.NONE,
+        "A supervisor post needs a supervisor; an officer may work it only with the Acting"
+            + " supervisor qualification, and then it needs an acknowledgement.",
+        "Owner item 17",
+        true,
+        210);
+  }
+
+  /** Owner item 17: a supervisor on an officer post is a warning; the shift counts toward the minimum. */
+  public static RuleRow r02() {
+    return new RuleRow(
+        "R-02",
+        RuleTableCode.POSTS,
+        true,
+        Map.of("postKind", "LINE", "allowedPositions", List.of("CO")),
+        RuleOutcome.WARN,
+        OverridePolicy.ACKNOWLEDGE,
+        "A supervisor is working an officer post; the shift counts toward the unit minimum.",
+        "Owner item 17",
+        true,
+        220);
   }
 }

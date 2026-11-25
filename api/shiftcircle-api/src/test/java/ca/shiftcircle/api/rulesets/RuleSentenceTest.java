@@ -88,4 +88,25 @@ class RuleSentenceTest {
             "After any shift, an officer needs at least 8 hours off within 24 hours; otherwise"
                 + " the change is blocked.");
   }
+
+  @Test
+  void thePostRulesReadInPlainWords() {
+    RuleRow r01 = rows.stream().filter(row -> "R-01".equals(row.code())).findFirst().orElseThrow();
+    RuleRow r02 = rows.stream().filter(row -> "R-02".equals(row.code())).findFirst().orElseThrow();
+    assertThat(RuleSentence.of(r01))
+        .isEqualTo(
+            "Only supervisors can work a supervisor post; anyone else is blocked. It cannot be"
+                + " overridden. Someone with the Acting supervisor qualification is warned"
+                + " instead, and a supervisor must acknowledge it.");
+    assertThat(RuleSentence.of(r02))
+        .isEqualTo(
+            "Only officers can work an officer post; anyone else is warned. A supervisor must"
+                + " acknowledge it before the change is saved.");
+    // No stored code leaks into the words.
+    assertThat(RuleSentence.of(r01) + RuleSentence.of(r02))
+        .doesNotContain("SUPERVISION")
+        .doesNotContain("LINE")
+        .doesNotContain("ACTING_SUP")
+        .doesNotContain("[");
+  }
 }

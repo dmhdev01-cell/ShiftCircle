@@ -80,7 +80,8 @@ public class PlanDraftEditService {
     DraftRow draft = draft(draftId, false);
     requireDraft(draft);
     Edit edit = validate(draft, input.assignmentId(), input);
-    return ruleCheck.evaluate(edit.proposed(), edit.existing());
+    // validate() already ran the check, with the post (R-01/R-02); a second run would be the same.
+    return edit.outcome();
   }
 
   @Transactional
@@ -345,7 +346,11 @@ public class PlanDraftEditService {
         assignmentId == null
             ? new Object[] {draft.id(), input.employeeId()}
             : new Object[] {draft.id(), input.employeeId(), assignmentId});
-    RuleCheckService.OutcomeView outcome = ruleCheck.evaluate(proposed, existing);
+    RuleCheckService.OutcomeView outcome =
+        ruleCheck.evaluate(
+            proposed,
+            existing,
+            ruleCheck.post(input.employeeId(), input.unitId(), input.startAt()));
     Map<String, Object> snapshot = new LinkedHashMap<>();
     snapshot.put("employeeId", input.employeeId().toString());
     snapshot.put("unitId", input.unitId().toString());

@@ -31,6 +31,7 @@ const TABLE_CODES = [
   'pay-classification',
   'overtime-ranking',
   'shift-types',
+  'posts',
 ];
 
 const STATUS_LABELS: Record<RuleSetStatus, string> = {
@@ -51,6 +52,7 @@ const TABLE_NAMES: Record<string, string> = {
   'pay-classification': 'Pay classification',
   'overtime-ranking': 'Overtime ranking',
   'shift-types': 'Shift types',
+  posts: 'Who can work a post',
 };
 
 /**
@@ -166,7 +168,8 @@ export function RulesPage() {
       key: tableKey,
       rows: rows.map((row) => {
         if (row.ruleCode !== ruleCode) return row;
-        const params = { ...(row.params ?? {}) };
+        // A patch can carry params of its own (the posts table edits them directly).
+        const params = { ...(row.params ?? {}), ...(patch.params ?? {}) };
         // The api stores the real value in params; the grid edits a friendly field.
         if (patch.minHours !== undefined && table.hoursParam) {
           params[table.hoursParam] = patch.minHours;
