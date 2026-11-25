@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -388,6 +388,16 @@ export function ProposalDetailPane({
   const [refusal, setRefusal] = useState<string | null>(null);
   const [sent, setSent] = useState<{ accepted: ProposalDetailItem[] } | null>(null);
   const [sending, setSending] = useState(false);
+  // After Send the button is gone or disabled, and focus would fall to <body>
+  // (P5 UI gate): move it to the outcome, "Sent." or the refusal, instead.
+  const sentRef = useRef<HTMLDivElement>(null);
+  const refusalRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (sent) sentRef.current?.focus();
+  }, [sent]);
+  useEffect(() => {
+    if (refusal) refusalRef.current?.focus();
+  }, [refusal]);
 
   const load = useCallback(() => {
     let active = true;
@@ -536,11 +546,13 @@ export function ProposalDetailPane({
           <StatusPill tone={pill.tone}>{pill.text}</StatusPill>
           {pay ? (
             <>
+              {/* The status is worked out from the hours after approval, so it says so (P5 UI
+                  gate M1): "72 h of 80 h now · 80 h after approval" + "In overtime after approval". */}
               <Box component="span" className="num" sx={{ fontSize: 13 }}>
-                {pay.hoursBefore} h of {pay.thresholdHours} h this pay period
+                {pay.hoursBefore} h of {pay.thresholdHours} h now · {pay.hoursAfter} h after approval
               </Box>
               <StatusPill tone={OT_PILL[pay.overtimeStatus]?.tone ?? 'under'}>
-                {OT_PILL[pay.overtimeStatus]?.text ?? pay.overtimeStatus}
+                {`${OT_PILL[pay.overtimeStatus]?.text ?? pay.overtimeStatus} after approval`}
               </StatusPill>
             </>
           ) : null}
@@ -587,6 +599,8 @@ export function ProposalDetailPane({
 
       {sent ? (
         <Box
+          ref={sentRef}
+          tabIndex={-1}
           role="status"
           sx={{
             display: 'flex',
@@ -611,6 +625,8 @@ export function ProposalDetailPane({
 
       {refusal ? (
         <Box
+          ref={refusalRef}
+          tabIndex={-1}
           role="alert"
           sx={{
             p: '10px 12px',

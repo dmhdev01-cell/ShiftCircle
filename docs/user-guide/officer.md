@@ -67,10 +67,11 @@ After sending, the card says "Sent to your supervisor. You'll see the answer und
 
 **My proposals**, under the Propose shifts card, lists what you sent in the last 90 days, newest first. Each proposal shows when you sent it, your note, and its state: **Waiting**, **Approved**, **Partly approved**, **Declined**, **Withdrawn** or **Expired**. Each shift in it has its own answer:
 
-**In the demo** (since v1.3 P5) T. Nakamura's My proposals already holds three on a fresh reset: one **Waiting** (two December evenings, one on Unit B and one on Admissions, each for that unit's supervisor), one **Declined** by J. Chen with his comment, and one **Expired** (its shift started before anyone answered).
 - **Approved by M. Ellis.** The shift is on your schedule.
 - **Declined by M. Ellis: "Unit is fully staffed that night".** The supervisor's comment is shown as they wrote it.
 - **Expired: the shift started before anyone answered.**
+
+**In the demo** (since v1.3 P5) T. Nakamura's My proposals already holds three on a fresh reset: one **Waiting** (two December evenings, one on Unit B and one on Admissions, each for that unit's supervisor), one **Declined** by J. Chen with his comment, and one **Expired** (its shift started before anyone answered).
 
 **Withdraw** a proposal while every shift in it is still waiting: press **Withdraw**, then **Withdraw proposal** to confirm. Once a supervisor has answered part of it, you can't withdraw the rest here; ask your supervisor instead.
 

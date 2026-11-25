@@ -95,9 +95,19 @@ public class DemoPlantedProposals implements DemoSeedFollowUp {
   }
 
   /** The fresh-boot path: Dataset 100 was just generated. */
+  /**
+   * The fresh-boot path. A failure here is logged and boot goes on (security review I-2): the
+   * roster is already generated, and the demo without its planted proposals is still a working
+   * demo. The reset calls {@link #plant} directly, so a failure there fails the reset, as any
+   * other reset step does.
+   */
   @Override
   public void afterGenerate(long seed) {
-    plant(seed);
+    try {
+      plant(seed);
+    } catch (RuntimeException failure) {
+      log.error("Planted demo proposals skipped at boot; the demo runs without them", failure);
+    }
   }
 
   /**
@@ -188,14 +198,17 @@ public class DemoPlantedProposals implements DemoSeedFollowUp {
             at(random, LocalDate.of(2026, 11, 19), 8));
     items(random, ownId, ellis, own);
 
-    audit(waitingId, "submit_proposal", waiting, null);
-    audit(declinedId, "submit_proposal", declined, null);
-    audit(declinedId, "decide_proposal_item", declined, Map.of("decision", "DECLINED",
+    // The audit names the same people as the rows (security review L-2): each send by its
+    // proposer's sign-in (none for 120/150's unlinked Tara), the decline by J. Chen, and the
+    // expiry by the system, as a real expiry is. Every row says planted: true.
+    audit(taraUser, waitingId, "submit_proposal", waiting, null);
+    audit(taraUser, declinedId, "submit_proposal", declined, null);
+    audit("j.chen", declinedId, "decide_proposal_item", declined, Map.of("decision", "DECLINED",
         "comment", comment, "itemId", declinedItem.toString()));
-    audit(expiredId, "submit_proposal", expired, null);
-    audit(expiredId, "expire_proposal_item", expired, Map.of("decision", "EXPIRED",
+    audit(taraUser, expiredId, "submit_proposal", expired, null);
+    audit(null, expiredId, "expire_proposal_item", expired, Map.of("decision", "EXPIRED",
         "itemId", expiredItem.toString()));
-    audit(ownId, "submit_proposal", own, null);
+    audit("m.ellis", ownId, "submit_proposal", own, null);
     log.info(
         "Planted demo proposals: Tara waiting {} + {}, declined {}, expired {}; Ellis waiting {}",
         waiting.get(0).day(), waiting.get(1).day(), declined.get(0).day(), expired.get(0).day(),
@@ -316,8 +329,8 @@ public class DemoPlantedProposals implements DemoSeedFollowUp {
     return rows.isEmpty() ? null : rows.get(0);
   }
 
-  /** The audit trail says these came from the demo seed: no actor, {@code planted: true}. */
-  private void audit(UUID proposalId, String action, List<Placed> placed,
+  /** The audit trail says these came from the demo seed: {@code planted: true}. */
+  private void audit(String actor, UUID proposalId, String action, List<Placed> placed,
       Map<String, Object> extra) {
     Map<String, Object> after = new LinkedHashMap<>();
     after.put("planted", true);
@@ -335,8 +348,8 @@ public class DemoPlantedProposals implements DemoSeedFollowUp {
       after.putAll(extra);
     }
     jdbc.update(
-        "INSERT INTO audit_event (action, entity_type, entity_id, after)"
-            + " VALUES (?, 'proposal', ?, ?::jsonb)",
-        action, proposalId, mapper.writeValueAsString(after));
+        "INSERT INTO audit_event (actor_user_id, action, entity_type, entity_id, after)"
+            + " VALUES ((SELECT id FROM app_user WHERE username = ?), ?, 'proposal', ?, ?::jsonb)",
+        actor, action, proposalId, mapper.writeValueAsString(after));
   }
 }

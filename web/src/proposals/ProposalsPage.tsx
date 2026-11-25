@@ -13,6 +13,7 @@ import { StatusPill } from '../components/StatusPill';
 import { DISPLAY_STATE, sentWhen, shiftLine } from '../myschedule/proposalWords';
 import { colour } from '../theme/tokens';
 import { ProposalDetailPane } from './ProposalDetailPane';
+import { unitLabel } from './inboxWords';
 
 type ListState =
   | { kind: 'loading' }
@@ -21,11 +22,11 @@ type ListState =
 
 type Filter = 'WAITING' | 'ALL';
 
-function cardSummary(card: ProposalInboxCard): string {
+function cardSummary(card: ProposalInboxCard, names: Map<string, string>): string {
   const shifts = `${card.itemCount} shift${card.itemCount === 1 ? '' : 's'}`;
   const inScope =
     card.itemsInScope < card.itemCount ? ` (${card.itemsInScope} on your units)` : '';
-  return `${card.units.map((unit) => `Unit ${unit}`).join(', ')} · ${shifts}${inScope}`;
+  return `${card.units.map((unit) => unitLabel(unit, names)).join(', ')} · ${shifts}${inScope}`;
 }
 
 const CARD_SHIFTS = 3;
@@ -34,11 +35,11 @@ const CARD_SHIFTS = 3;
  * The card's shifts, "Sat 28 Nov · E8 15:00 – 23:00 · Unit B", so several
  * proposals from one officer can be told apart without opening each.
  */
-function cardShiftLines(card: ProposalInboxCard): string[] {
+function cardShiftLines(card: ProposalInboxCard, names: Map<string, string>): string[] {
   const shifts = card.shifts ?? [];
   const lines = shifts
     .slice(0, CARD_SHIFTS)
-    .map((shift) => shiftLine(shift.workDate, shift.shiftTemplate, `Unit ${shift.unit}`));
+    .map((shift) => shiftLine(shift.workDate, shift.shiftTemplate, unitLabel(shift.unit, names)));
   if (shifts.length > CARD_SHIFTS) lines.push(`and ${shifts.length - CARD_SHIFTS} more`);
   return lines;
 }
@@ -93,6 +94,10 @@ export function ProposalsPage() {
 
   // GET /units is already the caller's scope: a supervisor's units, every unit for the planner.
   const unitOptions = units.kind === 'ready' ? units.units : [];
+  const unitNames = useMemo(
+    () => new Map((units.kind === 'ready' ? units.units : []).map((unit) => [unit.code, unit.name])),
+    [units],
+  );
 
   return (
     <>
@@ -238,9 +243,9 @@ export function ProposalsPage() {
                         {card.officerName}
                       </Box>
                       <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
-                        {cardSummary(card)}
+                        {cardSummary(card, unitNames)}
                       </Box>
-                      {cardShiftLines(card).map((line) => (
+                      {cardShiftLines(card, unitNames).map((line) => (
                         <Box key={line} component="span" sx={{ fontSize: 13, fontWeight: 600 }}>
                           {line}
                         </Box>

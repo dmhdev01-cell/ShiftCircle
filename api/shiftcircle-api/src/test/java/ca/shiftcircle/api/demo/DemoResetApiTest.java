@@ -74,6 +74,9 @@ class DemoResetApiTest {
 
   @Test
   void resetsTwiceToTheSameSeededStateAndAuditsIt() throws Exception {
+    // v1.3 P5 review: the FRESH BOOT path (DemoDataGenerator's follow-up, not the reset) planted
+    // the proposals already: this context booted on an empty database and nothing has reset it.
+    assertPlantedProposals();
     // A planner draft exists before the reset and must be gone afterwards.
     assertThat(
             send("POST", "/api/v1/planner/drafts", "{\"seed\":20261001}",
@@ -186,6 +189,7 @@ class DemoResetApiTest {
                   Integer.class))
           .as("no planted waiting shift is Blocked: the walk can approve it")
           .isZero();
+      assertPlantedProposals();
       java.util.List<String> ids =
           jdbc.queryForList(
               "SELECT id::text FROM proposal_item ORDER BY start_at", String.class);
@@ -228,6 +232,25 @@ class DemoResetApiTest {
                     send("GET", "/api/v1/version", null, null).body(), Map.class)
                 .get("demoMode"))
         .isEqualTo(true);
+  }
+
+  /** The planted proposals and their audit rows, on the boot path and after every reset. */
+  private void assertPlantedProposals() {
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM proposal", Integer.class)).isEqualTo(4);
+    assertThat(
+            jdbc.queryForList(
+                "SELECT e.action || ' ' || coalesce(a.username, 'system') FROM audit_event e"
+                    + " LEFT JOIN app_user a ON a.id = e.actor_user_id"
+                    + " WHERE e.after->>'planted' = 'true' ORDER BY e.id",
+                String.class))
+        .as("each planted row names the same person as the proposal it records")
+        .containsExactly(
+            "submit_proposal t.nakamura",
+            "submit_proposal t.nakamura",
+            "decide_proposal_item j.chen",
+            "submit_proposal t.nakamura",
+            "expire_proposal_item system",
+            "submit_proposal m.ellis");
   }
 
   private int proposalCount(String user) throws Exception {

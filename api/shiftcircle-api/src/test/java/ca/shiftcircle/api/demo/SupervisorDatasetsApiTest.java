@@ -259,18 +259,20 @@ class SupervisorDatasetsApiTest {
   private void assertPlantedProposals(String dataset) throws Exception {
     assertThat(
             jdbc.queryForList(
-                "SELECT e.first_name || ' ' || e.last_name || ' ' || u.code || ' ' || i.decision"
+                "SELECT e.first_name || ' ' || e.last_name || ' ' || u.code || ' ' || i.work_date"
+                    + " || ' ' || i.decision"
                     + " FROM proposal_item i JOIN proposal p ON p.id = i.proposal_id"
                     + " JOIN employee e ON e.id = p.employee_id"
                     + " JOIN unit u ON u.id = i.unit_id ORDER BY e.first_name, i.start_at",
                 String.class))
         .as(dataset + ": the dataset's own Tara Nakamura (its T. Nakamura sign-in is not linked)")
         .containsExactly(
-            "Morgan Ellis SUP-L PENDING",
-            "Tara Nakamura B EXPIRED",
-            "Tara Nakamura ADM DECLINED",
-            "Tara Nakamura B PENDING",
-            "Tara Nakamura ADM PENDING");
+            "Morgan Ellis SUP-L 2026-11-29 PENDING",
+            "Tara Nakamura B 2026-11-16 EXPIRED",
+            "Tara Nakamura ADM 2026-11-22 DECLINED",
+            // The first dates the rules allow on this roster (docs/demo-script.md §8).
+            "Tara Nakamura B 2026-12-23 PENDING",
+            "Tara Nakamura ADM 2026-12-31 PENDING");
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM proposal_item WHERE decision = 'PENDING'"

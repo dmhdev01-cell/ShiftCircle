@@ -85,7 +85,7 @@ test.describe('@api the planted demo proposals and the demo-script §8 walk (v1.
     const list = page.getByRole('list', { name: 'Proposals' });
     const taraCard = list.getByRole('button', { name: /Tara Nakamura/ });
     await expect(taraCard).toContainText('Unit B · 2 shifts (1 on your units)');
-    await expect(taraCard).not.toContainText('ADM');
+    await expect(taraCard).not.toContainText('Admissions');
     const ownCard = list.getByRole('button', { name: /Morgan Ellis/ });
     await expect(ownCard).toContainText('Yours');
     await shot(page, testInfo, 'supervisor', 'proposals', 'planted-inbox');
@@ -101,15 +101,21 @@ test.describe('@api the planted demo proposals and the demo-script §8 walk (v1.
     await taraCard.click();
     await expect(pane.getByRole('heading', { name: 'Tara Nakamura' })).toBeVisible();
     await expect(pane.getByText("Happy to pick up two evenings over the holidays if you're short.")).toBeVisible();
+    // The pay-period line says both figures; the status is for after approval (P5 UI gate M1).
+    await expect(pane.getByText('60 h of 80 h now · 68 h after approval')).toBeVisible();
+    await expect(pane.getByText('Under after approval')).toBeVisible();
     const onB = shiftRow(page, B_ROW);
     await expect(onB.getByRole('group', { name: 'Rule result' })).toContainText(/Rules when sent\s*Warning · /);
     const onAdm = shiftRow(page, ADM_ROW);
     await expect(onAdm.getByRole('radio')).toHaveCount(0);
+    await expect(onAdm).toContainText("Not on your units: Unit ADM's supervisor or the planner decides it.");
     await approve(onB);
     await expectAccessible(page, testInfo, 'proposals-demo-ellis-deciding');
     await shot(page, testInfo, 'supervisor', 'proposals', 'planted-deciding');
     await pane.getByRole('button', { name: 'Send decision (1 accepted, 0 declined)' }).click();
     await expect(pane.getByText(/^Sent\. Accepted shifts are on the planning board/)).toBeVisible();
+    // Focus moves to the outcome, not back to the page (P5 UI gate).
+    await expect(pane.getByRole('status').filter({ hasText: /^Sent\./ })).toBeFocused();
     await expect(onB.getByText('Approved', { exact: true })).toBeVisible();
     await expect(navProposals(page)).toHaveText('Proposals (0)');
     await shot(page, testInfo, 'supervisor', 'proposals', 'planted-sent');
@@ -130,6 +136,8 @@ test.describe('@api the planted demo proposals and the demo-script §8 walk (v1.
     await list.getByRole('button', { name: /Morgan Ellis/ }).click();
     await expect(pane.getByRole('heading', { name: 'Morgan Ellis' })).toBeVisible();
     await expect(pane.getByText('I can take the Sunday day shift on Living units.')).toBeVisible();
+    await expect(pane.getByText('72 h of 80 h now · 80 h after approval')).toBeVisible();
+    await expect(pane.getByText('In overtime after approval')).toBeVisible();
     await approve(shiftRow(page, SUP_ROW));
     await shot(page, testInfo, 'supervisor-chen', 'proposals', 'planted-ellis-own');
     await pane.getByRole('button', { name: 'Send decision (1 accepted, 0 declined)' }).click();
@@ -150,6 +158,11 @@ test.describe('@api the planted demo proposals and the demo-script §8 walk (v1.
     await signIn(page, 'A. Reviewer');
     await navTo(page, 'Audit log');
     await expect(page.getByRole('heading', { name: 'Audit log', level: 1 })).toBeVisible();
+    const planted = page.getByRole('row').filter({ hasText: 'Planted: true' });
+    await expect(planted).toHaveCount(6);
+    await expect(planted.filter({ hasText: 'Decision: DECLINED' })).toContainText('J. Chen');
+    await expect(planted.filter({ hasText: 'Proposed shift expired' })).toContainText('System');
+    await expect(page.getByRole('row').filter({ hasText: 'Proposed shift decided' }).filter({ hasText: 'ACCEPTED' })).toHaveCount(3);
     await shot(page, testInfo, 'auditor', 'audit', 'planted-decisions');
   });
 });

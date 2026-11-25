@@ -85,8 +85,11 @@ describe('the Proposals inbox (v1.3 P4)', () => {
     const pane = screen.getByRole('region', { name: 'Selected proposal' });
     expect(await within(pane).findByRole('heading', { name: 'Tara Nakamura' })).toBeInTheDocument();
     expect(within(pane).getByText('Free both Saturdays. Happy to take nights if that helps more.')).toBeInTheDocument();
-    expect(within(pane).getByText('72 h of 80 h this pay period')).toBeInTheDocument();
-    expect(within(pane).getByText('Approaching')).toBeInTheDocument();
+    // P5 UI gate M1: the status is worked out after approval, so the header says
+    // both figures and labels the pill, instead of "72 h of 80 h · In overtime".
+    expect(within(pane).getByText('72 h of 80 h now · 80 h after approval')).toBeInTheDocument();
+    expect(within(pane).getByText('In overtime after approval')).toBeInTheDocument();
+    expect(within(pane).queryByText('In overtime')).not.toBeInTheDocument();
   });
 
   it('filters Waiting / All and by unit', async () => {
@@ -343,7 +346,8 @@ describe('the Proposals inbox (v1.3 P4)', () => {
     await choose(user, evening, 'Decline');
     await user.type(within(evening).getByLabelText('Comment for Tara (required)'), 'Not needed');
     await user.click(screen.getByRole('button', { name: 'Send decision (1 accepted, 1 declined)' }));
-    await screen.findByText(/^Sent\./);
+    // Focus goes to the outcome, not back to <body> (P5 UI gate).
+    await waitFor(() => expect((screen.getByText(/^Sent\./).closest('[role="status"]'))).toHaveFocus());
     cleanup();
 
     renderInbox('/proposals?proposal=inbox-tara');
@@ -395,7 +399,7 @@ describe('the Proposals inbox (v1.3 P4)', () => {
     expect(within(saturday).getByRole('checkbox', { name: /acknowledge the warning \(U-14\)/ })).toBeInTheDocument();
   });
 
-  it('drops the earlier refusal\'s results when a 409 reloads the proposal (P5 carry-over)', async () => {
+  it('drops the earlier refusal\'s results when a 412 reloads the proposal (P5 carry-over; a 409 takes the same path)', async () => {
     const user = userEvent.setup();
     vi.spyOn(api, 'decideProposal')
       .mockRejectedValueOnce(
@@ -473,6 +477,7 @@ describe('the Proposals inbox (v1.3 P4)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Not sent: The shift on 2026-11-21 is accepted. Reload the proposal.',
     );
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveFocus());
     await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
   });
 

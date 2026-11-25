@@ -207,7 +207,7 @@ test.describe('@api shift proposals, the inbox (v1.3 P4)', () => {
     const pane = page.getByRole('region', { name: 'Selected proposal' });
     await expect(pane.getByRole('heading', { name: 'Tara Nakamura' })).toBeVisible();
     await expect(pane.getByText(`${TAG}: free that Saturday and Friday (${run}).`)).toBeVisible();
-    await expect(pane.getByText(/ h of 80 h this pay period$/)).toBeVisible();
+    await expect(pane.getByText(/ h of 80 h now · [\d.]+ h after approval$/)).toBeVisible();
 
     const saturday = shiftRow(page, SAT_ROW);
     const friday = shiftRow(page, FRI_ROW);
@@ -306,11 +306,11 @@ test.describe('@api shift proposals, the inbox (v1.3 P4)', () => {
     const list = page.getByRole('list', { name: 'Proposals' });
     const tara = list.getByRole('button', { name: /Tara Nakamura/ });
     await expect(tara).toHaveCount(1);
-    await expect(tara).toContainText('Unit ADM · 2 shifts (1 on your units)');
-    await expect(tara).toContainText('Wed 30 Dec · E8 15:00 – 23:00 · Unit ADM');
+    await expect(tara).toContainText('Admissions · 2 shifts (1 on your units)');
+    await expect(tara).toContainText('Wed 30 Dec · E8 15:00 – 23:00 · Admissions');
     await expect(tara).not.toContainText('Unit B');
     const ellis = list.getByRole('button', { name: /Morgan Ellis/ });
-    await expect(ellis).toContainText('Sun 29 Nov · D8 07:00 – 15:00 · Unit SUP-L');
+    await expect(ellis).toContainText('Sun 29 Nov · D8 07:00 – 15:00 · Supervision · Living units');
 
     // Under All: Tara's planted Admissions shift that he declined; none of
     // this spec's Unit B proposals.

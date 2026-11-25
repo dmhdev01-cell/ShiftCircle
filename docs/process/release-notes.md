@@ -588,3 +588,19 @@ The fifth and last proposal PR. **No new screen and no new endpoint**; the demo 
 - **e2e:** `proposals-demo.spec.ts` (stack-wide: resets Dataset 100 before and after); `proposals-inbox.spec.ts` finds this run's cards by their shifts and its Chen test now checks the planted shifts he may see (and never a Unit B one) instead of an empty inbox; `proposals-officer.spec.ts` withdraws only its own proposals (by the run token in the note), so the planted Waiting one stays.
 
 Tests (measured on the branch, own compose project `sc-sc-p5`, port 18850): API **rules 140 + infrastructure 38 + api 421, 0 failures** (+1 `ProposalDecisionApiTest`; `DemoResetApiTest` and `SupervisorDatasetsApiTest` gain the planted-proposal and count assertions). The api module ran in three batches (planner classes; `PlannerApiTest` with the demo and proposal classes; the rest) because the one-JVM run was killed for memory (exit 137) on the shared Docker VM while another stack's suite ran; no test failed in any run. Web **659** in 63 files (+3: the withdraw id, the refusal's live offer count, the 409/412 reload), lint 0 errors (4 earlier warnings), `tsc -b` clean. Playwright `--project desktop-datasets` on a fresh stack at the code tip: **137 passed** (one worker; a two-worker run under host load ~20 timed out in unrelated specs). `check-audit-codes.sh`: 55, unchanged.
+
+**Gate fixes (review, security and UI test of PR #40).**
+- **Docs:** HANDOFF §9 no longer lists the built screens (the proposals inbox among them) as "not yet designed"; docs/07's My schedule row says the screen sends (P3); docs/07's reset text names the `proposals` step.
+- **Inbox header (UI M1):** the pay-period line read "72 h of 80 h · In overtime", the hours before approval beside a status worked out after it. It now reads "72 h of 80 h now · 80 h after approval" with **In overtime after approval**.
+- **Inbox (UI):** after **Send decision**, focus moves to the "Sent." outcome or the refusal instead of falling to the page. Cards name units by name ("Admissions", "Supervision · Living units"; a living unit stays "Unit B").
+- **`liveOffers`** (detail and refusal) counts only `OFFERED` offers, the ones an approval withdraws, so "withdraws N waiting offers" is exact; an `ACCEPTED` offer is not counted.
+- **Planted audit rows:** they now name the same people as the proposals: each send by its proposer, the decline by J. Chen, and the expiry by the system. A failure while planting at boot is logged and boot goes on.
+- **Privacy wording:** the privacy test and ADR-032 say exactly what the card hides and what the detail shows by design.
+- **Tests:**
+  - `ProposalDecisionApiTest` asserts the refusal's `openShiftId`/`liveOffers`.
+  - `DemoResetApiTest` asserts the boot-path planting and its six audit rows before any reset.
+  - `SupervisorDatasetsApiTest` pins the 120/150 dates (23 and 31 Dec).
+  - New `DemoPlantedProposalsBootTest`.
+  - Web: the header, focus and unit-label tests.
+  - `proposals-demo.spec.ts` now also asserts the pay-period lines, the "Not on your units" line, the focus and the audit rows; demo-script §8 says exactly what it asserts.
+- **Not done:** the plan's P5 "contract samples" (no proposals sample in `web/src/api/contract-samples/`; the shapes are covered by the types and tests). ADR-031 is reserved for the supervisor posts and is written with the supervisors' docs (S8).

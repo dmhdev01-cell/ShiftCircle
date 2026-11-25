@@ -209,3 +209,14 @@ export function currentMatch(
     outOfOrder: fresh.outOfOrder ?? false,
   };
 }
+
+/**
+ * A unit's card label from its name (P5 UI gate): "Admissions" and
+ * "Supervision · Living units" rather than "Unit ADM" / "Unit SUP-L"; a living
+ * unit keeps its short "Unit B". Falls back to the code while units load.
+ */
+export function unitLabel(code: string, names: Map<string, string>): string {
+  const name = names.get(code);
+  if (!name) return `Unit ${code}`;
+  return name.startsWith('Unit ') ? name.split(' · ')[0] : name;
+}

@@ -502,8 +502,11 @@ class ProposalDecisionApiTest {
   }
 
   /**
-   * P5 carry-over (privacy, mixed scope): a card names only the shifts on the caller's units. Ellis
-   * learns there is a second shift (the count) but not where or when; Chen the same the other way.
+   * P5 carry-over (privacy, mixed scope): the inbox CARD names only the shifts on the caller's
+   * units. On the card Ellis learns there is a second shift (the count) but not where or when;
+   * Chen the same the other way. The DETAIL, by design (docs/07 §4.4), lists the other shift with
+   * its unit, time and decision but no rule detail and no action
+   * ({@link #aSupervisorDecidesOnlyTheShiftsOnTheirUnits}).
    */
   @Test
   void aMixedScopeCardShowsEachSupervisorOnlyTheShiftsOnTheirUnits() throws Exception {
@@ -712,7 +715,8 @@ class ProposalDecisionApiTest {
     assertThat(match.get("otOrderPosition")).isEqualTo(1);
     assertThat(match.get("otOrderSize")).isEqualTo(3);
     assertThat(match.get("outOfOrder")).isEqualTo(false);
-    assertThat(match.get("liveOffers")).isEqualTo(2);
+    // Only the OFFERED offer is withdrawn by an approval, so only it counts (P5 review).
+    assertThat(match.get("liveOffers")).isEqualTo(1);
 
     HttpResponse<String> approved = decideRaw("m.ellis", proposal, "\"0\"", accept(itemId(proposal, 0)));
     assertThat(approved.statusCode()).as(approved.body()).isEqualTo(200);
@@ -749,14 +753,24 @@ class ProposalDecisionApiTest {
     Map<String, Object> proposal =
         send("t.nakamura", item(UNIT_B, "D8", "2026-11-25T07:00:00-06:00"));
     UUID item = itemId(proposal, 0);
+    // Offers sent after the detail was read: the refusal says the current count (P5 carry-over),
+    // and an ACCEPTED offer, which an approval does not withdraw, is not counted.
+    insertOffer(openShift, OTHER);
+    UUID accepted = insertOffer(openShift, ELLIS);
+    jdbc.update("UPDATE overtime_offer SET status = 'ACCEPTED' WHERE id = ?", accepted);
+    String statusBefore =
+        jdbc.queryForObject("SELECT status FROM open_shift WHERE id = ?", String.class, openShift);
 
     HttpResponse<String> refused = decideRaw("m.ellis", proposal, "\"0\"", accept(item));
     assertThat(refused.statusCode()).isEqualTo(422);
     Map<String, Object> problem = json(refused);
     assertThat((String) problem.get("type")).endsWith("/out-of-overtime-order");
     assertThat(list(problem, "items").get(0).get("otOrderPosition")).isEqualTo(2);
+    assertThat(list(problem, "items").get(0).get("openShiftId")).isEqualTo(openShift.toString());
+    assertThat(list(problem, "items").get(0).get("liveOffers")).isEqualTo(1);
+    // Refused: the open shift is not filled.
     assertThat(jdbc.queryForObject("SELECT status FROM open_shift WHERE id = ?", String.class, openShift))
-        .isEqualTo("OPEN");
+        .isEqualTo(statusBefore);
 
     Map<String, Object> acknowledged = accept(item);
     acknowledged.put("acknowledgeOutOfOrder", true);
