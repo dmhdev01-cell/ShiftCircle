@@ -112,9 +112,10 @@ test.describe('plan options', () => {
     await expect(page.getByRole('note', { name: 'Compared with the previous draft' })).toContainText(
       `gaps covered from other units 0 → ${coveredCount}`,
     );
-    // Why the rest are still short (Dataset 150, seed 20261001).
+    // Why the rest are still short (Dataset 150, seed 20261001). Since release v1.3 S4 the line
+    // counts the supervisor posts too (the officers' part was 46 / 14 / 12).
     await expect(page.getByTestId('still-short')).toContainText(
-      'Still short: 46 not qualified · 14 no hours left · 12 would break a rule.',
+      'Still short: 46 not qualified · 12 no shift that fits · 57 no hours left · 22 would break a rule.',
     );
 
     // The roster marks an officer placed from another unit.
