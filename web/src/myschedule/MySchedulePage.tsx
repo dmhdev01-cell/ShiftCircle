@@ -164,16 +164,32 @@ export function MySchedulePage() {
   const [proposalsKey, setProposalsKey] = useState(0);
   const location = useLocation();
   const loaded = scheduleState.kind === 'ready';
-  const offersSettled = offersState.kind !== 'loading';
 
   // /me/propose redirects to #propose (or #my-proposals): bring that card into
-  // view once the page has drawn it, and again once the offers above it have
-  // loaded and pushed it down.
+  // view once the page has drawn it, and keep it there for a moment while the
+  // offers above it load and push it down. Any scroll, touch or key by the
+  // person stops it at once.
   useEffect(() => {
     if (!loaded || !location.hash) return;
     const target = document.getElementById(location.hash.slice(1));
-    if (target && typeof target.scrollIntoView === 'function') target.scrollIntoView();
-  }, [loaded, offersSettled, location.hash]);
+    if (!target || typeof target.scrollIntoView !== 'function') return;
+    target.scrollIntoView();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => target.scrollIntoView());
+    observer.observe(document.body);
+    const stop = () => {
+      observer.disconnect();
+      window.clearTimeout(timer);
+      for (const name of ['wheel', 'touchstart', 'keydown', 'mousedown'] as const) {
+        window.removeEventListener(name, stop);
+      }
+    };
+    const timer = window.setTimeout(stop, 2000);
+    for (const name of ['wheel', 'touchstart', 'keydown', 'mousedown'] as const) {
+      window.addEventListener(name, stop, { passive: true });
+    }
+    return stop;
+  }, [loaded, location.hash]);
 
   if (scheduleState.kind === 'loading') {
     return (
