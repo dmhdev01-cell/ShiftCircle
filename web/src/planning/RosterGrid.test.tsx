@@ -68,3 +68,21 @@ describe('the roster grid totals (A1)', () => {
     expect(screen.getByLabelText('0 on duty, 0 h')).toBeInTheDocument();
   });
 });
+
+describe('an officer placed from another unit (v1.2 cross-unit fill)', () => {
+  it('marks the row "From" the home unit, and only that row', () => {
+    const away = {
+      ...payload,
+      officers: [{ ...payload.officers[0], homeUnit: 'Unit A · Living unit' }, payload.officers[1]],
+    } as SchedulePayload;
+    render(
+      <ThemeProvider theme={theme}>
+        <RosterGrid payload={away} today="2026-11-19" />
+      </ThemeProvider>,
+    );
+    const markers = screen.getAllByTestId('from-unit');
+    expect(markers).toHaveLength(1);
+    expect(markers[0]).toHaveTextContent('From Unit A');
+    expect(markers[0].closest('tr')).toHaveAttribute('data-officer-name', 'Ann');
+  });
+});

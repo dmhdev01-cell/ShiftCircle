@@ -25,6 +25,7 @@ import type {
   PlannerWarningGroup,
   PlannerCompare,
   PlanInputs,
+  PlanOptions,
   StaffingReport,
   FlaggedShift,
 } from '../api/types';
@@ -38,6 +39,16 @@ import { GapStrip } from './GapStrip';
 import { gapRuns, partTimeCapacity, quarterWeeks, reasonWords, shortWords, staffedWords } from './quarterPlan';
 import { DatasetBanner } from './DatasetBanner';
 import { PlanInputsCard } from './PlanInputsCard';
+import { PlanOptionsFields } from './PlanOptionsFields';
+import {
+  DEFAULT_PLAN_OPTIONS,
+  draftDeltaWords,
+  draftFigures,
+  draftOptions,
+  optionsForRequest,
+  planOptionsWords,
+  stillShortWords,
+} from './planOptions';
 import { useRole } from '../shell/nav';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
@@ -120,6 +131,18 @@ function windowWords(from: string, to: string): string {
   return `${day(start)} ${month(start)} – ${day(end)} ${month(end)} ${year(end)}`;
 }
 
+/** The scorecard's part-time line ends with how this draft filled part-time officers. */
+function fillWords(options: PlanOptions, committed: boolean): string {
+  const subject = committed ? 'This plan' : 'This draft';
+  if (!options.staffTypes.includes('PART_TIME')) {
+    return `${subject} was made with full-time officers only, so no part-time hours were planned.`;
+  }
+  if (options.partTimeFill === 'UP_TO_FTE') {
+    return `${subject} filled part-time officers up to their FTE target in their home unit where the rules allowed, after the gaps.`;
+  }
+  return 'Part-time hours are not guaranteed: each part-time officer is planned only into shifts still open in their home unit, up to their FTE target.';
+}
+
 /** "1.4 s" for a millisecond figure. */
 function seconds(ms: number): string {
   return `${(ms / 1000).toFixed(1)} s`;
@@ -171,6 +194,11 @@ export function PlannerPage() {
     setSearchParams(params, { replace: true });
   };
   const [seed, setSeed] = useState('');
+  const [options, setOptions] = useState<PlanOptions>(DEFAULT_PLAN_OPTIONS);
+  // A stable key for the effect that refetches the inputs when an option changes.
+  const optionsKey = JSON.stringify(optionsForRequest(options));
+  // After Generate again: the figures against the draft it replaced.
+  const [delta, setDelta] = useState<string | null>(null);
   const [busy, setBusy] = useState<null | 'generate' | 'commit' | 'discard'>(null);
   const [explain, setExplain] = useState<string | null>(null);
   const [explainGroup, setExplainGroup] = useState<string | null>(null);
@@ -229,8 +257,9 @@ export function PlannerPage() {
   useEffect(() => {
     if (!isPlanner) return;
     let active = true;
+    // PR-N: with the form's options, so "what Generate will use" matches the form.
     void api
-      .getPlannerInputs()
+      .getPlannerInputs(optionsForRequest(JSON.parse(optionsKey) as PlanOptions))
       .then((next) => {
         if (active) setLiveInputs(next);
       })
@@ -240,7 +269,7 @@ export function PlannerPage() {
     return () => {
       active = false;
     };
-  }, [isPlanner, inputsVersion]);
+  }, [isPlanner, inputsVersion, optionsKey]);
 
   const refreshStaffing = useCallback(async () => {
     setInputsVersion((value) => value + 1);
@@ -359,9 +388,13 @@ export function PlannerPage() {
     setBusy('generate');
     setMessage(null);
     setRefusal(null);
+    setDelta(null);
+    const previous =
+      draft && compare ? draftFigures(draft.scorecard, compare.draftShifts) : null;
     try {
       const created = await api.createPlannerDraft({
         seed: seedValue,
+        ...optionsForRequest(options),
       });
       setPlan({ ...plan, draft: created, state: 'DRAFT' });
       setInputsVersion((value) => value + 1);
@@ -374,6 +407,9 @@ export function PlannerPage() {
       setGaps(gapRows);
       setWarnings(warningRows);
       setCompare(comparison);
+      if (previous) {
+        setDelta(draftDeltaWords(previous, draftFigures(created.scorecard, comparison.draftShifts)));
+      }
       setMessage(
         `Draft generated: ${created.scorecard.coverage.shortBlockDays} block-days short, ${created.scorecard.warnings.total} warnings, took ${seconds(created.generatedMs)}.`,
       );
@@ -477,6 +513,9 @@ export function PlannerPage() {
       setCommitted(null);
       setMessage('The draft was discarded. Nothing on the planning board changed.');
       setInputsVersion((value) => value + 1);
+      // The landing card starts again from the defaults it describes.
+      setOptions(DEFAULT_PLAN_OPTIONS);
+      setDelta(null);
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'The draft could not be discarded.');
@@ -536,6 +575,11 @@ export function PlannerPage() {
               {status.line}
             </Typography>
           </Box>
+          {planDraft ? (
+            <Typography data-testid="plan-options-used" sx={{ fontSize: 13, color: colour.text.secondary }}>
+              Made with: {planOptionsWords(draftOptions(planDraft))}
+            </Typography>
+          ) : null}
         </Box>
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 2.5 }}>
@@ -562,7 +606,11 @@ export function PlannerPage() {
                 variant="outlined"
                 color="primary"
                 disabled={busy !== null || !seedOk}
-                onClick={() => setReplaceOpen(true)}
+                onClick={() => {
+                  // Start from what the last draft was made with.
+                  setOptions(draftOptions(draft));
+                  setReplaceOpen(true);
+                }}
               >
                 Generate again
               </Button>
@@ -605,6 +653,21 @@ export function PlannerPage() {
             : 'Building a plan'}{' '}
           and checking every shift against the rules. This usually takes a few seconds.
         </Typography>
+      ) : null}
+
+      {delta ? (
+        <Box
+          role="note"
+          aria-label="Compared with the previous draft"
+          sx={{
+            p: '10px 12px',
+            borderRadius: '8px',
+            backgroundColor: colour.bg.subtle,
+            fontSize: 13,
+          }}
+        >
+          {delta}
+        </Box>
       ) : null}
 
       {message ? (
@@ -701,6 +764,14 @@ export function PlannerPage() {
               Generate a draft to see coverage, rule warnings, preferences and fairness before
               anything changes. A draft never reaches the planning board until you commit it.
             </Typography>
+            <Typography component="h2" sx={{ m: 0, mt: 1, fontSize: 15, fontWeight: 700 }}>
+              Plan options
+            </Typography>
+            <Typography sx={{ fontSize: 13, color: colour.text.secondary, mt: -1 }}>
+              The defaults make the same plan as before. The scorecard shows the effect of each
+              choice.
+            </Typography>
+            <PlanOptionsFields value={options} onChange={setOptions} disabled={busy !== null} />
           </CardContent>
         </Card>
       ) : null}
@@ -849,8 +920,13 @@ export function PlannerPage() {
                     sx={{
                       p: '10px 12px',
                       borderRadius: '8px',
-                      backgroundColor: partTime.unused > 0 ? colour.status.warn.bg : colour.bg.subtle,
-                      color: partTime.unused > 0 ? colour.status.warn.text : colour.text.secondary,
+                      // Amber only when a real share of the part-time target goes unused.
+                      backgroundColor:
+                        partTime.unused > partTime.target * 0.1 ? colour.status.warn.bg : colour.bg.subtle,
+                      color:
+                        partTime.unused > partTime.target * 0.1
+                          ? colour.status.warn.text
+                          : colour.text.secondary,
                       fontSize: 13,
                     }}
                   >
@@ -859,12 +935,57 @@ export function PlannerPage() {
                     </Box>{' '}
                     Part-time officers are planned {hours(partTime.planned)} of their {hours(partTime.target)} target
                     this quarter, while {scorecard.coverage.shortBlockDays.toLocaleString('en-CA')} block-day
-                    {scorecard.coverage.shortBlockDays === 1 ? ' stays' : 's stay'} short. Part-time hours are not
-                    guaranteed: each part-time officer is planned only into shifts still open in their home unit, up to
-                    their FTE target.
+                    {scorecard.coverage.shortBlockDays === 1 ? ' stays' : 's stay'} short.{' '}
+                    {fillWords(draftOptions(planDraft), !draft)}
                   </Box>
                 );
               })()}
+
+              {scorecard.crossUnit
+                ? (() => {
+                    const cross = scorecard.crossUnit;
+                    const short = stillShortWords(cross, (code) => unitWords(code).split(' · ')[0]);
+                    return (
+                      <Box
+                        role="note"
+                        aria-label="Gaps covered from other units"
+                        sx={{
+                          p: '10px 12px',
+                          borderRadius: '8px',
+                          backgroundColor: colour.status.info.bg,
+                          color: colour.status.info.text,
+                          fontSize: 13,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 0.5,
+                        }}
+                      >
+                        {short.zero ? (
+                          <Box component="span" sx={{ fontWeight: 700 }}>
+                            {short.zero}
+                          </Box>
+                        ) : (
+                          <span>
+                            <Box component="span" sx={{ fontWeight: 700 }}>
+                              {cross.gapsCovered.toLocaleString('en-CA')}{' '}
+                              {cross.gapsCovered === 1 ? 'gap' : 'gaps'} covered from other units.
+                            </Box>{' '}
+                            {cross.shifts.toLocaleString('en-CA')} {cross.shifts === 1 ? 'shift' : 'shifts'} by{' '}
+                            {cross.officers.toLocaleString('en-CA')}{' '}
+                            {cross.officers === 1 ? 'officer' : 'officers'} from another unit, each qualified for
+                            the post and within their FTE hours; the roster marks them &quot;From&quot; their unit.
+                          </span>
+                        )}
+                        {short.reasons ? (
+                          <span data-testid="still-short">
+                            {short.reasons} {short.where ?? ''}
+                          </span>
+                        ) : null}
+                        <span>Measured when the {draft ? 'draft' : 'plan'} was generated.</span>
+                      </Box>
+                    );
+                  })()
+                : null}
 
               {explain && (TILE_HELP[explain] || (explain === 'Needed (at least)' && staffing)) ? (
                 <Box
@@ -1430,7 +1551,7 @@ export function PlannerPage() {
         </>
       ) : null}
 
-      <Dialog open={replaceOpen} onClose={() => setReplaceOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog open={replaceOpen} onClose={() => setReplaceOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontSize: 18, fontWeight: 700 }}>
           {(draft?.handEdits ?? 0) > 0 ? 'Generate a new draft?' : 'Replace this draft?'}
         </DialogTitle>
@@ -1446,6 +1567,18 @@ export function PlannerPage() {
               changes.
             </Typography>
           )}
+          <Typography component="h3" sx={{ m: 0, mt: 2.5, mb: 1, fontSize: 15, fontWeight: 700 }}>
+            Plan options
+          </Typography>
+          <Typography sx={{ fontSize: 13, color: colour.text.secondary, mb: 1.5 }}>
+            Filled in from this draft. Change any of them, then generate.
+          </Typography>
+          <PlanOptionsFields
+            value={options}
+            onChange={setOptions}
+            disabled={busy !== null}
+            idPrefix="plan-options-again"
+          />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
           <Button variant="outlined" color="primary" onClick={() => setReplaceOpen(false)}>
