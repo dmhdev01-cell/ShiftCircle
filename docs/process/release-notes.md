@@ -331,6 +331,11 @@ the draft keeps each rank on its own posts, and the scorecard, commit preview, c
 carry the split. `UnitApiTest` (+1): closing a supervisor post is a 409 and writes nothing.
 `GeneratorCharacterizationTest` is green with no edits.
 
+**Counts at this gate** (GitHub CI on the pull request, with main's PR-Q merged in): API **549 = 140
+rules + 36 infrastructure + 373 api** (`mvn verify`, 0 failures, errors or skipped); web unit tests
+**602** in 58 files, lint, `tsc -b` and build clean; check scripts pass. No web change, so Playwright
+was not re-run.
+
 **Not in this release** (the rest of the plan):
 the supervisor posts and the demo supervisors in the datasets with the
 single re-pin (S4), the overtime pools and the self-edit guard (S5), and the board, My schedule,
