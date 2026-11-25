@@ -14,13 +14,13 @@ the host.
 One command. It needs a bash shell (macOS, Linux, or Git Bash/WSL on Windows), `curl`, `git`, Docker with Compose v2, a running Docker daemon and a free port. It clones into `./ShiftCircle`, creates `.env` with freshly generated random secrets that it never prints, runs `docker compose up -d --build --wait`, checks `/healthz` and `/api/v1/version`, and prints the URL:
 
 ```sh
-curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.1.1-submission/install.sh && bash install.sh
+curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.1.2-submission/install.sh && bash install.sh
 ```
 
 A failed download stops at the `curl` step with a non-zero exit. (`curl -fsSL <url> | bash` also works, because the script does nothing until it has all been read, but the pipe reports bash's exit status, so a failed download looks like success.) The safest way is to read it first:
 
 ```sh
-curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.1.1-submission/install.sh
+curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.1.2-submission/install.sh
 less install.sh
 bash install.sh
 ```

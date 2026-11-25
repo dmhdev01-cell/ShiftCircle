@@ -270,6 +270,20 @@ test.describe('dataset 120', () => {
     expect(count, 'the Gaps tab counts the short block-days').toBeGreaterThan(20);
     // Quarter plan readability (A6–A8 and the part-time line) on this plan.
     await page.getByRole('tab', { name: 'Scorecard' }).click();
+    // D1 (v1.1.2-submission): the api sends `shortfall`; the tile and the
+    // Staffing panel must show it, not "Short 0 / Meets the floor".
+    const staffing = await planner.get<{ periods: { totals: { needed: number; filled: number; shortfall: number } }[] }>(
+      '/planner/staffing',
+    );
+    const worst = staffing.periods.reduce((best, entry) =>
+      entry.totals.shortfall > best.totals.shortfall ? entry : best,
+    );
+    expect(worst.totals.shortfall, 'dataset 120 has units short of the floor').toBeGreaterThan(0);
+    await expect(page.getByText(`${worst.totals.filled} on staff · short ${worst.totals.shortfall}`).first()).toBeVisible();
+    await expect(
+      page.getByText(`Do we need more staff? Yes, at least ${staffing.periods[0].totals.shortfall} more:`, { exact: false }),
+    ).toBeVisible();
+    await expect(page.getByText(/meets the floor/i)).toHaveCount(0);
     await checkQuarterPlanReadability(page, request, testInfo);
     await signOut(page, 'P. Planner');
 

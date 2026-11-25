@@ -74,3 +74,9 @@ Everything merged to `main` after tag `v1.0-submission` (`efba3f7`), through six
 Install-only change on top of v1.1: `install.sh` at the repo root (prerequisite checks, pinned clone, generated secrets never printed, `docker compose up -d --build --wait`, health checks, idempotent re-run, never `down -v`), a Quick install section in README and INSTALL, and a CI step running `bash -n` and shellcheck. No application, rules, data or test change; the v1.1 counts stand. Tag: `v1.1.1-submission`.
 
 **Release step:** after merge, tag the merge commit `v1.1.1-submission` and push the tag, then run `scripts/check-install-pin.sh --remote` and the README one-liner once from an empty directory (free port, own `SHIFTCIRCLE_PROJECT`).
+
+## Release 11.2 (v1.1.2): staffing shortfall shown again
+
+One fix on top of v1.1.1, cut from branch `release/v1.1.x` (not `main`; `main` gets the same fix separately). On the quarter plan, the **Staffing by unit** panel and the **Needed (at least)** tile always read "Short 0" and "Meets the floor", even when units were short of the floor. The API sends `shortfall` and the web read `short`, which was always missing. The web now reads `shortfall`; the API is unchanged. A web unit test parses the API's JSON shape and checks the tile and the panel, and the Dataset 120 Playwright spec checks both against `/planner/staffing`. Web unit tests **533** (+1); API and Playwright test counts are unchanged (the Playwright check adds assertions to an existing test). No rules, data or migration change. Tag: `v1.1.2-submission`.
+
+**Release step:** tag the head of `release/v1.1.x` `v1.1.2-submission` and push the tag, then run `scripts/check-install-pin.sh --remote` and the README one-liner once from an empty directory (free port, own `SHIFTCIRCLE_PROJECT`).

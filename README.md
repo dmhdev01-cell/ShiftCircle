@@ -47,13 +47,13 @@ The build process is kept apart from the product docs, in [docs/process/](docs/p
 One command. It needs a bash shell (macOS, Linux, or Git Bash/WSL on Windows), `curl`, `git`, Docker with Compose v2, a running Docker daemon and a free port. It clones into `./ShiftCircle`, creates `.env` with freshly generated random secrets that it never prints, runs `docker compose up -d --build --wait`, checks `/healthz` and `/api/v1/version`, and prints the URL:
 
 ```sh
-curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.1.1-submission/install.sh && bash install.sh
+curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.1.2-submission/install.sh && bash install.sh
 ```
 
 A failed download stops at the `curl` step with a non-zero exit. (`curl -fsSL <url> | bash` also works, because the script does nothing until it has all been read, but the pipe reports bash's exit status, so a failed download looks like success.) The safest way is to read it first:
 
 ```sh
-curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.1.1-submission/install.sh
+curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.1.2-submission/install.sh
 less install.sh
 bash install.sh
 ```
@@ -210,9 +210,9 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
 
 **Port:** the e2e commands read `SC_WEB_PORT` from your shell and fall back to 8080. If you changed the port in `.env`, also `export SC_WEB_PORT=<port>` in the shell where you run them (or edit `BASE_URL`). `host.docker.internal` reaches the host from a container on Docker Desktop; the `--add-host` line makes the same name work on Docker Engine (run on macOS; on Linux it is **UNVERIFIED**, and `--network host` with `BASE_URL=http://localhost:${SC_WEB_PORT:-8080}` is the alternative). `E2E_WORKERS` (default 2) sets parallelism; `tests/screenshots.spec.ts` writes full-page captures and `index.json` to `SHOTS_DIR` (default `/private/tmp/sc-ui-shots/<RUN_ID>`, outside the repository: mount it the same way when the browser runs in Docker); the HTML report is `playwright-report/`. The fixtures-mode web and the `@api` / `@fixtures` tags are in `e2e/README.md`.
 
-**Count:** API and Playwright counts run on `5a38580` (24 Nov 2026: release 11 plus the PR-H rules-wording fix; the web unit tests below were re-counted at `8ae4bbd`, PR #22's head), on a fresh stack per viewport (the API suite in GitHub CI, `mvn verify` on PR #19):
+**Count:** API and Playwright counts run on `5a38580` (24 Nov 2026: release 11 plus the PR-H rules-wording fix; the web unit tests below were re-counted at `v1.1.2-submission`), on a fresh stack per viewport (the API suite in GitHub CI, `mvn verify` on PR #19):
 - API: **470 = 127 rules + 28 infrastructure + 315 api tests**, `mvn verify` green in the default class order, 0 failures/errors/skipped.
-- Web unit tests (at `8ae4bbd`): **532** in 54 files; lint 0 errors (4 warnings); `tsc -b` clean.
+- Web unit tests (at `v1.1.2-submission`): **533** in 54 files; lint 0 errors (4 warnings); `tsc -b` clean.
 - Playwright against the real API, whole suite per viewport (`--project desktop-datasets` and `--project tablet-datasets`, which run the parallel specs and then the stack-wide specs one at a time): desktop **124 passed**; tablet **123 passed and 1 skipped** (the TV-size check runs on desktop only); no failures on either.
 - Fixtures: **23 passed**, 79 skipped (they need the real API), no failures.
 

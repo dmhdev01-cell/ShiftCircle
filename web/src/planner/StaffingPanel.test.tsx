@@ -15,7 +15,7 @@ function unit(overrides: Partial<StaffingUnitRow> & { unitId: string }): Staffin
     allocated: 25,
     filled: 25,
     needed: 25,
-    short: 0,
+    shortfall: 0,
     breakdown: { posts12Day: 5, posts12Night: 4, posts8: 1, rawNeeded: 19.4, leaveAllowance: 0.2, needed: 25 },
     ...overrides,
   };
@@ -27,9 +27,9 @@ function period(units: StaffingUnitRow[], from = '2027-01-04', to = '2027-04-11'
       allocated: sum.allocated + row.allocated,
       filled: sum.filled + row.filled,
       needed: sum.needed + row.needed,
-      short: sum.short + row.short,
+      shortfall: sum.shortfall + row.shortfall,
     }),
-    { allocated: 0, filled: 0, needed: 0, short: 0 },
+    { allocated: 0, filled: 0, needed: 0, shortfall: 0 },
   );
   return { from, to, units, totals };
 }
@@ -56,7 +56,7 @@ describe('the staffing floor wording', () => {
     expect(tile.tone).toBe('info');
     expect(tile.pill).toEqual({ tone: 'info', text: 'Meets the floor' });
 
-    const short = report([period([unit({ unitId: 'unit-c', short: 2, needed: 27 })])]);
+    const short = report([period([unit({ unitId: 'unit-c', shortfall: 2, needed: 27 })])]);
     expect(staffingTile(short).pill).toEqual({ tone: 'warn', text: 'Short' });
     expect(staffingTile(short).note).toBe('25 on staff · short 2');
     expect(staffingTile(short).tone).toBe('warn');
@@ -111,8 +111,8 @@ describe('the staffing floor wording', () => {
   it('says at least how many more, per unit, and adds the draft gaps', () => {
     const short = report([
       period([
-        unit({ unitId: 'unit-c', short: 2, needed: 27 }),
-        unit({ unitId: 'unit-a', short: 1, needed: 26, unitName: 'Escort & transport', unitCode: 'ESC' }),
+        unit({ unitId: 'unit-c', shortfall: 2, needed: 27 }),
+        unit({ unitId: 'unit-a', shortfall: 1, needed: 26, unitName: 'Escort & transport', unitCode: 'ESC' }),
       ]),
     ]);
     renderPanel(short, 9);
@@ -144,5 +144,64 @@ describe('the staffing floor wording', () => {
     // A closed unit's needed cell reads 0 with 'closed' under it.
     const row = screen.getByRole('row', { name: /Unit C/ });
     expect(within(row).getByText('closed')).toBeInTheDocument();
+  });
+});
+
+/**
+ * D1 (v1.1.2-submission): the api's StaffingUnit/StaffingTotals records send
+ * `shortfall` (UnitsViews.java). The web read `short`, so a short unit showed
+ * Short 0 and "Meets the floor". This payload is the wire shape, parsed from
+ * JSON the way the http client does, so the test pins the contract.
+ */
+describe('the staffing report as the api sends it', () => {
+  const wire = JSON.stringify({
+    leaveAllowance: 0.2,
+    note: 'Officers are unit-specific.',
+    truncated: false,
+    periods: [
+      {
+        from: '2027-01-04',
+        to: '2027-04-11',
+        units: [
+          {
+            unitId: 'unit-b',
+            unitCode: 'B',
+            unitName: 'Unit B · Living unit',
+            closed: false,
+            allocated: 14,
+            filled: 14,
+            needed: 15,
+            shortfall: 1,
+            breakdown: { posts12Day: 0, posts12Night: 0, posts8: 3, rawNeeded: 12.3, leaveAllowance: 0.2, needed: 15 },
+          },
+          {
+            unitId: 'unit-esc',
+            unitCode: 'ESC',
+            unitName: 'Escort & transport',
+            closed: false,
+            allocated: 21,
+            filled: 21,
+            needed: 24,
+            shortfall: 3,
+            breakdown: { posts12Day: 2, posts12Night: 1, posts8: 1, rawNeeded: 19.9, leaveAllowance: 0.2, needed: 24 },
+          },
+        ],
+        totals: { allocated: 35, filled: 35, needed: 39, shortfall: 4 },
+      },
+    ],
+  });
+
+  it('shows the shortfall on the Needed (at least) tile and in the panel', () => {
+    const value = JSON.parse(wire) as StaffingReport;
+    const tile = staffingTile(value);
+    expect(tile.pill).toEqual({ tone: 'warn', text: 'Short' });
+    expect(tile.note).toBe('35 on staff · short 4');
+
+    renderPanel(value, null);
+    expect(
+      screen.getByText('Do we need more staff? Yes, at least 4 more: Unit B (1), Escort & transport (3).'),
+    ).toBeInTheDocument();
+    const row = screen.getByRole('row', { name: /Escort & transport/ });
+    expect(within(row).getByText('3')).toBeInTheDocument();
   });
 });
