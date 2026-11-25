@@ -137,7 +137,7 @@ No api, migration, generator or rules change: dataset checksums, the payroll gol
 
 The owner approved the plan in `.factory/plans/v1.2-supervisors.md` (the plan file still says v1.2; the
 release was split afterwards, so it is v1.3 here). The work is eight small pull requests, **S1 to S8**;
-this entry covers **S1** and **S2**. The plan is not in the repository, so this section is the record of what
+this entry covers **S1** to **S3**. The plan is not in the repository, so this section is the record of what
 these pull requests did.
 
 ### S1 — Positions and the SUPERVISION kind (API, schema only)
@@ -287,8 +287,73 @@ them are fixed in one push:
   through the compose `api-test` stage, `BUILD SUCCESS`); web unit tests **578** in 56 files, lint 0
   errors, `tsc -b` and build clean. Playwright: see the pull request.
 
+### S3 — The rank-aware planner (API)
+
+Stacked on S2 (#29), with main (the quarter-plan options, PR #24) merged in. The owner approved the
+plan's answers: the planner never cross-covers, supervisors get their own scorecard card, and
+seniority is counted inside the rank. There are still no supervisors or supervisor posts in the
+datasets (S4 adds them), so **no pin moves**.
+
+**What it does.**
+- **The planner never cross-covers.** Every placement pass offers a supervisor only a supervisor
+  post (a `SUPERVISION` unit) and an officer only an officer post: the home-unit fill, the casual
+  pool, closed-unit relief, the cross-unit fill (*Cover gaps from other units*, PR-N) and the
+  part-time top-up (*Fill up to FTE*). The guard sits before the rule check, so the engine is never
+  even asked about a cross-rank proposal, and R-01/R-02 never fire on a generated row. Cross-cover
+  stays a person's decision on the board or in a draft edit, where R-01/R-02 apply. S2's planner test
+  changes with it: the acting officer is no longer placed on the test post by relief, so the whole
+  post is a gap.
+- **Seniority inside the rank.** The planner's seniority sort, the night order (volunteers most
+  senior first, then the newest), the 8 h block choice, the casual, relief, cross-unit and top-up
+  orders and the night-fairness card read `rankSeniority` = `coalesce(position_since,
+  seniority_date)`. For an officer that is the service date, so every officer ordering is unchanged.
+- **The scorecard.** Every existing card counts the officers and the officer units only. A new
+  `supervisors` card (only when there is a supervisor or a supervisor post) gives the posts covered
+  *x* of *y* block-days, gaps, warnings, preferences, nights by rank seniority, overtime, hours by
+  FTE band and leave. `totals` counts everyone with the split ("5,103 officer + 1,170 supervisor
+  shifts"): shifts and people by rank, warnings by the post they were raised on.
+- **Generate, compare and commit views.** The commit preview adds `supervisors`, `officerShifts`
+  and `supervisorShifts` (`officers` is now officers only); the commit result adds the two shift
+  counts and the `commit_plan` audit adds `supervisors`; compare counts officers only and, once a
+  supervisor or a post exists, adds Officer shifts, Supervisor shifts and Supervisors scheduled.
+- **Plan inputs** gain the position dimension: `officers.byPosition` (CO and CS), `lineUnits`,
+  `posts` and a `headline` ("150 officers + 12 supervisors in 6 units + 2 supervisor posts"); unit
+  rows carry `kind`, groups carry `position`. The web card shows the split in S7.
+- **A supervisor post can't be closed.** `UnitsService` answers 409 "Supervisor posts can't be
+  closed; change the minimum instead" on the closure preview, add and change: closing one would
+  send its supervisors into the relief pool.
+
+**Tests.** `PlanGeneratorSupervisorTest` (6): a synthetic centre with two posts and ten supervisors
+beside two officer units, an officer unit and a post each closed for a week, every option on: no
+cross-rank placement or check in any pass; R-01/R-02 never fire; the officers' plan, gaps and every
+officer card are identical with and without the supervisors; the supervisor card and totals are
+exact (567 post block-days); a supervisor mis-homed on an officer unit is never placed there; and
+seniority inside the rank orders the pool. A mutation run (guard removed) fails 5 of the 6.
+`PlannerSupervisorApiTest` (3) adds a post and four supervisors to Dataset 100: plan inputs split,
+the draft keeps each rank on its own posts, and the scorecard, commit preview, compare and commit
+carry the split. `UnitApiTest` (+1): closing a supervisor post is a 409 and writes nothing.
+`GeneratorCharacterizationTest` is green with no edits.
+
+**The review round (S3).** The review approved (0 must, 2 should, 6 nits) and security passed (0
+findings); fixed in one push:
+- **The Audit log names the supervisors** a committed plan wrote ("6,273 shifts written · 107
+  officers · 10 supervisors · …"), only when there are any, so today's line is unchanged.
+- **The plan inputs fill order says each rank stays on its own posts**: officers fill officer
+  posts and supervisors fill supervisor posts in every step, and the last step no longer calls a
+  gap "a gap for a supervisor" but one left for a person to fill on the board.
+- **The supervisor card counts only the blocks a post has a minimum for**, so a post with no night
+  minimum is not "covered" on nights; the API test pins `coveredBlockDays`.
+- **Tests:** the mis-homed-supervisor test also asserts they are placed (on the posts); the fixture's
+  supervisors are promoted after they joined, as the schema requires; changing a closure that
+  reached a supervisor post another way is a 409 and writes nothing.
+
+**Counts at this gate** (GitHub CI on the pull request, with main's PR-Q merged in): API **549 = 140
+rules + 36 infrastructure + 373 api** (`mvn verify`, 0 failures, errors or skipped); web unit tests
+**602** in 58 files, lint, `tsc -b` and build clean; check scripts pass. No web change, so Playwright
+was not re-run.
+
 **Not in this release** (the rest of the plan):
-the rank-aware planner (S3), the supervisor posts and the demo supervisors in the datasets with the
+the supervisor posts and the demo supervisors in the datasets with the
 single re-pin (S4), the overtime pools and the self-edit guard (S5), and the board, My schedule,
 display and reports work (S6, S7).
 

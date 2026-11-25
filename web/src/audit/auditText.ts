@@ -214,6 +214,8 @@ function sentenceFor(action: string, after: Record<string, unknown>): string {
       return [
         shifts ? `${shifts} shifts written` : '',
         after.officers !== undefined ? `${count(after.officers)} officers` : '',
+        // v1.3: officers count officers only; supervisors are named once a plan has any.
+        Number(after.supervisors) > 0 ? `${count(after.supervisors)} supervisors` : '',
         after.warnings !== undefined ? `${count(after.warnings)} warnings accepted` : '',
         units ? `across ${units} units` : '',
       ]

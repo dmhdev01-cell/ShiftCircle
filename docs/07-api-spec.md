@@ -489,6 +489,36 @@ and `basis`: a committed plan is compared with the **current board, including su
 the commit**; an open draft is compared with the last committed plan (or the seeded roster before a
 commit). A committed id is never writable: commit/discard still refuse it.
 
+**Supervisors in the planner (release v1.3, S3).** The planner is rank-aware; nothing changes until
+there is a supervisor or a supervisor post (the datasets get them in S4), so every pin is unchanged.
+- **No cross-cover.** Every placement pass (the home-unit fill, the casual pool, closed-unit relief,
+  the cross-unit fill and the part-time top-up) offers a supervisor only a supervisor post (a unit of
+  kind `SUPERVISION`) and an officer only an officer post. Cross-cover is a person's decision on the
+  board or in a draft edit, where R-01/R-02 apply; R-01/R-02 never fire on a generated row.
+- **Seniority inside the rank.** The planner's seniority sort, the night order and the fill-pool
+  order read `coalesce(position_since, seniority_date)`; for an officer that is the service date.
+- **Scorecard.** Every existing card (`coverage`, `warnings`, `preferences`, `nights`, `overtime`,
+  `weekends`, `fteBands`, `quarterHours`, `patterns`, `absences`) counts the officers and the officer
+  units only. A `supervisors` card, present only when there is a supervisor or a supervisor post,
+  carries `{supervisors, posts, coverage:{coveredBlockDays, shortBlockDays, totalBlockDays}, shifts,
+  warnings, preferences, nights, overtime, fteBands, quarterHours, absences, line}` with the same
+  shapes as the officer cards; its `totalBlockDays` counts only the blocks a post has a minimum for
+  (the officer `coverage` card keeps its flat × 3). `totals` (always present) counts everyone: `{shifts, officerShifts,
+  supervisorShifts, people, officers, supervisors, warnings, officerPostWarnings,
+  supervisorPostWarnings, line}`; shifts and people split by the person's rank, warnings by the post
+  they were raised on; `line` reads "5,103 officer shifts" or "5,103 officer + 1,170 supervisor
+  shifts".
+- **Commit preview** adds `supervisors`, `officerShifts` and `supervisorShifts`; `shiftsToWrite`
+  still counts everyone and `officers` now counts the officers only. **Commit** adds
+  `officerShifts` and `supervisorShifts` beside `shiftsWritten`; the `commit_plan` audit `after`
+  adds `supervisors` (the Audit log line names them when there are any). **Compare** counts `officers` as officers only and, once there is a supervisor
+  or a supervisor post, adds the rows `officerShifts`, `supervisorShifts` and `supervisors`;
+  `preferencesMet` and the weekend rows read the officers, as the scorecard does.
+- **Plan inputs** add the position dimension: `officers.byPosition:[{position: CO\|CS, supervisory,
+  total, fullTime, partTime, fte}]` (both ranks, always), `officers.lineUnits`, `officers.posts` and
+  `officers.headline` ("150 officers + 12 supervisors in 6 units + 2 supervisor posts", or "150
+  officers in 6 units"); each unit row adds `kind` and `supervision`, and each group `position`.
+
 **Draft hand edits (release 7 #27).** A PLANNER may add, move time/unit, reassign one-way, or remove one shift in an uncommitted DRAFT. Draft rows live in `plan_draft_assignment`; the live board is untouched. Every save requires `If-Match` with the draft version (428/412) and uses the planner's `RuleCheckService` seam: a Block is 422 `blocked-by-rules` with ruleResults and saves nothing; a Warn without `acknowledgeWarnings:true` is 422 `warnings-need-acknowledgement` and saves nothing; here `acknowledgeWarnings` is a **boolean** (`true` keeps every Warn shown), unlike the supervisor's `POST /assignments`, which takes an **array** of Warn codes (`["U-14"]`); a Pass or acknowledged Warn writes one row, bumps the version, writes one `edit_plan_draft` audit row and recomputes gaps, warnings and the scorecard synchronously. DRAFT only (409 after commit/discard); closed unit, duplicate `(employee,start)`, unknown id, retired template, non-PLANNER and a busy reset/generate get plain problem details. No EMERGENCY override. Success: `{draftId, assignmentId, version, handEdits, editedAssignmentIds, scorecard, warnings, warningCount, gaps}`; `DraftSummary` carries `handEdits`/`editedAssignmentIds`, and roster shift items carry `edited:true` (derived from audit rows, no migration). Generate/discard delete edits; commit still re-verifies every row, edits included.
 
 **A draft is not a roster.****A draft is not a roster.** `plan_draft_assignment` is separate from `shift_assignment`; the
@@ -539,7 +569,7 @@ its seven 14-day pay periods and each unit's schedule periods, so it can be lock
 |---|---|---|---|
 | GET | `/planner/units` | Units with `today` (`OPEN`/`CLOSED`/`SWITCHED_OFF`), `todayNote`, `allocated`, `filled` and `closures` (`id`, `closedFrom`, `reopensOn|null`, `reason`, `createdBy`, `createdAt`, `state` `FUTURE`/`CURRENT`/`ENDED`) | PLANNER |
 | POST | `/planner/units/{id}/closures/preview` | `{closedFrom, reopensOn?}` → `{officersHomed, publishedShiftsAffected}`; no write | PLANNER |
-| POST · PUT · DELETE | `/planner/units/{id}/closures[/{closureId}]` | Close from a date, change/reopen, or remove; reason required (>=5 characters). 400 plain messages for a past closing date, reopening not after closing, an overlapping closure, or a short reason; 404 unknown unit/closure | PLANNER |
+| POST · PUT · DELETE | `/planner/units/{id}/closures[/{closureId}]` | Close from a date, change/reopen, or remove; reason required (>=5 characters). 400 plain messages for a past closing date, reopening not after closing, an overlapping closure, or a short reason; 404 unknown unit/closure; 409 "Supervisor posts can't be closed; change the minimum instead" for a `SUPERVISION` unit (release v1.3; also on the preview) | PLANNER |
 | GET | `/planner/flagged-shifts` | Future non-cancelled `shift_assignment` rows in a unit closed on the shift date: `shiftId, unitId, unitCode, unitName, date, templateCode, shiftLabel, officerName, start, end, closedFrom, reason`. Nothing is deleted | PLANNER |
 | GET | `/planner/staffing` | `leaveAllowance`, `periods` split at every closure boundary (max 3 by shortage), each with unit rows `{closed, allocated, filled, needed, shortfall, breakdown{posts12Day, posts12Night, posts8, rawNeeded, leaveAllowance, needed}}` and summed `totals`; `note`/`truncated` when capped | PLANNER |
 | PUT | `/planner/units/{id}/staffing` | `{allocated, reason}` → the unit's staffing row; 0-999 whole number, reason >=5, audited | PLANNER |
