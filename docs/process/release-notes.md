@@ -75,9 +75,9 @@ Install-only change on top of v1.1: `install.sh` at the repo root (prerequisite 
 
 **Release step:** after merge, tag the merge commit `v1.1.1-submission` and push the tag, then run `scripts/check-install-pin.sh --remote` and the README one-liner once from an empty directory (free port, own `SHIFTCIRCLE_PROJECT`).
 
-## Release 12 (v1.2, in progress): the shift dialog says up front what it can't do; the quarter plan says what it uses
+## Release 12 (v1.2): the shift dialog says up front what it can't do; the quarter plan says what it uses; plan options for the quarter plan
 
-Not part of the submission tag. Changes merged after `v1.1.1-submission`, one pull request each.
+Not part of the submission tag. Changes merged after `v1.1.1-submission`, one pull request each. Tag: `v1.2`; `install.sh` and the README and INSTALL one-liners now install `v1.2`, while the course submission, `v1.1.2-submission` (branch `release/v1.1.x`), keeps its own installer pinned to that tag.
 
 **PR-O: a started shift is not offered a move or cancel.** The owner opened a night shift that had already started (Tue 17 Nov, 23:00, with the demo clock at noon on Thu 19 Nov), picked a new date and shift, pressed **Move shift** and only then read "Past shifts are corrected in Time & attendance, not on the schedule." The refusal was right (`409 .../shift-started`); the order was not.
 - `GET /schedule` now sends `now`, the business clock's instant (`2026-11-19T18:00:00Z` in the demo, the same clock the api refuses with), and on each live-board shift `actualRecorded`, `absenceRecorded` and `fillsOpenShift`, the same checks `PATCH` and `DELETE /assignments/{id}` make. The planner's draft leaves them out.
@@ -106,13 +106,105 @@ Not part of the submission tag. Changes merged after `v1.1.1-submission`, one pu
 
 **Counts on the branch (at `421627a`, the review-fix tip, before main's PR-O was merged in; after the merge the web suite is **567** in 56 files, all green):** web unit tests **548** in 55 files, lint 4 warnings and 0 errors, `tsc -b` clean. API: `PlanInputsApiTest` (4 tests), `PlanInputsNeededTest` (3, the floor's stretch and its tie-break) plus `PlanDraftEditApiTest`, `PlannerApiTest`, `GeneratorCharacterizationTest`, `Demo150ResetApiTest` and the unit tests (27 tests) green locally, with the full `mvn verify` in CI on the PR. Playwright against the real API, a fresh stack per viewport: desktop **126 passed**; tablet **125 passed and 1 skipped**. That tablet run used `E2E_WORKERS=1`: a two-worker run on a host at load about 30 lost four supervisor-board tests to Chromium "Target crashed" and timeouts. Fixtures (all four projects): **45 passed, 159 skipped**, no failures. That run was the third: two earlier runs, made while this branch's own stack was still up, lost one or two different unrelated tests to crashes and timeouts.
 
-## v1.3 (in progress)
+**PR-N: plan options for the quarter plan.** The owner asked for "options to tailor the quarter plan. It really is a black box."
+
+- **Plan options** (PR-N): **Generate draft** and **Generate again** offer three options, each with one plain sentence that says what it does and what it costs. **Staff to include**: full-time officers are always in; part-time and casual officers (below 1.0 FTE) can be left out. **Part-time fill**: *Fill gaps only (as before)*, or *Fill up to each officer's FTE*, which, after the gaps, gives each part-time officer shifts above the minimum in their home unit where cover is thinnest, up to FTE × 80 h per pay period, spread through the period. **Other units**: *Cover gaps from other units* offers each gap left after the home-unit fills to officers from another unit who hold the block's qualification and have hours left under FTE × 80 h, through the same rule check, before the up-to-FTE extras; the roster marks them **From** their unit and a scorecard line counts the gaps covered. The API validates the options (`400` problem detail naming the field), stores them on the draft (V14, V15) and returns `options` with every draft summary. The draft shows "Made with: …", Generate again is filled in from the last draft, and after a replace a line compares every figure with the previous draft.
+- **Measured** (seed 20261001; the full table, with what stays short and why, is in the planner guide §1): Dataset 150: defaults 100 gaps / 39 warnings / 3,515 h unused; *Fill up to FTE* 100 / 51 / 496 h; *Cover gaps from other units* 72 / 59 / 3,337 h (28 gaps covered by 41 shifts from 26 officers); both 72 / 71 / 496 h; full-time only 687 / 5. Dataset 120: defaults 38 / 7 / 5,472 h; *Fill up to FTE* 38 / 17 / 260 h; *Cover gaps from other units* covers none, because all 38 gaps are Escort evenings and no free officer elsewhere holds Escort. Dataset 100 has no part-time officers.
+- **Why gaps are still short** (round 3): under the gaps-covered line the scorecard says "Still short: 46 not qualified · 14 no hours left · 12 would break a rule. Most are Escort & transport evenings (16), Control evenings (14), Unit B evenings (11)." (Dataset 150), and when nothing could be covered, why: "No gap could be covered from another unit: no free officer in another unit holds the post's qualification." with "Still short: 38 not qualified. Most are Escort & transport evenings (38)." (Dataset 120). A borrowed 12 h shift needs the qualification of every block it covers; a gap no borrowed shift can cover is "no shift that fits", not "no hours left". The Plan inputs card follows the Generate form (`GET /planner/inputs` takes the options) and a full-time-only plan counts only full-time officers.
+- **Not built, and why**: *units to plan* (the quarter commits once, so a partial-unit plan would lock the other units out); *honour preferences on/off* (built, measured, removed: no scorecard figure moved on any dataset, though Dataset 100's roster did change who works days or evenings); part-time and casual relief as separate choices (the data does not tell them apart). See `docs/process/ai-dev-log.md` #116, #118 and #119.
+
+**Defaults unchanged:** with the options omitted or sent at their defaults, the 100/120/150 plan fingerprints, warning totals and row counts are identical (`GeneratorCharacterizationTest` generates both ways). Dataset checksums and the payroll golden are unchanged. Commit, the rules and payroll are untouched; the live planning board's payload is unchanged (the `homeUnit` marker is sent only on the draft roster).
+
+**PR-N counts** (author run, 24 Nov 2026, round 3, with PR-O and PR-M merged in; reproduced exactly by the release walk below): API **503 = 127 rules + 28 infrastructure + 348 api** (GitHub CI `mvn verify`); web unit tests **583** in 57 files, lint 4 warnings and 0 errors, `tsc -b` clean; Playwright against the real API, a fresh stack per viewport (`E2E_WORKERS=1`): `desktop-datasets` **129 passed**, `tablet-datasets` **128 passed and 1 skipped** (the TV-size check is desktop-only), 0 failed.
+
+**Release walk** (24 Nov 2026, `main` at `958209c`, installed with `install.sh` on its own stack): demo script §1–6 on a fresh stack and again after **Reset the demo data**, and §7 on its own reset stack, came out as written (every quote, figure, status code, DB row and audit row; the payroll CSV's sha equals the golden file; no names on the wall display; 0 console, CSP or 5xx errors). The quarter plan's headline, Plan inputs, Generate options and the planning-board shift dialog matched SQL on Datasets 120 and 150. All four suites reproduced the PR-N counts above with 1 worker. One major defect blocked the tag (D1, below), with five smaller findings; PR-Q fixes all six.
+
+**PR-Q: the walk's fixes.**
+- **D1, staffing shortfall never shown** (since Release 3): the api's staffing rows and totals send `shortfall` and the web read `short`, so the Quarter plan's **Staffing by unit** panel and the **Needed (at least)** tile always said "Short 0" and "Every unit meets the floor", under a headline of "112 FTE against about 127 needed". The web now reads `shortfall` (the documented contract, `docs/07-api-spec.md`); the api is unchanged. Headline, panel and tile now agree: Dataset 120 "112 FTE against about 127 needed", tile **127 · Short · 120 on staff · short 7**, panel "Yes, at least 7 more: Admissions (1), Unit B (1), Unit C (2), Escort & transport (3)"; Dataset 150 "138 FTE against about 127 needed", tile **127 · Meets the floor · 150 on staff**; Dataset 100 "100 FTE against about 123 needed", tile **123 · Short · 100 on staff · short 23** (Unit A 7, Admissions 1, Unit B 7, Unit C 6, Escort & transport 2). A real `/planner/staffing` answer is now a contract sample (`contract-samples/planner-staffing.json`, Dataset 120), and `planner-inputs.spec.ts` checks the three against the live api on each dataset.
+- **D2, release prep:** `install.sh` `DEFAULT_REF="v1.2"` and the README and INSTALL one-liners fetch the `v1.2` installer; a note in both says the course submission is `v1.1.2-submission`. Counts refreshed in the README and `web/README.md`.
+- **D3:** the top bar shows the business clock's time with the demo day ("Thu 19 Nov 2026 · 12:00", the same noon the shift dialog and the api use), not the wall clock.
+- **D4:** after a reset started from another session, the sign-in picker retries `/auth/demo-users` on its own after the `409` (1 s, 2 s, 4 s, then every 5 s, about 1.5 minutes), and offers **Retry** if the users still cannot be loaded.
+- **D5:** after **Confirm** on the Overtime board the open shifts are fetched again; the confirmed card stays selected in its place and reads **Filled**, not "Offers sent".
+- **D6:** the Time & attendance record panel's subtitle names the day in words ("Tue 17 Nov 2026 · N8 · scheduled 23:00 – 07:00"); the Move dialog's native date input is unchanged.
+
+No api, migration, generator or rules change: dataset checksums, the payroll golden and the plan fingerprints are unchanged.
+
+**Release step:** after merge, tag the merge commit `v1.2` and push the tag, then run `scripts/check-install-pin.sh --remote` and the README one-liner once from an empty directory (free port, own `SHIFTCIRCLE_PROJECT`).
+
+**Counts at v1.2** (PR-Q's head, 24 Nov 2026): API **503 = 127 rules + 28 infrastructure + 348 api** (unchanged; PR-Q changes no api code; `UnitApiTest` and `PlanInputsApiTest` re-run green); web unit tests **591** in 58 files (+8: the staffing contract sample ×3, the top-bar clock, the sign-in retry ×2, the open-shift order ×2; the T&A subtitle and Overtime confirm assertions extend existing tests), lint 4 warnings and 0 errors, `tsc -b` clean; Playwright against the real API, a fresh stack per viewport (`E2E_WORKERS=1`): `desktop-datasets` **132 passed**, `tablet-datasets` **131 passed and 1 skipped**, 0 failed (+3 each: headline, panel and tile on Datasets 100, 120 and 150). The demo script §1–7 was walked again with the release walk's harness on PR-Q's stack: same results, apart from the harness's known misses (its expected commit hash, the §3 "no refresh" check Playwright cannot perform, and two §7 wording checks).
+
+## Release v1.3: supervisors get their own rostered shifts
+
+The owner approved the plan in `.factory/plans/v1.2-supervisors.md` (the plan file still says v1.2; the
+release was split afterwards, so it is v1.3 here). The work is eight small pull requests, **S1 to S8**;
+this entry covers **S1** only. The plan is not in the repository, so this section is the record of what
+the first pull request did.
+
+### S1 — Positions and the SUPERVISION kind (API, schema only)
+
+**What it does.** An officer's **position** (rank) becomes a reference row instead of a free-text
+column, and a **supervisor post** becomes a unit of its own kind. Nothing about the demo changes yet:
+there are still no supervisor posts and no supervisors in the datasets, so the demo behaves exactly as
+it did.
+
+**The migration (`positions`).** The file is `__positions.sql`; its version number is the order it
+merges in, so it takes the next free number when it merges.
+- The `position` table (`code` PK, `name`, `rank_order`, `is_supervisory`) with two rows: `CO`
+  Correctional officer (1, not supervisory) and `CS` Correctional supervisor (2, supervisory). A new
+  rank is a **row**, and a code change with it: the api knows two ranks, and a rank it does not
+  know is treated as the lowest, non-supervisory one.
+- `employee.classification` keeps its name and becomes a foreign key to `position(code)`, so an
+  unknown code is refused by the database (`23503`). Every existing officer is a `CO`, so no data
+  moved.
+- `employee.position_since` (date, null): **seniority within the rank**. It is null for an officer
+  who is already in their rank, so seniority inside a rank is `coalesce(position_since,
+  seniority_date)` and every officer ordering is unchanged. It cannot be earlier than
+  `seniority_date`; "not in the future" is the writing service's job, because a check constraint
+  cannot read the clock.
+- `unit.kind` accepts `SUPERVISION`: a supervisor post is a unit with its own `unit_requirement`
+  rows, so the board, coverage, gaps, publishing and payroll need no new code.
+- `unit_supervision(supervision_unit_id, unit_id)`: which line units a post covers. A trigger
+  refuses a row whose parent is not a `SUPERVISION` unit, and a row whose child is one, so a post
+  cannot cover another post (`23514`). A second trigger refuses a change to a unit's `kind` while
+  a link points at it, so a post cannot quietly stop being a post.
+- The `ACTING_SUP` qualification row, on the existing `employee_qualification` table.
+
+**The API.** The `Position` enum (`CO`/`CS`, with `isSupervisory()`) joins `shiftcircle-domain`.
+`PlanGenerator.Employee` gains `position` and `rankSeniority`, `PlanGenerator.Unit` gains `kind` and
+an `isSupervision()` helper; the older constructors are kept, so every existing call site still
+compiles. `loadEmployees` reads the classification and `position_since`, `loadUnits` reads the kind,
+`MyScheduleQuery` and `GET /me` name the position in words (`Correctional officer`, `Correctional
+supervisor`). A rank the api does not know is looked up as nothing and falls back to the lowest,
+non-supervisory rank, so a new rank in the table can never stop the planner or make it treat
+someone as a supervisor by accident.
+
+**No pin moves.** No unit and no employee row changes, so the dataset checksums (100, 120, 150), the
+three plan fingerprints and the payroll golden are unchanged: `GeneratorCharacterizationTest` is
+green with no edits, and the demo reset tests still read the same checksums.
+
+**Counts at this gate:** API **517 = 127 rules + 36 infrastructure + 354 api** (`mvn verify` on the
+pull request, `BUILD SUCCESS`, 0 failures, errors or skipped); web unit tests **591** in 58 files,
+lint 0 errors, `tsc -b` clean, build clean; `check-ignored-sources.sh` OK and
+`check-audit-codes.sh` still 50 codes. Playwright against the real API, a fresh stack per viewport:
+desktop **132 passed**, tablet **131 passed and 1 skipped** (the TV-size check runs on desktop only).
+The branch carries v1.2 (`main` at `f681ae7`), so the positions migration is **V16**, after the
+quarter-plan options migrations V14 and V15.
+
+**Two things later releases still owe:** the captured contract samples
+(`web/src/api/contract-samples/`) do not carry the new `position` field yet — they are re-captured
+in S7 with the rest of the samples — and this migration must merge **after** the quarter-plan
+options migration (PR #24), which owns the versions before it.
+
+**Not in this release** (the rest of the plan): the `POSTS` rule table and the R-01/R-02 rules (S2),
+the rank-aware planner (S3), the supervisor posts and the demo supervisors in the datasets with the
+single re-pin (S4), the overtime pools and the self-edit guard (S5), and the board, My schedule,
+display and reports work (S6, S7).
 
 ### Shift proposals, P1: the officer API
 
 The first of five proposal PRs (P1 to P5; plan `v1.2-proposals`, owner answers Q1 to Q5 approved). **P1 is the API for the officer side only; there is no screen yet.** An officer can preview a multi-item proposal (each item rule-checked with the earlier items as extra facts, so rest between two drafts shows), send it (a Block can't be sent, a Warn can), list their own proposals, and withdraw one while every item still waits. A waiting item expires when its shift starts, on every read and withdraw and by an hourly sweep. Nothing creates a shift: the inbox and the decision are P2, so until then a sent proposal stays Waiting and then Expires.
 
-- **Migration V18** (the number rule for v1.3: a migration takes the next free number at the moment it merges, and this one is renamed just before merge if needed; nothing in the code, tests or docs depends on it) reshapes the unused V1 `proposal` and `proposal_item` tables in place (status and decision sets, decider, comment, snapshots, a note-length check, a decline-needs-a-comment check, an ADD-needs-the-whole-shift check, and a unique index so one officer can't have the same shift waiting twice). Within the same file, `proposal.seq` gives "newest first" a deterministic order under the frozen demo clock, `proposal_item.work_date` is `NOT NULL`, and `proposal_item (proposal_id)` is indexed.
+- **Migration V17** (the next free number when it merged, after S1's V16; the v1.3 rule is that a migration takes the next free number at the moment it merges) reshapes the unused V1 `proposal` and `proposal_item` tables in place (status and decision sets, decider, comment, snapshots, a note-length check, a decline-needs-a-comment check, an ADD-needs-the-whole-shift check, and a unique index so one officer can't have the same shift waiting twice). Within the same file, `proposal.seq` gives "newest first" a deterministic order under the frozen demo clock, `proposal_item.work_date` is `NOT NULL`, and `proposal_item (proposal_id)` is indexed.
 - **Audit:** three new action codes, `submit_proposal`, `withdraw_proposal` and `expire_proposal_item`, and one entity type, `proposal`; the web labels and `check-audit-codes.sh` agree (**54** codes, was 50: the script counts actions and entity types together). `decide_proposal_item` follows in P2, which makes the release total **55**, not the plan's 54: P5 and the final README must quote 55.
 - **`SelfActionGuard`** (`ca.shiftcircle.api.security`) is the shared "not your own record" predicate. P2's decision endpoint and the supervisors' S5 self-edit guard use it, so neither feature owns it. S5 must reuse `SelfActionGuard` (not add a second guard class) so the two cannot drift. P1 only adds it and its unit test.
 - **`RuleCheckService`** gains `evaluateWithExtras(change, extraShifts, snapshot)` and `factOf(change, id)`; the existing overloads are unchanged. (The plan called this an `evaluate(change, extraFacts)` overload, but that signature is already the planner seam.)
@@ -132,7 +224,7 @@ The second proposal PR (stacked on P1, PR #26). **P2 is the API for the decider 
 - **`AssignmentWriter`** (`ca.shiftcircle.api.assignments`) is the one write path for a new shift: the rule decision (Warn acknowledgement, Block override where allowed), the insert and the `assign_shift` audit row. `AssignmentService.assign` (the board and, through it, the overtime confirm and direct assign) and the proposal decision call it; `move` uses its `decide`. Board and overtime behaviour is unchanged: their existing test classes pass unchanged. Proposals call it with the override refused and `source = 'PROPOSAL'`.
 - **`OvertimeService.orderPosition`** reuses the candidate ranking (extracted, not changed) for the officer's place in the order.
 - **Audit:** one new action code, `decide_proposal_item` (entity `proposal`, one row per item, with the comment, acknowledged codes, `outOfOvertimeOrder`, the outcome now and the assignment id); the web label and `check-audit-codes.sh` agree (**55** codes).
-- **No migration:** V18 (P1) already holds every column P2 writes. **Pins:** no dataset checksum, payroll golden or plan fingerprint moved.
+- **No migration:** V17 (P1) already holds every column P2 writes. **Pins:** no dataset checksum, payroll golden or plan fingerprint moved.
 
 - **Review fixes (round 1):** the decision is atomic against a concurrent expiry or withdraw: the item rows are locked (`FOR UPDATE`; the hourly sweep skips locked rows), every item update must change exactly one row, and the proposal's version update is conditional, so anything that changed underneath rolls the whole decision back (no orphan shift, fill or audit row). Filling an open shift withdraws only the offers still waiting (`OFFERED`), as the plan says; an `ACCEPTED` offer is left for the confirm to refuse with its "already filled" `409`. `AssignmentWriter.NewShift` can carry the rule result the caller already checked, so a proposal item is evaluated once and the stored/audited result is the enforced one; the overtime order uses the same rule snapshot. A shift type retired after the send is `409 shift-type-retired`, and a shift that starts while the decision runs is `409 shift-started` (the clock is read again at the write). `acknowledgeWarnings` lists at most 50 codes. docs/09 has the proposal rows and the planner exception.
 

@@ -71,6 +71,7 @@ final class PlanInputs {
     int fullTime = 0;
     int partTime = 0;
     double fte = 0;
+    double partTimeFte = 0;
     LocalDate earliest = null;
     LocalDate latest = null;
     for (PlanGenerator.Employee employee : employees) {
@@ -78,6 +79,7 @@ final class PlanInputs {
         fullTime++;
       } else {
         partTime++;
+        partTimeFte += employee.fte();
       }
       fte += employee.fte();
       earliest =
@@ -89,6 +91,8 @@ final class PlanInputs {
     officers.put("fullTime", fullTime);
     officers.put("partTime", partTime);
     officers.put("fte", round1(fte));
+    // PR-N: so a full-time-only draft can say how many officers and FTE it actually plans with.
+    officers.put("partTimeFte", round1(partTimeFte));
     officers.put("neededFte", needed == null ? null : needed.fte());
     officers.put("neededFrom", needed == null ? null : needed.from().toString());
     officers.put("neededTo", needed == null ? null : needed.to().toString());
@@ -224,10 +228,11 @@ final class PlanInputs {
 
   /**
    * The generator's real order (PlanGenerator.generate, casualPool, reliefPool), in plain words,
-   * for the options the draft was generated with. This is the one place the order is worded. No
-   * option changes the order yet, so {@code options} is not read; the Generate options (PR-N)
-   * add or replace their steps here, keyed on their values. Keep in step with the code and
-   * docs/user-guide/planner.md.
+   * for the options the draft was generated with. This is the one place the order is worded. The
+   * Generate options (PR-N) add or replace their steps here, keyed on their values: staffTypes
+   * without PART_TIME replaces the part-time step, crossUnitFill ON adds the cross-unit step after
+   * closed-unit relief, partTimeFill UP_TO_FTE adds the top-up step after that. Keep in step with
+   * the code and docs/user-guide/planner.md.
    */
   static List<String> fillOrder(int ruleSetVersion, Map<String, Object> options) {
     List<String> steps = new ArrayList<>();
@@ -240,12 +245,34 @@ final class PlanInputs {
     steps.add(
         "Every other full-time officer whose rotation has them on that day is then rostered too,"
             + " even above the minimum, so a full-time officer works their full rotation.");
-    steps.add(
-        "Part-time and casual officers (under 1.0 FTE) then fill what is still short, in their"
-            + " home unit only, newest first, up to their FTE × 80 h in each pay period.");
+    boolean partTime =
+        !(options.get("staffTypes") instanceof List<?> types) || types.contains("PART_TIME");
+    if (partTime) {
+      steps.add(
+          "Part-time and casual officers (under 1.0 FTE) then fill what is still short, in their"
+              + " home unit only, newest first, up to their FTE × 80 h in each pay period.");
+    } else {
+      steps.add(
+          "Part-time and casual officers (under 1.0 FTE) are left out of this draft (Staff to"
+              + " include: full-time officers only): they are counted here but get no shifts.");
+    }
     steps.add(
         "Where a unit is closed on a day, its full-time officers may fill another unit's"
             + " remaining shortage (by home unit, then seniority).");
+    if ("ON".equals(options.get("crossUnitFill"))) {
+      steps.add(
+          "Each gap still open is then offered to officers homed in another unit who hold the"
+              + " block's qualification (first aid, Control or Escort, where the unit asks for"
+              + " one) and have hours left under FTE × 80 h in the pay period, the lowest share"
+              + " of their target first, then the newest; a Block skips that officer, and the"
+              + " roster marks them \"From\" their unit.");
+    }
+    if (partTime && "UP_TO_FTE".equals(options.get("partTimeFill"))) {
+      steps.add(
+          "Each part-time officer is then given shifts above the minimum in their home unit"
+              + " where cover is thinnest, up to FTE × 80 h in each pay period, spread evenly"
+              + " through the period.");
+    }
     steps.add(
         "Every proposed shift is checked by the rules engine (rule set v"
             + ruleSetVersion
