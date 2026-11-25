@@ -291,6 +291,9 @@ export function OvertimePage() {
         aria-pressed={isActive}
         onClick={() => {
           setPickedId(openShift.id);
+          // Only the card just confirmed keeps its place among the current needs,
+          // until the supervisor picks another.
+          if (openShift.id !== confirmedId) setConfirmedId(null);
           setSelected([]);
           setMessage(null);
           mutation.reset();

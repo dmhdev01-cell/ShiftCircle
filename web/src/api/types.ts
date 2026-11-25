@@ -1178,8 +1178,8 @@ export interface StaffingReport {
   leaveAllowance: number;
   periods: StaffingPeriod[];
   note: string;
-  /** Present when more than three periods were collapsed. */
-  truncatedNote?: string;
+  /** True when more than three periods were collapsed; `note` then says so. */
+  truncated: boolean;
 }
 
 export interface PlannerCompareRow {

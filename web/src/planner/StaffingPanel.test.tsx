@@ -35,7 +35,7 @@ function period(units: StaffingUnitRow[], from = '2027-01-04', to = '2027-04-11'
 }
 
 function report(periods: StaffingPeriod[], leaveAllowance = 0.2): StaffingReport {
-  return { leaveAllowance, periods, note: 'Officers are unit-specific.' };
+  return { leaveAllowance, periods, note: 'Officers are unit-specific.', truncated: false };
 }
 
 function renderPanel(value: StaffingReport, draftGaps: number | null) {

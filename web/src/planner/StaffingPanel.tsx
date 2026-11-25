@@ -98,7 +98,7 @@ export function StaffingPanel({
   const rows = periods[0]?.units ?? [];
 
   return (
-    <Card>
+    <Card data-testid="staffing-panel">
       <CardContent sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
         <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
           Staffing by unit
@@ -272,11 +272,6 @@ export function StaffingPanel({
         <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
           * On staff counts people, full-time and part-time alike, not hours.
         </Typography>
-        {report.truncatedNote ? (
-          <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
-            {report.truncatedNote}
-          </Typography>
-        ) : null}
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
           <Typography sx={{ fontSize: 14 }}>Leave allowance: {leavePercent}%</Typography>

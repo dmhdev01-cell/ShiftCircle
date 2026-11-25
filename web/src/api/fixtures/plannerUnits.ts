@@ -151,6 +151,7 @@ export function fixtureStaffing(): StaffingReport {
     leaveAllowance,
     periods,
     note: 'Do we need more staff? Officers are unit-specific: a surplus in one unit does not cover a shortfall in another.',
+    truncated: false,
   };
 }
 

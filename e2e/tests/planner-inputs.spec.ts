@@ -151,7 +151,7 @@ test.describe('plan inputs on the quarter plan', () => {
         `${inputs.officers.fte} FTE against about ${inputs.officers.neededFte} needed`,
       );
 
-      const panel = page.locator('div').filter({ has: page.getByRole('heading', { name: 'Staffing by unit' }) }).last();
+      const panel = page.getByTestId('staffing-panel');
       const totalRow = panel.getByRole('row', { name: /^All units/ });
       const cells = staffing.periods.map((period) => String(period.totals.needed)).concat(
         staffing.periods.map((period) => String(period.totals.shortfall)),
@@ -174,7 +174,7 @@ test.describe('plan inputs on the quarter plan', () => {
 
       await page.getByRole('button', { name: 'Generate draft' }).click();
       await expect(page.getByText('Coverage gaps')).toBeVisible({ timeout: 120_000 });
-      const tile = page.locator('div').filter({ has: page.getByText('Needed (at least)', { exact: true }) }).last();
+      const tile = page.getByTestId('staffing-tile');
       await expect(tile).toContainText(`Needed (at least)${worst.totals.needed}`);
       if (worst.totals.shortfall > 0) {
         await expect(tile).toContainText(`Short${worst.totals.filled} on staff · short ${worst.totals.shortfall}`);

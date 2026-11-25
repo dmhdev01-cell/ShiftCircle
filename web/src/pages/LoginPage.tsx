@@ -70,6 +70,8 @@ export function LoginPage() {
           // instead of showing "404 Not Found".
           if (error instanceof ApiError && error.status === 404) {
             setMessage(MOCK_SIGN_IN_OFF);
+            // Not "Loading the demo users…" forever: say it, and offer Retry.
+            setLoadFailed(true);
             return;
           }
           setMessage(

@@ -228,7 +228,12 @@ describe('plan inputs against the api (PR-M)', () => {
 });
 
 describe('staffing against the api (v1.2 walk D1)', () => {
-  // GET /planner/staffing on Dataset 120: four units are short by 7 in all
+  // GET /planner/staffing on Dataset 120, captured by the v1.2 release walk
+  // (24 Nov 2026) during demo script §7 step 10, with Unit C closed from
+  // 15 Feb 2027 (reopening 29 Mar 2027 set later), so it has three periods;
+  // a fresh Dataset 120 without the closure answers one period with the same
+  // first-period figures. The capture script's planner-staffing line saves the
+  // current dataset's answer instead. Four units are short by 7 in all
   // (Admissions 1, Unit B 1, Unit C 2, Escort & transport 3). The api names
   // the figure "shortfall"; the screen read "short" and showed 0 everywhere.
   const sample = plannerStaffing as unknown as StaffingReport;

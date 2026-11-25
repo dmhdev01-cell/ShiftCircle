@@ -129,4 +129,6 @@ Not part of the submission tag. Changes merged after `v1.1.1-submission`, one pu
 
 No api, migration, generator or rules change: dataset checksums, the payroll golden and the plan fingerprints are unchanged.
 
+**Release step:** after merge, tag the merge commit `v1.2` and push the tag, then run `scripts/check-install-pin.sh --remote` and the README one-liner once from an empty directory (free port, own `SHIFTCIRCLE_PROJECT`).
+
 **Counts at v1.2** (PR-Q's head, 24 Nov 2026): API **503 = 127 rules + 28 infrastructure + 348 api** (unchanged; PR-Q changes no api code; `UnitApiTest` and `PlanInputsApiTest` re-run green); web unit tests **591** in 58 files (+8: the staffing contract sample ×3, the top-bar clock, the sign-in retry ×2, the open-shift order ×2; the T&A subtitle and Overtime confirm assertions extend existing tests), lint 4 warnings and 0 errors, `tsc -b` clean; Playwright against the real API, a fresh stack per viewport (`E2E_WORKERS=1`): `desktop-datasets` **132 passed**, `tablet-datasets` **131 passed and 1 skipped**, 0 failed (+3 each: headline, panel and tile on Datasets 100, 120 and 150). The demo script §1–7 was walked again with the release walk's harness on PR-Q's stack: same results, apart from the harness's known misses (its expected commit hash, the §3 "no refresh" check Playwright cannot perform, and two §7 wording checks).

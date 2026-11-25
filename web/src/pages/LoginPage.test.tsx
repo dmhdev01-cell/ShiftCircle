@@ -67,12 +67,16 @@ describe('the mock sign-in', () => {
       await screen.findByText('Mock sign-in is turned off in this environment.'),
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /M. Ellis/ })).not.toBeInTheDocument();
+    // Not "Loading the demo users…" forever (PR-Q review N1).
+    expect(screen.queryByText('Loading the demo users…')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 
   it('tries again on its own after a demo reset answers 409 (v1.2 walk D4)', async () => {
-    vi.spyOn(api, 'getDemoUsers').mockRejectedValueOnce(
+    const loads = vi.spyOn(api, 'getDemoUsers').mockRejectedValueOnce(
       new ApiError('The demo is reloading its seeded data. Try again in a moment.', 409),
     );
+    const started = Date.now();
 
     renderLogin();
 
@@ -81,6 +85,9 @@ describe('the mock sign-in', () => {
     ).toBeInTheDocument();
     // The first retry waits 1 s; no refresh is needed.
     expect(await screen.findByRole('button', { name: /M. Ellis/ }, { timeout: 4000 })).toBeInTheDocument();
+    // The backoff: one retry, about a second later, not a burst of requests.
+    expect(loads).toHaveBeenCalledTimes(2);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(900);
     expect(screen.queryByText('The demo is reloading its seeded data. Try again in a moment.')).not.toBeInTheDocument();
   });
 

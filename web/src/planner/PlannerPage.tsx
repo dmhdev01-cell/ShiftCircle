@@ -881,7 +881,11 @@ export function PlannerPage() {
                       ]
                     : []),
                 ].map((tile) => (
-                  <Box key={tile.label} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Box
+                    key={tile.label}
+                    data-testid={tile.label === 'Needed (at least)' ? 'staffing-tile' : undefined}
+                    sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
+                  >
                     <KpiTile
                       label={tile.label}
                       value={tile.value}
