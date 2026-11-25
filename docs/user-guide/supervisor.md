@@ -226,7 +226,7 @@ It is a shared screen, so it shows counts only, no names: no supervisor is named
 
 ![J. Chen's My schedule at 1440×900: the header Jamie Chen · Correctional supervisor · Supervision · Operations (ADM, CTL, ESC), the hours and the month calendar](img/supervisor-my-schedule.png)
 
-**You can't change your own schedule.** Your own shifts are on the board like anyone's, but you can't assign, move, cancel or override them, record your own actuals or absence, or offer, give or confirm overtime to yourself: the screen shows "You can't change your own schedule; ask another supervisor or the planner." Another supervisor with the post in scope does it. Accepting or declining an offer to you on My schedule is still yours.
+**You can't change your own schedule.** Your own shifts are on the board like anyone's, but you can't assign, move, cancel or override them, record your own actuals or absence, or offer, give or confirm overtime to yourself: the screen shows "You can't change your own schedule; ask another supervisor." Another supervisor with the post in scope does it. Accepting or declining an offer to you on My schedule is still yours.
 
 ## What you can't do here
 

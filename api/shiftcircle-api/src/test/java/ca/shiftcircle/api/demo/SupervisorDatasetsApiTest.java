@@ -95,7 +95,7 @@ class SupervisorDatasetsApiTest {
 
   @Test
   @SuppressWarnings("unchecked")
-  void theOvertimeListStaysInsideThePostsRank() throws Exception {
+  void theOvertimeListKeepsToThePostsPool() throws Exception {
     String ellis = login("m.ellis");
     // PC-08: the open Unit B day shift on Sat 21 Nov lists officers only.
     UUID lineShift =
