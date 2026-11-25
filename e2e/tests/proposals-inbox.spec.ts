@@ -199,12 +199,15 @@ test.describe('@api shift proposals, the inbox (v1.3 P4)', () => {
     await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: /^Proposals/ }).click();
     await expect(page.getByRole('heading', { name: 'Proposals', level: 1 })).toBeVisible();
     const cards = page.getByRole('list', { name: 'Proposals' }).getByRole('button', { name: /Tara Nakamura/ });
-    await expect(cards).toHaveCount(2);
+    // This run's two, told apart by their shifts; the demo's planted Waiting
+    // proposal (v1.3 P5, Tue 22 Dec on Unit B) is there as well.
+    await expect(cards.filter({ hasText: /Sat 28 Nov|Sun 29 Nov/ })).toHaveCount(2);
+    await expect(cards.filter({ hasText: 'Tue 22 Dec · E8 15:00 – 23:00 · Unit B' })).toHaveCount(1);
     await page.goto(`/proposals?proposal=${proposalA.id}`);
     const pane = page.getByRole('region', { name: 'Selected proposal' });
     await expect(pane.getByRole('heading', { name: 'Tara Nakamura' })).toBeVisible();
     await expect(pane.getByText(`${TAG}: free that Saturday and Friday (${run}).`)).toBeVisible();
-    await expect(pane.getByText(/ h of 80 h this pay period$/)).toBeVisible();
+    await expect(pane.getByText(/ h of 80 h now · [\d.]+ h after approval$/)).toBeVisible();
 
     const saturday = shiftRow(page, SAT_ROW);
     const friday = shiftRow(page, FRI_ROW);
@@ -286,20 +289,35 @@ test.describe('@api shift proposals, the inbox (v1.3 P4)', () => {
     expect(states.find((entry) => entry.id === proposalB.id)?.displayState).toBe('DECLINED');
   });
 
-  test('the inbox works on the filters and says when nothing is waiting for a supervisor of other units', async ({
+  test('J. Chen sees only the shifts on his units: the planted Admissions shift and M. Ellis’s own proposal, never a Unit B shift', async ({
     page,
   }, testInfo) => {
-    // J. Chen supervises ADM, CTL and ESC: Tara's Unit B proposals are not his.
+    // J. Chen supervises ADM, CTL, ESC and both supervisor posts. The demo
+    // plants (v1.3 P5) Tara's two-shift proposal, Unit B for Ellis and
+    // Admissions for him, and Ellis's own SUP-L day shift, which only another
+    // supervisor or the planner may decide.
     await signIn(page, 'J. Chen');
     await expect(page.getByRole('heading', { name: 'Planning board', level: 1 })).toBeVisible();
+    await expect(
+      page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Proposals (2)' }),
+    ).toBeVisible();
     await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: /^Proposals/ }).click();
     await expect(page.getByRole('heading', { name: 'Proposals', level: 1 })).toBeVisible();
-    await expect(
-      page.getByText('No proposals waiting. When officers propose shifts, they appear here.'),
-    ).toBeVisible();
+    const list = page.getByRole('list', { name: 'Proposals' });
+    const tara = list.getByRole('button', { name: /Tara Nakamura/ });
+    await expect(tara).toHaveCount(1);
+    await expect(tara).toContainText('Admissions · 2 shifts (1 on your units)');
+    await expect(tara).toContainText('Wed 30 Dec · E8 15:00 – 23:00 · Admissions');
+    await expect(tara).not.toContainText('Unit B');
+    const ellis = list.getByRole('button', { name: /Morgan Ellis/ });
+    await expect(ellis).toContainText('Sun 29 Nov · D8 07:00 – 15:00 · Supervision · Living units');
+
+    // Under All: Tara's planted Admissions shift that he declined; none of
+    // this spec's Unit B proposals.
     await page.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'All' }).click();
-    await expect(page.getByRole('list', { name: 'Proposals' }).getByText('Tara Nakamura')).toHaveCount(0);
-    await expectAccessible(page, testInfo, 'proposals-inbox-empty');
-    await shot(page, testInfo, 'supervisor-chen', 'proposals', 'empty');
+    await expect(list.getByRole('button', { name: /Tara Nakamura/ })).toHaveCount(2);
+    await expect(list.getByRole('button', { name: /Tara Nakamura/ }).filter({ hasText: 'Unit B' })).toHaveCount(0);
+    await expectAccessible(page, testInfo, 'proposals-inbox-chen');
+    await shot(page, testInfo, 'supervisor-chen', 'proposals', 'planted');
   });
 });

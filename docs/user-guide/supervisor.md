@@ -141,6 +141,8 @@ Ordered (mandatory) overtime is only offered once the voluntary list is used up.
 
 Officers can offer to work extra shifts (*Propose shifts* on their My schedule). A proposed shift on one of your units comes to you; the planner sees every unit, so a unit with no supervisor, and a supervisor's own proposal, always have someone to decide. **Proposals (n)** in the menu says how many proposals wait for you.
 
+**In the demo** (since v1.3 P5) a fresh reset already has proposals waiting: M. Ellis sees **Proposals (1)**, Tara Nakamura's evening on Unit B on Tue 22 Dec (the same proposal's Admissions shift on Wed 30 Dec is J. Chen's); J. Chen sees **Proposals (2)**, that Admissions shift and M. Ellis's own day shift on Supervision · Living units on Sun 29 Nov, which only he or the planner can decide. Under **All** there is also a proposal J. Chen declined with a comment. `docs/demo-script.md` §8 walks them.
+
 The screen has two parts, like the Overtime board. On the left: the proposals (officer, units, number of shifts, sent time, state), with **Waiting** or **All** and a **Unit** filter. On the right: the selected proposal.
 
 1. Read the header: the officer, their hours in the pay period with the overtime pill, and their note. The note is shown exactly as typed, as plain text.

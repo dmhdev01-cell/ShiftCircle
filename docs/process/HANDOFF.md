@@ -134,7 +134,7 @@ Until answered, build with the documented defaults; they're all configuration (r
 
 - **UI mockups show old 12 h times** (07–19 / 19–07, chips `D12`/`N12`). Build with the ADR-015 defaults (00–12 / 12–24, chips `A12`/`P12`; 16 h is 12 h + extension; L16 is retired). Mockup "OT" chips mean "extra shift"; overtime is the period status pill (ADR-016).
 - **UI sample numbers vs generator:** the design files show illustrative staffing (e.g. Unit B needing 5/4/3; wall display Escort 7/6). The generator config in `10-testing.md` §6.2 is authoritative; align the UI's demo data to it when building.
-- *(Built since, from the documented patterns, except rule version review and My hours, which are placeholders; the proposals inbox is built in v1.3 P4: `docs/10-testing.md` §8.)* **Not yet designed:** sign-in picker, time & attendance, proposals inbox, rule version review, tablet layouts (see `docs/ui/README.md` §6). Build them from the documented patterns.
+- *(Updated 2026-11-25.)* The screens this note once listed as not yet designed (sign-in picker, time & attendance, proposals inbox, tablet layouts) are built from the documented patterns; the proposals inbox in v1.3 (P4 screen, P5 planted demo proposals, ADR-032). **Still placeholders:** rule version review and My hours (`docs/10-testing.md` §8, `docs/ui/README.md` §6).
 - *(Historical.)* `01-scope-and-plan.md` still has a day-by-day plan from before the Drools and spec work; **§6 of this note supersedes it**.
 - `02-requirements.md` §4 keeps the older R- rule IDs as a summary; the authoritative IDs are U-/P-/S-/O-/L- in `05-union-rules.md`.
 - ADR-006 is partly superseded (middle tier is Java, not .NET); kept for history.

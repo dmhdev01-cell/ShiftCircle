@@ -1078,7 +1078,7 @@ export type DemoResetState = 'IDLE' | 'RUNNING' | 'DONE' | 'FAILED';
 
 export interface DemoResetStatus {
   state: DemoResetState;
-  step: 'clean' | 'audit' | 'generating' | 'rules' | 'checksum' | 'done' | null;
+  step: 'clean' | 'audit' | 'generating' | 'rules' | 'proposals' | 'checksum' | 'done' | null;
   startedAt: string | null;
   elapsedMs: number;
   checksum: string | null;
@@ -1442,6 +1442,9 @@ export interface ProposalRefusalItem {
   otOrderPosition?: number | null;
   otOrderSize?: number;
   outOfOrder?: boolean;
+  /** The matched open shift now, and its offers still live (v1.3 P5). */
+  openShiftId?: string;
+  liveOffers?: number;
 }
 
 export interface ShiftCircleApi {
