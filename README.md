@@ -219,7 +219,7 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
 
 The `v1.1.1-submission` gate (the submission line before the `v1.1.2-submission` hotfix) was on API 470, web 532 in 54 files, desktop 124 and tablet 123 + 1 (fixtures 23 passed, 79 skipped); that table is in [docs/10-testing.md](docs/10-testing.md).
 
-The dataset checksums, the payroll golden and the plan fingerprints are unchanged (no migration or generator change since release 8). Earlier counts, release by release, are in [docs/process/release-notes.md](docs/process/release-notes.md); each round is in `docs/process/review-rounds.md`.
+The dataset checksums, the payroll golden and the plan fingerprints are unchanged: the v1.3 positions migration adds no unit and no employee rows, and the generator does not change. Earlier counts, release by release, are in [docs/process/release-notes.md](docs/process/release-notes.md); each round is in `docs/process/review-rounds.md`.
 
 **One viewport per fresh stack; dataset specs last.** `--project desktop-datasets` runs the parallel `desktop` specs first, then the thirteen stack-wide specs (dataset resets, quarter-plan generate/commit/discard, the E4 pay-period lock) one at a time, because they would corrupt each other in parallel (`e2e/README.md`). The real-API specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop-datasets`, then `docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait`, then `--project tablet-datasets`. The web unit tests write `web/node_modules` with Linux binaries.
 

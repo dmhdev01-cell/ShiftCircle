@@ -85,7 +85,9 @@ class ReferenceApiTest {
 
     assertThat(templates).hasSize(7);
     assertThat(templates.toString()).contains("D12").contains("N12").doesNotContain("L16");
-    assertThat(qualifications).hasSize(3);
+    // CONTROL, ESCORT, FIRST_AID and the acting-supervisor qualification (release v1.3).
+    assertThat(qualifications).hasSize(4);
+    assertThat(qualifications.toString()).contains("ACTING_SUP");
     assertThat(get("/api/v1/shift-templates", null).statusCode()).isEqualTo(401);
   }
 

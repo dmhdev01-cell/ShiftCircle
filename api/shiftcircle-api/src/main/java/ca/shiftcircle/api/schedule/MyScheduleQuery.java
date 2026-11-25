@@ -35,7 +35,7 @@ public class MyScheduleQuery {
   public record UnitView(UUID id, String name) {}
 
   public record EmployeeView(
-      UUID id, String name, String role, UnitView unit, String rotation,
+      UUID id, String name, String role, String position, UnitView unit, String rotation,
       List<String> qualifications) {}
 
   public record NextShiftView(
@@ -83,8 +83,11 @@ public class MyScheduleQuery {
     Map<String, Object> employee =
         jdbc.queryForMap(
             "SELECT e.id, e.first_name || ' ' || e.last_name AS name, e.classification,"
-                + " e.seniority_date, u.id AS unit_id, u.name AS unit_name, rp.name AS rotation"
-                + " FROM employee e LEFT JOIN unit u ON u.id = e.home_unit_id"
+                + " p.name AS position_name, e.seniority_date,"
+                + " u.id AS unit_id, u.name AS unit_name, rp.name AS rotation"
+                + " FROM employee e"
+                + " LEFT JOIN position p ON p.code = e.classification"
+                + " LEFT JOIN unit u ON u.id = e.home_unit_id"
                 + " LEFT JOIN rotation_pattern rp ON rp.id = e.rotation_pattern_id"
                 + " WHERE e.id = ?",
             employeeId);
@@ -156,6 +159,7 @@ public class MyScheduleQuery {
             employeeId,
             (String) employee.get("name"),
             (String) employee.get("classification"),
+            employee.get("position_name") == null ? "" : (String) employee.get("position_name"),
             employee.get("unit_id") == null
                 ? null
                 : new UnitView((UUID) employee.get("unit_id"), (String) employee.get("unit_name")),

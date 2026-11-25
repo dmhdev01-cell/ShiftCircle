@@ -1,6 +1,7 @@
 package ca.shiftcircle.api.planner;
 
 import ca.shiftcircle.api.coverage.CoverageCalculator;
+import ca.shiftcircle.domain.Position;
 import ca.shiftcircle.rules.build.ShiftFact;
 import ca.shiftcircle.rules.build.ShiftKind;
 import java.time.DayOfWeek;
@@ -43,6 +44,15 @@ public final class PlanGenerator {
 
   public record Pref(Integer shiftLength, List<String> timesOfDay, List<String> daysOff) {}
 
+  /**
+   * An officer as the planner sees them.
+   *
+   * @param position the rank held, {@link Position#CO} for an officer and {@link Position#CS} for a
+   *     supervisor
+   * @param rankSeniority seniority inside the rank: {@code coalesce(position_since, seniority_date)}.
+   *     It is the service date until an officer is promoted, so every ordering that uses it is
+   *     unchanged for the officers
+   */
   public record Employee(
       UUID id,
       String employeeNo,
@@ -55,7 +65,9 @@ public final class PlanGenerator {
       int effectiveLength,
       int phase,
       String crew,
-      String pattern) {
+      String pattern,
+      Position position,
+      LocalDate rankSeniority) {
 
     /** Existing callers and the 100 seed: no crew row, so the planner uses the old patterns. */
     public Employee(
@@ -89,15 +101,60 @@ public final class PlanGenerator {
       this(id, employeeNo, name, unitId, unitCode, seniority, fte, pref, effectiveLength, phase,
           crew, null);
     }
+
+    /** A crew officer with their own 8 h pattern. */
+    public Employee(
+        UUID id,
+        String employeeNo,
+        String name,
+        UUID unitId,
+        String unitCode,
+        LocalDate seniority,
+        double fte,
+        Pref pref,
+        int effectiveLength,
+        int phase,
+        String crew,
+        String pattern) {
+      this(id, employeeNo, name, unitId, unitCode, seniority, fte, pref, effectiveLength, phase,
+          crew, pattern, Position.CO, seniority);
+    }
   }
 
+  /**
+   * A unit as the planner sees it.
+   *
+   * @param kind the unit kind, e.g. {@code LIVING} or {@code SUPERVISION} for a supervisor post.
+   *     Only {@code SUPERVISION} changes the behaviour, so the older callers, which build line
+   *     units, get {@code LIVING}: their ADMISSIONS, CONTROL and ESCORT units read as living
+   *     units, and a rank-aware check must ask {@link #isSupervision()} rather than the other
+   *     kinds
+   */
   public record Unit(
       UUID id,
       String code,
       String name,
       boolean allows12h,
       boolean allows16h,
-      Map<String, Integer> required) {}
+      Map<String, Integer> required,
+      String kind) {
+
+    /** Existing callers: a line unit, which is every kind there was before supervisor posts. */
+    public Unit(
+        UUID id,
+        String code,
+        String name,
+        boolean allows12h,
+        boolean allows16h,
+        Map<String, Integer> required) {
+      this(id, code, name, allows12h, allows16h, required, "LIVING");
+    }
+
+    /** True for a supervisor post: the kind a supervisor works, not a line unit. */
+    public boolean isSupervision() {
+      return "SUPERVISION".equals(kind);
+    }
+  }
 
   public record Template(UUID id, String code, LocalTime start, int minutes) {}
 
@@ -1524,7 +1581,9 @@ public final class PlanGenerator {
               employee.effectiveLength(),
               phase,
               employee.crew(),
-              employee.pattern()));
+              employee.pattern(),
+              employee.position(),
+              employee.rankSeniority()));
     }
     return result;
   }
