@@ -228,6 +228,15 @@ The payload also has `unit { id, name }`, `days` (ISO dates), `asOf` (the demo t
 `overridesThisPeriod`, `publishedState { published, unpublishedChanges }` and
 `period { id, label, status }`, matching `web/src/api/types.ts`.
 
+**Supervisor posts (v1.3 S6):** on the live board `unit` also carries `kind` (`SUPERVISION` for a
+supervisor post, else the line unit's kind), each officer row carries `position` (`CO` officer, `CS`
+supervisor), and a line unit covered by a post (`unit_supervision`) carries
+`supervisorsOnDuty: [{ date, block, names[] }]`, one entry per day and block: the people on the
+post whose shift overlaps the block's hours (Days 07–15, Evenings 15–23, Nights 23–07), empty when
+nobody. Names are sent because this is the signed-in board; the wall display stays counts only. A
+supervisor post's own board and the planner's draft leave `supervisorsOnDuty` out, and the draft
+leaves `kind` and `position` out too.
+
 **Move and cancel refusals known in advance (v1.2):** on the live board each `SHIFT` item also
 carries `actualRecorded` (any time entry references it, actual or absence), `absenceRecorded` (an
 absence row references it), `fillsOpenShift` (it fills an open shift) and `payPeriodLocked` (its

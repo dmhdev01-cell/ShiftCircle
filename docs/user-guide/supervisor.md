@@ -64,6 +64,20 @@ A coverage cell that is short, and the gap words in the **Coverage gaps** tile (
 
 ![The gap panel for Unit B on Sat 21 Nov, days: 2 short, eight free officers ranked by pay-period hours, each with a Check and assign button](img/supervisor-gap-fill-panel.png)
 
+### Supervisor posts
+
+Since release v1.3 the supervisors are rostered on two **supervisor posts**: **Supervision · Living units** (SUP-L, covers Units A, B and C) and **Supervision · Operations** (SUP-O, covers Admissions, Control and Escort). Each needs **1 supervisor per block**, 24/7. Both demo supervisors have both posts in scope.
+
+- **Unit** lists the posts under **Supervisor posts**, after the units. A post's board works like any other: the rows are the supervisors, the first column says **Supervisor**, and each coverage cell reads **Supervisor 1 / 1** ("needs 1 supervisor").
+- On a unit covered by a post, a **Supervisor on duty** line under the coverage rows names who supervises each block (D, E, N), for example "D R. Quist · E T. Osei · N Y. Pelletier" on Thu 19 Nov for Unit A; "none" means nobody is on the post then. In **Compact** it is a ✓ (or ! when a block has nobody), with the names on hover and for screen readers. It is read-only: change it on the post's own board.
+- A supervisor working an officer post carries a **Sup** badge (R-02: a warning to acknowledge, and the shift counts toward the unit's minimum). An officer on a supervisor post carries **Officer**, or **Acting** if they hold Acting supervisor.
+- **Fill a gap** on a post lists the free supervisors, then any officer here who holds **Acting supervisor**, tagged **Acting · Warn**. On a unit it lists officers only. The panel's link reads **Find eligible supervisor → Overtime board** on a post.
+- Assigning an officer to a post without Acting supervisor is **Blocked: R-01**, with no Assign and no override: the rule check names them "(officer)" and offers **Find eligible supervisor**. You can't change your own shifts on a post either (ask the other supervisor or the planner).
+
+![Unit A, week of 16 Nov: the Supervisor on duty line under the coverage rows names the supervisor in each block](img/supervisor-board-supervisor-on-duty.png)
+
+![Supervision · Living units, week of 16 Nov: supervisor rows and Supervisor 1 / 1 in every block](img/supervisor-board-supervisor-post.png)
+
 ### Assign a shift
 
 1. Tap an empty cell in an officer's row.
