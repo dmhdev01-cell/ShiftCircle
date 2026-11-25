@@ -608,7 +608,13 @@ test PASS (1 minor, 3 nits); fixed in one push:
   overtime average is 0 for an empty rank (N2). The release notes keep S6's and S7's entries when
   #39 merges (S3).
 
-S7_REVIEW_COUNTS
+**Counts after the review round** (author run at `4117cc4`, own compose project `sc-sc-s7`): web unit
+tests **673** in 65 files (+4: the rotation words, the changed-since note, the split words), lint 0
+errors, `tsc -b` clean; API `DisplayApiTest` and `ReportsApiTest` **16/16** (the API `@Test` count
+stays 620); Playwright on the same stack: `supervisor-my-schedule`, `reports`, `screenshots`,
+`e5-wall-display` and `session-and-nav` on desktop and tablet **91 passed, 1 skipped**, and
+`planner-inputs`, `planner` and `planner-a11y` (desktop-datasets) **7 passed**. On Dataset 100 the
+API's figures add up as the dialog says (727 + 230 = 957 short, 135 + 20 = 155 warnings).
 
 ### Shift proposals, P1: the officer API
 
