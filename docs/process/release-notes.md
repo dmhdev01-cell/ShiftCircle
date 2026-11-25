@@ -253,6 +253,9 @@ them are fixed in one push:
   migration-published baselines. The README and INSTALL `/version` samples read v4. The "v4 seed"
   wording in docs/05 and the roadmap now says the next version after v4, and docs/ui lists 9 tables
   and the posts columns.
+- **Counts after the round:** API **516 = 140 rules + 36 infrastructure + 340 api** (`mvn verify`
+  through the compose `api-test` stage, `BUILD SUCCESS`); web unit tests **578** in 56 files, lint 0
+  errors, `tsc -b` and build clean. Playwright: see the pull request.
 
 **Not in this release** (the rest of the plan):
 the rank-aware planner (S3), the supervisor posts and the demo supervisors in the datasets with the
