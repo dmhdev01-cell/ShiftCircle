@@ -212,11 +212,12 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
 
 **Port:** the e2e commands read `SC_WEB_PORT` from your shell and fall back to 8080. If you changed the port in `.env`, also `export SC_WEB_PORT=<port>` in the shell where you run them (or edit `BASE_URL`). `host.docker.internal` reaches the host from a container on Docker Desktop; the `--add-host` line makes the same name work on Docker Engine (run on macOS; on Linux it is **UNVERIFIED**, and `--network host` with `BASE_URL=http://localhost:${SC_WEB_PORT:-8080}` is the alternative). `E2E_WORKERS` (default 2) sets parallelism; `tests/screenshots.spec.ts` writes full-page captures and `index.json` to `SHOTS_DIR` (default `/private/tmp/sc-ui-shots/<RUN_ID>`, outside the repository: mount it the same way when the browser runs in Docker); the HTML report is `playwright-report/`. The fixtures-mode web and the `@api` / `@fixtures` tags are in `e2e/README.md`.
 
-**Count:** API and Playwright counts run on `5a38580` (24 Nov 2026: release 11 plus the PR-H rules-wording fix; the web unit tests below were re-counted at `8ae4bbd`, PR #22's head), on a fresh stack per viewport (the API suite in GitHub CI, `mvn verify` on PR #19):
-- API: **470 = 127 rules + 28 infrastructure + 315 api tests**, `mvn verify` green in the default class order, 0 failures/errors/skipped.
-- Web unit tests (at `8ae4bbd`): **532** in 54 files; lint 0 errors (4 warnings); `tsc -b` clean.
-- Playwright against the real API, whole suite per viewport (`--project desktop-datasets` and `--project tablet-datasets`, which run the parallel specs and then the stack-wide specs one at a time): desktop **124 passed**; tablet **123 passed and 1 skipped** (the TV-size check runs on desktop only); no failures on either.
-- Fixtures: **23 passed**, 79 skipped (they need the real API), no failures.
+**Count (v1.2):** the v1.2 release walk measured these at `958209c` on a fresh stack per viewport with 1 worker, and PR-Q (the walk's fixes) re-ran the web and Playwright suites at its head:
+- API: **503 = 127 rules + 28 infrastructure + 348 api tests**, `mvn verify` green in the default class order, 0 failures/errors/skipped (PR-Q changes no api code).
+- Web unit tests: **591** in 58 files (the walk's 583 in 57, plus PR-Q's 8); lint 0 errors (4 warnings); `tsc -b` clean.
+- Playwright against the real API, whole suite per viewport (`--project desktop-datasets` and `--project tablet-datasets`, which run the parallel specs and then the stack-wide specs one at a time): desktop **132 passed**; tablet **131 passed and 1 skipped** (the TV-size check runs on desktop only); no failures on either. The walk measured 129 and 128 + 1; PR-Q adds three staffing checks on Datasets 100, 120 and 150.
+
+The course submission (tag `v1.1.1-submission`) was gated on API 470, web 532 in 54 files, desktop 124 and tablet 123 + 1 (fixtures 23 passed, 79 skipped); that table is in [docs/10-testing.md](docs/10-testing.md).
 
 The dataset checksums, the payroll golden and the plan fingerprints are unchanged (no migration or generator change since release 8). Earlier counts, release by release, are in [docs/process/release-notes.md](docs/process/release-notes.md); each round is in `docs/process/review-rounds.md`.
 
