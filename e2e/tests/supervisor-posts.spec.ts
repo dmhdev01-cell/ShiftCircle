@@ -199,7 +199,7 @@ test.describe('v1.3 S6 supervisor posts on the board', () => {
     await dock.getByRole('button', { name: 'Close' }).click();
   });
 
-  test('@api a supervisor post board holds at phone width without a sideways page scroll', async ({ page }, testInfo) => {
+  test('@api a supervisor post and a line unit board hold at phone width without a sideways page scroll', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await board(page);
     await selectUnit(page, SUP_L);
@@ -209,5 +209,13 @@ test.describe('v1.3 S6 supervisor posts on the board', () => {
     );
     expect(overflow).toBeLessThanOrEqual(0);
     await shot(page, testInfo, 'supervisor', 'planning', 'supervisor-post-390');
+
+    // A line unit with the Supervisor on duty line holds too (its hidden labels stay in the scroll box).
+    await selectUnit(page, 'Unit A · Living unit');
+    await expect(page.getByTestId('supervisor-on-duty')).toBeVisible();
+    const lineOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(lineOverflow).toBeLessThanOrEqual(0);
   });
 });

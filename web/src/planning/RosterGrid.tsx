@@ -483,6 +483,8 @@ export function RosterGrid({
                               key={block}
                               title={`${label}: ${names.length > 0 ? names.join(', ') : 'none'}`}
                               sx={{
+                                // Anchors the hidden label inside the scroll box.
+                                position: 'relative',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
@@ -550,6 +552,7 @@ export function RosterGrid({
                           data-testid="position-badge"
                           title={positionBadge.title}
                           sx={{
+                            position: 'relative',
                             fontSize: compact ? 11 : 12,
                             fontWeight: 700,
                             px: 0.75,
