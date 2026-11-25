@@ -29,7 +29,6 @@ test.describe('routes and error states', () => {
     await expect(page.getByRole('heading', { name: 'Planning board', level: 1 })).toBeVisible();
     for (const [path, heading, planned] of [
       ['/proposals', 'Proposals inbox', /list of employee proposals/],
-      ['/me/propose', 'Propose shifts', /Draft proposals with a live rule result/],
       ['/me/hours', 'My hours', null],
       ['/rules/1/review', 'Rule version review', /before\/after diff/],
     ] as const) {

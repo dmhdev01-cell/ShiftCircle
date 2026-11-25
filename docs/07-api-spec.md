@@ -286,9 +286,9 @@ offer-time snapshot does not need a second answer, but a **new** warning is refu
 `422 warnings-need-acknowledgement`. The assignment is created through the normal rules/override
 path (`POST /assignments`), so S-04 and the audit event still hold.
 
-### 4.4 Proposals (employee shift planner) — API built (v1.3 P1 officer side, P2 decider side); screens not built
+### 4.4 Proposals (employee shift planner) — API built (v1.3 P1 officer side, P2 decider side); officer screen built (P3), inbox screen not built
 
-An officer proposes **extra shifts to add**; a supervisor in scope approves or declines each one, and an approved shift becomes an `EXTRA` / `PROPOSAL` assignment. The API for both sides is built: preview, send, list, withdraw and expiry (P1), and the inbox, detail and decision (P2). **The screens are not:** the web's *Propose shifts* card is unchanged until P3, and `/proposals` in the web is still a placeholder until P4. Design: owner answers Q1 to Q5 (overtime-order acknowledgement, add-only, no sending Blocked drafts, any active unit with supervisors in scope deciding and the planner as fallback, paid like an accepted overtime offer).
+An officer proposes **extra shifts to add**; a supervisor in scope approves or declines each one, and an approved shift becomes an `EXTRA` / `PROPOSAL` assignment. The API for both sides is built: preview, send, list, withdraw and expiry (P1), and the inbox, detail and decision (P2). **The officer's screen is built (P3):** My schedule's *Propose shifts* card previews, sends and lists through these endpoints, and `/me/propose` redirects to it. `/proposals` in the web is still a placeholder until P4. Design: owner answers Q1 to Q5 (overtime-order acknowledgement, add-only, no sending Blocked drafts, any active unit with supervisors in scope deciding and the planner as fallback, paid like an accepted overtime offer).
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|

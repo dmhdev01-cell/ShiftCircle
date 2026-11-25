@@ -9,7 +9,7 @@
 | S-01 | Sign-in (mock user/role picker) | All | M |
 | S-02 | **Planning board**: grid of 1 or 2 weeks; rows = officers (or switch to posts); cells = shift blocks; coverage bar per post and block (required / scheduled / actual); overtime badges; violations panel | Supervisor | M |
 | S-03 | **My Schedule**: calendar; hours this pay period, month and quarter; overtime status; upcoming overtime | Employee | M |
-| S-04 | **Shift planner**: draft preferred shifts on a copy of the roster, check against the rules, submit as a recommendation with a note. **Prototype status: partial.** *Propose shifts* checks a shift against the rules for the officer; sending it is **not built** | Employee | S |
+| S-04 | **Shift planner**: draft preferred shifts on a copy of the roster, check against the rules, submit as a recommendation with a note. **Prototype status: partial.** *Propose shifts* on My schedule (v1.3) checks the drafts against the rules together, and the officer sends them with a note, follows them under *My proposals* and can withdraw them while they wait; there is no sandbox copy of the roster | Employee | S |
 | S-05 | ~~Trades~~ | Employee | Future |
 | S-06 | **Requests inbox**: proposals and overtime acceptances waiting for approval, each with its rule results. **Prototype status: partial.** Overtime acceptances are handled on the Overtime board (Confirm); the proposals inbox is **not built** (placeholder page) | Supervisor | M |
 | S-07 | **Overtime board**: open shifts, eligible officers in fair-distribution order, offers and responses | Supervisor (employees respond from S-03) | M |
@@ -47,8 +47,8 @@ FR-10 to FR-13 (trade request, colleague acceptance, supervisor approval, monthl
 ### Employee proposals
 | ID | Requirement | P |
 |---|---|---|
-| FR-30 | An employee drafts preferred shifts in a sandbox copy of the roster. Rule results show live. **Prototype status: partial** (the rule check of one shift at a time on My schedule; no sandbox roster). | S |
-| FR-31 | The employee submits the draft as a recommendation. The supervisor sees the difference from the current roster and can accept all, accept some, or decline. **Not built** (no `/proposals` endpoint, no inbox). | S |
+| FR-30 | An employee drafts preferred shifts in a sandbox copy of the roster. Rule results show live. **Prototype status: partial** (v1.3: the officer's draft shifts on My schedule are rule-checked together, each with the others as facts, through `POST /proposals/preview`; no sandbox roster). | S |
+| FR-31 | The employee submits the draft as a recommendation. The supervisor sees the difference from the current roster and can accept all, accept some, or decline. **Prototype status: partial (v1.3).** The officer submits proposals with a note (`POST /proposals`), sees each shift's outcome and the decider's comment, and withdraws while waiting (P1 API, P3 screen). The decision API is built (P2: accept or decline per shift, re-checked at approval); the supervisors' inbox screen is P4. Add-only: no swap or give-up (owner Q2). | S |
 
 ### Notifications — future work
 FR-40 and FR-41 (email/SMS outbox, message templates) are reserved for a later phase. Until then, changes and offers are visible in the app only.

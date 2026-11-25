@@ -21,7 +21,10 @@ import type {
   DemoResetStatus,
   HoursReport,
   MyOffer,
+  MyProposal,
   MySchedulePayload,
+  ProposalItemInput,
+  ProposalPreview,
   OvertimeReport,
   OverrideRow,
   PayPeriod,
@@ -59,6 +62,13 @@ import {
   WARNINGS_NEED_ACKNOWLEDGEMENT,
 } from '../types';
 import { demoMyOffers, demoMySchedule, resetMyOffers } from './mySchedule';
+import {
+  myProposalsFixture,
+  previewProposalFixture,
+  resetMyProposals,
+  submitProposalFixture,
+  withdrawProposalFixture,
+} from './proposals';
 import {
   demoCandidates,
   demoOfferHistory,
@@ -370,6 +380,7 @@ export function resetFixtures(): void {
   resetStatus = { state: 'IDLE', step: null, startedAt: null, elapsedMs: 0, checksum: null, dataset: '100', error: null };
   resetOfferHistory();
   resetMyOffers();
+  resetMyProposals();
   resetPlannerFixtures();
   demoRuleSets.forEach((entry) => {
     entry.status =
@@ -922,6 +933,26 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
         recorded.status = status;
       }
       return { ...offer, status };
+    },
+
+    async previewProposal(items: ProposalItemInput[]): Promise<ProposalPreview> {
+      await pause();
+      return previewProposalFixture(items, evaluate);
+    },
+
+    async submitProposal(note: string, items: ProposalItemInput[]): Promise<MyProposal> {
+      await pause();
+      return submitProposalFixture(note, items, evaluate);
+    },
+
+    async getMyProposals(): Promise<MyProposal[]> {
+      await pause();
+      return myProposalsFixture();
+    },
+
+    async withdrawProposal(proposalId: string, version: number): Promise<MyProposal> {
+      await pause();
+      return withdrawProposalFixture(proposalId, version);
     },
 
     async getAuditEvents(query: AuditQuery): Promise<AuditPage> {

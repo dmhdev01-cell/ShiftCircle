@@ -1,13 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { api } from '../api/client';
@@ -15,15 +11,15 @@ import { AbsenceChip, ShiftChip } from '../components/ShiftChip';
 import { Legend, LegendItem } from '../components/Legend';
 import { qualificationLabel } from '../api/qualifications';
 import { shiftTemplates } from '../api/shiftTemplates';
-import type { MyOffer, RuleCheckChange, RuleCheckOutcome } from '../api/types';
+import type { MyOffer } from '../api/types';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
 import { MyPreferencesCard } from '../planner/MyPreferencesCard';
 import { CalendarGrid } from './CalendarGrid';
 import type { CalendarCell } from './CalendarGrid';
+import { MyProposalsList } from './MyProposalsList';
+import { ProposeShiftsCard } from './ProposeShiftsCard';
 import { useMyOffers, useMySchedule } from './useMySchedule';
-
-const REGINA_OFFSET = '-06:00';
 
 function shortDay(date: string): string {
   const parsed = new Date(`${date}T00:00:00Z`);
@@ -109,29 +105,6 @@ function monthLabel(year: number, month: number): string {
   }).format(new Date(Date.UTC(year, month - 1, 1)));
 }
 
-/** A shift the officer would like to work, with the live rule result. */
-interface Draft {
-  id: string;
-  change: RuleCheckChange;
-  what: string;
-  outcome: 'CHECKING' | 'PASS' | 'WARN' | 'BLOCK';
-  why?: string;
-}
-
-const OUTCOME_TONE = {
-  CHECKING: 'info',
-  PASS: 'pass',
-  WARN: 'warn',
-  BLOCK: 'block',
-} as const;
-
-const OUTCOME_TEXT = {
-  CHECKING: 'Checking',
-  PASS: 'Passes',
-  WARN: 'Warning',
-  BLOCK: 'Blocked',
-} as const;
-
 /**
  * What the api said about this offer. The screen never claims a check it was
  * not given: with no rule results there is nothing to claim.
@@ -173,9 +146,9 @@ function offerCheck(offer: MyOffer) {
  * The employee's My schedule (docs/ui/README.md §5.2). It shows only the
  * officer's own data: no colleague's hours, absences or overtime totals.
  *
- * The officer can answer an overtime offer and check shifts they would like
- * to work against the rules. A checked shift stays on this screen: sending it
- * to a supervisor is not built (M1), and only a supervisor authorises an extra
+ * The officer can answer an overtime offer and propose extra shifts: drafts
+ * are rule-checked together, sent with a note, and followed under My
+ * proposals (v1.3 P3). Only a supervisor or the planner approves an extra
  * shift (S-04).
  */
 export function MySchedulePage() {
@@ -188,10 +161,35 @@ export function MySchedulePage() {
   const { state: scheduleState } = useMySchedule(range?.from, range?.to);
   const { state: offersState, reload: reloadOffers } = useMyOffers();
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [adding, setAdding] = useState(false);
-  const [newDate, setNewDate] = useState('2026-11-26');
-  const [newTemplate, setNewTemplate] = useState('A12');
+  const [proposalsKey, setProposalsKey] = useState(0);
+  const location = useLocation();
+  const loaded = scheduleState.kind === 'ready';
+
+  // /me/propose redirects to #propose (or #my-proposals): bring that card into
+  // view once the page has drawn it, and keep it there for a moment while the
+  // offers above it load and push it down. Any scroll, touch or key by the
+  // person stops it at once.
+  useEffect(() => {
+    if (!loaded || !location.hash) return;
+    const target = document.getElementById(location.hash.slice(1));
+    if (!target || typeof target.scrollIntoView !== 'function') return;
+    target.scrollIntoView();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => target.scrollIntoView());
+    observer.observe(document.body);
+    const stop = () => {
+      observer.disconnect();
+      window.clearTimeout(timer);
+      for (const name of ['wheel', 'touchstart', 'keydown', 'mousedown'] as const) {
+        window.removeEventListener(name, stop);
+      }
+    };
+    const timer = window.setTimeout(stop, 2000);
+    for (const name of ['wheel', 'touchstart', 'keydown', 'mousedown'] as const) {
+      window.addEventListener(name, stop, { passive: true });
+    }
+    return stop;
+  }, [loaded, location.hash]);
 
   if (scheduleState.kind === 'loading') {
     return (
@@ -256,59 +254,6 @@ export function MySchedulePage() {
     }
   };
 
-  const addDraft = async () => {
-    const template = shiftTemplates[newTemplate];
-    const change: RuleCheckChange = {
-      type: 'ASSIGN',
-      employeeId: payload.employee.id,
-      unitId: payload.employee.unit.id,
-      shiftTemplate: newTemplate,
-      startAt: `${newDate}T${template.start}:00${REGINA_OFFSET}`,
-    };
-
-    const id = `${newDate}-${newTemplate}`;
-    setDrafts((current) => [
-      ...current.filter((draft) => draft.id !== id),
-      {
-        id,
-        change,
-        what: `${shortDay(newDate)}: add ${newTemplate} ${template.start} – ${template.end}${template.endsNextDay ? ' +1' : ''}`,
-        outcome: 'CHECKING',
-      },
-    ]);
-    setAdding(false);
-
-    try {
-      const result: RuleCheckOutcome = await api.previewRuleCheck({ change });
-      const blocked = result.ruleResults.some((entry) => entry.outcome === 'BLOCK');
-      const warned = result.ruleResults.some((entry) => entry.outcome === 'WARN');
-      const reason = result.ruleResults.find((entry) => entry.outcome !== 'PASS')?.message;
-      setDrafts((current) =>
-        current.map((draft) =>
-          draft.id === id
-            ? {
-                ...draft,
-                outcome: blocked ? 'BLOCK' : warned ? 'WARN' : 'PASS',
-                ...(reason ? { why: reason } : {}),
-              }
-            : draft,
-        ),
-      );
-    } catch (error) {
-      setDrafts((current) =>
-        current.map((draft) =>
-          draft.id === id
-            ? {
-                ...draft,
-                outcome: 'BLOCK',
-                why: error instanceof Error ? error.message : 'The rules could not be checked.',
-              }
-            : draft,
-        ),
-      );
-    }
-  };
-
   const payPeriod = payload.payPeriod;
   const progress = Math.min(
     100,
@@ -332,6 +277,18 @@ export function MySchedulePage() {
             .filter((part) => typeof part === 'string' && part.trim() !== '')
             .join(' · ')}
         </Typography>
+        {/* The Propose card sits below the offers in the side column; on a
+            long page an officer must be able to find it (UI test L2, PR #33). */}
+        <Box component="nav" aria-label="On this page" sx={{ fontSize: 14, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          <span>Want an extra shift?</span>
+          <Box component="a" href="#propose" sx={{ color: colour.brand.link, fontWeight: 600 }}>
+            Propose shifts
+          </Box>
+          <span aria-hidden="true">·</span>
+          <Box component="a" href="#my-proposals" sx={{ color: colour.brand.link, fontWeight: 600 }}>
+            My proposals
+          </Box>
+        </Box>
       </Box>
 
       {/* Observation #1: the calendar's chips and the offer states had no key. */}
@@ -606,132 +563,14 @@ export function MySchedulePage() {
             </Box>
           ))}
 
-          <Box
-            component="section"
-            aria-label="Propose shifts"
-            sx={{
-              backgroundColor: colour.bg.surface,
-              border: `1px solid ${colour.border.default}`,
-              borderRadius: '10px',
-              p: 4,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 3,
-            }}
-          >
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Typography component="h2" sx={{ m: 0, fontSize: 17, fontWeight: 700 }}>
-                Propose shifts
-              </Typography>
-              <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary, lineHeight: 1.45 }}>
-                Check a shift you would like against the rules before you ask for it. Only a
-                supervisor can authorise an extra shift.
-              </Box>
-            </Box>
-
-            {drafts.map((draft) => (
-              <Box
-                key={draft.id}
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 1.5,
-                  p: '10px 12px',
-                  border: `1px solid ${colour.border.default}`,
-                  borderRadius: '8px',
-                }}
-              >
-                <Box component="span" sx={{ fontSize: 14, fontWeight: 600 }}>
-                  {draft.what}
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                  <StatusPill tone={OUTCOME_TONE[draft.outcome]}>
-                    {OUTCOME_TEXT[draft.outcome]}
-                  </StatusPill>
-                  {draft.why ? (
-                    <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
-                      {draft.why}
-                    </Box>
-                  ) : null}
-                </Box>
-              </Box>
-            ))}
-
-            {/* M1: the api has no proposals endpoint or inbox (README, "Not built
-                at all"), so nothing is sent; the officer is told plainly instead of
-                meeting a 404. */}
-            <Box
-              role="note"
-              aria-label="Sending a proposal"
-              sx={{
-                p: '10px 12px',
-                borderRadius: '8px',
-                backgroundColor: colour.status.info.bg,
-                color: colour.status.info.text,
-                fontSize: 13,
-                lineHeight: 1.45,
-              }}
-            >
-              <Box component="strong" sx={{ display: 'block', fontWeight: 700 }}>
-                Sending to your supervisor: not available in this prototype
-              </Box>
-              There is no proposals inbox yet, so nothing is sent from here. Check the shift, then
-              ask your supervisor directly.
-            </Box>
-
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-              <Button variant="outlined" color="primary" onClick={() => setAdding(true)}>
-                Add a shift
-              </Button>
-            </Box>
-          </Box>
+          <ProposeShiftsCard
+            employee={payload.employee}
+            asOf={asOf}
+            onSent={() => setProposalsKey((key) => key + 1)}
+          />
+          <MyProposalsList reloadKey={proposalsKey} asOf={asOf} />
         </Box>
       </Box>
-
-      <Dialog open={adding} onClose={() => setAdding(false)} fullWidth maxWidth="xs">
-        <DialogTitle sx={{ fontSize: 18, fontWeight: 700 }}>Add a shift</DialogTitle>
-        <DialogContent>
-          <Typography sx={{ fontSize: 13, color: colour.text.secondary, mb: 2 }}>
-            The rules are checked as soon as you add the shift, so you can see the answer before you ask your supervisor.
-          </Typography>
-          <TextField
-            label="Date"
-            type="date"
-            fullWidth
-            value={newDate}
-            onChange={(event) => setNewDate(event.target.value)}
-            sx={{ mb: 2 }}
-            slotProps={{ htmlInput: { min: '2026-10-01', max: '2026-12-29' } }}
-          />
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {Object.values(shiftTemplates).map((option) => (
-              <Button
-                key={option.code}
-                variant={option.code === newTemplate ? 'contained' : 'outlined'}
-                color="primary"
-                onClick={() => setNewTemplate(option.code)}
-                sx={{ justifyContent: 'space-between' }}
-              >
-                <span>
-                  {option.code} · {option.label}
-                </span>
-                <span className="num">
-                  {option.start} – {option.end}
-                  {option.endsNextDay ? ' +1' : ''}
-                </span>
-              </Button>
-            ))}
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button variant="outlined" color="primary" onClick={() => setAdding(false)}>
-            Cancel
-          </Button>
-          <Button variant="contained" color="primary" onClick={() => void addDraft()}>
-            Add and check the rules
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 }

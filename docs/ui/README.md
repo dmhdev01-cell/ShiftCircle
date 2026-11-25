@@ -116,11 +116,11 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 - **Interactions to build:** click an empty cell → choose a shift template → live rule preview → save; click a chip → move/cancel; drag and drop is a "could".
 
 ### 5.2 My schedule (employee) — `screens/MySchedule.dc.html`
-- **Route:** `/me/schedule` · **API:** `GET /me/schedule`, `GET /me/offers`, `POST /offers/{id}/accept|decline`, `POST /rule-checks`. *(`POST /proposals` is not built.)*
+- **Route:** `/me/schedule` · **API:** `GET /me/schedule`, `GET /me/offers`, `POST /offers/{id}/accept|decline`, `POST /proposals/preview`, `POST /proposals`, `GET /me/proposals`, `POST /proposals/{id}/withdraw` (docs/07 §4.4; since v1.3 P3 the Propose card no longer calls `POST /rule-checks`).
 - **Top cards:** next shift (blue card), pay-period hours with a progress bar (worked vs still scheduled), overtime this quarter and place on the overtime list.
 - **Month calendar:** Mon–Sun grid, 6 weeks; out-of-month days dimmed; today outlined in blue; chips as §3.2; ‹ Oct / Dec › navigation.
 - **Overtime offer card** (green border): shift, unit, who offered and when; "Rules OK for you" with rest and hours facts; Accept (yellow) / Decline (white) → confirmation message ("Accepted. Your supervisor will confirm the assignment.").
-- **Propose shifts:** draft items, each with a live rule result (Passes / Warning + reason) and "Add a shift". *As built (M1): the note field and "Send to supervisor" are gone, because there is no proposals endpoint or inbox; the card says that sending a proposal is not available in this prototype.*
+- **Propose shifts:** draft items, each with a live rule result (Passes / Warning + reason) and "Add a shift". *As built (v1.3 P3): every draft is checked together with the other drafts ("Checked with your other drafts"), each has Remove, the drafts survive a refresh in the same tab, a note (optional, 500 characters, "Don't include medical details") and **Send to supervisor**, which is off while any draft is Blocked or being checked and says why. Below it, **My proposals** lists the last 90 days with Waiting / Approved / Partly approved / Declined / Withdrawn / Expired per shift, the decider and comment, and Withdraw (with a confirm) while every shift waits. `/me/propose` redirects to `/me/schedule#propose`.*
 - **Privacy:** employees never see colleagues' hours, absences or overtime totals.
 
 ### 5.3 Overtime board (supervisor) — `screens/Overtime.dc.html`

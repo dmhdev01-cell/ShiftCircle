@@ -1234,6 +1234,76 @@ export interface PlannerCommitFailure {
   ruleResults: RuleResult[];
 }
 
+// --- Shift proposals, the officer's side (docs/07 §4.4) ---
+
+/** One draft shift, as the api takes it. The proposer is always the caller. */
+export interface ProposalItemInput {
+  unitId: string;
+  shiftTemplate: string;
+  startAt: string;
+}
+
+/** One draft's answer from POST /proposals/preview. */
+export interface ProposalPreviewItem {
+  index: number;
+  unitId: string;
+  unit: string;
+  shiftTemplate: string;
+  startAt: string;
+  endAt: string;
+  outcome: RuleOutcome;
+  ruleSetVersion: number;
+  ruleResults: RuleResult[];
+  /** A plain-words refusal that is not a rule (locked period, closed unit, already waiting). */
+  problem: string | null;
+  problemCode: string | null;
+}
+
+export interface ProposalPreview {
+  outcome: RuleOutcome;
+  canSend: boolean;
+  items: ProposalPreviewItem[];
+}
+
+export type ProposalItemDecision = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'WITHDRAWN' | 'EXPIRED';
+
+export type ProposalDisplayState =
+  | 'WAITING'
+  | 'APPROVED'
+  | 'PARTLY_APPROVED'
+  | 'DECLINED'
+  | 'WITHDRAWN'
+  | 'EXPIRED';
+
+export interface MyProposalItem {
+  id: string;
+  unitId: string;
+  unit: string;
+  unitName: string;
+  shiftTemplate: string;
+  startAt: string;
+  endAt: string;
+  workDate: string;
+  decision: ProposalItemDecision;
+  outcomeAtSubmit: RuleOutcome | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  comment: string | null;
+}
+
+/** A proposal from GET /me/proposals. `note` is the officer's plain text. */
+export interface MyProposal {
+  id: string;
+  status: 'WAITING' | 'DECIDED' | 'WITHDRAWN' | 'EXPIRED';
+  displayState: ProposalDisplayState;
+  note: string | null;
+  submittedAt: string;
+  withdrawnAt: string | null;
+  version: number;
+  canWithdraw: boolean;
+  items: MyProposalItem[];
+}
+
 export interface ShiftCircleApi {
   getSchedule(query: ScheduleQuery): Promise<SchedulePayload>;
   previewRuleCheck(request: RuleCheckRequest): Promise<RuleCheckOutcome>;
@@ -1353,7 +1423,16 @@ export interface ShiftCircleApi {
   getMySchedule(query: ScheduleQuery): Promise<MySchedulePayload>;
   getMyOffers(): Promise<MyOffer[]>;
   respondToOffer(offerId: string, response: OfferResponse): Promise<MyOffer>;
-  // Sending proposals is not built: the api has no /proposals endpoint (M1).
+
+  // Shift proposals, the officer's side (docs/07 §4.4, v1.3 P3).
+  /** POST /proposals/preview: every draft checked with the drafts that start before it. */
+  previewProposal(items: ProposalItemInput[]): Promise<ProposalPreview>;
+  /** POST /proposals: send the drafts with an optional note (201). */
+  submitProposal(note: string, items: ProposalItemInput[]): Promise<MyProposal>;
+  /** GET /me/proposals: the caller's own proposals, newest first. */
+  getMyProposals(): Promise<MyProposal[]>;
+  /** POST /proposals/{id}/withdraw; the version goes in If-Match. */
+  withdrawProposal(proposalId: string, version: number): Promise<MyProposal>;
 
   // Reference data.
   getUnits(): Promise<Unit[]>;

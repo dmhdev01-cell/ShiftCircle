@@ -119,16 +119,8 @@ export function AppRoutes() {
         <Route path="/rules/:version/:table" element={<RulesPage />} />
         <Route path="/display" element={<WallDisplayPage />} />
         <Route path="/me/schedule" element={<MySchedulePage />} />
-        <Route
-          path="/me/propose"
-          element={
-            <PlaceholderPage
-              title="Propose shifts"
-              subtitle="Employee · Shift proposals"
-              planned="Draft proposals with a live rule result, a note to the supervisor, and Send to supervisor."
-            />
-          }
-        />
+        {/* v1.3 P3: proposing lives on My schedule; the old link lands on its card. */}
+        <Route path="/me/propose" element={<Navigate to="/me/schedule#propose" replace />} />
         <Route path="/me/hours" element={<PlaceholderPage title="My hours" subtitle="Employee · Hours and overtime" />} />
         <Route path="/time" element={<TimeAttendancePage />} />
         <Route path="/audit" element={<AuditPage />} />

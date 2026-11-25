@@ -4,43 +4,13 @@ import { apiAs, isFixtures } from './api';
 import { expectAccessible, selectUnit, signIn } from './support';
 
 /**
- * M1 and M3 from the functional gap analysis: two links led to something the
- * prototype does not have. Each now says so plainly instead of failing (M1: the
- * Propose card sends nothing until v1.3 P3, although POST /proposals exists now)
- * or quietly showing something else (M3, another
- * open shift's ranked list).
+ * M3 from the functional gap analysis: a link led to something the prototype
+ * does not have, and now says so plainly instead of quietly showing another
+ * open shift's ranked list. (M1, the Propose card that could not send, is
+ * built in v1.3 P3: proposals-officer.spec.ts covers it.)
  */
 
 test.describe('not-built states say so', () => {
-  test('M1: Propose shifts checks the rules but sends nothing to a missing endpoint', async ({
-    page,
-  }, testInfo) => {
-    const proposalCalls: string[] = [];
-    page.on('request', (request) => {
-      if (/\/api\/v1\/proposals/.test(request.url())) proposalCalls.push(request.url());
-    });
-
-    await signIn(page, 'T. Nakamura');
-    await expect(page.getByRole('heading', { name: 'My schedule', level: 1 })).toBeVisible();
-
-    const card = page.getByRole('region', { name: 'Propose shifts' });
-    await expect(card.getByRole('note', { name: 'Sending a proposal' })).toContainText(
-      'not available in this prototype',
-    );
-    await expect(card.getByRole('button', { name: 'Send to supervisor' })).toHaveCount(0);
-    await expect(card.getByLabel('Note to your supervisor')).toHaveCount(0);
-
-    // The rule check against the officer's own record still works.
-    await card.getByRole('button', { name: 'Add a shift' }).click();
-    const dialog = page.getByRole('dialog');
-    await dialog.getByRole('button', { name: 'Add and check the rules' }).click();
-    await expect(card.getByText(/add A12/)).toBeVisible();
-    await expect(card.getByText('Checking', { exact: true })).toHaveCount(0);
-    await expectAccessible(page, testInfo, 'my-schedule-propose');
-
-    expect(proposalCalls, 'no request to the missing /proposals endpoint').toEqual([]);
-  });
-
   test('@api M3: Find eligible officer on a slot with no open shift says so', async ({
     page,
     request,
