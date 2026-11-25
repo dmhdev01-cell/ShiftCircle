@@ -111,6 +111,14 @@ Each rule result carries `ruleCode`, `outcome`, `message`, `facts` (`{ "required
 outcome body has `outcome`, `ruleSetVersion` (number) and `overridable`. The browser contract in
 `web/src/api/types.ts` is the implementation reference.
 
+**Who can work a post (release v1.3, rule set v4).** The check also reads the person's position, the
+qualifications they hold on the shift's date and the unit's kind, so a result can come from the
+`POSTS` table (`ruleTable: "POSTS"`): **R-01** for an officer on a supervisor post (`BLOCK` with
+`overridePolicy: "NONE"`, so `overridable` is `false`; `WARN` with `ACKNOWLEDGE` when the officer
+holds `ACTING_SUP`) and **R-02** for a supervisor on an officer post (`WARN`, `ACKNOWLEDGE`). Their
+`facts` are `{ "required": 0, "actual": 0, "unit": "post" }`; the evidence label names the person's
+number, their position in words and the post. No request field changed.
+
 **Blocked response:**
 ```json
 HTTP/1.1 422 Unprocessable Content
@@ -327,7 +335,7 @@ path (`POST /assignments`), so S-04 and the audit event still hold.
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
 | GET | `/rule-sets` | Versions and status | RULES_ADMIN, RULES_APPROVER, AUDITOR, SUPERVISOR (read) |
-| GET | `/rule-sets/{version}/tables/{code}` | Rows, column schema and plain-language sentences | same |
+| GET | `/rule-sets/{version}/tables/{code}` | Rows, column schema and plain-language sentences. `code` is the table code or the web's slug; release v1.3 adds `POSTS` (slug `posts`, "Who can work a post"), whose `columns` read `Post`, `Who can work it`, `If someone else`, `Override` and whose rows carry `params.postKind`, `params.allowedPositions` and `params.actingQualification` | same |
 | POST | `/rule-sets/drafts` | `{ "basedOn": 7, "reason" }` → new draft (also used to roll back to an older version) | RULES_ADMIN |
 | PUT | `/rule-sets/{version}/tables/{code}/rows` | Replace a table's rows in a draft (no `If-Match` in the prototype: saving clears the build, and a stale build can't be submitted) | RULES_ADMIN |
 | POST | `/rule-sets/{version}/build` | Validate → compile (Drools) → run test scenarios → dry run on the published roster; returns the report | RULES_ADMIN |

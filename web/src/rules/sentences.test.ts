@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { RuleTableRow } from '../api/types';
-import { composeSentence, sentenceFor, shiftKindLabel } from './sentences';
+import { composeSentence, isPostsTable, sentenceFor, shiftKindLabel } from './sentences';
 
 /**
  * Every row of the shipped live rule set (v3), exactly as
@@ -204,5 +204,71 @@ describe('shiftKindLabel', () => {
   it('leaves the friendly labels alone', () => {
     expect(shiftKindLabel('Any shift')).toBe('Any shift');
     expect(shiftKindLabel('16 h shift')).toBe('16 h shift');
+  });
+});
+
+/**
+ * The "Who can work a post" table (release v1.3, R-01/R-02), exactly as
+ * GET /api/v1/rule-sets/4/tables/posts returns it (pinned by the api's
+ * RuleSentenceTest and PostEligibilityApiTest).
+ */
+const LIVE_V4_POSTS: [string, RuleTableRow][] = [
+  ["POSTS", {"ruleCode": "R-01", "enabled": true, "after": "", "minHours": 0, "result": "BLOCK", "override": "NOT_ALLOWED", "source": "Owner item 17", "params": {"postKind": "SUPERVISION", "allowedPositions": ["CS"], "actingQualification": "ACTING_SUP"}, "sentence": "Only supervisors can work a supervisor post; anyone else is blocked. It cannot be overridden. Someone with the Acting supervisor qualification is warned instead, and a supervisor must acknowledge it."}],
+  ["POSTS", {"ruleCode": "R-02", "enabled": true, "after": "", "minHours": 0, "result": "WARN", "override": "ACKNOWLEDGE", "source": "Owner item 17", "params": {"postKind": "LINE", "allowedPositions": ["CO"]}, "sentence": "Only officers can work an officer post; anyone else is warned. A supervisor must acknowledge it before the change is saved."}],
+];
+
+function post(code: string, patch: Partial<RuleTableRow> = {}, params: Record<string, unknown> = {}): RuleTableRow {
+  const found = LIVE_V4_POSTS.find(([, candidate]) => candidate.ruleCode === code);
+  if (!found) throw new Error(code);
+  return { ...found[1], ...patch, params: { ...found[1].params, ...params } };
+}
+
+describe('who can work a post', () => {
+  it.each(LIVE_V4_POSTS.map(([table, r]) => [r.ruleCode, table, r] as const))(
+    '%s: an unedited row composes exactly the api sentence',
+    (_code, table, r) => {
+      expect(composeSentence(table, r)).toBe(r.sentence);
+      expect(composeSentence('posts', r)).toBe(r.sentence);
+    },
+  );
+
+  it('R-01 without the acting qualification blocks everyone else, with no warning clause', () => {
+    expect(composeSentence('posts', post('R-01', {}, { actingQualification: null }))).toBe(
+      'Only supervisors can work a supervisor post; anyone else is blocked. It cannot be overridden.',
+    );
+  });
+
+  it('the acting qualification only softens a Block', () => {
+    expect(composeSentence('posts', post('R-01', { result: 'WARN', override: 'ACKNOWLEDGE' }))).toBe(
+      'Only supervisors can work a supervisor post; anyone else is warned. A supervisor must acknowledge it before the change is saved.',
+    );
+  });
+
+  it('who can work the post reads as people, never as codes', () => {
+    const sentence = composeSentence('posts', post('R-02', {}, { allowedPositions: ['CS'] }));
+    expect(sentence).toMatch(/^Only supervisors can work an officer post;/);
+    expect(composeSentence('posts', post('R-02', {}, { allowedPositions: ['CO', 'CS'] }))).toMatch(
+      /^Only officers and supervisors can work/,
+    );
+  });
+
+  it('every result and override choice reads plainly, with no stored code', () => {
+    const results: RuleTableRow['result'][] = ['BLOCK', 'WARN', 'INFO'];
+    const overrides: RuleTableRow['override'][] = ['EMERGENCY', 'ACKNOWLEDGE', 'NOT_ALLOWED'];
+    for (const code of ['R-01', 'R-02']) {
+      for (const result of results) {
+        for (const override of overrides) {
+          const sentence = composeSentence('posts', post(code, { result, override }));
+          expectPlain(sentence);
+          expect(sentence).not.toMatch(/SUPERVISION|LINE|ACTING_SUP|\bC[OS]\b|\[/);
+        }
+      }
+    }
+  });
+
+  it('knows the posts table by its slug and by the api code', () => {
+    expect(isPostsTable('posts')).toBe(true);
+    expect(isPostsTable('POSTS')).toBe(true);
+    expect(isPostsTable('shift-types')).toBe(false);
   });
 });

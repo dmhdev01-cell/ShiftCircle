@@ -14,7 +14,7 @@ import { expectAccessible, signIn, signInAgain, signOut } from './support';
 
 test.describe('E3 rule change with maker/checker', () => {
   test('admin edits, builds and submits; approver approves and publishes', async ({ page }, testInfo) => {
-    // Writes state: it publishes a new live rule version (v8 in the fixtures, v4 on a fresh real api).
+    // Writes state: it publishes a new live rule version (v8 in the fixtures, v5 on a fresh real api).
     await signIn(page, 'L. Fraser');
     await expect(page.getByRole('heading', { name: 'Rules', level: 1 })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Rest between shifts' })).toBeVisible();

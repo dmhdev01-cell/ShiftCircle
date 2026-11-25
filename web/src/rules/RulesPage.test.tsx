@@ -64,6 +64,53 @@ describe('Rules admin', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('opens Who can work a post with its own columns', async () => {
+    renderRules('/rules/8/posts');
+
+    const tables = await screen.findByRole('region', { name: 'Rule tables' });
+    expect(within(tables).getByRole('button', { name: 'Who can work a post' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(await screen.findByRole('heading', { name: 'Who can work a post' })).toBeInTheDocument();
+    for (const heading of ['Post', 'Who can work it', 'Acting supervisor', 'If someone else']) {
+      expect(screen.getByRole('columnheader', { name: heading })).toBeInTheDocument();
+    }
+    // No shift-kind select or hours field: those belong to the other tables.
+    expect(screen.queryByLabelText('Shift kind for R-01')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Minimum hours off for R-01')).not.toBeInTheDocument();
+    expect(screen.getByText('Supervisor post')).toBeInTheDocument();
+    expect(screen.getByText('Officer post')).toBeInTheDocument();
+    expect(screen.getByLabelText('Who can work the post for R-01')).toHaveDisplayValue('Supervisors');
+    expect(screen.getByLabelText('Who can work the post for R-02')).toHaveDisplayValue('Officers');
+    expect(screen.getByText('Does not apply')).toBeInTheDocument();
+    expect(
+      screen.getByText(/^Only supervisors can work a supervisor post; anyone else is blocked\./),
+    ).toBeInTheDocument();
+  });
+
+  it('a rules admin edits who can work a post and saves it in the draft', async () => {
+    const user = userEvent.setup();
+    renderRules('/rules/8/posts');
+    await screen.findByRole('heading', { name: 'Who can work a post' });
+    await actAsRulesAdmin(user);
+
+    const acting = screen.getByLabelText('Acting supervisor may work the post for R-01');
+    expect(acting).toBeChecked();
+    await user.click(acting);
+    expect(
+      await screen.findByText(
+        'Only supervisors can work a supervisor post; anyone else is blocked. It cannot be overridden.',
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Save the draft' }));
+    const saved = await api.getRuleTable(8, 'posts');
+    const r01 = saved.rows.find((row) => row.ruleCode === 'R-01');
+    expect(r01?.params?.actingQualification).toBeNull();
+    expect(r01?.params?.allowedPositions).toEqual(['CS']);
+  });
+
   it('shows the plain-language sentence the api sent', async () => {
     renderRules();
 

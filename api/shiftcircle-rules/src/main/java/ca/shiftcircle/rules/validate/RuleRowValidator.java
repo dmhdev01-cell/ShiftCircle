@@ -35,6 +35,10 @@ public final class RuleRowValidator {
 
   private static final Pattern SHIFT_KIND =
       Pattern.compile("\\.\\*|\\(?[A-Za-z0-9]{1,8}(\\|[A-Za-z0-9]{1,8})*\\)?");
+  /** The positions a post row can name (the position table, docs/06 §3.1). */
+  private static final Set<String> POSITIONS = Set.of("CO", "CS");
+  private static final Set<String> POST_KINDS = Set.of("SUPERVISION", "LINE");
+  private static final Pattern QUALIFICATION = Pattern.compile("[A-Z][A-Z0-9_]{0,31}");
   private static final Pattern UNSAFE_MESSAGE = Pattern.compile("[\"\\\\\r\n{}]");
   /** Every rule the mock agreement requires (docs/05 §3 says these are the Must set). */
   private static final Set<String> REQUIRED = RuleRowsV1.ruleSet().ruleCodes();
@@ -124,6 +128,7 @@ public final class RuleRowValidator {
       case PAY -> validatePay(row, violations);
       case OT_RANKING -> validateRanking(row, violations);
       case SHIFT_LENGTHS -> validateShiftLengths(row, violations);
+      case POSTS -> validatePosts(row, violations);
     }
   }
 
@@ -465,6 +470,64 @@ public final class RuleRowValidator {
                   "Only 12- and 16-hour patterns need the unit flag."));
         }
       }
+    }
+  }
+
+  private static void validatePosts(RuleRow row, List<Violation> violations) {
+    Object postKind = row.params().get("postKind");
+    if (postKind == null || !POST_KINDS.contains(postKind.toString())) {
+      violations.add(
+          new Violation(
+              row.code(), "Post", "Choose a supervisor post or an officer post."));
+    }
+    Object raw = row.params().get("allowedPositions");
+    if (!(raw instanceof List<?> positions) || positions.isEmpty()) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "Who can work it",
+              "Choose at least one position: officers, supervisors or both."));
+    } else {
+      if (positions.size() > MAX_LIST_VALUES) {
+        violations.add(
+            new Violation(
+                row.code(),
+                "Who can work it",
+                "A post row lists at most " + MAX_LIST_VALUES + " positions."));
+      }
+      int checked = 0;
+      for (Object position : positions) {
+        if (checked++ >= MAX_LIST_VALUES) {
+          break;
+        }
+        if (!POSITIONS.contains(String.valueOf(position))) {
+          violations.add(
+              new Violation(
+                  row.code(),
+                  "Who can work it",
+                  "Unknown position '"
+                      + display(String.valueOf(position))
+                      + "'. Choose officers (CO) or supervisors (CS)."));
+        }
+      }
+      if (positions.containsAll(POSITIONS)) {
+        violations.add(
+            new Violation(
+                row.code(),
+                "Who can work it",
+                "Every position may work this post, so the rule can never fire; switch the row"
+                    + " off instead."));
+      }
+    }
+    Object acting = row.params().get("actingQualification");
+    if (acting != null
+        && !acting.toString().isBlank()
+        && !QUALIFICATION.matcher(acting.toString()).matches()) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "Acting qualification",
+              "Use a qualification code such as ACTING_SUP, or leave it empty."));
     }
   }
 

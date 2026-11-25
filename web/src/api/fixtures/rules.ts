@@ -365,6 +365,44 @@ export const demoRuleTables: RuleTable[] = [
     ],
     changed: 0,
   },
+  {
+    // The posts table (release v1.3, R-01/R-02), as the api sends it.
+    code: 'posts',
+    name: 'Who can work a post',
+    columns: {
+      after: 'Post',
+      hours: 'Who can work it',
+      result: 'If someone else',
+      override: 'Override',
+    },
+    rows: [
+      {
+        ruleCode: 'R-01',
+        enabled: true,
+        after: '',
+        minHours: 0,
+        result: 'BLOCK',
+        override: 'NOT_ALLOWED',
+        source: 'Owner item 17',
+        params: { postKind: 'SUPERVISION', allowedPositions: ['CS'], actingQualification: 'ACTING_SUP' },
+        sentence:
+          'Only supervisors can work a supervisor post; anyone else is blocked. It cannot be overridden. Someone with the Acting supervisor qualification is warned instead, and a supervisor must acknowledge it.',
+      },
+      {
+        ruleCode: 'R-02',
+        enabled: true,
+        after: '',
+        minHours: 0,
+        result: 'WARN',
+        override: 'ACKNOWLEDGE',
+        source: 'Owner item 17',
+        params: { postKind: 'LINE', allowedPositions: ['CO'] },
+        sentence:
+          'Only officers can work an officer post; anyone else is warned. A supervisor must acknowledge it before the change is saved.',
+      },
+    ],
+    changed: 0,
+  },
 ];
 
 /**

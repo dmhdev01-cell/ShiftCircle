@@ -267,12 +267,59 @@ class RuleRowValidatorTest {
   }
 
   @Test
+  void aPostRowNamesAKnownPostAndKnownPositions() {
+    assertThat(
+            validateWith(
+                "R-01",
+                params("postKind", "OFFICE", "allowedPositions", List.of("CS"))))
+        .anySatisfy(violation -> assertThat(violation.column()).isEqualTo("Post"));
+    assertThat(
+            validateWith(
+                "R-01",
+                params("postKind", "SUPERVISION", "allowedPositions", List.of("LT"))))
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.column()).isEqualTo("Who can work it");
+              assertThat(violation.message()).contains("Unknown position");
+            });
+    assertThat(
+            validateWith(
+                "R-02", params("postKind", "LINE", "allowedPositions", List.of())))
+        .anySatisfy(violation -> assertThat(violation.column()).isEqualTo("Who can work it"));
+  }
+
+  @Test
+  void aPostRowThatLetsEveryoneWorkThePostIsRefused() {
+    // Both positions allowed means the row can never fire: an admin believes it protects a post.
+    assertThat(
+            validateWith(
+                "R-02", params("postKind", "LINE", "allowedPositions", List.of("CO", "CS"))))
+        .anySatisfy(violation -> assertThat(violation.message()).contains("can never fire"));
+  }
+
+  @Test
+  void aHostileActingQualificationIsRefused() {
+    assertThat(
+            validateWith(
+                "R-01",
+                params(
+                    "postKind",
+                    "SUPERVISION",
+                    "allowedPositions",
+                    List.of("CS"),
+                    "actingQualification",
+                    "X\") || true || (\"")))
+        .anySatisfy(
+            violation -> assertThat(violation.column()).isEqualTo("Acting qualification"));
+  }
+
+  @Test
   void theTableCodesMatchTheValidatorBranches() {
     // A new table added without a validation branch would silently skip §5a.
     for (RuleTableCode code : RuleTableCode.values()) {
       assertThat(code.code()).isNotBlank();
     }
-    assertThat(RuleTableCode.values()).hasSize(8);
+    assertThat(RuleTableCode.values()).hasSize(9);
   }
 
   // ---------------------------------------------------------------------------------------------

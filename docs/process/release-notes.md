@@ -110,8 +110,8 @@ Not part of the submission tag. Changes merged after `v1.1.1-submission`, one pu
 
 The owner approved the plan in `.factory/plans/v1.2-supervisors.md` (the plan file still says v1.2; the
 release was split afterwards, so it is v1.3 here). The work is eight small pull requests, **S1 to S8**;
-this entry covers **S1** only. The plan is not in the repository, so this section is the record of what
-the first pull request did.
+this entry covers **S1** and **S2**. The plan is not in the repository, so this section is the record of what
+these pull requests did.
 
 ### S1 — Positions and the SUPERVISION kind (API, schema only)
 
@@ -165,7 +165,63 @@ lint 0 errors, `tsc -b` clean, build clean; `check-ignored-sources.sh` OK and
 in S7 with the rest of the samples — and this migration must merge **after** the quarter-plan
 options migration (PR #24), which owns the versions before it.
 
-**Not in this release** (the rest of the plan): the `POSTS` rule table and the R-01/R-02 rules (S2),
+### S2 — Who can work a post: the `POSTS` rule table, R-01/R-02 and rule set v4 (API + rules screen)
+
+Stacked on S1 (#27). The owner approved the plan's cross-cover answer, and S2 makes it a rule a rules
+admin can change, not a hard-coded check.
+
+**What it does.**
+- **R-01 — a supervisor post needs a supervisor.** An officer on a supervisor post is **blocked
+  with no override** (the panel offers no override). An officer who holds the **Acting supervisor**
+  qualification (`ACTING_SUP`) on the shift's date gets a **warning to acknowledge** instead.
+- **R-02 — a supervisor on an officer post** is a **warning to acknowledge**; the shift counts
+  toward the unit minimum.
+- A supervisor on a supervisor post and an officer on an officer post are unaffected. Every other
+  rule applies to supervisors as written.
+
+**The migration (`V17__rule_set_v4_posts.sql`, the next number after S1's V16).** A ninth rule table,
+`POSTS` "Who can work a post" (template `post-eligibility.drt`; columns `postKind` =
+`SUPERVISION`/`LINE`, `allowedPositions`, `actingQualification`), and **rule set v4** by the same
+baseline-seeding exception as v2 and v3: v3 becomes history, its 20 rows are copied unchanged, and
+R-01 (Block, override NONE) and R-02 (Warn, ACKNOWLEDGE) are added, both marked placeholder with the
+source "Owner item 17". The published v4 equals the code rows (`RuleRowsV1`, checked by
+`ReferenceDataMatchesRuleRowsTest`).
+
+**The engine.** `RuleTableCode.POSTS`, a `PostEligibilityFact` and its builder (built for the
+proposed shift only, from the person's position, the qualifications they hold that day and the
+unit's kind; `ShiftFact` and the other builders are untouched), the template columns (every value is
+a checked code before it reaches the DRL), the publish-time validator (a known post kind, known
+positions, not every position at once, a qualification code or nothing) and the plain-language
+`RuleSentence`. R-01 and R-02 are Must rows from v4 on, so a draft cannot drop them or change their
+override policy.
+
+**Where it runs.** `RuleCheckService` looks up the position, qualifications and unit kind for every
+board check (assign, move, overtime candidates) and passes them to the engine. The planner's
+generator check, its regenerate check and its commit check pass the same from a lookup read once per
+run; the planner's draft add/move check passes it too. There are no supervisors or supervisor posts
+in the datasets yet, so neither rule fires on the demo data.
+
+**The rules screen.** A ninth tab, **Who can work a post** (`/rules/{version}/posts`), with its own
+columns: the post (fixed by the unit's kind), who can work it (Supervisors or Officers), and for a
+supervisor post whether an acting supervisor may work it with a warning, then the result, override
+and source. The sentence under the grid updates as the admin edits, word for word the api's. It is
+edited through the existing draft → build → submit → approve → publish flow.
+
+**API.** No new endpoint or request field. `GET /rule-sets/{v}/tables/posts` (or `POSTS`) returns
+the table with the column headings `Post`, `Who can work it`, `If someone else`, `Override`, and a
+rule check can now return results with `ruleTable: "POSTS"` (docs/07 §3, §4.7).
+
+**No pin moves except the rule-set version.** The live rule set is now **v4** (v3 → SUPERSEDED);
+the dataset checksums (100, 120, 150), the three plan fingerprints, rows and warnings and the payroll
+golden are unchanged (`GeneratorCharacterizationTest` and the demo reset tests are green with no
+edits). Tests that pinned "v3 is the published version" or used version numbers 4/5 for fixtures now
+say v3 is history and use 5/6.
+
+**Counts at this gate:** API **512 = 138 rules + 36 infrastructure + 338 api** (`mvn verify` through
+the compose `api-test` stage, `BUILD SUCCESS`, 0 failures, errors or skipped); web unit tests **576**
+in 56 files, lint 0 errors, `tsc -b` clean, build clean. Playwright: see the pull request.
+
+**Not in this release** (the rest of the plan):
 the rank-aware planner (S3), the supervisor posts and the demo supervisors in the datasets with the
 single re-pin (S4), the overtime pools and the self-edit guard (S5), and the board, My schedule,
 display and reports work (S6, S7).

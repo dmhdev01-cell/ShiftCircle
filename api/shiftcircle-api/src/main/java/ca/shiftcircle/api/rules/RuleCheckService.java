@@ -5,6 +5,7 @@ import ca.shiftcircle.rules.RuleEvaluator;
 import ca.shiftcircle.rules.build.ConsecutiveRunFactBuilder;
 import ca.shiftcircle.rules.build.DaysOffFactBuilder;
 import ca.shiftcircle.rules.build.LongShiftCountFactBuilder;
+import ca.shiftcircle.rules.build.PostEligibilityFactBuilder;
 import ca.shiftcircle.rules.build.RestFactBuilder;
 import ca.shiftcircle.rules.build.RollingHoursFactBuilder;
 import ca.shiftcircle.rules.build.ShiftFact;
@@ -34,6 +35,15 @@ public class RuleCheckService {
 
   public record Change(
       String type, UUID employeeId, UUID unitId, String shiftTemplate, Instant startAt) {}
+
+  /**
+   * Who is on a proposed shift and what kind of post it is (R-01, R-02, release v1.3).
+   *
+   * @param position the person's position code, {@code CO} or {@code CS}
+   * @param qualifications the qualification codes the person holds on the shift's date
+   * @param unitKind the unit's kind; {@code SUPERVISION} is a supervisor post
+   */
+  public record Post(String position, java.util.Set<String> qualifications, String unitKind) {}
 
   public record EvidenceView(String label) {}
 
@@ -84,8 +94,10 @@ public class RuleCheckService {
       Change change, PublishedRuleSet.Snapshot live, UUID excludeAssignmentId) {
     List<ShiftFact> shifts =
         new ArrayList<>(existingShifts(change.employeeId(), change.startAt(), excludeAssignmentId));
-    shifts.add(factFor(change));
-    return evaluateFacts(shifts, live);
+    ShiftFact proposed = factFor(change);
+    shifts.add(proposed);
+    return evaluateFacts(
+        shifts, live, proposed, post(change.employeeId(), change.unitId(), change.startAt()));
   }
 
   /**
@@ -96,20 +108,126 @@ public class RuleCheckService {
    */
   public OutcomeView evaluate(Change change, List<ShiftFact> employeeShifts) {
     List<ShiftFact> shifts = new ArrayList<>(employeeShifts);
-    shifts.add(factFor(change));
-    return evaluateFacts(shifts, published.snapshot());
+    ShiftFact proposed = factFor(change);
+    shifts.add(proposed);
+    return evaluateFacts(
+        shifts,
+        published.snapshot(),
+        proposed,
+        post(change.employeeId(), change.unitId(), change.startAt()));
   }
 
   /** The same seam when the caller already holds the proposed fact (the planner builds thousands). */
   public OutcomeView evaluate(ShiftFact proposed, List<ShiftFact> employeeShifts) {
+    return evaluate(proposed, employeeShifts, null);
+  }
+
+  /**
+   * The same seam with the post the proposal is on, so R-01/R-02 run in the planner as on the
+   * board. A null post leaves those two rules out (the caller does not know the post).
+   */
+  public OutcomeView evaluate(ShiftFact proposed, List<ShiftFact> employeeShifts, Post post) {
     List<ShiftFact> shifts = new ArrayList<>(employeeShifts);
     shifts.add(proposed);
-    return evaluateFacts(shifts, published.snapshot());
+    return evaluateFacts(shifts, published.snapshot(), proposed, post);
+  }
+
+  /**
+   * The post a person would work: their position, the qualifications they hold on that date (in
+   * the centre's time zone) and the unit's kind. One read per check, beside the shift facts.
+   */
+  public Post post(UUID employeeId, UUID unitId, Instant at) {
+    java.time.LocalDate day = at.atZone(java.time.ZoneId.of("America/Regina")).toLocalDate();
+    Map<String, Object> row =
+        jdbc.queryForMap(
+            "SELECT e.classification, u.kind FROM employee e JOIN unit u ON u.id = ?"
+                + " WHERE e.id = ?",
+            unitId,
+            employeeId);
+    java.util.Set<String> qualifications =
+        new java.util.HashSet<>(
+            jdbc.queryForList(
+                "SELECT q.code FROM employee_qualification eq"
+                    + " JOIN qualification q ON q.id = eq.qualification_id"
+                    + " WHERE eq.employee_id = ? AND eq.valid_from <= ?"
+                    + " AND (eq.valid_to IS NULL OR eq.valid_to >= ?)",
+                String.class,
+                employeeId,
+                java.sql.Date.valueOf(day),
+                java.sql.Date.valueOf(day)));
+    return new Post((String) row.get("classification"), qualifications, (String) row.get("kind"));
   }
 
   /** Evaluate facts the caller already built; used to baseline existing warnings per officer. */
   public OutcomeView evaluateFacts(List<ShiftFact> shifts) {
     return evaluateFacts(shifts, published.snapshot());
+  }
+
+  /**
+   * Every person's position and qualifications and every unit's kind, read once, for a caller that
+   * checks thousands of proposals (the planner). {@link PostLookup#post} answers the same as
+   * {@link #post(UUID, UUID, Instant)} without a query per proposal.
+   */
+  public PostLookup posts() {
+    Map<UUID, String> positions = new HashMap<>();
+    jdbc.query(
+        "SELECT id, classification FROM employee",
+        (org.springframework.jdbc.core.RowCallbackHandler)
+            rs -> positions.put(rs.getObject("id", UUID.class), rs.getString("classification")));
+    Map<UUID, String> kinds = new HashMap<>();
+    jdbc.query(
+        "SELECT id, kind FROM unit",
+        (org.springframework.jdbc.core.RowCallbackHandler)
+            rs -> kinds.put(rs.getObject("id", UUID.class), rs.getString("kind")));
+    Map<UUID, List<PostLookup.Held>> held = new HashMap<>();
+    jdbc.query(
+        "SELECT eq.employee_id, q.code, eq.valid_from, eq.valid_to FROM employee_qualification eq"
+            + " JOIN qualification q ON q.id = eq.qualification_id",
+        (org.springframework.jdbc.core.RowCallbackHandler)
+            rs ->
+                held.computeIfAbsent(rs.getObject("employee_id", UUID.class), key -> new ArrayList<>())
+                    .add(
+                        new PostLookup.Held(
+                            rs.getString("code"),
+                            rs.getDate("valid_from").toLocalDate(),
+                            rs.getDate("valid_to") == null
+                                ? null
+                                : rs.getDate("valid_to").toLocalDate())));
+    return new PostLookup(positions, kinds, held);
+  }
+
+  /** The posts read once; see {@link #posts()}. */
+  public static final class PostLookup {
+
+    record Held(String code, java.time.LocalDate from, java.time.LocalDate to) {}
+
+    private final Map<UUID, String> positions;
+    private final Map<UUID, String> kinds;
+    private final Map<UUID, List<Held>> held;
+
+    PostLookup(Map<UUID, String> positions, Map<UUID, String> kinds, Map<UUID, List<Held>> held) {
+      this.positions = positions;
+      this.kinds = kinds;
+      this.held = held;
+    }
+
+    /** The post for one proposal; null when the person or the unit is not known. */
+    public Post post(UUID employeeId, UUID unitId, Instant at) {
+      String position = positions.get(employeeId);
+      String kind = kinds.get(unitId);
+      if (position == null || kind == null) {
+        return null;
+      }
+      java.time.LocalDate day = at.atZone(java.time.ZoneId.of("America/Regina")).toLocalDate();
+      java.util.Set<String> codes = new java.util.HashSet<>();
+      for (Held qualification : held.getOrDefault(employeeId, List.of())) {
+        if (!qualification.from().isAfter(day)
+            && (qualification.to() == null || !qualification.to().isBefore(day))) {
+          codes.add(qualification.code());
+        }
+      }
+      return new Post(position, codes, kind);
+    }
   }
 
   private ShiftFact factFor(Change change) {
@@ -138,6 +256,11 @@ public class RuleCheckService {
   }
 
   private OutcomeView evaluateFacts(List<ShiftFact> shifts, PublishedRuleSet.Snapshot live) {
+    return evaluateFacts(shifts, live, null, null);
+  }
+
+  private OutcomeView evaluateFacts(
+      List<ShiftFact> shifts, PublishedRuleSet.Snapshot live, ShiftFact proposed, Post post) {
     List<Object> facts = new ArrayList<>();
     facts.addAll(new RestFactBuilder().build(shifts));
     facts.addAll(new RollingHoursFactBuilder().build(shifts, 24));
@@ -146,6 +269,11 @@ public class RuleCheckService {
     facts.addAll(new LongShiftCountFactBuilder().build(shifts));
     facts.addAll(new DaysOffFactBuilder().build(shifts));
     facts.addAll(new ShiftLengthFactBuilder().build(shifts));
+    if (proposed != null && post != null) {
+      facts.add(
+          new PostEligibilityFactBuilder()
+              .build(proposed, post.position(), post.qualifications(), post.unitKind()));
+    }
 
     List<RuleResult> results =
         evaluator.evaluate(live.kieBase(), String.valueOf(live.version()), facts.toArray());

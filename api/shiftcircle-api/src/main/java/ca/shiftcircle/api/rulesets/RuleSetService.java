@@ -194,7 +194,9 @@ public class RuleSetService {
     return new TableView(
         table.code(),
         (String) tableRow.get("name"),
-        new Columns("After this kind of shift", "Hours", "If not", "Override"),
+        table == RuleTableCode.POSTS
+            ? new Columns("Post", "Who can work it", "If someone else", "Override")
+            : new Columns("After this kind of shift", "Hours", "If not", "Override"),
         views,
         changed,
         primaryHoursKey(table),
@@ -882,7 +884,8 @@ public class RuleSetService {
           Map.entry("days-off", "DAYS_OFF"),
           Map.entry("pay-classification", "PAY"),
           Map.entry("overtime-ranking", "OT_RANKING"),
-          Map.entry("shift-types", "SHIFT_LENGTHS"));
+          Map.entry("shift-types", "SHIFT_LENGTHS"),
+          Map.entry("posts", "POSTS"));
 
   /** The web routes use readable slugs; the rules module uses its own table codes. */
   private static RuleTableCode resolveTable(String code) {
@@ -907,7 +910,7 @@ public class RuleSetService {
       case LONG_SHIFTS -> "maxIn7Days";
       case DAYS_OFF -> "daysOff";
       case PAY -> "thresholdHours";
-      case SHIFT_LENGTHS, OT_RANKING -> null;
+      case SHIFT_LENGTHS, OT_RANKING, POSTS -> null;
     };
   }
 

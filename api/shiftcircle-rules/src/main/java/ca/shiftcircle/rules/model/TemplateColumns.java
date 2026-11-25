@@ -23,6 +23,9 @@ public final class TemplateColumns {
    */
   private static final Pattern CODE = Pattern.compile("[A-Za-z0-9-]{1,16}");
 
+  /** A qualification or position code: {@code ACTING_SUP}, {@code CS}. */
+  private static final Pattern QUALIFICATION = Pattern.compile("[A-Z][A-Z0-9_]{0,31}");
+
   private static final Pattern SHIFT_KIND =
       Pattern.compile("\\.\\*|\\(?[A-Za-z0-9]{1,8}(\\|[A-Za-z0-9]{1,8})*\\)?");
 
@@ -81,6 +84,21 @@ public final class TemplateColumns {
       }
       case OT_RANKING -> columns.put("condition", "rankedCount >= 0");
       case SHIFT_LENGTHS -> columns.put("condition", shiftLengthCondition(row));
+      case POSTS -> {
+        columns.put("condition", postCondition(row));
+        Object acting = row.params().get("actingQualification");
+        // The template drops a line whose column is empty, so "no acting qualification" is "-":
+        // a value no qualification code can have, which nobody holds.
+        columns.put(
+            "actingQualification",
+            acting == null || acting.toString().isBlank() ? "-" : checkedQualification(acting));
+        // The acting qualification only ever softens a row: a Block becomes a Warn the supervisor
+        // acknowledges, and a Warn or Info stays what it is.
+        boolean softens = row.severity() == ca.shiftcircle.rules.facts.RuleOutcome.BLOCK;
+        columns.put("actingSeverity", softens ? "WARN" : row.severity().name());
+        columns.put(
+            "actingOverridePolicy", softens ? "ACKNOWLEDGE" : row.overridePolicy().name());
+      }
     }
     return columns;
   }
@@ -103,6 +121,15 @@ public final class TemplateColumns {
     if (code == null || !CODE.matcher(code).matches()) {
       throw new RuleCompilationException(
           "A rule code uses letters, digits and hyphens only");
+    }
+    return code;
+  }
+
+  private static String checkedQualification(Object value) {
+    String code = value.toString();
+    if (!QUALIFICATION.matcher(code).matches()) {
+      throw new RuleCompilationException(
+          "A qualification code uses capital letters, digits and underscores only");
     }
     return code;
   }
@@ -144,6 +171,26 @@ public final class TemplateColumns {
     return "!allowedPatternByUnit";
   }
 
+
+  /**
+   * R-01/R-02: the row fires when the post is of the row's kind and the person's position is not
+   * one the row allows. Every value is a checked code, so nothing but a code reaches the DRL.
+   */
+  private static String postCondition(RuleRow row) {
+    String postKind = row.text("postKind");
+    if (!"SUPERVISION".equals(postKind) && !"LINE".equals(postKind)) {
+      throw new RuleCompilationException(row.code() + ": the post kind is SUPERVISION or LINE");
+    }
+    Object raw = row.params().get("allowedPositions");
+    if (!(raw instanceof List<?> allowed) || allowed.isEmpty()) {
+      throw new RuleCompilationException(row.code() + ": name at least one allowed position");
+    }
+    String positions =
+        allowed.stream()
+            .map(item -> "\"" + checkedQualification(item) + "\"")
+            .collect(Collectors.joining(", "));
+    return "postKind == \"" + postKind + "\" && position not in (" + positions + ")";
+  }
 
   private static double optionalNumber(RuleRow row, String key, double fallback) {
     Object value = row.params().get(key);
