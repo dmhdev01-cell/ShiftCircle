@@ -28,7 +28,7 @@ ShiftCircle is a **working prototype** for the *AI Solutions Architect – Scree
 | AI development log | ✅ Started (`docs/process/ai-dev-log.md`); **keep it updated** |
 | Code | ✅ Built and on `main`: `api/` (Java 21, Spring Boot 4.x, Drools), `web/` (React), `docker-compose.yml`, `e2e/`, GitHub Actions CI. Every development step in §6 is done except the items listed as not built in `docs/10-testing.md` §8 |
 | Build record, demo script | ✅ `BUILD_RECORD.md`, `docs/demo-script.md` |
-| Releases after the submission | ✅ The course submission is the tag `v1.1.2-submission`. Later releases on `main`: **v1.2** (plan options, the shift dialog) and **v1.3** (supervisors on their own posts, ADR-031; shift proposals and the inbox, ADR-032). `docs/process/release-notes.md` has each, with the measured counts |
+| Submission and releases | ✅ The course submission is the release tag **`v1.3`**: supervisors on their own posts (ADR-031) and shift proposals with the inbox (ADR-032), on top of **v1.2** (plan options, the shift dialog). The earlier submission build was `v1.1.2-submission`. `docs/process/release-notes.md` has each release with its measured counts |
 | Demo recording (§6 step 13) | ⏳ With the project lead; not part of the repository |
 
 *This note was written on 2026-11-19, before any code existed. §2 was brought up to date on 2026-11-24 and again for release v1.3 on 2026-11-25; the rest is kept as the brief the team worked from. Where §3 to §9 and the current docs differ, the current docs win (`docs/index.md` has the map).*
