@@ -59,7 +59,7 @@ class OfficerPatternApiTest {
   @Test
   void everyOfficerHasAPatternAndThePlannerCanChangeAnEightHourOne() throws Exception {
     List<Map<String, Object>> rows = preferences();
-    assertThat(rows).hasSize(100);
+    assertThat(rows).as("100 officers and, since release v1.3 S4, 10 supervisors").hasSize(110);
     Map<String, Object> eight =
         rows.stream()
             .filter(row -> Boolean.TRUE.equals(row.get("patternEditable")))

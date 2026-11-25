@@ -8,12 +8,13 @@ import { navTo, signIn } from './support';
  * from /version, choosing '120' generates the crews-plus-casuals dataset with
  * its own checksum, and resetting back to '100' returns the seeded one.
  *
- * The checksum of the 100 dataset is fixed (4156077d...da6b, after L16
- * retirement and the PC-01 seed repair); the 120 set
- * must differ, which is how the spec knows the choice took effect.
+ * The checksum of the 100 dataset is fixed (beb2e222...b7d1 since release
+ * v1.3 S4 added the supervisors; 4156077d...da6b before, and still the
+ * officers' own checksum); the 120 set must differ, which is how the spec
+ * knows the choice took effect.
  */
 
-const SEED_CHECKSUM = '4156077d76d41bd5fcf6d6a9a0f51111e9007d16c8a0c6b311e09c6fe801da6b';
+const SEED_CHECKSUM = 'beb2e222b8c9100c98d329e37f5ffcf670f81d0083045d84f179f7f0681ab7d1';
 
 test.describe('the demo reset datasets', () => {
   test.beforeEach(async ({ page }) => {

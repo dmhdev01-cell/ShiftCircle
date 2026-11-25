@@ -61,18 +61,19 @@ class ReferenceApiTest {
   void supervisorsSeeOnlyTheirUnits() throws Exception {
     List<?> units = mapper.readValue(get("/api/v1/units", login("m.ellis")).body(), List.class);
 
-    assertThat(units).hasSize(2);
+    // Units A and B, and both supervisor posts since release v1.3 S4 (V19).
+    assertThat(units).hasSize(4);
     @SuppressWarnings("unchecked")
     java.util.List<String> codes =
         (java.util.List<String>)
             units.stream().map(unit -> ((Map<?, ?>) unit).get("code")).toList();
-    assertThat(codes).containsExactly("A", "B");
+    assertThat(codes).containsExactly("A", "B", "SUP-L", "SUP-O");
   }
 
   @Test
   void anAuditorSeesEveryUnit() throws Exception {
     List<?> units = mapper.readValue(get("/api/v1/units", login("a.reviewer")).body(), List.class);
-    assertThat(units).hasSize(6);
+    assertThat(units).as("six line units and two supervisor posts").hasSize(8);
   }
 
   @Test

@@ -54,7 +54,7 @@ test.describe('the demo reset', () => {
     await page.getByRole('button', { name: 'Reset demo data' }).click();
 
     await expect(page.getByText(/The demo data was rebuilt in/)).toBeVisible({ timeout: 120_000 });
-    await expect(page.getByText(/4156077d76d41bd5/)).toBeVisible();
+    await expect(page.getByText(/beb2e222b8c9100c/)).toBeVisible();
 
     // The quarter plan is back to no draft, and the 2027 week is empty.
     await navTo(page, 'Quarter plan');

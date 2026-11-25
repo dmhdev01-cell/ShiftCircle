@@ -160,16 +160,20 @@ class PlannerPreferenceKindsTest {
                 + " + (cardinality(p.times_of_day) > 0)::int"
                 + " + (cardinality(p.days_off) > 0)::int), 0)"
                 + " FROM employee e JOIN officer_preference p ON p.employee_id = e.id"
-                + " WHERE EXISTS (SELECT 1 FROM plan_draft_assignment a"
+                + " WHERE e.classification = 'CO'"
+                + " AND EXISTS (SELECT 1 FROM plan_draft_assignment a"
                 + "   WHERE a.draft_id = ? AND a.employee_id = e.id)",
             Integer.class,
             draft);
+    // The preferences card is the officers' since release v1.3 S3; the supervisors' wishes are
+    // in their own card, so the rostered officers' wishes are what the card counts.
     int everyoneAsked =
         jdbc.queryForObject(
             "SELECT coalesce(sum((p.shift_length IS NOT NULL)::int"
                 + " + (cardinality(p.times_of_day) > 0)::int"
                 + " + (cardinality(p.days_off) > 0)::int), 0)"
-                + " FROM officer_preference p",
+                + " FROM officer_preference p JOIN employee e ON e.id = p.employee_id"
+                + " WHERE e.classification = 'CO'",
             Integer.class);
     assertThat(everyoneAsked)
         .as("the shift-less officers do ask for something, so the exclusion is observable")

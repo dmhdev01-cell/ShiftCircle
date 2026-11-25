@@ -2,7 +2,7 @@
 
 A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervisors plan 8- and 12-hour shifts (a 16 h day is a 12 h shift plus an extension) against a **configurable rules engine** (rest and hours limits, consecutive shifts, staffing, qualifications, overtime). A planner builds a whole-quarter draft through the same engine, changes single shifts in it by hand, and commits it to the planning board. Employees see their schedule and hours, and can propose extra shifts: each draft is rule-checked with the others, then sent with a note, followed and withdrawn on My schedule; a supervisor in scope (or the planner) approves or declines each shift in the Proposals inbox, with the rules checked again at approval (v1.3). Time feeds a payroll export, and reports show coverage and overtime as planned vs. actual.
 
-> A prototype. **All data is synthetic.** Payroll and sign-on are simulated. The default demo seeds 100 fictional officers over 90 days; the About reset card can also load Dataset 120 and Dataset 150 for the quarter planner.
+> A prototype. **All data is synthetic.** Payroll and sign-on are simulated. The default demo seeds 100 fictional officers and 10 supervisors over 90 days; the About reset card can also load Dataset 120 and Dataset 150 for the quarter planner.
 
 > **Using it?** [INSTALL.md](INSTALL.md) sets it up and the [user guide](USER-GUIDE.md) explains each role. All documentation starts at [docs/index.md](docs/index.md).
 
@@ -93,7 +93,7 @@ docker compose up -d --build --wait
 
 `--wait` returns when all three containers are healthy: the database first, then the API (after it has run the Flyway migrations and generated the synthetic dataset), then the web. Then open **http://localhost:8080** and you see the mock sign-in screen with the demo users.
 
-**How long:** with Docker's build cache warm, `up -d --build --wait` took **31 s** on 2026-11-20 and **50 s** on 2026-11-24, and the demo data took about 6.6 s of that (`Demo data generated in … ms` in `docker compose logs api`). The very first build also downloads the base images and the Maven and pnpm dependencies, which takes several minutes depending on the network (**UNVERIFIED** on a machine with an empty cache). The default dataset: 100 fictional officers, 1 Oct – 29 Dec 2026, "today" fixed at 19 Nov 2026, seed 20261001. The About reset card can also load Dataset 120 and Dataset 150 (see "Demo data and the quarter planner").
+**How long:** with Docker's build cache warm, `up -d --build --wait` took **31 s** on 2026-11-20 and **50 s** on 2026-11-24, and the demo data took about 6.6 s of that (`Demo data generated in … ms` in `docker compose logs api`). The very first build also downloads the base images and the Maven and pnpm dependencies, which takes several minutes depending on the network (**UNVERIFIED** on a machine with an empty cache). The default dataset: 100 fictional officers and 10 supervisors, 1 Oct – 29 Dec 2026, "today" fixed at 19 Nov 2026, seed 20261001. The About reset card can also load Dataset 120 and Dataset 150 (see "Demo data and the quarter planner").
 
 **Ports in use?** Only the web publishes a port, and it is bound to **127.0.0.1** (not the LAN) because the demo has mock sign-in and a destructive reset. Set `SC_WEB_PORT` in `.env`, for example `SC_WEB_PORT=18080`, and open that port instead. For local debugging, `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build` also publishes the API (`SC_API_PORT`, default 8081) and the database (`SC_DB_PORT`, default 5433), both on 127.0.0.1 only.
 
@@ -111,8 +111,8 @@ Sign-in is **simulated**. The sign-in screen lists fictional demo users (`GET /a
 
 | User | Roles | Scope | Use it for |
 |---|---|---|---|
-| M. Ellis | Supervisor, Employee | Units A, B | Planning board, overtime, time and payroll |
-| J. Chen | Supervisor, Employee | Admissions, Control, Escort | Scope checks (can't see Unit B) |
+| M. Ellis | Supervisor, Employee | Units A, B and both supervisor posts | Planning board, overtime, time and payroll; her own schedule (Employee view) as Morgan Ellis, a SUP-L supervisor (D12 day crew on 120/150; rotating 8 h on 100) |
+| J. Chen | Supervisor, Employee | Admissions, Control, Escort and both supervisor posts | Scope checks (can't see Unit B); their own schedule (Employee view) as Jamie Chen, a SUP-O supervisor (D12 day crew on 120/150; rotating 8 h on 100) |
 | T. Nakamura | Employee | own records | My schedule, offers (accept/decline) |
 | L. Fraser | Rules admin | none | Edit, build and submit rule changes |
 | P. Singh | Rules approver | none | Approve and publish (not their own drafts) |
@@ -123,9 +123,11 @@ Sign-in is **simulated**. The sign-in screen lists fictional demo users (`GET /a
 ### Demo data and the quarter planner
 
 A reset rebuilds a known state from a fixed seed. **About & version → Reset the demo data** (signed in as P. Planner) selects:
-- **Dataset 100**: the default 100 officers × 90 days; roster and period checksum `4156077d…da6b`.
-- **Dataset 120**: 100 full-time D12/N12/E8 crew officers plus 20 casual relief officers; checksum `82b19cf8…32ca`.
-- **Dataset 150**: 120 full-time officers plus 30 part-time officers, with a deterministic 20% leave placement; checksum `2e6cd938…d7f8`.
+- **Dataset 100**: the default 100 officers × 90 days, plus 10 supervisors on 8 h D8/E8/N8 shifts; roster and period checksum `beb2e222…b7d1`.
+- **Dataset 120**: 100 full-time D12/N12/E8 crew officers plus 20 casual relief officers, plus 10 supervisors on D12/N12 crews; checksum `ca73467d…a64a`.
+- **Dataset 150**: 120 full-time officers plus 30 part-time officers, with a deterministic 20% leave placement, plus 12 supervisors (the 120 ten, a D8 day supervisor and a 0.6 FTE part-timer, with their own 20% leave); checksum `353e2e62…91a5`.
+
+Since release v1.3 every dataset has **supervisors on their own posts**: two supervisor posts, **Supervision · Living units** (SUP-L, covers A, B and C) and **Supervision · Operations** (SUP-O, covers Admissions, Control and Escort), each needing one supervisor per block, 24/7. M. Ellis and J. Chen are linked to supervisor records, so their **Employee view** shows their own schedule. The supervisors were added after every officer row from their own seeded streams, so the officers' roster, plan and payroll rows are unchanged: the officers alone still give the earlier checksums (`4156077d…da6b`, `82b19cf8…32ca`, `2e6cd938…d7f8`), and a test asserts it.
 
 The reset is asynchronous, one at a time and audited, takes a few seconds, and leaves the payroll golden file unchanged.
 
@@ -133,13 +135,15 @@ The reset is asynchronous, one at a time and audited, takes a few seconds, and l
 
 Before committing, the planner can **change single shifts in the draft**: move one (time or unit), give it to another officer, remove it, or add one. Each change is checked by the same rules engine: a Block saves nothing, a Warn needs a second, acknowledged save, and there is no emergency override in a draft. The whole scorecard is worked out again after each change, edited shifts read "· edited", and each edit is in the audit log. Generating again or discarding drops the hand edits after a confirm.
 
-Commit re-checks every shift, hand edits included, needs the warning list accepted once, and refuses a stale draft or a locked period. On Dataset 120 the measured draft is 38 gaps of 1,764 (all Escort evening), 7 warnings, zero Block, and 5,103 shifts on commit. The demo script in [`docs/demo-script.md`](docs/demo-script.md) §7 walks it.
+Commit re-checks every shift, hand edits included, needs the warning list accepted once, and refuses a stale draft or a locked period. On Dataset 120 the measured draft is 38 gaps of 1,764 officer block-days (all Escort evening), 7 warnings, zero Block, and 5,595 shifts on commit (5,103 officer + 492 supervisor; the supervisor posts have no gaps). The demo script in [`docs/demo-script.md`](docs/demo-script.md) §7 walks it.
 
 **Known limits**, stated on the scorecard and in [`BUILD_RECORD.md`](BUILD_RECORD.md):
 - **Rules (mock values, known defects):** U-03 and U-11 are dormant, because they key on the retired L16 template, so no new shift can trigger them. A 12 h + extension day is still bounded by U-02 and U-04 (Warn), U-01 and U-05 (Block); only the dedicated 12 h-rest Block is missing. L-01 still lists 16 h as a regular length (a 16 h day is 12 h + extension). P-01's 80 h per-period threshold makes 4-on/4-off 12 h crews built-in overtime, because U-13 cycle averaging is not built.
 - **Planner:** qualifications are not used for placement (the Qualified staff card only reports them and does not read start dates); part-timers get no floor or fair share (casuals fill leftovers, home unit only, newest-first); seniority orders nights and overtime but not the casual pool; the quarter window is fixed and a plan commits once.
 - **Leave and sick:** the planner enters planned leave (**Preferences → Add planned leave**, one `POST /api/v1/planner/absences` per day; PLANNER only, type only) and the next Generate skips it. The draft roster shows it as Vac, Sick or Other chips, but the live planning board does not, and there is no request, approval or limits. Datasets 100 and 120 seed no leave in the plan quarter; Dataset 150 seeds 20%. Sick is recorded after the fact, with no call-out flow.
-- **Staffing:** Dataset 150 has enough people (138 FTE against about 127 needed, the Staffing card's floor); its gaps come from the part-time fill order, and Unit C has only 4 first-aiders for four 12 h crews. Dataset 100 is deliberately tight. See [`docs/roadmap.md`](docs/roadmap.md) for the findings and the ordered roadmap.
+- **Staffing:** Dataset 150 has enough people (149.6 FTE against about 137 needed, the Staffing card's floor; since release v1.3 both figures include the 12 supervisors and the two supervisor posts). Its 100 officer gaps (of 1,764 block-days) come from the part-time fill order and qualifications; its 93 supervisor-post gaps (of 588) come from the supervisors' 20% leave on fixed D12/N12 crews with one relief per post, and Unit C has only 4 first-aiders for four 12 h crews. Dataset 100 is deliberately tight. See [`docs/roadmap.md`](docs/roadmap.md) for the findings and the ordered roadmap.
+- **Supervisors on Dataset 100 (release v1.3):** the seed rosters the 10 supervisors on 8 h D8/E8/N8 shifts, like the 8 h officers. Two consequences, both from standing rules rather than the supervisor data: the quarter planner puts no 8 h person on nights, so Dataset 100's plan leaves 230 of the 588 supervisor-post block-days short: all 196 nights, plus about 34 days and evenings where supervisor leave is not backfilled; and any rule check on a supervisor post there lists the U-16 warning "8-hour officer on a night shift" for the N8 nights in the roster, exactly as Unit B's officers do (Nia's check shows U-16 ×14). Datasets 120 and 150 roster supervisors on D12/N12 crews, so neither appears there.
+- **Supervisors' own records (release v1.3):** a supervisor can't create, move, cancel or override their own shift, record their own actuals or absence, or offer, give or confirm overtime to themselves: the API answers 403 "You can't change your own schedule; ask another supervisor." Accepting an offer on My schedule stays theirs.
 - Payroll overtime stays per pay period (P-01); a weekly threshold is refused by the validator.
 - L16 is retired: a 16 h shift is a 12 h shift plus an extension, and an old database still renders its history.
 - A late-recorded actual is not re-checked against shifts saved after it.
@@ -219,7 +223,7 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
 
 The `v1.1.1-submission` gate (the submission line before the `v1.1.2-submission` hotfix) was on API 470, web 532 in 54 files, desktop 124 and tablet 123 + 1 (fixtures 23 passed, 79 skipped); that table is in [docs/10-testing.md](docs/10-testing.md).
 
-The dataset checksums, the payroll golden and the plan fingerprints are unchanged: the v1.3 positions migration adds no unit and no employee rows, and the generator does not change. Earlier counts, release by release, are in [docs/process/release-notes.md](docs/process/release-notes.md); each round is in `docs/process/review-rounds.md`.
+**Pins (release v1.3 S4, moved once):** the supervisors move every dataset pin once. Dataset checksums 100 `beb2e222…b7d1`, 120 `ca73467d…a64a`, 150 `353e2e62…91a5`; plan rows 7,266 / 5,595 / 5,877; the payroll golden for 26 Oct – 8 Nov is 1,124 lines, sha256 `b946ef1f…00e6`. The move is additive and a test proves it (`GeneratorCharacterizationTest`): the officers alone still give the earlier checksums (`4156077d…da6b`, `82b19cf8…32ca`, `2e6cd938…d7f8`), plan fingerprints (`ec337014…`, `e8b29ce6…`, `a1e093f7…`), rows (6,586 / 5,103 / 5,414) and scorecard warnings (135 / 7 / 39), and the golden's first 1,038 lines are the earlier file byte for byte (`9f2d51b3…04ff`), with only the supervisors' `S-…` rows appended. Earlier counts, release by release, are in [docs/process/release-notes.md](docs/process/release-notes.md); each round is in `docs/process/review-rounds.md`.
 
 **One viewport per fresh stack; dataset specs last.** `--project desktop-datasets` runs the parallel `desktop` specs first, then the thirteen stack-wide specs (dataset resets, quarter-plan generate/commit/discard, the E4 pay-period lock) one at a time, because they would corrupt each other in parallel (`e2e/README.md`). The real-API specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop-datasets`, then `docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait`, then `--project tablet-datasets`. The web unit tests write `web/node_modules` with Linux binaries.
 
@@ -242,7 +246,7 @@ docker run --rm -v "$PWD/api":/src -v /var/run/docker.sock:/var/run/docker.sock 
 |---|---|
 | Rules engine: Drools decision tables compiled from editable rows; rule checks with plain-language reasons | Sign-in: the token issuer is a mock; token validation is real |
 | Safeguards: emergency-policy Blocks need an override with a written reason (≥ 10 characters), and other Blocks can't be overridden (ADR-023); maker/checker on rule versions (API and a database CHECK); append-only audit (database triggers); locked pay periods (trigger) | Payroll system: ShiftCircle produces the payroll CSV; nothing is sent anywhere |
-| Role and unit scope on every endpoint (out of scope returns `404`) | People and data: 100, 120 or 150 fictional officers, generated from fixed seeds |
+| Role and unit scope on every endpoint (out of scope returns `404`) | People and data: 100, 120 or 150 fictional officers plus 10, 10 or 12 supervisors, generated from fixed seeds |
 | Quarter planner: deterministic heuristic, every shift checked by the same rules engine, including the planner's hand edits to a draft | Collective-agreement values: many are MOCK placeholders to validate (`docs/05-union-rules.md`) |
 | Period-based overtime classification and the payroll CSV | "Today" is fixed at 19 Nov 2026 (`SC_DEMO_TODAY`) |
 | PostgreSQL with Flyway migrations | |

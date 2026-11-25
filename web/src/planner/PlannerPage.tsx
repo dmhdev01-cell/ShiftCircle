@@ -53,6 +53,7 @@ import { useRole } from '../shell/nav';
 import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
 import { plainDate, whenWords } from './plannerTime';
+import { unitWords, unitWordsIn } from './unitWords';
 
 const BLOCK_WORDS: Record<string, string> = {
   DAY: 'Day 07–15',
@@ -146,28 +147,6 @@ function fillWords(options: PlanOptions, committed: boolean): string {
 /** "1.4 s" for a millisecond figure. */
 function seconds(ms: number): string {
   return `${(ms / 1000).toFixed(1)} s`;
-}
-
-/** The six demo units by api code, for links and warnings that carry a code. */
-const UNIT_NAMES: Record<string, string> = {
-  A: 'Unit A',
-  B: 'Unit B',
-  C: 'Unit C',
-  ADM: 'Admissions',
-  CTL: 'Control',
-  ESC: 'Escort & transport',
-};
-
-function unitWords(code: string): string {
-  return UNIT_NAMES[code] ?? code;
-}
-
-/** A sentence from the api with unit codes ("ADM coverage gaps") in names. */
-function unitWordsIn(label: string): string {
-  return Object.keys(UNIT_NAMES).reduce(
-    (text, code) => text.replace(new RegExp(`\\b${code}\\b`, 'g'), unitWords(code)),
-    label,
-  );
 }
 
 type Tab = 'scorecard' | 'gaps' | 'roster' | 'compare';
@@ -948,7 +927,10 @@ export function PlannerPage() {
               {scorecard.crossUnit
                 ? (() => {
                     const cross = scorecard.crossUnit;
-                    const short = stillShortWords(cross, (code) => unitWords(code).split(' · ')[0]);
+                    // A supervisor post keeps its full name: both short to "Supervision".
+                    const short = stillShortWords(cross, (code) =>
+                      code.startsWith('SUP-') ? unitWords(code) : unitWords(code).split(' · ')[0],
+                    );
                     return (
                       <Box
                         role="note"

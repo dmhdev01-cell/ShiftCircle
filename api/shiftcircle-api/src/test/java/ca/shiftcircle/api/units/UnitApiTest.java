@@ -71,7 +71,8 @@ class UnitApiTest {
   @Test
   void unitsCarryTodayStatusAndClosurePreview() throws Exception {
     List<Map<String, Object>> units = jsonList(get("/api/v1/planner/units", planner));
-    assertThat(units).hasSize(6);
+    // Six line units and the two supervisor posts (V19, release v1.3 S4).
+    assertThat(units).hasSize(8);
     Map<String, Object> unitC =
         units.stream().filter(row -> "C".equals(row.get("code"))).findFirst().orElseThrow();
     assertThat(unitC.get("today")).isEqualTo("OPEN");

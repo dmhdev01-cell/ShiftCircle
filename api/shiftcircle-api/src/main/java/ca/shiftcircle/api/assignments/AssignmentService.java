@@ -5,6 +5,7 @@ import ca.shiftcircle.api.rules.RuleCheckRequest;
 import ca.shiftcircle.api.rules.RuleCheckService;
 import ca.shiftcircle.api.security.AuthPrincipal;
 import ca.shiftcircle.api.security.ScopeGuard;
+import ca.shiftcircle.api.security.SelfActionGuard;
 import ca.shiftcircle.api.time.BusinessClock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -102,6 +103,8 @@ public class AssignmentService {
     requireValidChange(request);
     String unitCode = unitCode(request.change().unitId());
     scopeGuard.requireUnit(principal, unitCode);
+    // Release v1.3 S4: not your own shift, override included (owner answer Q3).
+    SelfActionGuard.requireNotOwnSchedule(principal, request.change().employeeId());
     requireOpenPayPeriod(request.change().startAt());
     writer.activeTemplate(request.change().shiftTemplate());
 
@@ -145,6 +148,9 @@ public class AssignmentService {
     String targetUnitCode = unitCode(request.change().unitId());
     scopeGuard.requireUnit(principal, targetUnitCode);
     requireValidChange(request);
+    // Release v1.3 S4: not your own shift, neither the one moved nor the one it becomes.
+    SelfActionGuard.requireNotOwnSchedule(principal, observed.employeeId());
+    SelfActionGuard.requireNotOwnSchedule(principal, request.change().employeeId());
     Map<String, Object> template = writer.activeTemplate(request.change().shiftTemplate());
     int expected = parseIfMatch(ifMatch);
 
@@ -235,6 +241,8 @@ public class AssignmentService {
       UUID assignmentId, CancelRequest request, String ifMatch, AuthPrincipal principal) {
     AssignmentRow observed = load(assignmentId);
     scopeGuard.requireUnit(principal, observed.unitCode());
+    // Release v1.3 S4: not your own shift.
+    SelfActionGuard.requireNotOwnSchedule(principal, observed.employeeId());
     String reason = request == null ? null : request.reason();
     if (reason == null || reason.trim().length() < 10) {
       throw new ResponseStatusException(

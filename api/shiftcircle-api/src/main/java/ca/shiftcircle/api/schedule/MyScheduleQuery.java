@@ -264,9 +264,15 @@ public class MyScheduleQuery {
                 + " FROM employee e"
                 + " LEFT JOIN time_entry te ON te.employee_id = e.id"
                 + "   AND te.start_at >= ?"
-                + " WHERE e.active GROUP BY e.id, e.seniority_date"
+                + " WHERE e.active"
+                // Release v1.3 S4: the overtime list is per rank (the Overtime board lists an
+                // officer post's officers and a supervisor post's supervisors), so the rank is
+                // counted among the person's own position: an officer's "of 100" is unchanged.
+                + " AND e.classification = (SELECT classification FROM employee WHERE id = ?)"
+                + " GROUP BY e.id, e.seniority_date"
                 + " ORDER BY ot, e.seniority_date, e.id",
-            java.sql.Timestamp.from(quarterStart.atStartOfDay(REGINA).toInstant()));
+            java.sql.Timestamp.from(quarterStart.atStartOfDay(REGINA).toInstant()),
+            employeeId);
     int rank = 1;
     for (Map<String, Object> row : rows) {
       if (employeeId.equals(row.get("id"))) {

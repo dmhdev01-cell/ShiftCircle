@@ -44,12 +44,18 @@ class Demo120ResetApiTest {
     PostgresTestSupport.register(registry);
   }
 
+  // Release v1.3 (S4): re-pinned once when the datasets gained their supervisors; the
+  // officer-only invariance is GeneratorCharacterizationTest's.
   private static final String CHECKSUM_100 =
-      "4156077d76d41bd5fcf6d6a9a0f51111e9007d16c8a0c6b311e09c6fe801da6b";
+      "beb2e222b8c9100c98d329e37f5ffcf670f81d0083045d84f179f7f0681ab7d1";
+  private static final String CHECKSUM_120 =
+      "ca73467d7c8436f8be28d5e5488b63b80b2dc162a8c815527dd674fe6dcfa64a";
+  private static final String OFFICER_CHECKSUM_120 =
+      "82b19cf814acde5c5740f9a9aa1162e61d4b7f5598848f99861d2f4ea66732ca";
   private static final String PLAN_120_FINGERPRINT =
-      "e8b29ce687767e5ce4fefd5347333447ca9cc5b55f82c08195f36f8f4cfe9d31";
+      "5a3763c73ae896645fec328dac7e2cb9e95434d18a0a94b45038b5cd0d33983f";
   private static final String PLAN_100_FINGERPRINT =
-      "ec33701459f92998c1ea84ee5fae17fbadc3e8894c9d52df344ae24cf1409e1b";
+      "94aeae1f27463fdf2b588a65c2ca8f87b12bc3bfe80cc56cb60969d3ce1e7c11";
 
   @Autowired private JdbcTemplate jdbc;
   @Autowired private RuleCheckService ruleCheck;
@@ -104,9 +110,47 @@ class Demo120ResetApiTest {
       } else {
         assertThat(checksum).as("the 120 dataset is deterministic").isEqualTo(checksum120);
       }
+      assertThat(checksum).as("the 120 checksum is pinned").isEqualTo(CHECKSUM_120);
+      assertThat(DemoChecksum.officersOnlyWithNames(jdbc))
+          .as("the 120 officers are the pre-supervisor officers")
+          .isEqualTo(OFFICER_CHECKSUM_120);
+      assertThat(jdbc.queryForList(
+              "SELECT e.employee_no || ' ' || e.first_name || ' ' || e.last_name || ' '"
+                  + " || u.code || ' ' || r.code FROM employee e"
+                  + " JOIN unit u ON u.id = e.home_unit_id"
+                  + " JOIN rotation_pattern r ON r.id = e.rotation_pattern_id"
+                  + " JOIN app_user a ON a.employee_id = e.id"
+                  + " WHERE e.classification = 'CS' ORDER BY e.employee_no",
+              String.class))
+          .as("M. Ellis and J. Chen are the first day supervisors on SUP-L and SUP-O")
+          .containsExactly(
+              "120-S001 Morgan Ellis SUP-L D12_DAY_4ON4OFF",
+              "120-S006 Jamie Chen SUP-O D12_DAY_4ON4OFF");
 
-      assertThat(jdbc.queryForObject("SELECT count(*) FROM employee", Integer.class))
+      assertThat(jdbc.queryForObject(
+              "SELECT count(*) FROM employee WHERE classification = 'CO'", Integer.class))
           .isEqualTo(120);
+      assertThat(jdbc.queryForObject(
+              "SELECT count(*) FROM employee WHERE classification = 'CS'", Integer.class))
+          .as("10 supervisors on the two posts (release v1.3)")
+          .isEqualTo(10);
+      // Per post 2 D12 + 2 N12 crew supervisors and one relief (N12 on SUP-L, D12 on SUP-O).
+      assertThat(jdbc.queryForList(
+              "SELECT u.code || ' ' || r.code FROM employee e JOIN unit u ON u.id = e.home_unit_id"
+                  + " JOIN rotation_pattern r ON r.id = e.rotation_pattern_id"
+                  + " WHERE e.classification = 'CS' ORDER BY e.employee_no",
+              String.class))
+          .containsExactly(
+              "SUP-L D12_DAY_4ON4OFF", "SUP-L D12_DAY_4ON4OFF",
+              "SUP-L N12_NIGHT_4ON4OFF", "SUP-L N12_NIGHT_4ON4OFF", "SUP-L N12_NIGHT_RELIEF",
+              "SUP-O D12_DAY_4ON4OFF", "SUP-O D12_DAY_4ON4OFF",
+              "SUP-O N12_NIGHT_4ON4OFF", "SUP-O N12_NIGHT_4ON4OFF", "SUP-O D12_DAY_RELIEF");
+      assertThat(jdbc.queryForObject(
+              "SELECT count(*) FROM absence a JOIN employee e ON e.id = a.employee_id"
+                  + " WHERE e.classification = 'CS'",
+              Integer.class))
+          .as("Dataset 120 seeds no supervisor leave")
+          .isZero();
       assertThat(jdbc.queryForObject(
               "SELECT count(*) FROM employee WHERE first_name ~ '^First[0-9]+$'"
                   + " OR last_name ~ '^Last[0-9]+$'",
@@ -118,21 +162,23 @@ class Demo120ResetApiTest {
               "SELECT employee_no || '|' || first_name || ' ' || last_name FROM employee"
                   + " ORDER BY employee_no",
               String.class);
-      assertThat(currentNames).hasSize(120);
+      assertThat(currentNames).hasSize(130);
       assertThat(currentNames.stream().map(row -> row.substring(row.indexOf('|') + 1)).distinct()
               .count())
-          .as("no duplicate officer names")
-          .isEqualTo(120);
+          .as("no duplicate names among the officers and supervisors")
+          .isEqualTo(130);
       if (names120 == null) {
         names120 = currentNames;
       } else {
         assertThat(currentNames).as("the names are stable across a reset").isEqualTo(names120);
       }
       assertThat(jdbc.queryForObject(
-              "SELECT count(*) FROM employee WHERE fte = 1.0", Integer.class))
+              "SELECT count(*) FROM employee WHERE fte = 1.0 AND classification = 'CO'",
+              Integer.class))
           .isEqualTo(100);
       assertThat(jdbc.queryForObject(
-              "SELECT count(*) FROM employee WHERE fte < 1.0", Integer.class))
+              "SELECT count(*) FROM employee WHERE fte < 1.0 AND classification = 'CO'",
+              Integer.class))
           .isEqualTo(20);
       assertThat(jdbc.queryForObject(
               "SELECT count(*) FROM employee WHERE shift_pattern IS NULL"
@@ -152,12 +198,14 @@ class Demo120ResetApiTest {
           .isEqualTo(0.2);
       assertThat(jdbc.queryForObject(
               "SELECT count(*) FROM employee e JOIN rotation_pattern r"
-                  + " ON r.id = e.rotation_pattern_id WHERE r.code = 'N12_NIGHT_4ON4OFF'",
+                  + " ON r.id = e.rotation_pattern_id WHERE r.code = 'N12_NIGHT_4ON4OFF'"
+                  + " AND e.classification = 'CO'",
               Integer.class))
           .isEqualTo(38);
       assertThat(jdbc.queryForObject(
               "SELECT count(*) FROM employee e JOIN rotation_pattern r"
-                  + " ON r.id = e.rotation_pattern_id WHERE r.code = 'D12_DAY_4ON4OFF'",
+                  + " ON r.id = e.rotation_pattern_id WHERE r.code = 'D12_DAY_4ON4OFF'"
+                  + " AND e.classification = 'CO'",
               Integer.class))
           .isEqualTo(54);
       assertThat(jdbc.queryForObject(
@@ -167,12 +215,14 @@ class Demo120ResetApiTest {
           .isEqualTo(3);
       assertThat(jdbc.queryForObject(
               "SELECT count(*) FROM employee e JOIN rotation_pattern r"
-                  + " ON r.id = e.rotation_pattern_id WHERE r.code = 'N12_NIGHT_RELIEF'",
+                  + " ON r.id = e.rotation_pattern_id WHERE r.code = 'N12_NIGHT_RELIEF'"
+                  + " AND e.classification = 'CO'",
               Integer.class))
           .isEqualTo(3);
       assertThat(jdbc.queryForObject(
               "SELECT count(*) FROM employee e JOIN rotation_pattern r"
-                  + " ON r.id = e.rotation_pattern_id WHERE r.code = 'D12_DAY_RELIEF'",
+                  + " ON r.id = e.rotation_pattern_id WHERE r.code = 'D12_DAY_RELIEF'"
+                  + " AND e.classification = 'CO'",
               Integer.class))
           .isEqualTo(2);
       assertThat(jdbc.queryForObject(
@@ -276,8 +326,14 @@ class Demo120ResetApiTest {
             "SELECT count(DISTINCT employee_id) FROM plan_draft_assignment WHERE draft_id = ?",
             Integer.class,
             draftId))
-        .as("the 120 plan still covers 107 officers")
-        .isEqualTo(107);
+        .as("the 120 plan still covers 107 officers, and the 10 supervisors")
+        .isEqualTo(117);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> supervisorCard = (Map<String, Object>) scorecard.get("supervisors");
+    assertThat(((Number) ((Map<String, Object>) supervisorCard.get("coverage"))
+            .get("shortBlockDays")).intValue())
+        .as("the 120 supervisor crews cover every post block-day")
+        .isZero();
     HttpResponse<String> committed120 =
         sendWithHeaders(
             "POST",
@@ -289,7 +345,9 @@ class Demo120ResetApiTest {
     Map<String, Object> commitBody120 =
         mapper.readValue(committed120.body(), Map.class);
     assertThat(((Number) commitBody120.get("shiftsWritten")).intValue()).isEqualTo(shifts120);
-    assertThat(shifts120).as("the 120 commit is the full plan").isBetween(5000, 5200);
+    assertThat(shifts120)
+        .as("the 120 commit is the full plan: 5,103 officer + 492 supervisor shifts")
+        .isEqualTo(5595);
     System.out.println("COMMIT120 shiftsWritten=" + shifts120);
 
     UUID unitA = jdbc.queryForObject("SELECT id FROM unit WHERE code = 'A'", UUID.class);
@@ -357,7 +415,8 @@ class Demo120ResetApiTest {
     assertThat(back.get("state")).isEqualTo("DONE");
     assertThat(back.get("dataset")).isEqualTo("100");
     assertThat(back.get("checksum")).isEqualTo(CHECKSUM_100);
-    assertThat(jdbc.queryForObject("SELECT count(*) FROM employee", Integer.class))
+    assertThat(jdbc.queryForObject(
+            "SELECT count(*) FROM employee WHERE classification = 'CO'", Integer.class))
         .isEqualTo(100);
     assertThat(jdbc.queryForObject(
             "SELECT count(*) FROM unit WHERE code IN ('ADM','ESC') AND allows_12h",

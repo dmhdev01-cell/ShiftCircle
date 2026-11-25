@@ -3,6 +3,7 @@ package ca.shiftcircle.api.demo;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ca.shiftcircle.api.PostgresTestSupport;
+import ca.shiftcircle.infrastructure.demo.DemoChecksum;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -30,10 +31,14 @@ import tools.jackson.databind.ObjectMapper;
 @ActiveProfiles("demo")
 class Demo150ResetApiTest {
 
+  /** Release v1.3 (S4): the 150 officers plus their 12 supervisors. */
   private static final String CHECKSUM_150 =
-      "2e6cd938254002892c06d9800652666e5a9e786f78f5ca2ed11c7005a987d7f8";
+      "353e2e62a1627a9ba31b7e411064065e2d0c36510a3e145f010251c4713991a5";
   private static final String PLAN_150_FINGERPRINT =
-      "a1e093f7c3630371a0762067a8aed55d6ccb1b6f7a30372257e326d892ceb381";
+      "7368ef1377e3e38b3b507d49e9dc29f481ba706778506a6e3140eb34ec450587";
+  /** The pre-S4 pins, which the officers alone still produce. */
+  private static final String OFFICER_CHECKSUM_150 =
+      "2e6cd938254002892c06d9800652666e5a9e786f78f5ca2ed11c7005a987d7f8";
 
   @DynamicPropertySource
   static void database(DynamicPropertyRegistry registry) {
@@ -61,23 +66,66 @@ class Demo150ResetApiTest {
     assertThat(first).as("the 150 dataset checksum is pinned").isEqualTo(CHECKSUM_150);
     System.out.println("CHECKSUM150=" + first);
 
-    assertThat(jdbc.queryForObject("SELECT count(*) FROM employee", Integer.class)).isEqualTo(150);
-    assertThat(jdbc.queryForObject("SELECT count(*) FROM employee WHERE fte = 1.0", Integer.class))
+    assertThat(DemoChecksum.officersOnlyWithNames(jdbc))
+        .as("the officers are the pre-supervisor officers")
+        .isEqualTo(OFFICER_CHECKSUM_150);
+    assertThat(jdbc.queryForObject(
+            "SELECT count(*) FROM employee WHERE classification = 'CO'", Integer.class))
+        .isEqualTo(150);
+    assertThat(jdbc.queryForObject(
+            "SELECT count(*) FROM employee WHERE fte = 1.0 AND classification = 'CO'",
+            Integer.class))
         .isEqualTo(120);
-    assertThat(jdbc.queryForObject("SELECT count(*) FROM employee WHERE fte < 1.0", Integer.class))
+    assertThat(jdbc.queryForObject(
+            "SELECT count(*) FROM employee WHERE fte < 1.0 AND classification = 'CO'",
+            Integer.class))
         .isEqualTo(30);
+    // Release v1.3 (S4): 12 supervisors, the 120 ten plus a D8 day supervisor and a 0.6 FTE
+    // part-timer; M. Ellis has the planted February vacation week.
+    assertThat(jdbc.queryForList(
+            "SELECT u.code || ' ' || r.code || ' ' || e.fte FROM employee e"
+                + " JOIN unit u ON u.id = e.home_unit_id"
+                + " JOIN rotation_pattern r ON r.id = e.rotation_pattern_id"
+                + " WHERE e.classification = 'CS' ORDER BY e.employee_no",
+            String.class))
+        .containsExactly(
+            "SUP-L D12_DAY_4ON4OFF 1.00", "SUP-L D12_DAY_4ON4OFF 1.00",
+            "SUP-L N12_NIGHT_4ON4OFF 1.00", "SUP-L N12_NIGHT_4ON4OFF 1.00",
+            "SUP-L N12_NIGHT_RELIEF 1.00",
+            "SUP-O D12_DAY_4ON4OFF 1.00", "SUP-O D12_DAY_4ON4OFF 1.00",
+            "SUP-O N12_NIGHT_4ON4OFF 1.00", "SUP-O N12_NIGHT_4ON4OFF 1.00",
+            "SUP-O D12_DAY_RELIEF 1.00",
+            "SUP-L D8_DAY_5ON2OFF 1.00", "SUP-O CASUAL_12 0.60");
+    assertThat(jdbc.queryForObject(
+            "SELECT count(*) FROM absence a JOIN app_user u ON u.employee_id = a.employee_id"
+                + " WHERE u.username = 'm.ellis' AND a.type = 'VACATION'"
+                + " AND a.start_at >= TIMESTAMPTZ '2027-02-08 00:00-06'"
+                + " AND a.start_at < TIMESTAMPTZ '2027-02-15 00:00-06'",
+            Integer.class))
+        .as("M. Ellis's planted vacation week")
+        .isEqualTo(7);
+    // Every full-time supervisor has the officers' 20% leave: 20 of the 98 quarter days, Ellis's
+    // planted week included; the part-timer has none.
+    assertThat(jdbc.queryForList(
+            "SELECT (SELECT count(*) FROM absence a WHERE a.employee_id = e.id"
+                + " AND a.shift_assignment_id IS NULL) FROM employee e"
+                + " WHERE e.classification = 'CS' ORDER BY e.employee_no",
+            Integer.class))
+        .containsExactly(20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 0);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM employee e JOIN rotation_pattern r"
                     + " ON r.id = e.rotation_pattern_id WHERE r.code LIKE 'N12%'",
                 Integer.class))
-        .isEqualTo(50);
+        .as("officers on N12 crews and relief, plus the 4 supervisors on N12 and 1 on N12 relief")
+        .isEqualTo(55);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM employee e JOIN rotation_pattern r"
                     + " ON r.id = e.rotation_pattern_id WHERE r.code LIKE 'D12%'",
                 Integer.class))
-        .isEqualTo(67);
+        .as("officers on D12 crews and relief, plus the 4 supervisors on D12 and 1 on D12 relief")
+        .isEqualTo(72);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM employee e JOIN rotation_pattern r"
@@ -162,9 +210,16 @@ class Demo150ResetApiTest {
 
     assertThat(gaps).as("the 150 plan's short block-days are pinned").isEqualTo(100);
     assertThat(((Number) warnings.get("total")).intValue()).isEqualTo(39);
-    assertThat(shifts).isEqualTo(5414);
-    assertThat(officers).isEqualTo(150);
+    assertThat(shifts).isEqualTo(5877);
+    assertThat(officers).as("people scheduled: 150 officers and 12 supervisors").isEqualTo(162);
     assertThat(fingerprint(draft)).isEqualTo(PLAN_150_FINGERPRINT);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> supervisorCard = (Map<String, Object>) scorecard.get("supervisors");
+    @SuppressWarnings("unchecked")
+    Map<String, Object> supervisorCoverage = (Map<String, Object>) supervisorCard.get("coverage");
+    assertThat(((Number) supervisorCoverage.get("shortBlockDays")).intValue())
+        .as("the supervisors' leave leaves supervisor-post gaps, reported in their card")
+        .isEqualTo(93);
   }
 
   @Test

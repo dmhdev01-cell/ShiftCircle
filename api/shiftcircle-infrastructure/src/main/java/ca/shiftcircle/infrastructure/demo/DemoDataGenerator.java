@@ -116,7 +116,7 @@ public class DemoDataGenerator implements ApplicationRunner {
     UUID ruleSetVersion = publishedRuleSetVersion();
 
     List<PayPeriod> payPeriods = createPayPeriods(settings);
-    List<SchedulePeriod> schedulePeriods = createSchedulePeriods(settings, units);
+    List<SchedulePeriod> schedulePeriods = createSchedulePeriods(settings, units, UNIT_CODES);
     List<Officer> officers = createOfficers(settings, random, units);
     seedPreferences(settings, officers);
 
@@ -131,7 +131,7 @@ public class DemoDataGenerator implements ApplicationRunner {
     assignments = linkAbsences(assignments, absences);
 
     List<OpenShift> openShifts =
-        createOpenShifts(settings, units, templates, assignments, absences);
+        createOpenShifts(settings, units, templates, assignments, absences, UNIT_CODES);
     List<Offer> offers = fillOpenShifts(settings, random, openShifts, assignments, officers, units);
     persistExtraAssignments(assignments);
     persistOpenShifts(openShifts);
@@ -141,6 +141,9 @@ public class DemoDataGenerator implements ApplicationRunner {
     Instant now = settings.today().atTime(LocalTime.NOON).atZone(BusinessTime.REGINA).toInstant();
     persistTimeEntries(settings, payPeriods, assignments, absences, now, random);
     new DemoPlantedCases(jdbc).apply();
+    // Release v1.3 (S4): the supervisors come after every officer row is written, from their own
+    // Random, so the officers' roster, absences, overtime and actuals stay byte-identical.
+    seedSupervisors(settings, units, templates, payPeriods, now);
     linkAssignmentsToPeriods();
     assignPayCodes(payPeriods);
     lockPastPayPeriods(settings, payPeriods);
@@ -250,7 +253,8 @@ public class DemoDataGenerator implements ApplicationRunner {
   record SchedulePeriod(
       UUID id, UUID unitId, String unitCode, LocalDate start, LocalDate end, boolean published) {}
 
-  private List<SchedulePeriod> createSchedulePeriods(DemoSettings settings, Map<String, Unit> units) {
+  private List<SchedulePeriod> createSchedulePeriods(
+      DemoSettings settings, Map<String, Unit> units, String[] unitCodes) {
     List<SchedulePeriod> periods = new ArrayList<>();
     LocalDate week = weekStart(settings.windowStart());
     while (!week.isAfter(settings.windowEnd())) {
@@ -258,7 +262,7 @@ public class DemoDataGenerator implements ApplicationRunner {
       // A period that has ended is history and reads as published; the period "today" falls in and
       // everything after it is still to be planned.
       boolean published = end.isBefore(settings.today());
-      for (String unitCode : UNIT_CODES) {
+      for (String unitCode : unitCodes) {
         Unit unit = units.get(unitCode);
         periods.add(
             new SchedulePeriod(
@@ -461,6 +465,145 @@ public class DemoDataGenerator implements ApplicationRunner {
             byUnit.computeIfAbsent(officer.unitCode(), key -> new ArrayList<>())
                 .add(officer.employeeNo()));
     return byUnit;
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Supervisors (release v1.3, S4; docs/10-testing.md §6.4)
+  // ---------------------------------------------------------------------------------------------
+
+  /** The two supervisor posts (V19), each needing one supervisor per block, 24/7. */
+  static final String[] SUPERVISOR_POSTS = {"SUP-L", "SUP-O"};
+
+  /** Five per post: 21 eight-hour shifts a week per post over five people on 5 on / 2 off. */
+  static final int SUPERVISORS_PER_POST = 5;
+
+  /**
+   * The supervisors draw from their own Random (seed XOR this salt, the plan's "0x5u9"), so not one
+   * officer draw moves and the officers' rows stay byte-identical to the pre-supervisor dataset.
+   */
+  static final long SUPERVISOR_SALT = 0x509L;
+
+  /**
+   * Seeds the ten supervisors on the two posts: their schedule periods, an 8 h D8/E8/N8 rotating
+   * roster, 2% sick and 2% vacation like the officers, the sick calls offered as overtime to the
+   * other supervisors, and their actuals. M. Ellis (S-001, SUP-L) and J. Chen (S-006, SUP-O) are the
+   * demo sign-ins, so their My schedule shows real rows.
+   */
+  private void seedSupervisors(
+      DemoSettings settings,
+      Map<String, Unit> units,
+      Map<String, UUID> templates,
+      List<PayPeriod> payPeriods,
+      Instant now) {
+    for (String post : SUPERVISOR_POSTS) {
+      if (!units.containsKey(post)) {
+        // A schema without the posts (before V19) has no supervisors to seed.
+        return;
+      }
+    }
+    Random random = new Random(settings.seed() ^ SUPERVISOR_SALT);
+    createSchedulePeriods(settings, units, SUPERVISOR_POSTS);
+    List<Officer> supervisors = createSupervisors(random, units);
+
+    RosterPlanner planner = new RosterPlanner();
+    List<RosterPlanner.Shift> shifts = new ArrayList<>();
+    for (int dayIndex = 0; dayIndex < settings.days(); dayIndex++) {
+      LocalDate date = settings.windowStart().plusDays(dayIndex);
+      for (String post : SUPERVISOR_POSTS) {
+        // 8 h only on Dataset 100: no 12 h swap, whatever the post allows.
+        shifts.addAll(planner.shiftsFor(date, post, new RosterPlanner.Requirements(1, 1, 1), false));
+      }
+    }
+    Map<RosterPlanner.Shift, String> assigned = planner.assign(shifts, officersByUnit(supervisors));
+    List<Assignment> assignments = persistAssignments(settings, units, templates, assigned, shifts);
+    List<Absence> absences = createAbsences(random, assignments);
+    persistAbsences(absences);
+    assignments = linkAbsences(assignments, absences);
+
+    List<OpenShift> openShifts =
+        createOpenShifts(settings, units, templates, assignments, absences, SUPERVISOR_POSTS);
+    // The candidates are the supervisors only: a supervisor post is never offered to an officer.
+    List<Offer> offers = fillOpenShifts(settings, random, openShifts, assignments, supervisors, units);
+    persistExtraAssignments(assignments);
+    persistOpenShifts(openShifts);
+    persistOffers(offers);
+    persistTimeEntries(settings, payPeriods, assignments, absences, now, random);
+
+    jdbc.update(
+        "UPDATE app_user SET employee_id = (SELECT id FROM employee WHERE employee_no = 'S-001')"
+            + " WHERE username = 'm.ellis'");
+    jdbc.update(
+        "UPDATE app_user SET employee_id = (SELECT id FROM employee WHERE employee_no = 'S-006')"
+            + " WHERE username = 'j.chen'");
+  }
+
+  private List<Officer> createSupervisors(Random random, Map<String, Unit> units) {
+    List<String> usedPairs =
+        new ArrayList<>(
+            jdbc.queryForList("SELECT first_name || ' ' || last_name FROM employee", String.class));
+    List<Officer> supervisors = new ArrayList<>();
+    int number = 0;
+    for (String post : SUPERVISOR_POSTS) {
+      for (int index = 0; index < SUPERVISORS_PER_POST; index++) {
+        number++;
+        String first;
+        String last;
+        if (number == 1) {
+          first = "Morgan";
+          last = "Ellis";
+        } else if (number == SUPERVISORS_PER_POST + 1) {
+          first = "Jamie";
+          last = "Chen";
+        } else {
+          do {
+            first = DemoNames.FIRST_NAMES.get(random.nextInt(DemoNames.FIRST_NAMES.size()));
+            last = DemoNames.LAST_NAMES.get(random.nextInt(DemoNames.LAST_NAMES.size()));
+          } while (usedPairs.contains(first + " " + last)
+              || "Ellis".equals(last)
+              || "Chen".equals(last));
+        }
+        usedPairs.add(first + " " + last);
+        String employeeNo = String.format("S-%03d", number);
+        // Service 2004-2014 and promotion 2018-2025: distinct, deterministic, and the promotion is
+        // always after the service date (the V16 check).
+        LocalDate seniority = LocalDate.of(2004, 1, 1).plusDays((number - 1) * 400L);
+        LocalDate positionSince = LocalDate.of(2018, 1, 1).plusDays((number - 1) * 290L);
+        UUID id = id("employee:" + employeeNo);
+        jdbc.update(
+            "INSERT INTO employee (id, employee_no, first_name, last_name, classification,"
+                + " position_since, home_unit_id, shift_pattern, seniority_date, is_synthetic)"
+                + " VALUES (?, ?, ?, ?, 'CS', ?, ?, 'ROTATING_5_2', ?, true)",
+            id,
+            employeeNo,
+            first,
+            last,
+            positionSince,
+            units.get(post).id(),
+            seniority);
+        // Supervisors have preferences too (the table name is historical): 8 h, and the two demo
+        // supervisors prefer days. The quarter planner puts only 12 h staff on nights, so its
+        // Dataset 100 plan leaves the posts' nights short, as it does the 8 h officers' (a 12 h
+        // preference for some supervisors was measured and left more posts short, not fewer).
+        boolean demoUser = number == 1 || number == SUPERVISORS_PER_POST + 1;
+        String[] timesOfDay = demoUser ? new String[] {"DAY"} : new String[] {};
+        int shiftLength = 8;
+        jdbc.update(
+            connection -> {
+              var statement =
+                  connection.prepareStatement(
+                      "INSERT INTO officer_preference (employee_id, shift_length, times_of_day,"
+                          + " days_off) VALUES (?, ?, ?, '{}')");
+              statement.setObject(1, id);
+              statement.setInt(2, shiftLength);
+              statement.setArray(3, connection.createArrayOf("text", timesOfDay));
+              return statement;
+            });
+        supervisors.add(
+            new Officer(
+                id, employeeNo, first, last, post, units.get(post).id(), seniority, List.of()));
+      }
+    }
+    return supervisors;
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -700,7 +843,8 @@ public class DemoDataGenerator implements ApplicationRunner {
       Map<String, Unit> units,
       Map<String, UUID> templates,
       List<Assignment> assignments,
-      List<Absence> absences) {
+      List<Absence> absences,
+      String[] unitCodes) {
     // Hourly coverage from assignments that are not absent.
     Map<String, Integer> coverage = new HashMap<>();
     assignments.stream()
@@ -720,7 +864,7 @@ public class DemoDataGenerator implements ApplicationRunner {
     int sequence = 0;
     for (int dayIndex = 0; dayIndex < settings.days(); dayIndex++) {
       LocalDate date = settings.windowStart().plusDays(dayIndex);
-      for (String unitCode : UNIT_CODES) {
+      for (String unitCode : unitCodes) {
         for (String block : List.of("DAY", "EVENING", "NIGHT")) {
           int required = requirements.get(unitCode).getOrDefault(block, 0);
           String template = blockTemplate(block);

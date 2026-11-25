@@ -31,9 +31,9 @@ import org.springframework.test.context.DynamicPropertySource;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Release v1.3 S3 through the API: the datasets have no supervisors until S4, so this class adds a
- * supervisor post ("SUP-T", one supervisor on days and on evenings) and four supervisors homed on
- * it, on top of the Dataset 100 officers. Plan inputs split the people by position and the units by
+ * Release v1.3 S3 through the API. Since S4 Dataset 100 has two supervisor posts (SUP-L, SUP-O) and
+ * ten supervisors of its own; this class adds a third post ("SUP-T", one supervisor on days and on
+ * evenings) and four more supervisors homed on it, on top of them. Plan inputs split the people by position and the units by
  * kind; the generated draft keeps each rank on its own posts, the officer cards count the officer
  * units only, and the supervisor card, the totals, the commit preview, the compare and the commit
  * carry the split.
@@ -61,25 +61,41 @@ class PlannerSupervisorApiTest {
   private String planner;
   private int officers;
   private int lineUnits;
+  private int seededSupervisors;
+  private int seededPosts;
 
   @BeforeAll
   void login() throws Exception {
     planner = loginToken("p.planner");
-    officers = jdbc.queryForObject("SELECT count(*) FROM employee", Integer.class);
-    lineUnits = jdbc.queryForObject("SELECT count(*) FROM unit", Integer.class);
+    officers =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM employee WHERE classification = 'CO'", Integer.class);
+    seededSupervisors =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM employee WHERE classification = 'CS'", Integer.class);
+    lineUnits =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM unit WHERE kind <> 'SUPERVISION'", Integer.class);
+    seededPosts =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM unit WHERE kind = 'SUPERVISION'", Integer.class);
   }
 
   @Test
   @Order(1)
   @SuppressWarnings("unchecked")
-  void withNoSupervisorsTheInputsReadAsBefore() throws Exception {
+  void theSeededSupervisorsAndPostsAreSplitOut() throws Exception {
+    assertThat(seededSupervisors).as("Dataset 100's supervisors (S4)").isEqualTo(10);
+    assertThat(seededPosts).as("SUP-L and SUP-O (V19)").isEqualTo(2);
     Map<String, Object> people = (Map<String, Object>) inputs().get("officers");
-    assertThat(people.get("total")).isEqualTo(officers);
-    assertThat(people.get("posts")).isEqualTo(0);
+    assertThat(people.get("total")).isEqualTo(officers + seededSupervisors);
+    assertThat(people.get("posts")).isEqualTo(seededPosts);
     assertThat(people.get("lineUnits")).isEqualTo(lineUnits);
-    assertThat(people.get("headline")).isEqualTo(officers + " officers in " + lineUnits + " units");
+    assertThat(people.get("headline"))
+        .isEqualTo(
+            officers + " officers + 10 supervisors in " + lineUnits + " units + 2 supervisor posts");
     assertThat(byPosition(people, "CO").get("total")).isEqualTo(officers);
-    assertThat(byPosition(people, "CS").get("total")).isEqualTo(0);
+    assertThat(byPosition(people, "CS").get("total")).isEqualTo(seededSupervisors);
   }
 
   @Test
@@ -89,20 +105,20 @@ class PlannerSupervisorApiTest {
     addPostAndSupervisors();
     Map<String, Object> inputs = inputs();
     Map<String, Object> people = (Map<String, Object>) inputs.get("officers");
-    assertThat(people.get("total")).isEqualTo(officers + 4);
+    assertThat(people.get("total")).isEqualTo(officers + seededSupervisors + 4);
     assertThat(byPosition(people, "CO"))
         .containsEntry("total", officers)
         .containsEntry("supervisory", false);
     assertThat(byPosition(people, "CS"))
-        .containsEntry("total", 4)
-        .containsEntry("fullTime", 4)
+        .containsEntry("total", seededSupervisors + 4)
+        .containsEntry("fullTime", seededSupervisors + 4)
         .containsEntry("partTime", 0)
         .containsEntry("supervisory", true);
-    assertThat(people.get("posts")).isEqualTo(1);
+    assertThat(people.get("posts")).isEqualTo(seededPosts + 1);
     assertThat(people.get("lineUnits")).isEqualTo(lineUnits);
     assertThat(people.get("headline"))
         .isEqualTo(
-            officers + " officers + 4 supervisors in " + lineUnits + " units + 1 supervisor post");
+            officers + " officers + 14 supervisors in " + lineUnits + " units + 3 supervisor posts");
 
     Map<String, Object> post =
         ((List<Map<String, Object>>) inputs.get("units"))
@@ -133,24 +149,31 @@ class PlannerSupervisorApiTest {
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM plan_draft_assignment a JOIN employee e"
-                    + " ON e.id = a.employee_id WHERE a.draft_id = ?"
-                    + " AND (e.classification = 'CS') <> (a.unit_id = ?)",
+                    + " ON e.id = a.employee_id JOIN unit u ON u.id = a.unit_id"
+                    + " WHERE a.draft_id = ? AND (e.classification = 'CS') <> (u.kind = 'SUPERVISION')",
+                Integer.class,
+                draft))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM plan_draft_assignment WHERE draft_id = ? AND unit_id = ?",
                 Integer.class,
                 draft,
                 POST))
-        .isZero();
+        .as("the added post is worked")
+        .isPositive();
     int postShifts =
         jdbc.queryForObject(
-            "SELECT count(*) FROM plan_draft_assignment WHERE draft_id = ? AND unit_id = ?",
+            "SELECT count(*) FROM plan_draft_assignment a JOIN unit u ON u.id = a.unit_id"
+                + " WHERE a.draft_id = ? AND u.kind = 'SUPERVISION'",
             Integer.class,
-            draft,
-            POST);
+            draft);
     int postGaps =
         jdbc.queryForObject(
-            "SELECT count(*) FROM plan_draft_gap WHERE draft_id = ? AND unit_id = ?",
+            "SELECT count(*) FROM plan_draft_gap g JOIN unit u ON u.id = g.unit_id"
+                + " WHERE g.draft_id = ? AND u.kind = 'SUPERVISION'",
             Integer.class,
-            draft,
-            POST);
+            draft);
     int allShifts =
         jdbc.queryForObject(
             "SELECT count(*) FROM plan_draft_assignment WHERE draft_id = ?", Integer.class, draft);
@@ -168,21 +191,25 @@ class PlannerSupervisorApiTest {
     assertThat(coverage.get("shortBlockDays")).isEqualTo(allGaps - postGaps);
 
     Map<String, Object> card = (Map<String, Object>) scorecard.get("supervisors");
-    assertThat(card).containsEntry("supervisors", 4).containsEntry("posts", 1);
+    assertThat(card)
+        .containsEntry("supervisors", seededSupervisors + 4)
+        .containsEntry("posts", seededPosts + 1);
     assertThat(card.get("shifts")).isEqualTo(postShifts);
     Map<String, Object> postCoverage = (Map<String, Object>) card.get("coverage");
-    // SUP-T has a minimum on days and evenings only: two block-days a day, not three.
-    assertThat(((Number) postCoverage.get("totalBlockDays")).longValue()).isEqualTo(days * 2);
+    // SUP-L and SUP-O (V19) need one supervisor on all three blocks; SUP-T has a minimum on days
+    // and evenings only: two block-days a day, not three.
+    long postBlockDays = days * 3 * seededPosts + days * 2;
+    assertThat(((Number) postCoverage.get("totalBlockDays")).longValue()).isEqualTo(postBlockDays);
     assertThat(postCoverage.get("shortBlockDays")).isEqualTo(postGaps);
     assertThat(((Number) postCoverage.get("coveredBlockDays")).longValue())
-        .isEqualTo(days * 2 - postGaps);
+        .isEqualTo(postBlockDays - postGaps);
 
     Map<String, Object> totals = (Map<String, Object>) scorecard.get("totals");
     assertThat(totals)
         .containsEntry("shifts", allShifts)
         .containsEntry("supervisorShifts", postShifts)
         .containsEntry("officerShifts", allShifts - postShifts)
-        .containsEntry("supervisors", 4);
+        .containsEntry("supervisors", seededSupervisors + 4);
 
     Map<String, Object> preview =
         json(send("GET", "/api/v1/planner/drafts/" + draft + "/commit-preview", null, null));
@@ -190,7 +217,7 @@ class PlannerSupervisorApiTest {
         .containsEntry("shiftsToWrite", allShifts)
         .containsEntry("supervisorShifts", postShifts)
         .containsEntry("officerShifts", allShifts - postShifts)
-        .containsEntry("supervisors", 4)
+        .containsEntry("supervisors", seededSupervisors + 4)
         .containsEntry("officers", totals.get("officers"));
 
     Map<String, Object> compare =
@@ -202,7 +229,8 @@ class PlannerSupervisorApiTest {
         .isEqualTo(postShifts);
     assertThat(((Number) rows.get("officerShifts").get("draft")).intValue())
         .isEqualTo(allShifts - postShifts);
-    assertThat(((Number) rows.get("supervisors").get("draft")).intValue()).isEqualTo(4);
+    assertThat(((Number) rows.get("supervisors").get("draft")).intValue())
+        .isEqualTo(seededSupervisors + 4);
     assertThat(((Number) rows.get("officers").get("draft")).intValue())
         .isEqualTo(totals.get("officers"));
 

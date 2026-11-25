@@ -137,7 +137,7 @@ No api, migration, generator or rules change: dataset checksums, the payroll gol
 
 The owner approved the plan in `.factory/plans/v1.2-supervisors.md` (the plan file still says v1.2; the
 release was split afterwards, so it is v1.3 here). The work is eight small pull requests, **S1 to S8**;
-this entry covers **S1** to **S3**. The plan is not in the repository, so this section is the record of what
+this entry covers **S1** to **S4**. The plan is not in the repository, so this section is the record of what
 these pull requests did.
 
 ### S1 — Positions and the SUPERVISION kind (API, schema only)
@@ -356,6 +356,105 @@ was not re-run.
 the supervisor posts and the demo supervisors in the datasets with the
 single re-pin (S4), the overtime pools and the self-edit guard (S5), and the board, My schedule,
 display and reports work (S6, S7).
+
+### S4 — Supervisor posts in the datasets, the demo supervisors linked, the single re-pin (API)
+
+Stacked on S3 (#32). Owner answers Q2 (two area posts, 1 per block, 24/7; both demo supervisors get
+both posts) and Q6 (Dataset 100 gets supervisors and is re-pinned once).
+
+**What it does.**
+- **V19 `supervision_posts`** (the next free number: V16 positions, V17 proposals, V18 the posts rule set): units **SUP-L**
+  "Supervision · Living units" (covers A, B, C) and **SUP-O** "Supervision · Operations" (covers
+  ADM, CTL, ESC), fixed ids `…-000000000007/8`, `allows_12h`; requirements 1/1/1 each from 1 Oct
+  2026; the six `unit_supervision` links; scope rows giving m.ellis and j.chen both posts (their
+  officer-unit scope is unchanged).
+- **Dataset 100**: 10 supervisors `S-001…S-010` (`CS`, five per post, service 2004–2014,
+  `position_since` 2018–2025) on 8 h D8/E8/N8 shifts from the same roster walk; 2% sick + 2%
+  vacation; their sick calls become open shifts offered to the other supervisors only; their
+  actuals and pay codes; SUP schedule periods. All of it comes **after** every officer row and from
+  its own `Random(seed ^ 0x509)`, so no officer draw moves. M. Ellis = S-001 Morgan Ellis (SUP-L),
+  J. Chen = S-006 Jamie Chen (SUP-O), both linked.
+- **Datasets 120/150** (`DemoSupervisorCrews`): per post 2 D12 + 2 N12 4-on/4-off crew supervisors
+  and one relief (N12 relief on SUP-L, D12 relief on SUP-O), numbered `120-S001…` with their own
+  ids, names and history; 150 adds a D8 5-on/2-off day supervisor (SUP-L), a 0.6 FTE `CASUAL_12`
+  part-timer (SUP-O), the 20% leave placement from `Random(150_2026 ^ 0x509)` and M. Ellis's
+  vacation week 8–14 Feb 2027. Ellis and Chen are the first SUP-L/SUP-O day supervisors.
+- **Self-checks**: the 100 self-check's overtime band, skew, PC-07 and PC-09 read the officers
+  only, and a new supervisor check asserts 10 supervisors, no cross-rank shift, ≥ 97.5% of post
+  hour-slots covered and both sign-ins linked; the 120/150 providers check the head count, no
+  cross-rank shift, every post hour of the history covered and both links.
+- **The overtime list stays inside the post's rank** (Q4's pool rule, the part S4 needs): with
+  supervisors in scope, an officer post's ranked list would otherwise have led with supervisors
+  (no overtime, senior service). An officer post lists officers and a supervisor post lists
+  supervisors; the §3 list is unchanged (36: 18 / 10 / 8). S5 adds acting officers, rank seniority
+  and the self-offer guard.
+- **My schedule's overtime rank is counted inside the person's rank**, for the same reason: an
+  officer's "Rank n of 100 on the overtime list" is unchanged, and a supervisor's reads "of 10".
+- **The supervisors' self-edit guard (owner answer Q3), brought forward from S5** after the security
+  gate showed j.chen recording 14 h on their own 8 h shift (`PUT /time-entries`, 200). Linking the
+  two demo supervisors inside their own scope made it reachable. Every supervisor write path on a
+  shift, time entry, absence, overtime offer or confirm and override now answers 403 "You can't
+  change your own schedule; ask another supervisor." on the caller's own record
+  (`SelfActionGuard.requireNotOwnSchedule`): `POST /assignments` (override included), `PATCH` and
+  `DELETE /assignments/{id}` (the shift moved and the person it moves to), `PUT` and
+  `DELETE /time-entries/{id}`, `POST /absences`, `POST /open-shifts/{id}/offers` (every listed
+  employee, before anything is written), `POST /open-shifts/{id}/assign` and
+  `POST /offers/{id}/confirm`. Accepting or declining one's own offer on My schedule is unchanged.
+  Proposal decisions already used the same guard (P2). S5 is left with the overtime pools.
+  The re-check round dropped "or the planner" from the message (a planner can't write the live
+  board, so only another supervisor can do these), and docs/07 lists the 403 on each endpoint and
+  its place in the order of checks (after the body, before `If-Match`; before the reason for a
+  cancel).
+- **Compare and the commit links name the posts** ("Supervision · Living units coverage gaps", not
+  "SUP-L coverage gaps"); the cross-unit "still short" line keeps the posts' full names.
+- **`DemoChecksum.officersOnly` / `officersOnlyWithNames`**: the checksum over the officers' shifts
+  and the officer units' periods (with the officers' names for 120/150).
+
+**Pins (moved once).** Checksums 100 `beb2e222…b7d1`, 120 `ca73467d…a64a`, 150 `353e2e62…91a5`;
+plan fingerprints `94aeae1f…`, `5a3763c7…`, `7368ef13…`; rows 7,266 / 5,595 / 5,877; scorecard
+(officer) warnings 135 / 7 / 39, all warnings 155 / 7 / 41; supervisor-post gaps 230 / 0 / 93 of
+588 block-days; payroll golden 1,124 lines `b946ef1f…00e6`. **Officer-only proof**
+(`GeneratorCharacterizationTest`): the officers' checksums, plan fingerprints, rows and warnings
+equal the pre-S4 pins (`4156077d…`, `82b19cf8…`, `2e6cd938…`; `ec337014…`, `e8b29ce6…`,
+`a1e093f7…`; 6,586 / 5,103 / 5,414; 135 / 7 / 39), and the golden's first 1,038 lines are the old
+file byte for byte (`9f2d51b3…04ff`) with only `S-…` rows after them. Dataset 100's planner puts no
+8 h staff on nights, so all 196 of its supervisor-post night block-days are short in the plan
+quarter (230 short in all, the other ~34 days and evenings where leave is not backfilled), as the
+8 h officers' nights are; giving some supervisors a 12 h preference was measured and left more short (286).
+
+**Visible changes before S6/S7.** M. Ellis and J. Chen get **Employee view** with their own
+supervisor schedule (header "Correctional supervisor"). The unit pickers, the reports and Compare
+list SUP-L and SUP-O like any unit. The wall display keeps its six unit tiles (eight do not fit a
+TV); the posts get their own counts-only strip in S7. The Plan inputs headline counts
+everyone ("Planning 130 officers in 8 units" on 120) and the commit dialog says "5,595 shifts for
+107 officers" until S7 words the split; the audit line reads "5,595 shifts written · 107 officers ·
+10 supervisors · 7 warnings accepted · across 8 units".
+
+**Tests.** `GeneratorCharacterizationTest` re-pinned plus the officer-only invariance for all three
+datasets and the payroll prefix; `DemoResetApiTest`, `Demo120ResetApiTest`, `Demo150ResetApiTest`,
+`DemoResetFailureTest` re-pinned with per-classification counts and the supervisor composition;
+new `SupervisorDatasetsApiTest` (3: My schedule 200 for both on 100/120/150, posts/links/scopes,
+the rank-bound overtime list); `DemoDataGeneratorTest` (+2: officers unchanged, supervisors on
+their posts on 8 h with offers inside the rank); `SchemaConstraintsTest` (V19 counts). e2e:
+`reset*.spec.ts` (new 100 checksum), `session-and-nav.spec.ts` (Employee view for the supervisors),
+`planner-inputs.spec.ts` (headline and staffing totals).
+
+**Counts at this gate** (author run, `76fd79d`: S4 with origin/sc-s3 merged in, which brings main's
+S1 #27 and P1 #26; own compose projects `sc-s4` and `sc-s4-e2e`): API **584 = 140 rules + 38
+infrastructure + 406 api** (`docker compose --profile test run --rm --build api-test`, `mvn verify`,
+BUILD SUCCESS, 0 failures, errors or skipped); web unit tests **603** in 58 files, lint 0 errors
+(4 warnings), `tsc -b` and build clean; check scripts pass; Playwright against the real API, a fresh
+stack per viewport: desktop-datasets **132 passed**, tablet-datasets **131 passed and 1 skipped**
+(the TV-size check runs on desktop only). Demo §1–6 and §7 figures re-read on the real API (see
+`docs/demo-script.md`); M. Ellis and J. Chen open Employee view → My schedule with their own shifts
+in a browser.
+
+**Counts after the review round** (`c4d3963`: the self-edit guard, the posts named in Compare, the
+docs fixes, with main merged in, which brings S3 #32 and P3 #33): API **611 = 140 rules + 38
+infrastructure + 433 api** (GitHub CI `mvn verify` on the pull request's merge with main, 0
+failures, errors or skipped; `SelfEditGuardApiTest` +3); web unit tests **632** in 61 files, lint 0
+errors (4 warnings), `tsc -b` and build clean; Playwright against the real API, a fresh stack per
+viewport: desktop-datasets **134 passed**, tablet-datasets **133 passed and 1 skipped**.
 
 ### Shift proposals, P1: the officer API
 

@@ -7,6 +7,8 @@ import ca.shiftcircle.api.rules.RuleCheckService;
 import ca.shiftcircle.api.rules.RuleViolationException;
 import ca.shiftcircle.api.security.AuthPrincipal;
 import ca.shiftcircle.api.security.ScopeGuard;
+import ca.shiftcircle.api.security.SelfActionGuard;
+import ca.shiftcircle.domain.Position;
 import ca.shiftcircle.rules.RuleEvaluator;
 import ca.shiftcircle.rules.facts.OvertimeRankingFact;
 import ca.shiftcircle.rules.facts.RuleOutcome;
@@ -276,8 +278,17 @@ public class OvertimeService {
                 java.sql.Timestamp.from(endAt),
                 java.sql.Timestamp.from(startAt)));
 
+    // Release v1.3 (S4): the datasets now hold supervisors, and both demo supervisors have the
+    // supervisor posts in scope. The ranked list stays within the post's rank, so a supervisor
+    // post lists supervisors and an officer post lists officers, exactly as before (owner answer
+    // Q4). S5 builds the full pools on this (acting officers, rank seniority).
+    boolean supervisorPost = "SUPERVISION".equals(shift.get("unit_kind"));
     List<OvertimeRanker.Candidate> pool = new ArrayList<>();
     for (Map<String, Object> officer : officers) {
+      if (Position.fromCodeOrDefault((String) officer.get("classification")).isSupervisory()
+          != supervisorPost) {
+        continue;
+      }
       UUID employeeId = (UUID) officer.get("id");
       List<String> qualifications = strings(officer.get("qualifications"));
 
@@ -387,6 +398,11 @@ public class OvertimeService {
     }
     if ("CANCELLED".equals(shift.get("status"))) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "This shift was cancelled");
+    }
+    // Release v1.3 S4: a supervisor does not offer overtime to themselves (owner answer Q3). Every
+    // name is checked before any offer is written, so a list with yourself in it writes nothing.
+    for (UUID employeeId : request.employeeIds()) {
+      SelfActionGuard.requireNotOwnSchedule(principal, employeeId);
     }
 
     UUID unitId = (UUID) shift.get("unit_id");
@@ -564,6 +580,10 @@ public class OvertimeService {
     if ("CANCELLED".equals(shift.get("status"))) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "This shift was cancelled");
     }
+    // Release v1.3 S4: a supervisor does not confirm their own overtime; accepting it on My
+    // schedule stays the employee's own consent. Checked after the offer's and the shift's state
+    // (a filled shift is still a 409 for everyone) and before anything is written.
+    SelfActionGuard.requireNotOwnSchedule(principal, (UUID) offer.get("employee_id"));
 
     UUID employeeId = (UUID) offer.get("employee_id");
     UUID unitId = (UUID) shift.get("unit_id");
@@ -634,6 +654,8 @@ public class OvertimeService {
     if (request == null || request.employeeId() == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "employeeId is required");
     }
+    // Release v1.3 S4: not to yourself (assign() checks it again on the shared write path).
+    SelfActionGuard.requireNotOwnSchedule(principal, request.employeeId());
     if ("FILLED".equals(shift.get("status"))) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "This shift is already filled");
     }
@@ -690,7 +712,7 @@ public class OvertimeService {
     List<Map<String, Object>> officers =
         jdbc.queryForList(
             "SELECT e.id, e.first_name || ' ' || e.last_name AS name, e.seniority_date,"
-                + " u.code AS home_unit,"
+                + " e.classification, u.code AS home_unit,"
                 + " coalesce((SELECT sum(te.hours) FROM time_entry te"
                 + "   WHERE te.employee_id = e.id AND te.pay_code = 'OT15'"
                 + "   AND te.start_at >= ?), 0) AS overtime_hours,"

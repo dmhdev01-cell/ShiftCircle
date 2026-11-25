@@ -11,7 +11,7 @@ To install and start it, see [INSTALL.md](INSTALL.md). This guide is about using
 | You are… | Your side menu | Read |
 |---|---|---|
 | An officer (Employee) | My schedule | [Officer guide](docs/user-guide/officer.md) |
-| A unit supervisor | Planning board, Overtime, Reports, Rules, Audit log, Wall display, Employee view (only for an account linked to an officer; the demo supervisors are not), Time & attendance | [Supervisor guide](docs/user-guide/supervisor.md) |
+| A unit supervisor | Planning board, Overtime, Reports, Rules, Audit log, Wall display, Employee view (their own schedule; both demo supervisors are linked to supervisor records since release v1.3), Time & attendance | [Supervisor guide](docs/user-guide/supervisor.md) |
 | The facility planner | Quarter plan, Preferences, Units, Planning board | [Planner guide](docs/user-guide/planner.md) |
 | An auditor | Planning board, Reports, Rules, Audit log, Wall display | [Auditor guide](docs/user-guide/auditor.md) |
 | A rules admin or rules approver | Rules | [Rules admin and approver guide](docs/user-guide/admin.md) |

@@ -132,7 +132,8 @@ class SchedulePeriodSeedApiTest {
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(DISTINCT unit_id) FROM schedule_period", Integer.class))
-        .isEqualTo(6);
+        .as("six line units and two supervisor posts")
+        .isEqualTo(8);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM schedule_period WHERE unit_id = ?", Integer.class, UNIT_A))

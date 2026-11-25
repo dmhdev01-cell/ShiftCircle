@@ -26,7 +26,7 @@
 
 ### Measured performance (NFR-05, 2026-11-20)
 
-Full demo dataset (100 officers, 6,456 assignments, 84 schedule periods, checksum `4156077d76d41bd5fcf6d6a9a0f51111e9007d16c8a0c6b311e09c6fe801da6b`), PostgreSQL 17 in a Testcontainer, `PerformanceSmokeTest` in `maven:3.9-eclipse-temurin-21` on Docker Desktop for macOS. That is a VM, slower than the target host, so a pass here is pessimistic. Five warm-up calls, then 20 timed calls; the board range is four weeks (NFR-05 says 14 days, so this is stricter); the publish figures are single calls.
+Full demo dataset as it was before release v1.3 S4 added the supervisors (100 officers, 6,456 assignments, 84 schedule periods, checksum `4156077d76d41bd5fcf6d6a9a0f51111e9007d16c8a0c6b311e09c6fe801da6b`; measured before S4, not re-measured since), PostgreSQL 17 in a Testcontainer, `PerformanceSmokeTest` in `maven:3.9-eclipse-temurin-21` on Docker Desktop for macOS. That is a VM, slower than the target host, so a pass here is pessimistic. Five warm-up calls, then 20 timed calls; the board range is four weeks (NFR-05 says 14 days, so this is stricter); the publish figures are single calls.
 
 | Case | Median | p95 | Limit |
 |---|---|---|---|
@@ -50,6 +50,8 @@ The sections after this one are the **history** of how the counts grew, release 
 
 **v1.2 (PR-O, PR-M, PR-N and PR-Q; not the submission tag, whose counts are the table below):** API **503 = 127 rules + 28 infrastructure + 348 api** (`mvn verify` in GitHub CI on PR #24, reproduced by the v1.2 release walk; PR-N adds 23: `PlanGeneratorOptionsTest` 14, `PlannerOptionsApiTest` 6, `PlanInputsFillOrderTest` 3; PR-Q changes no api code); web unit tests **591** in 58 files (the walk measured 583 in 57 at `958209c`; PR-Q adds 8); Playwright, a fresh stack per viewport, `E2E_WORKERS=1`: desktop **132 passed**, tablet **131 passed and 1 skipped** (the walk measured 129 and 128 + 1 at `958209c`; PR-Q adds the three `planner-inputs` staffing tests). Before PR-N: API 480, web 567 in 56 files, lint 4 warnings, `tsc -b` clean; Playwright on PR-M's code before the PR-O merge (`421627a`, a fresh stack per viewport): `desktop-datasets` **126 passed**, `tablet-datasets` **125 passed, 1 skipped** (run with `E2E_WORKERS=1` on a loaded host), fixtures (all four projects) **45 passed, 159 skipped**. Checksums, payroll golden and plan fingerprints unchanged.
 
+**v1.3 S4 (supervisors in the datasets; the single re-pin).** Every dataset pin moves once, and the officers alone still produce the old ones. New pins: checksums 100 `beb2e222b8c9100c98d329e37f5ffcf670f81d0083045d84f179f7f0681ab7d1`, 120 `ca73467d7c8436f8be28d5e5488b63b80b2dc162a8c815527dd674fe6dcfa64a`, 150 `353e2e62a1627a9ba31b7e411064065e2d0c36510a3e145f010251c4713991a5`; plan fingerprints 100 `94aeae1f…7c11`, 120 `5a3763c7…983f`, 150 `7368ef13…0587`; draft rows 7,266 / 5,595 / 5,877 (officers 6,586 / 5,103 / 5,414 plus supervisors 680 / 492 / 463); scorecard warnings (the officers' card) 135 / 7 / 39 and all warnings 155 / 7 / 41; supervisor-post block-days short 230 / 0 / 93 of 588 (Dataset 100's planner puts no 8 h staff on nights, so the posts' nights are short there, as the 8 h officers' are); payroll golden for 26 Oct – 8 Nov **1,124 lines**, sha256 `b946ef1f9f3d3529bd826e41a9452fe35633d9e1ee38e7d79d7a70732bc200e6`. The **officer-only** pins are asserted in `GeneratorCharacterizationTest`: `DemoChecksum.officersOnly` (100) and `officersOnlyWithNames` (120/150) equal `4156077d…da6b`, `82b19cf8…32ca` and `2e6cd938…d7f8`; the officers' plan fingerprints equal `ec337014…`, `e8b29ce6…` and `a1e093f7…` with 6,586 / 5,103 / 5,414 rows; the export's first 1,038 lines are the old file byte for byte (`9f2d51b3…04ff`) and every later line is an `S-…` supervisor row. Counts for the S4 run are in `docs/process/release-notes.md`.
+
 | Suite | Result | How it was obtained |
 |---|---|---|
 | API (Maven, Testcontainers) | **470 = 127 rules + 28 infrastructure + 315 api**, 0 failures, errors or skipped | `docker compose --profile test run --rm --build api-test` (`mvn -B verify`), `BUILD SUCCESS`, default class order (locally on `5a3be22`; in CI on `5a38580`). The `@Test` count in the three modules agrees. The release 8 gate was 464 in both class orders; reverse and random order were not re-run for this tip |
@@ -57,7 +59,7 @@ The sections after this one are the **history** of how the counts grew, release 
 | Playwright, real api, desktop | `desktop-datasets`: **124 passed**, 0 failed | The whole desktop suite: the parallel `desktop` project (108 tests) then the stack-wide specs one at a time (16 more, E3 among them). Fresh stack, `EXPECT_COMMIT=5a38580` |
 | Playwright, real api, tablet | `tablet-datasets`: **123 passed, 1 skipped**, 0 failed | The same on a second fresh stack; the TV-size check is desktop-only |
 | Playwright, fixtures-mode web | **23 passed**, 79 skipped, 0 failed | `--grep-invert @api --project desktop-datasets` against the fixtures build; the skipped tests need the real api |
-| Dataset checksums, payroll golden, plan fingerprints | unchanged | no migration or generator change since release 8: 100 `4156077d…da6b`, 120 `82b19cf8…32ca`, 150 `2e6cd938…d7f8`, payroll golden `9f2d51b3…04ff` (asserted by the reset and generator tests in the API run above) |
+| Dataset checksums, payroll golden, plan fingerprints | unchanged | no migration or generator change since release 8: 100 `4156077d…da6b`, 120 `82b19cf8…32ca`, 150 `2e6cd938…d7f8`, payroll golden `9f2d51b3…04ff` (asserted by the reset and generator tests in the API run above). **Moved once in release v1.3 S4; see the paragraph above the table** |
 
 #### Earlier states (history)
 
@@ -205,7 +207,7 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 | Home units | Spread to fit requirements; Control and Escort staff hold those qualifications |
 | Qualifications | CONTROL 25 officers; ESCORT 30; FIRST_AID 70 (overlaps allowed) |
 | Seniority dates | Spread 2006–2025; include **two officers with equal OT hours and different seniority** (tie-break test) |
-| Classification | All `CO`; FTE 1.00 |
+| Classification | Officers `CO`, FTE 1.00. Since release v1.3 (S4) also **10 supervisors** (`CS`, `S-001`…`S-010`, five per supervisor post SUP-L and SUP-O), with service dates 2004–2014 and `position_since` 2018–2025. They are seeded after every officer row from their own Random (seed XOR `0x509`): 8 h D8/E8/N8 shifts from the same roster walk, the same 2% sick + 2% vacation, sick calls offered as overtime to the other supervisors only, and their actuals. **M. Ellis is S-001 Morgan Ellis (SUP-L) and J. Chen is S-006 Jamie Chen (SUP-O)**; both sign-ins are linked, so My schedule has rows. The officers' rows are byte-identical to the pre-S4 dataset (`DemoChecksum.officersOnly` = `4156077d…da6b`). Datasets 120 and 150 get 10 and 12 supervisors on D12/N12 crews (150: plus a D8 day supervisor, a 0.6 FTE part-timer, 20% leave from their own Random and M. Ellis's vacation week 8–14 Feb 2027); see `DemoSupervisorCrews` |
 
 ### 6.5 Events
 
@@ -243,6 +245,7 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 7. Re-running with the same seed produces identical row counts and a matching checksum of assignments.
 8. Every assignment that ended before "today" has an actual time entry or an absence (so every past period can be locked, ADR-017).
 9. Schedule periods: every unit has one Monday-to-Sunday period per week of the window, no two periods of a unit overlap, the weeks that ended before "today" are published and the current and later weeks are drafts, and every shift points at the period that covers its work date.
+10. Supervisors (release v1.3): 10 supervisors; no officer shift on a supervisor post and no supervisor shift on an officer post; ≥ 97.5% of the posts' hour-slots covered; M. Ellis and J. Chen linked to supervisor records. Checks 3 (line units) and 4 and PC-07/PC-09 (overtime) are measured over the officers only.
 
 ## 7. Test data hygiene
 

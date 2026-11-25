@@ -98,7 +98,8 @@ class AuthApiTest {
     @SuppressWarnings("unchecked")
     java.util.List<String> units = (java.util.List<String>) body.get("units");
     assertThat(roles).containsExactlyInAnyOrder("SUPERVISOR", "EMPLOYEE");
-    assertThat(units).containsExactly("A", "B");
+    // Units A and B, and both supervisor posts since release v1.3 S4 (V19).
+    assertThat(units).containsExactly("A", "B", "SUP-L", "SUP-O");
   }
 
   @Test

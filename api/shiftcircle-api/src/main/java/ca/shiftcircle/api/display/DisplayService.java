@@ -56,8 +56,12 @@ public class DisplayService {
   }
 
   public DisplayPayload today(AuthPrincipal principal) {
+    // The supervisor posts (release v1.3) are not unit tiles: eight tiles no longer fit a TV, and
+    // the posts get their own counts-only strip with S7. Until then the display is unchanged.
     List<Map<String, Object>> units =
-        jdbc.queryForList("SELECT id, code, name, kind FROM unit WHERE active ORDER BY code");
+        jdbc.queryForList(
+            "SELECT id, code, name, kind FROM unit WHERE active AND kind <> 'SUPERVISION'"
+                + " ORDER BY code");
     Map<UUID, List<Interval>> scheduled = intervals(false);
     Map<UUID, List<Interval>> actual = intervals(true);
     Map<UUID, Integer> openShifts = openShifts();

@@ -80,8 +80,11 @@ class SchemaConstraintsTest {
         .isEqualTo(22);
     assertThat(queryInt("SELECT count(*) FROM rule_row")).isEqualTo(80);
     assertThat(queryInt("SELECT count(*) FROM shift_template")).isEqualTo(8);
-    assertThat(queryInt("SELECT count(*) FROM unit")).isEqualTo(6);
-    assertThat(queryInt("SELECT count(*) FROM unit_requirement")).isEqualTo(18);
+    // V19 (release v1.3 S4) adds the two supervisor posts, 1/1/1 each, and their links.
+    assertThat(queryInt("SELECT count(*) FROM unit")).isEqualTo(8);
+    assertThat(queryInt("SELECT count(*) FROM unit WHERE kind = 'SUPERVISION'")).isEqualTo(2);
+    assertThat(queryInt("SELECT count(*) FROM unit_requirement")).isEqualTo(24);
+    assertThat(queryInt("SELECT count(*) FROM unit_supervision")).isEqualTo(6);
     // V5 adds the PLANNER account and role.
     assertThat(queryInt("SELECT count(*) FROM app_user")).isEqualTo(8);
     assertThat(queryInt("SELECT count(*) FROM app_user_role")).isEqualTo(10);
@@ -423,11 +426,12 @@ class SchemaConstraintsTest {
     expectSqlState(
         "23514", () -> exec("UPDATE unit SET kind = 'SUPERVISION' WHERE id = ?", line));
 
-    // A unit with no links may still change kind.
-    exec(
-        "UPDATE unit SET kind = 'OTHER' WHERE id = ?",
-        UUID.fromString("11111111-1111-1111-1111-000000000006"));
-    assertThat(queryString("SELECT kind FROM unit WHERE code = 'ESC'")).isEqualTo("OTHER");
+    // A unit with no links may still change kind. Every seeded line unit is covered by a V19
+    // supervisor post (release v1.3 S4), so the test makes its own.
+    UUID free = UUID.fromString("99999999-9999-9999-9999-000000000004");
+    exec("INSERT INTO unit (id, code, name, kind) VALUES (?, 'T-FREE', 'Free test', 'LIVING')", free);
+    exec("UPDATE unit SET kind = 'OTHER' WHERE id = ?", free);
+    assertThat(queryString("SELECT kind FROM unit WHERE code = 'T-FREE'")).isEqualTo("OTHER");
   }
 
   // -------------------------------------------------------------------------------------------
