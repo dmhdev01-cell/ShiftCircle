@@ -87,7 +87,6 @@ test.describe('accessibility on every screen', () => {
     for (const [path, heading] of [
       ['/proposals', 'Proposals inbox'],
       ['/me/hours', 'My hours'],
-      ['/me/propose', 'Propose shifts'],
       ['/rules/1/review', 'Rule version review'],
       ['/no-such-page', 'Page not found'],
     ] as const) {

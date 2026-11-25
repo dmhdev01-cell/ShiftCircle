@@ -265,7 +265,7 @@ export function ProposeShiftsCard({
                     color="primary"
                     onClick={() => removeDraft(draft.id)}
                     aria-label={`Remove ${what}`}
-                    sx={{ minHeight: 32, flexShrink: 0 }}
+                    sx={{ minHeight: 32, flexShrink: 0, ml: 'auto' }}
                   >
                     Remove
                   </Button>

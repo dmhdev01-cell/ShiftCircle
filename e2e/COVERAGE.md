@@ -152,7 +152,7 @@ fixtures-only · **—** not coverable, with the reason.
 
 | Flow / state | Roles | Spec | Status |
 |---|---|---|---|
-| `/proposals`, `/me/propose`, `/me/hours`, `/rules/1/review` say "Not built yet" and what is planned | supervisor | routes-and-errors | N |
+| `/proposals`, `/me/hours`, `/rules/1/review` say "Not built yet" and what is planned (`/me/propose` now redirects to My schedule's Propose card, v1.3 P3) | supervisor | routes-and-errors | N |
 | Unknown route → "Page not found", nav still works | supervisor | routes-and-errors | N |
 | Keyboard only, real api: E1 (unit select, cell, template, verdict focus, Close returns focus to the cell) | supervisor | keyboard-api | N |
 | Keyboard only, real api: audit filters in reading order, Enter applies, Clear | auditor | keyboard-api | N |
@@ -179,7 +179,8 @@ fixtures-only · **—** not coverable, with the reason.
 | Planning board week navigation, and a week and unit opened from the address | supervisor | week-navigation | N |
 | Absence correction (sick to worked and back); clear a recorded actual back to "needs actual" | supervisor | absence-correction, clear-actual | N |
 | Record-actual drawer: the grid keeps its place, closes with X or Escape, says Done | supervisor | time-grid-refresh | N |
-| Not-built states say so: Propose shifts sends nothing (M1); Find eligible officer on a slot with no open shift (M3) | employee, supervisor | not-built-states | N |
+| Not-built states say so: Find eligible officer on a slot with no open shift (M3) | supervisor | not-built-states | N |
+| Shift proposals, officer side (v1.3 P3): Tara drafts two shifts, removes one, sends with a note and sees Waiting; a Blocked draft can't be sent (the reason is shown); a second proposal is withdrawn; `/me/propose` lands on the card; 390 px with no sideways scroll; axe on drafts, Blocked, My proposals and the withdraw confirm | employee | proposals-officer (@api) | N |
 | Demo session: a refresh keeps the person signed in on the same screen; sign-out and a `401` clear it (S11) | supervisor | session-and-nav | N |
 | Reports date range and unit picker (S1) | supervisor, auditor | reports | N |
 | Quarter plan readability on Dataset 120: the unused part-time capacity line, gaps grouped under a weeks-by-units strip, the week picker with gap counts, the all-units table collapsed, the ⚠ on a warned shift (tooltip by hover and keyboard), axe | planner | dataset120 (calls `quarterPlanChecks.ts`) | N |
