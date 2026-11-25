@@ -857,6 +857,19 @@ public class ProposalDecisionService {
         entry.put("otOrderSize", p.order().size());
         entry.put("outOfOrder", p.order().outOfOrder());
       }
+      if (p.openShiftId() != null) {
+        // The match as it is now (P5 carry-over): the detail's offer count can be stale by the
+        // time of a refusal, and "approving withdraws N offers" must say the current N. Only
+        // OFFERED offers are withdrawn by an approval, so only they are counted (review nit).
+        entry.put("openShiftId", p.openShiftId().toString());
+        Integer offers =
+            jdbc.queryForObject(
+                "SELECT count(*) FROM overtime_offer WHERE open_shift_id = ?"
+                    + " AND status = 'OFFERED'",
+                Integer.class,
+                p.openShiftId());
+        entry.put("liveOffers", offers == null ? 0 : offers);
+      }
       items.add(entry);
     }
     Map<String, Object> extra = new LinkedHashMap<>();
@@ -1024,7 +1037,8 @@ public class ProposalDecisionService {
     Integer offers =
         jdbc.queryForObject(
             "SELECT count(*) FROM overtime_offer WHERE open_shift_id = ?"
-                + " AND status IN ('OFFERED', 'ACCEPTED')",
+                // The offers an approval withdraws (OFFERED); an ACCEPTED one stays (plan §4).
+                + " AND status = 'OFFERED'",
             Integer.class,
             openShiftId);
     OvertimeService.OrderPosition order =

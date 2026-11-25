@@ -137,7 +137,7 @@ No api, migration, generator or rules change: dataset checksums, the payroll gol
 
 The owner approved the plan in `.factory/plans/v1.2-supervisors.md` (the plan file still says v1.2; the
 release was split afterwards, so it is v1.3 here). The work is eight small pull requests, **S1 to S8**;
-this entry covers **S1** to **S5**. The plan is not in the repository, so this section is the record of what
+this entry covers **S1** to **S7**. The plan is not in the repository, so this section is the record of what
 these pull requests did.
 
 ### S1 — Positions and the SUPERVISION kind (API, schema only)
@@ -510,6 +510,77 @@ offer and proposal-order prose name the pools; docs/05's O-02 says seniority ins
 nothing; the dataset test is renamed `theOvertimeListKeepsToThePostsPool`. API **617 = 140 rules +
 38 infrastructure + 439 api** (GitHub CI `mvn verify`).
 
+### S6 — Supervisor posts on the board, the shift dialog and gap fill (web + one API field set)
+
+Built on S4 (#35) and S5 (#37), both merged. Plan §2.4 and §4 S6.
+
+**What it does.**
+- **Unit picker:** the two posts are grouped under **Supervisor posts**, after the units (the
+  `<optgroup>` appears only when a post is in scope, so an officers-only scope is unchanged).
+- **A post's board** (`kind = SUPERVISION`): the first column reads **Supervisor**, the coverage
+  labels "needs 1 supervisor", each cell **"Supervisor 1 / 1"** (2 / 1, +1 over, where two shifts
+  overlap, as on Sun 22 Nov nights); same `CoverageCell`, same hourly
+  coverage.
+- **Supervisor on duty** on a line unit: a read-only line under the coverage rows names who works the
+  covering post in each block (D, E, N; "none" when nobody; a ✓ or ! in Compact, names in the
+  accessible name). Names are fine on the signed-in board; the wall display is untouched (S7).
+- **Badges:** a supervisor on an officer post reads **Sup** (R-02); an officer on a post reads
+  **Officer**, or **Acting** with Acting supervisor.
+- **Gap fill by position:** a post lists free supervisors, then acting officers tagged **Acting · Warn**
+  (after every supervisor, as in S5's pools); a line unit lists officers only. Post wording: "Free
+  supervisors", "Find eligible supervisor → Overtime board".
+- **Shift dialog and rule check** name the person "(supervisor)", or "(officer)" on a post; an
+  officers-only board reads exactly as before. R-01/R-02 render through the existing `RuleCheckPanel`:
+  R-01 is a Block with override NONE, so there is no Assign, no Acknowledge and no override, and the
+  link reads **Find eligible supervisor**.
+
+**API.** `GET /schedule` gains `unit.kind`, `officers[].position` and, on a line unit covered by a
+post, `supervisorsOnDuty: [{date, block, names[]}]` (a shift on the post counts in a block when it
+overlaps the block's hours). All three are left out of the planner's draft (compatibility
+constructors, so `PlannerService` is unchanged). No pin moves.
+
+**Left for S7** (as the plan places them): the Plan inputs headline and the commit dialog still count
+supervisors as officers ("Planning 130 officers in 8 units", "5,595 shifts for 107 officers"); the
+per-unit supervisor counts on the plan-inputs rows, the scorecard card grain and warning key names, and
+PR-M's fill order wording; My schedule, the display strip and reports.
+
+**Tests.** API: `ScheduleApiTest` +1 (kind, position, the on-duty names per block on Unit A, and
+SUP-L's own board with no on-duty field and "1 of 1"). Web: new `supervisorPosts.test.tsx` (+15:
+words, pools, grouping, grid on a post and a line unit, compact, Sup badge, gap panel, R-01 panel,
+dialog title, picker). Playwright: new `supervisor-posts.spec.ts` (+4 per viewport, read-only, skips
+unless Dataset 100 is active): picker groups and SUP-L at "Supervisor n / 1" in all 21 block-days; Unit
+A's on-duty names equal the API's; SUP-L gap fill lists supervisors only and an officer is Blocked by
+R-01 (Dataset 100 has no post gap, so one block is marked short and an officer row is added by route;
+the rule check is the real API's); no sideways page scroll at 390 on a post and on Unit A. Demo §2 gains
+one sentence about the on-duty line; no quoted number changes.
+
+**Counts at this gate** (author run, `2d52743`, with main (S4 #35, S5 #37) merged in for the API run;
+own compose project `sc-sc-s6`, port 18646): API **618 = 140 rules + 38 infrastructure + 440 api**
+(617 on main + `ScheduleApiTest`'s 1), 0 failures, errors or skipped. The single-JVM `api-test` run
+was killed twice (exit 137, out of memory) while other workers' suites shared the Docker VM, so the
+api module ran in three `mvn verify` batches (planner 88, demo 18, the rest 334; `-Xmx1g`) and the
+rules and infrastructure modules come from those full runs (140 and 38, green both times); web unit tests **671** in 64 files (656 + 15), lint 0 errors (4 warnings), `tsc -b` clean;
+Playwright against the real API, a fresh stack per viewport: desktop-datasets **140 passed**,
+tablet-datasets **139 passed and 1 skipped**; the new spec also passed again on the reused stack after
+the full run (8 of 8).
+
+**Review round** (gates on #39: review CHANGES 1 must / 3 should / 3 nits, security PASS with 3
+info, UI test PASS with 2 lows / 2 nits). The "Supervisor on duty" line leaves out a shift with a
+recorded absence (Tue 17 Nov nights on Unit A–C now reads J. Chen alone, not the sick Tara Osei), a
+day the unit is closed, and a covering post outside the caller's scope. A post's coverage and the
+on-duty names count only a supervisor or an officer holding a valid Acting supervisor
+qualification that day, so an officer left on a post after losing it is a row but not "1 / 1". The
+gap panel lists the signed-in supervisor last with the button disabled and "This is you" (the API
+refuses own-schedule changes). A post's board says supervisors in search, export, print and the
+empty-filter note. The board sends the position's `supervisory` flag and the web keys on it; the block
+windows are `CoverageCalculator.BLOCKS`, used by coverage and the on-duty line alike. Docs say
+1 / 1 or 2 / 1 (+1 over) where two shifts overlap. Tests: `ScheduleApiTest` +1 (absence, no acting,
+expired acting, valid acting, out-of-scope post), `PlannerLeaveRosterApiTest` pins the draft without
+`kind`, `position`, `supervisory` and `supervisorsOnDuty`; web +3 (Acting/Officer badges, the
+supervisory flag, the disabled own row); the spec pins Tue 17 Nov nights and the post's words. Counts:
+API **619** (441 api), web **674** in 64 files; `supervisor-posts`, `gap-fill`, `board-filters` and
+`layout` 26 of 26 on desktop and tablet at `54f12db`.
+
 ### S7 — My schedule, the wall display, reports and plan inputs (web + small API)
 
 Stacked on S5 (#37). Owner item 17: a supervisor sees their own schedule in **My schedule**; the
@@ -681,3 +752,32 @@ The fourth proposal PR (stacked on P3, PR #33). **P4 is the web for the decider 
 Tests: web **640** in 62 files (**652** after merging `origin/sc-p3`): +17 in `ProposalsPage.test.tsx` (nav count for supervisor and planner, list and first card, note as text, Waiting/All and unit filter, empty state, was/now, overtime and open-shift lines, Send off until choices and decline comments, separate warning and overtime-order acknowledgements then send and the count drops, decline comment rendered as text, a Block `422` inline with Approve off, no acknowledgement and no override, a new Warn from a `422` needs a new tick, own proposal read-only, `409` reloads, the `?proposal=` link, the chip tooltip and name, the http calls with `If-Match`), +5 in `inboxWords.test.ts`; the `/proposals` placeholder case and the planner nav lists are updated. Lint 0 errors (4 warnings, unchanged), `tsc -b` clean. API: +1 assertion block in `ProposalDecisionApiTest` (the approved shift carries `fromProposal`, no other shift does); `mvn verify` through the `api-test` stage: **570 = 127 rules + 36 infrastructure + 407 api** on the P3 base, and **603 = 140 + 36 + 427** after merging `origin/sc-p3` (with S2/S3 and P2's R-01 test), 0 failures/errors/skipped. Playwright: new `proposals-inbox.spec.ts` (`@api`, stack-wide, serial, a per-run token, cleans up before and after: withdraws Tara's waiting proposals, declines what is left and cancels shifts created from proposals): Tara sends Sat 28 Nov + Fri 4 Dec and Sun 29 Nov; M. Ellis approves Saturday (warnings acknowledged) and declines Friday with a comment, the nav count drops by one; in a second window Sunday was a Warning when sent and, after Saturday's approval, the send is refused inline (Blocked U-08, U-14; Approve off; no override) and a reload shows the same was/now; he declines it; the board chip says "from an approved proposal"; Tara sees Partly approved and Declined with the comments; J. Chen's inbox is empty. The not-built route, axe and screenshot specs drop `/proposals`; the nav lists in `session-and-nav` and `planner.spec` include Proposals. Measured on own stack `sc-p4`, fresh per viewport. At `6e087b2`: `--project desktop-datasets` 135 passed, 1 failed (the planner spec's exact nav list, then fixed), `--project tablet-datasets` 135 passed, 1 skipped; `proposals-inbox` passed twice in a row on one stack. After merging `origin/sc-p3` (rule set v4, R-01/R-02 live), at `5138c38`: desktop **136 passed**, tablet **135 passed, 1 skipped**, 0 failed. Screenshots at 1440×900 and 768×1024 from `proposals-inbox.spec.ts` (`SHOTS_DIR`); two are in the supervisor guide. The out-of-order acknowledgement and the own-proposal view are covered by the web and API tests, not Playwright: the demo has no open shift Tara can take that E2 does not, and the demo supervisors are not linked to officers before S4.
 
 **Gate fixes (review, security and UI test of PR #36).** Inbox cards list their shifts ("Sat 28 Nov · E8 15:00 – 23:00 · Unit B", up to three, then "and N more"), so several proposals from one officer can be told apart: `GET /proposals` cards gain `shifts` (the items on the caller's units). Each approved shift has **Open the board for the week of …** whenever the proposal is open, not only right after sending. After a `422`, a shift that is Blocked now has its Approve choice cleared; a fresh refusal is authoritative for the open-shift match too (no order in it: no "outside the overtime order" tick). The filters sit above both panes, so on a tablet they come before the open proposal. `encodeURIComponent` on the proposal id in the detail and decision paths (security low 1). The decision carries the warning codes the decider ticked, and a missing choice is never sent as an approval. The "rules now" note shows only on a shift with an earlier waiting one. The comment-length check counts the trimmed text, as the button does. Fixture: a mix of expired and declined with nothing approved reads Expired (plan §1.1). The e2e clean-up touches only this spec's own proposals (note prefix `e2e-inbox`), skips one it can't see, and cancels only their shifts. Docs: the officer guide no longer says the inbox is being built; build-notes §2.3 marked superseded (no override flow, `status=WAITING|ALL`); docs/01, HANDOFF, traceability FR-30/31, roadmap and docs/07 (card `shifts`) brought up to date.
+
+### Shift proposals, P5: planted demo proposals, the demo walk, ADR-032
+
+The fifth and last proposal PR. **No new screen and no new endpoint**; the demo data, the docs and the leftovers of the P4 re-check.
+
+- **Planted demo proposals.** Every reset and fresh boot plants four (`DemoPlantedProposals`, after the roster, from its own `Random`, seed XOR `0x5050`): Tara's **Waiting** proposal with two shifts, Tue 22 Dec E8 on Unit B (M. Ellis decides) and Wed 30 Dec E8 on Admissions (J. Chen decides); her **Declined** Sun 22 Nov Admissions shift with J. Chen's comment; her **Expired** Mon 16 Nov Unit B shift; and M. Ellis's own **Waiting** Sun 29 Nov D8 on SUP-L for J. Chen or the planner. A fresh reset shows **Proposals (1)** for Ellis and **(2)** for Chen (owner-approved: the coordinator chose the two-shift proposal so Chen's count is 2 and per-shift routing shows). Each "rules when sent" is the live rule set's real result on the generated roster; a waiting shift is never Blocked (the next eligible date is taken; on 120/150 that is 23 and 31 Dec, for that dataset's Tara Nakamura, whom the T. Nakamura sign-in is not linked to). The planted sends, decline and expiry each have a system audit row with `planted: true`. The reset has a new step, `proposals`, after the rules reload ("Adding the demo shift proposals").
+- **Pins unchanged, measured:** Dataset 100 `beb2e222…b7d1`, 120 `ca73467d…a64a`, 150 `353e2e62…91a5` after the planting (the boot log and three resets on the branch stack), and the officers-only checksums in the reset tests. Proposals write no `shift_assignment`, schedule period, time entry or offer.
+- **Demo script §8** (optional, not in the 5-minute video): Tara's three proposals, Ellis approves the Unit B shift, Chen approves the Admissions shift and Ellis's own, Tara sees both approvals, the auditor sees the decisions. VERIFIED by `proposals-demo.spec.ts` on a fresh Dataset 100, with screenshots (`docs/user-guide/img/demo-proposals-*.png`).
+- **ADR-032** records the decisions: per shift by scope with the planner as fallback, the planner's only shift write outside a plan commit, no override from a proposal (changing ADR-017 item 4 for proposals), no self-approval, expiry and withdraw, the overtime-order acknowledgement, and the planted data. ADR-017 item 4, HANDOFF §9 and traceability (ADR-017 row PASS; FR-30/31, S-04 and S-06 rows) no longer say "not built".
+- **P4 re-check leftovers:** docs/07 lists the inbox card's `shifts`; a committed mixed-scope card privacy test (`ProposalDecisionApiTest#aMixedScopeCardShowsEachSupervisorOnlyTheShiftsOnTheirUnits`); the withdraw path encodes the proposal id (`http.test.ts`); a `422` refusal now carries `openShiftId` and the current `liveOffers`, so the inbox no longer repeats the detail's older offer count (`inboxWords.test.ts`); a `409`/`412` reload drops the earlier refusal's results, so the reloaded detail is what shows (`ProposalsPage.test.tsx`).
+- **e2e:** `proposals-demo.spec.ts` (stack-wide: resets Dataset 100 before and after); `proposals-inbox.spec.ts` finds this run's cards by their shifts and its Chen test now checks the planted shifts he may see (and never a Unit B one) instead of an empty inbox; `proposals-officer.spec.ts` withdraws only its own proposals (by the run token in the note), so the planted Waiting one stays.
+
+Tests (measured on the branch, own compose project `sc-sc-p5`, port 18850): API **rules 140 + infrastructure 38 + api 421, 0 failures** (+1 `ProposalDecisionApiTest`; `DemoResetApiTest` and `SupervisorDatasetsApiTest` gain the planted-proposal and count assertions). The api module ran in three batches (planner classes; `PlannerApiTest` with the demo and proposal classes; the rest) because the one-JVM run was killed for memory (exit 137) on the shared Docker VM while another stack's suite ran; no test failed in any run. Web **659** in 63 files (+3: the withdraw id, the refusal's live offer count, the 409/412 reload), lint 0 errors (4 earlier warnings), `tsc -b` clean. Playwright `--project desktop-datasets` on a fresh stack at the code tip: **137 passed** (one worker; a two-worker run under host load ~20 timed out in unrelated specs). `check-audit-codes.sh`: 55, unchanged.
+
+**Gate fixes (review, security and UI test of PR #40).**
+- **Docs:** HANDOFF §9 no longer lists the built screens (the proposals inbox among them) as "not yet designed"; docs/07's My schedule row says the screen sends (P3); docs/07's reset text names the `proposals` step.
+- **Inbox header (UI M1):** the pay-period line read "72 h of 80 h · In overtime", the hours before approval beside a status worked out after it. It now reads "72 h of 80 h now · 80 h after approval" with **In overtime after approval**.
+- **Inbox (UI):** after **Send decision**, focus moves to the "Sent." outcome or the refusal instead of falling to the page. Cards name units by name ("Admissions", "Supervision · Living units"; a living unit stays "Unit B").
+- **`liveOffers`** (detail and refusal) counts only `OFFERED` offers, the ones an approval withdraws, so "withdraws N waiting offers" is exact; an `ACCEPTED` offer is not counted.
+- **Planted audit rows:** they now name the same people as the proposals: each send by its proposer, the decline by J. Chen, and the expiry by the system. A failure while planting at boot is logged and boot goes on.
+- **Privacy wording:** the privacy test and ADR-032 say exactly what the card hides and what the detail shows by design.
+- **Tests:**
+  - `ProposalDecisionApiTest` asserts the refusal's `openShiftId`/`liveOffers`.
+  - `DemoResetApiTest` asserts the boot-path planting and its six audit rows before any reset.
+  - `SupervisorDatasetsApiTest` pins the 120/150 dates (23 and 31 Dec).
+  - New `DemoPlantedProposalsBootTest`.
+  - Web: the header, focus and unit-label tests.
+  - `proposals-demo.spec.ts` now also asserts the pay-period lines, the "Not on your units" line, the focus and the audit rows; demo-script §8 says exactly what it asserts.
+- **Not done:** the plan's P5 "contract samples" (no proposals sample in `web/src/api/contract-samples/`; the shapes are covered by the types and tests). ADR-031 is reserved for the supervisor posts and is written with the supervisors' docs (S8).

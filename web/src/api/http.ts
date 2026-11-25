@@ -532,7 +532,7 @@ export function createHttpApi(): ShiftCircleApi {
     },
 
     withdrawProposal(proposalId: string, version: number): Promise<MyProposal> {
-      return request<MyProposal>(`/proposals/${proposalId}/withdraw`, {
+      return request<MyProposal>(`/proposals/${encodeURIComponent(proposalId)}/withdraw`, {
         method: 'POST',
         headers: { 'If-Match': `"${version}"` },
       });

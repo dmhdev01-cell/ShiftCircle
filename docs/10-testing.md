@@ -233,6 +233,7 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 | PC-07 | Two officers with identical OT hours this quarter, different seniority | Unit A |
 | PC-08 | Open shift Sat 21 Nov Unit B Days with candidates matching the UI's Overtime board; Tara Nakamura (the demo employee account) is free to take it | Unit B |
 | PC-09 | An officer without CONTROL qualification ranked first for a Control open shift | Control |
+| PC-10 (v1.3 P5) | Planted shift proposals: Tara's Waiting proposal (Tue 22 Dec E8 Unit B for M. Ellis, Wed 30 Dec E8 Admissions for J. Chen), her Sun 22 Nov Admissions proposal Declined by J. Chen with a comment, her Mon 16 Nov Unit B proposal Expired, and M. Ellis's own Waiting Sun 29 Nov D8 on SUP-L for J. Chen or the planner. Nav counts on a fresh reset: Ellis 1, Chen 2. No shift is created, so no checksum moves; written after the roster from their own `Random` (seed XOR `0x5050`), with each waiting shift's real non-Block rule result (on 120/150, the first eligible dates, for that dataset's Tara Nakamura). ADR-032; walk in `docs/demo-script.md` §8 | B, ADM, SUP-L |
 
 ### 6.7 Self-check (generator fails the build if any is false)
 

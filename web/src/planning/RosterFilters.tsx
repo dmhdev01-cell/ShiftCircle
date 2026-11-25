@@ -94,6 +94,8 @@ export interface RosterFiltersProps {
   onCopy: () => void;
   /** What the last export or copy did, read out politely. */
   exportStatus: string;
+  /** v1.3 S6: a supervisor post's board names its rows supervisors. */
+  onPost?: boolean;
 }
 
 /**
@@ -114,7 +116,10 @@ export function RosterFilters({
   onPrint,
   onCopy,
   exportStatus,
+  onPost = false,
 }: RosterFiltersProps) {
+  const one = onPost ? 'supervisor' : 'officer';
+  const many = onPost ? 'supervisors' : 'officers';
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const menuId = useId();
   const filtered = isFiltered(filters);
@@ -146,7 +151,7 @@ export function RosterFilters({
           borderRadius: '10px',
         }}
       >
-        <Field label="Find officer" grow>
+        <Field label={onPost ? 'Find supervisor' : 'Find officer'} grow>
           <Box
             component="input"
             type="search"
@@ -199,9 +204,11 @@ export function RosterFilters({
             transformOrigin={{ vertical: 'top', horizontal: 'right' }}
           >
             <MenuItem onClick={run(onExportView)}>
-              CSV for Excel · this view ({shown} {shown === 1 ? 'officer' : 'officers'})
+              CSV for Excel · this view ({shown} {shown === 1 ? one : many})
             </MenuItem>
-            <MenuItem onClick={run(onExportUnit)}>CSV for Excel · whole unit, all {total} officers</MenuItem>
+            <MenuItem onClick={run(onExportUnit)}>
+              CSV for Excel · whole {onPost ? 'post' : 'unit'}, all {total} {many}
+            </MenuItem>
             {printable ? (
               <MenuItem onClick={run(onPrint)}>Print or save as PDF (landscape)</MenuItem>
             ) : (
@@ -228,8 +235,8 @@ export function RosterFilters({
       >
         <Box component="span" role="status" aria-live="polite">
           {filtered
-            ? `Showing ${shown} of ${total} officers · ${filterWords(filters, qualificationLabel)}`
-            : `Showing all ${total} officers`}
+            ? `Showing ${shown} of ${total} ${many} · ${filterWords(filters, qualificationLabel)}`
+            : `Showing all ${total} ${many}`}
           {exportStatus ? ` · ${exportStatus}` : ''}
         </Box>
         {filtered ? (

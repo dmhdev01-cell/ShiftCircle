@@ -188,6 +188,26 @@ export interface OfficerRow {
   cells: DayCell[];
   /** Draft roster only: the home unit of an officer placed in this unit from another. */
   homeUnit?: string;
+  /**
+   * Planning board only (v1.3 S6): the position, CO (officer) or CS
+   * (supervisor). Left out of the planner's draft.
+   */
+  position?: string;
+  /**
+   * Planning board only (v1.3 S6): the position is supervisory (the
+   * position table's flag), so a later supervisory position needs no web change.
+   */
+  supervisory?: boolean;
+}
+
+/**
+ * v1.3 S6: who supervises a line unit in one block of one day, from the
+ * supervisor posts that cover it. Empty names: nobody on the post then.
+ */
+export interface SupervisorOnDuty {
+  date: string;
+  block: Block;
+  names: string[];
 }
 
 export interface SchedulePayload {
@@ -199,6 +219,11 @@ export interface SchedulePayload {
     closedLabel?: string | null;
     closedDates?: string[];
     closedReason?: string | null;
+    /**
+     * Planning board only (v1.3 S6): the unit's kind. SUPERVISION is a
+     * supervisor post (SUP-L, SUP-O); the planner's draft leaves it out.
+     */
+    kind?: string;
   };
   from: string;
   to: string;
@@ -237,6 +262,11 @@ export interface SchedulePayload {
     label: string;
     status: 'DRAFT' | 'PUBLISHED';
   } | null;
+  /**
+   * v1.3 S6: on a line unit covered by a supervisor post, one entry per day
+   * and block. Left out on a supervisor post itself and in the planner's draft.
+   */
+  supervisorsOnDuty?: SupervisorOnDuty[];
 }
 
 export interface ScheduleQuery {
@@ -1151,7 +1181,7 @@ export type DemoResetState = 'IDLE' | 'RUNNING' | 'DONE' | 'FAILED';
 
 export interface DemoResetStatus {
   state: DemoResetState;
-  step: 'clean' | 'audit' | 'generating' | 'rules' | 'checksum' | 'done' | null;
+  step: 'clean' | 'audit' | 'generating' | 'rules' | 'proposals' | 'checksum' | 'done' | null;
   startedAt: string | null;
   elapsedMs: number;
   checksum: string | null;
@@ -1523,6 +1553,9 @@ export interface ProposalRefusalItem {
   otOrderPosition?: number | null;
   otOrderSize?: number;
   outOfOrder?: boolean;
+  /** The matched open shift now, and its offers still live (v1.3 P5). */
+  openShiftId?: string;
+  liveOffers?: number;
 }
 
 export interface ShiftCircleApi {

@@ -77,7 +77,8 @@ function item(
       hoursAfter: 80,
       thresholdHours: 80,
       wouldBeOvertimeHours: 0,
-      overtimeStatus: 'APPROACHING',
+      // The api's rule: the status is for the hours after approval (80 >= 80).
+      overtimeStatus: 'IN_OVERTIME',
     },
     openShift: null,
     decidedBy: null,

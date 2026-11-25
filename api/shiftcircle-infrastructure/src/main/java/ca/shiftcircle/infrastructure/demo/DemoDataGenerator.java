@@ -60,6 +60,7 @@ public class DemoDataGenerator implements ApplicationRunner {
   private final JdbcTemplate jdbc;
   private final Environment environment;
   private final DemoDataReadiness readiness;
+  private List<DemoSeedFollowUp> followUps = List.of();
 
   @org.springframework.beans.factory.annotation.Autowired
   public DemoDataGenerator(
@@ -78,9 +79,20 @@ public class DemoDataGenerator implements ApplicationRunner {
     this(jdbc, null, null);
   }
 
+  /** v1.3 P5: seeding in other modules that runs after a fresh boot generation (none in tests). */
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  public void setFollowUps(List<DemoSeedFollowUp> followUps) {
+    this.followUps = followUps == null ? List.of() : List.copyOf(followUps);
+  }
+
   @Override
   public void run(ApplicationArguments args) {
-    generateIfEmpty();
+    if (generateIfEmpty()) {
+      long seed = settingsFromEnvironment().seed();
+      for (DemoSeedFollowUp followUp : followUps) {
+        followUp.afterGenerate(seed);
+      }
+    }
     // A failed generation throws, so readiness stays DOWN instead of advertising an empty board.
     if (readiness != null) {
       readiness.markReady();

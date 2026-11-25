@@ -168,6 +168,11 @@ class PlannerLeaveRosterApiTest {
     assertThat(sickItems.get(0))
         .as("the draft's shift items carry none of the live board's refusal flags")
         .doesNotContainKeys("actualRecorded", "absenceRecorded", "fillsOpenShift", "payPeriodLocked");
+    // v1.3 S6: the live board's supervisor-post fields are not part of the draft roster.
+    assertThat(payload).as("the draft names no supervisor on duty").doesNotContainKey("supervisorsOnDuty");
+    assertThat(((Map<?, ?>) payload.get("unit")).containsKey("kind")).as("the draft's unit has no kind").isFalse();
+    assertThat(officers)
+        .allSatisfy(officer -> assertThat(officer).doesNotContainKeys("position", "supervisory"));
 
     assertThat(row(officers, elsewhere)).as("leave of an officer of another unit").isNull();
     long absenceItems =

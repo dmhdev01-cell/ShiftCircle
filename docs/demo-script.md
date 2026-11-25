@@ -41,6 +41,7 @@ Rehearse every step anyway before recording.
 | 4:15–4:35 | 6. What's real, what's simulated, next steps |
 | **4:35 total** | **The submission video ends here.** About 25 s of slack to the 5:00 limit is left for transitions. |
 | (not in the video) | 7. Planner walkthrough, about 4 min, recorded separately if at all |
+| (not in the video) | 8. Shift proposals walkthrough, about 2 min (v1.3) |
 
 ---
 
@@ -54,7 +55,7 @@ Rehearse every step anyway before recording.
 
 | Do | Say (outline) | Status |
 |---|---|---|
-| Sign in as **M. Ellis** (Supervisor, Units A and B, plus the two supervisor posts since release v1.3). The planning board opens on the first unit in scope; choose **Unit B · Living unit** in the Unit selector. Week of **16 Nov**. | Coverage per block, measured hourly, with each officer's pay-period hours and overtime status. | VERIFIED (board and unit switch) |
+| Sign in as **M. Ellis** (Supervisor, Units A and B, plus the two supervisor posts since release v1.3). The planning board opens on the first unit in scope; choose **Unit B · Living unit** in the Unit selector. Week of **16 Nov**. | Coverage per block, measured hourly, with each officer's pay-period hours and overtime status. Since release v1.3 S6 a **Supervisor on duty** line under the coverage rows names who supervises each block from **Supervision · Living units**, and the Unit selector lists the two **Supervisor posts** after the units (optional: open one to show "Supervisor 1 / 1" per block, or 2 / 1 where two shifts overlap, as on Sun 22 Nov nights). | VERIFIED (board and unit switch; the on-duty line and the posts by `supervisor-posts.spec.ts` at release v1.3 S6) |
 | Point to the KPI tiles (measured on Unit B, week of 16 Nov, at `efba3f7`: **3** coverage gaps (Fri 20 Day, Sat 21 Day, Sat 21 Evening), **18** in overtime, **1** approaching, **0** rule warnings, **0** overrides this period; read them off the screen) and one coverage cell that names its short hours | Overtime is pay-period hours over 80 h, not a shift type. | VERIFIED (re-measured 2026-11-23 on a fresh stack at `efba3f7`) |
 | On **Nia Thompson's** row, click her empty **Sat 21 Nov** cell ("Off"), then choose **D8 · Day 8 h** (07:00–15:00) | Nia works the 12 h shift Fri 12:00–24:00. | VERIFIED. The real api has no proposals in the schedule yet, so the fixtures' `! D proposed` chip doesn't appear; start from the empty cell |
 | Read the rule-check panel: **Blocked: 4 rules fail**. The Block rows, in the panel's order: **U-01** (7 h rest; the minimum is 8 h), **U-08** (10 consecutive work days, ending 24 Nov), **U-05** (17 h in 24 h; the limit is 16 h) and **U-14** (64 h in the week; the ceiling is 60 h). The Blocks are listed first and all four are visible in the dock at 1440×900 without scrolling. The Warn rows follow (U-12, U-02 twice, and the grouped "Warn U-16 · 8-hour officer on a night shift ×14", evidence "N8 of 480 min on unit B"); point to the four Blocks | The rules engine decides and gives a plain reason with its source. **Safeguard:** there's no Save and **no Emergency override**. The weekly ceiling allows no override, so there is no way around this one: find someone else. | VERIFIED: U-01 7.00 h rest, U-05 17.00 h in 24 h, U-08 "10 consecutive work days, ending 2026-11-24", U-14 64.00 h, BLOCK, not overridable; the real api shows 4 rules, the fixtures 3. No "Assign shift" and no "Emergency override…" button. Even an override with a valid reason gets 422, Nia's Sat 21 cell stays empty, and the refusal writes no audit row |
@@ -133,6 +134,39 @@ It runs after the 5-minute script as its own walkthrough, or replaces segments 3
 > - **Recorded extensions count in rule checks.** An officer kept on about 4 h after a 12 h shift counts for rest and hours on the next shift. But a time entry recorded late is not re-checked against shifts already saved after it.
 > - **Rule set v2 (the D12/N12 rows), v3 (the 8 h night warning) and v4 (who can work a post, release v1.3) were published by database migrations** as baselines, like v1. They did not go through the maker/checker approval that every later change uses.
 > - **L16 is retired (release 5).** The 100 seed has no 16 h template rows; a "16 h shift" is a 12 h shift plus an extension worked as overtime, and an old database still renders its L16 history. The planner never rosters 16 h shifts.
+
+
+---
+
+## 8. OPTIONAL, NOT PART OF THE 5-MINUTE VIDEO. Shift proposals: an officer asks, the right supervisor decides (about 2 min) · v1.3 P5
+
+> **Not in the submission video.** The recorded video is §1–6 (4:35), unchanged. This walkthrough approves shifts, so run it on its own fresh reset, after §1–6 or on a separate stack, never before or between §1–6 on the same data.
+
+**Status: VERIFIED** on 2026-11-25 at the P5 branch (own compose project `sc-sc-p5`, port 18850, Dataset 100 freshly reset, Chromium 1440×900), driven by `e2e/tests/proposals-demo.spec.ts`, which asserts the nav counts, the cards, the notes, the pay-period line, the decisions and the audit rows; the warning codes and the overtime line were checked by eye on its screenshots (copies in `docs/user-guide/img/demo-proposals-*.png`). It is a scripted browser walk, not a person at the keyboard: rehearse by hand.
+
+**What the audience should take away:** an officer can ask for an extra shift; each shift goes to the supervisor of its unit (and the planner as the fallback); the rules run again at approval; nobody approves their own shift; and everything lands in the audit log.
+
+**Data:** every reset (and a fresh stack) plants four proposals, written after the roster from their own seeded stream, so **no dataset checksum moves** (Dataset 100 stays `beb2e222…b7d1`):
+
+| Who | Proposal | State |
+|---|---|---|
+| Tara Nakamura | **Tue 22 Dec E8 on Unit B** (M. Ellis decides) and **Wed 30 Dec E8 on Admissions** (J. Chen decides), note "Happy to pick up two evenings over the holidays if you're short." The two are a week apart because Tara's late December is close to the 60 h weekly ceiling: two extra evenings in one week would Block whichever was approved second | Waiting, both Warning when sent (U-12, U-02, U-14) |
+| Tara Nakamura | Sun 22 Nov E8 on Admissions | Declined by J. Chen: "Admissions is fully staffed that evening." |
+| Tara Nakamura | Mon 16 Nov E8 on Unit B | Expired: the shift started before anyone answered |
+| Morgan Ellis (M. Ellis) | Sun 29 Nov D8 on her own post, Supervision · Living units (SUP-L) | Waiting, for J. Chen or the planner, never Ellis |
+
+So a fresh reset shows **Proposals (1)** for M. Ellis (her own proposal is not counted) and **Proposals (2)** for J. Chen. On Datasets 120 and 150 the same four are planted for that dataset's Tara Nakamura (120-0001) on the first dates the rules do not Block (23 and 31 Dec there); the T. Nakamura sign-in is not linked to her on those datasets, so step 1 and step 5 are Dataset 100 only.
+
+| # | Do | See / Say | Status |
+|---|---|---|---|
+| 1 | Reset Dataset 100 (P. Planner, **About & version → Reset the demo data**), then sign in as **T. Nakamura**. Scroll to **My proposals**. | Three proposals, newest first: **Waiting** (the two December evenings, with **Withdraw**), **Declined** with "Declined by J. Chen: “Admissions is fully staffed that evening.”", **Expired** with "Expired: the shift started before anyone answered." Say: "She sees every answer, and who gave it." | **VERIFIED** ([screenshot](user-guide/img/demo-proposals-tara-planted.png)) |
+| 2 | Sign in as **M. Ellis**. | The nav reads **Proposals (1)**. Open it: Tara's card says "Unit B · 2 shifts (1 on your units)" and shows only Tue 22 Dec; Ellis's own card says **Yours**. Open her own: "Yours: waiting for another supervisor or the planner", no Approve. Say: "Nobody approves their own shift." | **VERIFIED** |
+| 3 | Open **Tara Nakamura**. On Tue 22 Dec choose **Approve**, tick **I acknowledge the warnings (U-12, U-02, U-14) and approve anyway**, then **Send decision (1 accepted, 0 declined)**. | Before sending: her note, "60 h of 80 h now · 68 h after approval" with **Under after approval**, **Rules when sent** and **Rules now** (both Warning · U-12, U-02, U-14) with each rule in words, "Would be overtime: 0 h · brings Tara to 68 h of 80 h", "No open shift for this slot". The Admissions shift reads "Not on your units: Unit ADM's supervisor or the planner decides it." After: "Sent. Accepted shifts are on the planning board" and **Proposals (0)**. Say: "The rules were checked again at approval, not only when she sent it." | **VERIFIED** ([screenshot](user-guide/img/demo-proposals-ellis-deciding.png)) |
+| 4 | Sign in as **J. Chen**. | **Proposals (2)**: Morgan Ellis's SUP-L day shift and Tara's card, "Admissions · 2 shifts (1 on your units)", which shows only Wed 30 Dec. Ellis's header reads "72 h of 80 h now · 80 h after approval" with **In overtime after approval**: approving her shift takes her to the 80 h threshold. Approve Tara's Admissions shift (tick the warnings), send; then open **Morgan Ellis**, read her note "I can take the Sunday day shift on Living units." and the warnings (U-12, U-02, U-16: the Dataset 100 supervisors rotate 8 h nights), approve and send. **Proposals (0)**. Say: "A supervisor's own shift goes to another supervisor." | **VERIFIED** ([screenshot](user-guide/img/demo-proposals-chen-inbox.png)) |
+| 5 | Sign in as **T. Nakamura**, **My proposals**. | The first proposal is **Approved**: "Approved by M. Ellis. The shift is on your schedule." and "Approved by J. Chen. The shift is on your schedule." | **VERIFIED** ([screenshot](user-guide/img/demo-proposals-tara-approved.png)) |
+| 6 | Optional: sign in as **A. Reviewer**, **Audit log**. | Newest first: "Proposed shift decided" and "Shift assigned" for each approval, by J. Chen and M. Ellis; under them the planted rows, each "Planted: true": "Shifts proposed" by T. Nakamura (×3) and M. Ellis, "Proposed shift decided" (the decline) by J. Chen, and "Proposed shift expired" by **System**. | **VERIFIED** ([screenshot](user-guide/img/demo-proposals-audit.png)) |
+
+The walk spends the planted data: reset again before rehearsing it a second time.
 
 ---
 

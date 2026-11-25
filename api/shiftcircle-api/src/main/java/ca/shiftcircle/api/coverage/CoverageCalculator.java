@@ -21,6 +21,15 @@ public final class CoverageCalculator {
 
   private static final ZoneId REGINA = ZoneId.of("America/Regina");
 
+  /**
+   * A block's hours on its day: from {@code fromHour} to {@code toHour} (31 = 07:00 the next day).
+   * The one place the block windows are defined; the board's "Supervisor on duty" line uses them too.
+   */
+  public record Window(String code, int fromHour, int toHour) {}
+
+  public static final List<Window> BLOCKS =
+      List.of(new Window("DAY", 7, 15), new Window("EVENING", 15, 23), new Window("NIGHT", 23, 31));
+
   /** One shift or actual entry, in absolute time. */
   public record Interval(Instant start, Instant end) {}
 
@@ -34,9 +43,11 @@ public final class CoverageCalculator {
   public List<BlockCoverage> forDay(
       LocalDate date, Map<String, Integer> required, List<Interval> intervals) {
     List<BlockCoverage> blocks = new ArrayList<>();
-    blocks.add(block("DAY", date, 7, 15, required.getOrDefault("DAY", 0), intervals));
-    blocks.add(block("EVENING", date, 15, 23, required.getOrDefault("EVENING", 0), intervals));
-    blocks.add(block("NIGHT", date, 23, 31, required.getOrDefault("NIGHT", 0), intervals));
+    for (Window window : BLOCKS) {
+      blocks.add(
+          block(window.code(), date, window.fromHour(), window.toHour(),
+              required.getOrDefault(window.code(), 0), intervals));
+    }
     return blocks;
   }
 

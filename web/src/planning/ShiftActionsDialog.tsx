@@ -14,6 +14,7 @@ import { assignableTemplates, shiftTemplates } from '../api/shiftTemplates';
 import type { OfficerRow, RuleResult, ShiftItem } from '../api/types';
 import { colour } from '../theme/tokens';
 import { OverrideDialog } from './OverrideDialog';
+import { nameWithPosition } from './supervisorPosts';
 import {
   hasStarted,
   instantWords,
@@ -30,6 +31,8 @@ interface ShiftActionsDialogProps {
   officer: OfficerRow;
   item: ShiftItem;
   unitId: string;
+  /** v1.3 S6: the board unit's kind, so the title names a supervisor or an officer on a post. */
+  unitKind?: string;
   /**
    * The business clock's "now" from the board (PR-O). With it the dialog says
    * up front when the api would refuse; without it the api's answer is shown.
@@ -73,6 +76,7 @@ export function ShiftActionsDialog({
   officer,
   item,
   unitId,
+  unitKind,
   now,
   onClose,
   onChanged,
@@ -230,7 +234,7 @@ export function ShiftActionsDialog({
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="xs">
       <DialogTitle sx={{ fontSize: 18, fontWeight: 700 }}>
-        {officer.name} · {template?.label ?? item.shiftTemplate}
+        {nameWithPosition(officer, { kind: unitKind })} · {template?.label ?? item.shiftTemplate}
       </DialogTitle>
       <DialogContent>
         <Typography sx={{ fontSize: 13, color: colour.text.secondary, mb: 2 }}>

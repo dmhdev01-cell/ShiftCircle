@@ -138,6 +138,8 @@ interface RuleCheckPanelProps {
   saveLabel?: string;
   /** Where "Find eligible officer" goes, with the shift if there is one. */
   findEligibleHref?: string;
+  /** Its words: "Find eligible supervisor" on a supervisor post (v1.3 S6). */
+  findEligibleLabel?: string;
   onSave: () => void;
   onAcknowledge: (codes: string[]) => void;
   onOverride: () => void;
@@ -156,6 +158,7 @@ export function RuleCheckPanel({
   detail,
   saveLabel = 'Assign shift',
   findEligibleHref = '/overtime',
+  findEligibleLabel = 'Find eligible officer',
   onSave,
   onAcknowledge,
   onOverride,
@@ -255,7 +258,7 @@ export function RuleCheckPanel({
             component={Link}
             to={findEligibleHref}
           >
-            Find eligible officer
+            {findEligibleLabel}
           </Button>
         ) : null}
 

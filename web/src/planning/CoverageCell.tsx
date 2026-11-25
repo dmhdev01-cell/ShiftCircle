@@ -25,6 +25,11 @@ interface CoverageCellProps {
   onFill?: (block: BlockCoverage) => void;
   /** A2: this cell's gap is the one the fill panel shows. */
   selected?: boolean;
+  /**
+   * v1.3 S6: on a supervisor post the figures read "Supervisor 1 / 1". Left
+   * out on a line unit, so its cells are unchanged.
+   */
+  noun?: string;
 }
 
 const VISUALLY_HIDDEN = {
@@ -56,6 +61,7 @@ export function CoverageCell({
   compact = false,
   onFill,
   selected = false,
+  noun,
 }: CoverageCellProps) {
   // Today and the days after it are shown as planned: the recorded actuals for
   // a day in progress are a handful of hours, and reading them as the day's
@@ -90,7 +96,7 @@ export function CoverageCell({
   }
 
   const title = [
-    `Lowest ${lowest} of ${block.required} required`,
+    `${noun ? `${noun}: lowest` : 'Lowest'} ${lowest} of ${block.required} required`,
     shown.shortHours.length > 0
       ? `Short ${shown.shortHours.map(shortRangeLabel).join(', ')}`
       : 'No short hours',
@@ -194,6 +200,7 @@ export function CoverageCell({
     >
       {fillPrefix}
       <Box className="num">
+        {noun ? `${noun} ` : ''}
         {lowest} / {block.required}
       </Box>
       <Box component="small" sx={{ fontWeight: 500, fontSize: 11 }}>

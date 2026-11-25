@@ -54,6 +54,8 @@ public class DemoResetService {
   private final RuleRowsRepository ruleRows;
   private final DemoOperationLock lock;
   private final ObjectMapper mapper = new ObjectMapper();
+  /** v1.3 P5: the planted demo proposals, seeded after the rules are reloaded. */
+  private DemoPlantedProposals plantedProposals;
 
   private volatile Status status = IDLE;
   /** The live dataset once known; null until the first read or after a failed reset. */
@@ -78,6 +80,11 @@ public class DemoResetService {
     this.publishedRules = publishedRules;
     this.ruleRows = ruleRows;
     this.lock = lock;
+  }
+
+  @org.springframework.beans.factory.annotation.Autowired(required = false)
+  void setPlantedProposals(DemoPlantedProposals plantedProposals) {
+    this.plantedProposals = plantedProposals;
   }
 
   public List<String> availableDatasets() {
@@ -188,6 +195,13 @@ public class DemoResetService {
 
       step("rules", provider);
       publishedRules.publish(ruleRows.publishedRuleSet());
+
+      // The proposals' "rules when sent" are evaluated against the rules just reloaded, so they
+      // come after this step. They write no shift, so the checksum below does not move (P5).
+      if (plantedProposals != null) {
+        step("proposals", provider);
+        plantedProposals.plant(Long.parseLong(provider.seed()));
+      }
 
       step("checksum", provider);
       String checksum = provider.checksum();

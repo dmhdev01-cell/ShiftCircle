@@ -68,6 +68,9 @@ public class ScheduleController {
 
     AuthPrincipal principal = scopeGuard.principal();
     scopeGuard.requireUnit(principal, scheduleQuery.unitCode(unitId));
-    return scheduleQuery.forUnit(unitId, from, to);
+    // v1.3 S6: the "Supervisor on duty" line names people on a covering post only when the caller
+    // sees that post too.
+    return scheduleQuery.forUnit(
+        unitId, from, to, postCode -> scopeGuard.inScope(principal, postCode));
   }
 }

@@ -53,6 +53,8 @@ import {
 import type { RosterFilterState } from './filterRoster';
 import { RosterGrid } from './RosterGrid';
 import { RuleCheckPanel } from './RuleCheckPanel';
+import { isSupervisorPost, nameWithPosition, unitGroups } from './supervisorPosts';
+import { getSessionUser } from '../api/session';
 import { RulesHelpDialog } from './RulesHelpDialog';
 import { ShiftActionsDialog } from './ShiftActionsDialog';
 import { boardNow } from './shiftWords';
@@ -347,6 +349,8 @@ export function PlanningPage() {
 
   const payload = state.payload;
   const today = payload.asOf;
+  const unitPickerGroups = unitGroups(units);
+  const onPost = isSupervisorPost(payload.unit);
 
   const gapBlocks = payload.coverage.filter((block) => !block.covered);
   // A week names the weekday; a longer span adds the date so "Sat" is not two days.
@@ -479,7 +483,10 @@ export function PlanningPage() {
     setSearchParams(writeFilters(searchParams, next), { replace: true });
   };
 
-  const officersWord = (count: number) => `${count} ${count === 1 ? 'officer' : 'officers'}`;
+  // v1.3 S6: a supervisor post's rows are supervisors.
+  const peopleOne = onPost ? 'supervisor' : 'officer';
+  const peopleMany = onPost ? 'supervisors' : 'officers';
+  const officersWord = (count: number) => `${count} ${count === 1 ? peopleOne : peopleMany}`;
 
   const exportView = () => {
     downloadCsv(exportFileName(payload, filtered), toCsv(rosterRows(payload, shownOfficers, filtered)));
@@ -488,7 +495,7 @@ export function PlanningPage() {
 
   const exportUnit = () => {
     downloadCsv(exportFileName(payload, false), toCsv(rosterRows(payload, payload.officers)));
-    setExportStatus(`CSV saved: all ${payload.officers.length} officers, ${payload.days.length} days`);
+    setExportStatus(`CSV saved: all ${payload.officers.length} ${peopleMany}, ${payload.days.length} days`);
   };
 
   const copyView = () => {
@@ -659,9 +666,9 @@ export function PlanningPage() {
       ? '/overtime'
       : `/overtime?unit=${encodeURIComponent(payload.unit.id)}&startAt=${encodeURIComponent(requestedStart)}`;
   const panelTitle = pending
-    ? `Assign ${pending.officer.name} → ${template?.label ?? pending.template}`
+    ? `Assign ${nameWithPosition(pending.officer, payload.unit)} → ${template?.label ?? pending.template}`
     : proposal
-      ? `Assign ${proposal.officer.name} → ${shiftTemplates[proposal.item.shiftTemplate]?.label ?? proposal.item.shiftTemplate}`
+      ? `Assign ${nameWithPosition(proposal.officer, payload.unit)} → ${shiftTemplates[proposal.item.shiftTemplate]?.label ?? proposal.item.shiftTemplate}`
       : shiftActions
         ? `${shiftActions.officer.name} · ${shiftTemplates[shiftActions.item.shiftTemplate]?.label ?? shiftActions.item.shiftTemplate}`
         : '';
@@ -723,8 +730,8 @@ export function PlanningPage() {
           </Typography>
           <Typography data-print="only" sx={{ display: 'none', fontSize: 12, color: colour.text.secondary }}>
             {filtered
-              ? `Printed: ${shownOfficers.length} of ${payload.officers.length} officers (${filterWords(filters, qualificationLabel)})`
-              : `Printed: all ${payload.officers.length} officers`}
+              ? `Printed: ${shownOfficers.length} of ${payload.officers.length} ${peopleMany} (${filterWords(filters, qualificationLabel)})`
+              : `Printed: all ${payload.officers.length} ${peopleMany}`}
           </Typography>
         </Box>
 
@@ -793,19 +800,39 @@ export function PlanningPage() {
                 backgroundColor: colour.bg.surface,
               }}
             >
-              {(units.length > 0
-                ? units
-                : [
-                    {
-                      id: payload.unit.id,
-                      name: payload.unit.name,
-                    } as Unit,
-                  ]
-              ).map((unit) => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.name}
-                </option>
-              ))}
+              {unitPickerGroups.posts.length > 0 ? (
+                // v1.3 S6: the supervisor posts are grouped after the line units.
+                <>
+                  <optgroup label="Units">
+                    {unitPickerGroups.line.map((unit) => (
+                      <option key={unit.id} value={unit.id}>
+                        {unit.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Supervisor posts">
+                    {unitPickerGroups.posts.map((unit) => (
+                      <option key={unit.id} value={unit.id}>
+                        {unit.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                </>
+              ) : (
+                (units.length > 0
+                  ? units
+                  : [
+                      {
+                        id: payload.unit.id,
+                        name: payload.unit.name,
+                      } as Unit,
+                    ]
+                ).map((unit) => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.name}
+                  </option>
+                ))
+              )}
             </Box>
           </Box>
         </Box>
@@ -902,11 +929,12 @@ export function PlanningPage() {
         onPrint={() => window.print()}
         onCopy={copyView}
         exportStatus={exportStatus}
+        onPost={onPost}
       />
 
       {filtered && shownOfficers.length === 0 ? (
         <Typography role="note" sx={{ fontSize: 13, color: colour.text.secondary }}>
-          No officer on this board matches these filters. Clear the filters to see everyone.
+          No {peopleOne} on this board matches these filters. Clear the filters to see everyone.
         </Typography>
       ) : null}
 
@@ -955,6 +983,7 @@ export function PlanningPage() {
             title={panelTitle}
             detail={panelDetail}
             findEligibleHref={findEligibleHref}
+            findEligibleLabel={onPost ? 'Find eligible supervisor' : undefined}
             onSave={() => {
               // A saved change moves the board: read it again (D9).
               if (mutation.state.change) {
@@ -983,7 +1012,7 @@ export function PlanningPage() {
         maxWidth="xs"
       >
         <DialogTitle sx={{ fontSize: 18, fontWeight: 700 }}>
-          {pending ? `Assign a shift to ${pending.officer.name}` : 'Assign a shift'}
+          {pending ? `Assign a shift to ${nameWithPosition(pending.officer, payload.unit)}` : 'Assign a shift'}
         </DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: 13, color: colour.text.secondary, mb: 2 }}>
@@ -1025,6 +1054,7 @@ export function PlanningPage() {
           template={gapTemplate}
           onTemplate={setGapTemplate}
           onCheck={checkFromGap}
+          {...(getSessionUser()?.employeeId ? { selfEmployeeId: getSessionUser()!.employeeId } : {})}
           onClose={closeGap}
           findEligibleHref={`/overtime?unit=${encodeURIComponent(payload.unit.id)}&startAt=${encodeURIComponent(
             `${gapEntry.date}T${shiftTemplates[gapTemplate].start}:00${REGINA_OFFSET}`,
@@ -1056,6 +1086,7 @@ export function PlanningPage() {
           officer={shiftActions.officer}
           item={shiftActions.item}
           unitId={payload.unit.id}
+          {...(payload.unit.kind ? { unitKind: payload.unit.kind } : {})}
           now={boardNow(payload)}
           onClose={() => setShiftActions(null)}
           onChanged={reload}
