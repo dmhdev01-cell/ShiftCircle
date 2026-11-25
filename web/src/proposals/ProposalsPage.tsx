@@ -10,7 +10,7 @@ import { api } from '../api/client';
 import type { ProposalInboxCard } from '../api/types';
 import { useUnits } from '../api/useUnits';
 import { StatusPill } from '../components/StatusPill';
-import { DISPLAY_STATE, sentWhen } from '../myschedule/proposalWords';
+import { DISPLAY_STATE, sentWhen, shiftLine } from '../myschedule/proposalWords';
 import { colour } from '../theme/tokens';
 import { ProposalDetailPane } from './ProposalDetailPane';
 
@@ -26,6 +26,21 @@ function cardSummary(card: ProposalInboxCard): string {
   const inScope =
     card.itemsInScope < card.itemCount ? ` (${card.itemsInScope} on your units)` : '';
   return `${card.units.map((unit) => `Unit ${unit}`).join(', ')} · ${shifts}${inScope}`;
+}
+
+const CARD_SHIFTS = 3;
+
+/**
+ * The card's shifts, "Sat 28 Nov · E8 15:00 – 23:00 · Unit B", so several
+ * proposals from one officer can be told apart without opening each.
+ */
+function cardShiftLines(card: ProposalInboxCard): string[] {
+  const shifts = card.shifts ?? [];
+  const lines = shifts
+    .slice(0, CARD_SHIFTS)
+    .map((shift) => shiftLine(shift.workDate, shift.shiftTemplate, `Unit ${shift.unit}`));
+  if (shifts.length > CARD_SHIFTS) lines.push(`and ${shifts.length - CARD_SHIFTS} more`);
+  return lines;
 }
 
 /**
@@ -89,6 +104,55 @@ export function ProposalsPage() {
         </Typography>
       </Box>
 
+      {/* The filters sit above both panes, so on a tablet (detail first) they
+          stay at the top instead of below the open proposal (v1.3 P4 gate). */}
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
+        <Box role="group" aria-label="Show" sx={{ display: 'flex', gap: 1 }}>
+          {(['WAITING', 'ALL'] as const).map((value) => (
+            <Button
+              key={value}
+              variant={filter === value ? 'contained' : 'outlined'}
+              color="primary"
+              aria-pressed={filter === value}
+              onClick={() => setFilter(value)}
+              sx={{ minHeight: 44 }}
+            >
+              {value === 'WAITING' ? 'Waiting' : 'All'}
+            </Button>
+          ))}
+        </Box>
+        <Box
+          component="label"
+          sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: 13 }}
+        >
+          Unit
+          <Box
+            component="select"
+            value={unitId}
+            onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
+              setUnitId(event.target.value)
+            }
+            sx={{
+              minHeight: 44,
+              px: 1.5,
+              fontFamily: 'inherit',
+              fontSize: 14,
+              border: `1px solid ${colour.border.input}`,
+              borderRadius: '6px',
+              backgroundColor: colour.bg.surface,
+              color: colour.text.primary,
+            }}
+          >
+            <option value="">All units</option>
+            {unitOptions.map((unit) => (
+              <option key={unit.id} value={unit.id}>
+                {unit.name}
+              </option>
+            ))}
+          </Box>
+        </Box>
+      </Box>
+
       <Box
         sx={{
           display: 'flex',
@@ -110,53 +174,6 @@ export function ProposalsPage() {
             gap: 2.5,
           }}
         >
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
-            <Box role="group" aria-label="Show" sx={{ display: 'flex', gap: 1 }}>
-              {(['WAITING', 'ALL'] as const).map((value) => (
-                <Button
-                  key={value}
-                  variant={filter === value ? 'contained' : 'outlined'}
-                  color="primary"
-                  aria-pressed={filter === value}
-                  onClick={() => setFilter(value)}
-                  sx={{ minHeight: 44 }}
-                >
-                  {value === 'WAITING' ? 'Waiting' : 'All'}
-                </Button>
-              ))}
-            </Box>
-            <Box
-              component="label"
-              sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: 13 }}
-            >
-              Unit
-              <Box
-                component="select"
-                value={unitId}
-                onChange={(event: React.ChangeEvent<HTMLSelectElement>) =>
-                  setUnitId(event.target.value)
-                }
-                sx={{
-                  minHeight: 44,
-                  px: 1.5,
-                  fontFamily: 'inherit',
-                  fontSize: 14,
-                  border: `1px solid ${colour.border.input}`,
-                  borderRadius: '6px',
-                  backgroundColor: colour.bg.surface,
-                  color: colour.text.primary,
-                }}
-              >
-                <option value="">All units</option>
-                {unitOptions.map((unit) => (
-                  <option key={unit.id} value={unit.id}>
-                    {unit.name}
-                  </option>
-                ))}
-              </Box>
-            </Box>
-          </Box>
-
           {state.kind === 'loading' ? (
             <Typography role="status" sx={{ fontSize: 14, color: colour.text.secondary }}>
               Loading the proposals…
@@ -223,6 +240,11 @@ export function ProposalsPage() {
                       <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
                         {cardSummary(card)}
                       </Box>
+                      {cardShiftLines(card).map((line) => (
+                        <Box key={line} component="span" sx={{ fontSize: 13, fontWeight: 600 }}>
+                          {line}
+                        </Box>
+                      ))}
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
                         <StatusPill tone={pill.tone}>{pill.text}</StatusPill>
                         {card.own ? <StatusPill tone="info">Yours</StatusPill> : null}

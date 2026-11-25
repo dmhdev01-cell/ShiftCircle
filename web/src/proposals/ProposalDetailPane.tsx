@@ -25,6 +25,7 @@ import { colour } from '../theme/tokens';
 import {
   MAX_COMMENT,
   OUTCOME_TONE,
+  currentMatch,
   currentRule,
   flaggedCodes,
   itemNeeds,
@@ -159,6 +160,16 @@ function ItemRow({ item, firstName, fresh, draft, onChange, withOthers }: ItemRo
             Approved outside the overtime order (recorded in the audit log).
           </Typography>
         ) : null}
+        {item.decision === 'ACCEPTED' ? (
+          // Always there for an approved shift, not only right after sending.
+          <Box
+            component={Link}
+            to={`/planning?unit=${encodeURIComponent(item.unitId)}&week=${item.workDate}`}
+            sx={{ fontSize: 13, color: colour.brand.link, fontWeight: 600 }}
+          >
+            Open the board for the week of {dayLabel(item.workDate)}
+          </Box>
+        ) : null}
       </Box>
     );
   }
@@ -167,10 +178,10 @@ function ItemRow({ item, firstName, fresh, draft, onChange, withOthers }: ItemRo
   const changed = fresh ? resultChanged(item, now) : item.ruleChanged;
   const blocked = now?.outcome === 'BLOCK';
   const warnCodes = flaggedCodes(now?.ruleResults, 'WARN');
-  const match = item.openShift;
-  const outOfOrder = fresh?.outOfOrder ?? match?.outOfOrder ?? false;
-  const position = fresh?.otOrderPosition !== undefined ? fresh.otOrderPosition : match?.otOrderPosition;
-  const size = fresh?.otOrderSize ?? match?.otOrderSize ?? 0;
+  const match = currentMatch(item, fresh);
+  const outOfOrder = match?.outOfOrder ?? false;
+  const position = match?.otOrderPosition ?? null;
+  const size = match?.otOrderSize ?? 0;
   const overtime = overtimeLine(item, firstName);
   const warnAcknowledged = warnCodes.every((code) => draft.acknowledgedWarnings.includes(code));
 
@@ -216,8 +227,8 @@ function ItemRow({ item, firstName, fresh, draft, onChange, withOthers }: ItemRo
 
       {withOthers && !fresh ? (
         <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
-          Rules now count the earlier waiting shifts of this proposal as approved (docs/07 §4.4);
-          sending re-checks with only the shifts you approve.
+          Rules now count the earlier shifts of this proposal as approved while they wait
+          (docs/07 §4.4); sending re-checks with only the shifts you approve.
         </Box>
       ) : null}
 
@@ -235,12 +246,7 @@ function ItemRow({ item, firstName, fresh, draft, onChange, withOthers }: ItemRo
       ) : null}
 
       <Typography sx={{ fontSize: 13, color: colour.text.secondary }}>
-        {openShiftLine(
-          match
-            ? { ...match, outOfOrder, otOrderPosition: position ?? null, otOrderSize: size }
-            : null,
-          firstName,
-        )}
+        {openShiftLine(match, firstName)}
       </Typography>
 
       {item.canDecide ? (
@@ -333,7 +339,7 @@ function ItemRow({ item, firstName, fresh, draft, onChange, withOthers }: ItemRo
                 fullWidth
                 value={draft.comment}
                 onChange={(event) => onChange({ ...draft, comment: event.target.value })}
-                error={draft.comment.length > MAX_COMMENT}
+                error={draft.comment.trim().length > MAX_COMMENT}
                 slotProps={{ htmlInput: { 'aria-describedby': commentId } }}
               />
               <Box id={commentId} component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
@@ -429,7 +435,10 @@ export function ProposalDetailPane({
   const pay = detail.items.find((item) => item.payPeriod)?.payPeriod ?? null;
 
   const draftOf = (id: string) => drafts[id] ?? EMPTY_DRAFT;
-  const pendingInScope = detail.items.filter((item) => item.inScope && item.decision === 'PENDING').length;
+  // The items are in start order: "rules now" counts the waiting items before this one.
+  const pendingIds = detail.items
+    .filter((item) => item.inScope && item.decision === 'PENDING')
+    .map((item) => item.id);
   const needs = decidable
     .map((item) => {
       const now = currentRule(item, fresh[item.id]);
@@ -437,7 +446,7 @@ export function ProposalDetailPane({
         draft: drafts[item.id],
         outcome: now?.outcome,
         warnCodes: flaggedCodes(now?.ruleResults, 'WARN'),
-        outOfOrder: fresh[item.id]?.outOfOrder ?? item.openShift?.outOfOrder ?? false,
+        outOfOrder: currentMatch(item, fresh[item.id])?.outOfOrder ?? false,
       });
     })
     .find((reason) => reason !== null);
@@ -445,17 +454,20 @@ export function ProposalDetailPane({
   const declined = decidable.filter((item) => draftOf(item.id).choice === 'decline').length;
 
   const send = async () => {
+    // Send is off until every decidable shift has a choice; never read a
+    // missing choice as an approval.
+    if (decidable.some((item) => !draftOf(item.id).choice)) return;
     const items: ProposalDecisionInput[] = decidable.map((item) => {
       const draft = draftOf(item.id);
       const comment = draft.comment.trim();
-      if (draft.choice === 'decline') return { id: item.id, accept: false, comment };
-      const now = currentRule(item, fresh[item.id]);
-      const outOfOrder = fresh[item.id]?.outOfOrder ?? item.openShift?.outOfOrder ?? false;
+      if (draft.choice !== 'accept') return { id: item.id, accept: false, comment };
+      const outOfOrder = currentMatch(item, fresh[item.id])?.outOfOrder ?? false;
       return {
         id: item.id,
         accept: true,
         ...(comment ? { comment } : {}),
-        acknowledgeWarnings: flaggedCodes(now?.ruleResults, 'WARN'),
+        // What the decider ticked, not computed for them (the api re-checks them).
+        acknowledgeWarnings: draft.acknowledgedWarnings,
         ...(outOfOrder ? { acknowledgeOutOfOrder: draft.acknowledgedOrder } : {}),
       };
     });
@@ -475,6 +487,18 @@ export function ProposalDetailPane({
         const next: Record<string, ProposalRefusalItem> = { ...fresh };
         for (const entry of error.problem.items) next[entry.id] = entry;
         setFresh(next);
+        // A shift that is Blocked now can only be declined: clear its Approve,
+        // so the next step (Decline, with a comment) is plain.
+        const blockedNow = error.problem.items.filter((entry) => entry.outcome === 'BLOCK');
+        if (blockedNow.length > 0) {
+          setDrafts((current) => {
+            const reset = { ...current };
+            for (const entry of blockedNow) {
+              reset[entry.id] = { ...(current[entry.id] ?? EMPTY_DRAFT), choice: undefined, acknowledgedWarnings: [], acknowledgedOrder: false };
+            }
+            return reset;
+          });
+        }
         setRefusal(
           `Not sent: ${error.problem.title}. The rules were checked again just now; each shift below shows the result. Nothing was saved.`,
         );
@@ -576,18 +600,9 @@ export function ProposalDetailPane({
         >
           <span>
             {firstAccepted
-              ? `Sent. Accepted shifts are on the planning board. ${firstName} sees the outcome on My schedule.`
+              ? `Sent. Accepted shifts are on the planning board (each has a link below). ${firstName} sees the outcome on My schedule.`
               : `Sent. ${firstName} sees the outcome and your comment on My schedule.`}
           </span>
-          {firstAccepted ? (
-            <Box
-              component={Link}
-              to={`/planning?unit=${encodeURIComponent(firstAccepted.unitId)}&week=${firstAccepted.workDate}`}
-              sx={{ color: colour.brand.link, fontWeight: 600 }}
-            >
-              Open the board for the week of {dayLabel(firstAccepted.workDate)}
-            </Box>
-          ) : null}
         </Box>
       ) : null}
 
@@ -620,7 +635,7 @@ export function ProposalDetailPane({
             firstName={firstName}
             fresh={fresh[item.id]}
             draft={draftOf(item.id)}
-            withOthers={pendingInScope > 1}
+            withOthers={pendingIds.indexOf(item.id) > 0}
             onChange={(next) => setDrafts((current) => ({ ...current, [item.id]: next }))}
           />
         ))}

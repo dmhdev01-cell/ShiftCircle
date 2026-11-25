@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { ProposalDetailItem, RuleResult } from '../api/types';
 import {
+  currentMatch,
   itemNeeds,
   openShiftLine,
   ordinal,
@@ -160,5 +161,23 @@ describe('the inbox words (v1.3 P4)', () => {
       }),
     ).toBeNull();
     expect(sendLabel(2, 1)).toBe('Send decision (2 accepted, 1 declined)');
+  });
+
+  it('takes a fresh refusal as authoritative for the open-shift match', () => {
+    const match = {
+      id: 'os',
+      status: 'OPEN',
+      otOrderPosition: 3,
+      otOrderSize: 12,
+      eligibility: 'ELIGIBLE',
+      outOfOrder: true,
+      liveOffers: 0,
+    };
+    const fresh = { id: 'i1', unit: 'B', shiftTemplate: 'D8', startAt: 'x', outcome: 'WARN' as const, warnCodes: [], ruleResults: [] };
+    expect(currentMatch(item({ openShift: match }), undefined)).toBe(match);
+    expect(currentMatch(item({ openShift: match }), fresh)).toBeNull();
+    expect(
+      currentMatch(item({ openShift: match }), { ...fresh, otOrderPosition: 1, otOrderSize: 12, outOfOrder: false }),
+    ).toMatchObject({ otOrderPosition: 1, otOrderSize: 12, outOfOrder: false });
   });
 });

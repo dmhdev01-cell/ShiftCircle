@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
@@ -76,6 +76,9 @@ describe('the Proposals inbox (v1.3 P4)', () => {
     expect(cards).toHaveLength(2);
     expect(cards[0]).toHaveTextContent('Tara Nakamura');
     expect(cards[0]).toHaveTextContent('Unit B · 2 shifts');
+    // The card names its shifts, so two proposals from one officer differ.
+    expect(cards[0]).toHaveTextContent('Sat 21 Nov · D8 07:00 – 15:00 · Unit B');
+    expect(cards[0]).toHaveTextContent('Sat 28 Nov · E8 15:00 – 23:00 · Unit B');
     expect(cards[0]).toHaveAttribute('aria-pressed', 'true');
     expect(cards[1]).toHaveTextContent('Yours');
 
@@ -196,7 +199,7 @@ describe('the Proposals inbox (v1.3 P4)', () => {
       },
     ]);
     expect(
-      await screen.findByText(/^Sent\. Accepted shifts are on the planning board\./),
+      await screen.findByText(/^Sent\. Accepted shifts are on the planning board/),
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open the board for the week of Sat 21 Nov' })).toHaveAttribute(
       'href',
@@ -269,12 +272,15 @@ describe('the Proposals inbox (v1.3 P4)', () => {
     );
     expect(within(saturday).getByText('Changed since it was sent: Was Passes, now Blocked · U-01')).toBeInTheDocument();
     expect(within(saturday).getByText('Only 0 h of rest after the night shift ending 07:00.')).toBeInTheDocument();
-    expect(within(saturday).getByRole('radio', { name: 'Approve' })).toBeDisabled();
+    const approve = within(saturday).getByRole('radio', { name: 'Approve' });
+    expect(approve).toBeDisabled();
+    // The Approve choice is cleared, so Decline is the plain next step.
+    expect(approve).not.toBeChecked();
     expect(within(saturday).getByRole('note')).toHaveTextContent(/can't be approved from a proposal/);
     // No acknowledgement can make a Block approvable, so none is offered.
     expect(within(saturday).queryByRole('checkbox')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Send decision (1 accepted, 1 declined)' })).toBeDisabled();
-    expect(screen.getByText("A Blocked shift can't be approved from a proposal. Decline it.")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send decision (0 accepted, 1 declined)' })).toBeDisabled();
+    expect(screen.getByText('Choose Approve or Decline for every shift.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /override/i })).not.toBeInTheDocument();
 
     // Declining it is the way out.
@@ -325,6 +331,68 @@ describe('the Proposals inbox (v1.3 P4)', () => {
     await user.click(screen.getByRole('button', { name: 'Send decision (1 accepted, 1 declined)' }));
     await waitFor(() => expect(decide).toHaveBeenCalledTimes(2));
     expect(decide.mock.calls[1][2][1]).toMatchObject({ id: 'inbox-tara-2', acknowledgeWarnings: ['U-14', 'U-02'] });
+  });
+
+  it('keeps the board link on an approved shift when the proposal is opened again later', async () => {
+    const user = userEvent.setup();
+    renderInbox();
+    const saturday = await shiftRow(SAT_21);
+    await choose(user, saturday, 'Approve');
+    await user.click(within(saturday).getByRole('checkbox', { name: /outside the overtime order/ }));
+    const evening = await shiftRow(SAT_28);
+    await choose(user, evening, 'Decline');
+    await user.type(within(evening).getByLabelText('Comment for Tara (required)'), 'Not needed');
+    await user.click(screen.getByRole('button', { name: 'Send decision (1 accepted, 1 declined)' }));
+    await screen.findByText(/^Sent\./);
+    cleanup();
+
+    renderInbox('/proposals?proposal=inbox-tara');
+    const row = await shiftRow(SAT_21);
+    expect(within(row).getByRole('link', { name: 'Open the board for the week of Sat 21 Nov' })).toHaveAttribute(
+      'href',
+      '/planning?unit=unit-b&week=2026-11-21',
+    );
+    expect(within(await shiftRow(SAT_28)).queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('drops a stale open-shift match after a refusal that carries no overtime order', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, 'decideProposal').mockRejectedValueOnce(
+      new ApiError('Warnings need acknowledgement', 422, {
+        type: 'https://shiftcircle.local/problems/warnings-need-acknowledgement',
+        title: 'Warnings need acknowledgement',
+        status: 422,
+        items: [
+          {
+            id: 'inbox-tara-1',
+            unit: 'B',
+            shiftTemplate: 'D8',
+            startAt: '2026-11-21T07:00:00-06:00',
+            outcome: 'WARN',
+            warnCodes: ['U-14'],
+            ruleResults: [
+              { ruleCode: 'U-14', ruleTable: 'HOURS', outcome: 'WARN', overridePolicy: 'ACKNOWLEDGE', message: 'Week over 48 h.' },
+            ],
+          },
+        ],
+      }),
+    );
+    renderInbox();
+    const saturday = await shiftRow(SAT_21);
+    await choose(user, saturday, 'Approve');
+    await user.click(within(saturday).getByRole('checkbox', { name: /outside the overtime order/ }));
+    const evening = await shiftRow(SAT_28);
+    await choose(user, evening, 'Decline');
+    await user.type(within(evening).getByLabelText('Comment for Tara (required)'), 'Not needed');
+    await user.click(screen.getByRole('button', { name: 'Send decision (1 accepted, 1 declined)' }));
+    await screen.findByRole('alert');
+
+    // The open shift was filled meanwhile: no order to be outside of any more.
+    expect(
+      within(saturday).getByText('No open shift for this slot: approving adds an extra shift above minimum.'),
+    ).toBeInTheDocument();
+    expect(within(saturday).queryByRole('checkbox', { name: /outside the overtime order/ })).not.toBeInTheDocument();
+    expect(within(saturday).getByRole('checkbox', { name: /acknowledge the warning \(U-14\)/ })).toBeInTheDocument();
   });
 
   it("shows a supervisor's own proposal read-only, waiting for another supervisor", async () => {

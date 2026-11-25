@@ -22,9 +22,9 @@ import { shot } from './shots';
  *
  * A stack-wide spec (playwright.config STACK_SPECS): it creates a shift for
  * Tara, whom the parallel specs use. It runs after them, one at a time, and
- * cleans up before and after itself (withdraws Tara's waiting proposals and
- * cancels the shifts created from proposals), so it can run again on the same
- * stack. This run's proposals are found by a token in their note.
+ * cleans up before and after itself, touching only its own proposals (their
+ * note starts with TAG): withdraws them, declines what is left and cancels the
+ * shifts they created, so it can run again on the same stack. This run's proposals are found by a token in their note.
  */
 
 const UNIT_B_NAME = 'Unit B · Living unit';
@@ -56,45 +56,69 @@ async function unitB(request: APIRequestContext): Promise<string> {
   return unit!.id;
 }
 
+/** Every note this spec writes starts with it, so clean-up touches only its own proposals. */
+const TAG = 'e2e-inbox';
+
 /**
- * Leave the stack as this spec found it: Tara has nothing waiting, and no
- * shift that came from a proposal on the days this spec uses.
+ * Leave the stack as this spec found it, touching only this spec's own
+ * proposals (their note starts with TAG): withdraw them while they wait,
+ * decline what is still waiting after a partial answer, and cancel the shifts
+ * their approved items created. A proposal the deciders can't see (404) is
+ * skipped, never a reason to fail.
  */
 async function cleanUp(request: APIRequestContext): Promise<void> {
   const tara = await apiAs(request, 't.nakamura');
-  const mine = await tara.get<MyProposal[]>('/me/proposals');
-  for (const proposal of mine.filter((entry) => entry.canWithdraw)) {
+  const ours = (await tara.get<MyProposal[]>('/me/proposals')).filter((entry) =>
+    (entry.note ?? '').startsWith(TAG),
+  );
+  for (const proposal of ours.filter((entry) => entry.canWithdraw)) {
     const result = await tara.postIfMatch(`/proposals/${proposal.id}/withdraw`, proposal.version);
     expect(result.status, JSON.stringify(result.body)).toBe(200);
   }
-  // Partly decided proposals can't be withdrawn; decline what is still waiting.
-  const ellis = await apiAs(request, 'm.ellis');
-  for (const proposal of (await tara.get<MyProposal[]>('/me/proposals')).filter(
-    (entry) => entry.displayState === 'WAITING' || entry.items.some((item) => item.decision === 'PENDING'),
-  )) {
-    const pending = proposal.items.filter((item) => item.decision === 'PENDING');
-    const detail = await ellis.get<{ version: number }>(`/proposals/${proposal.id}`);
-    const result = await ellis.postIfMatch(`/proposals/${proposal.id}/decision`, detail.version, {
-      items: pending.map((item) => ({ id: item.id, accept: false, comment: 'e2e clean-up' })),
-    });
-    expect(result.status, JSON.stringify(result.body)).toBe(200);
-  }
 
-  const unit = await unitB(request);
-  const board = await ellis.get<{
-    officers: { name: string; cells: { items: { type: string; assignmentId: string; version: number; fromProposal?: boolean }[] }[] }[];
-  }>(`/schedule?unitId=${unit}&from=${WINDOW.from}&to=${WINDOW.to}`);
   const bearer = await token(request, 'm.ellis');
-  for (const officer of board.officers.filter((entry) => entry.name === 'Tara Nakamura')) {
-    for (const cell of officer.cells) {
-      for (const item of cell.items.filter((entry) => entry.type === 'SHIFT' && entry.fromProposal)) {
-        const response = await request.delete(`/api/v1/assignments/${item.assignmentId}`, {
-          headers: { Authorization: `Bearer ${bearer}`, 'If-Match': `"${item.version}"` },
-          data: { reason: 'e2e clean-up: shift from a test proposal' },
-        });
-        expect(response.status(), await response.text()).toBe(200);
-      }
+  const headers = { Authorization: `Bearer ${bearer}` };
+  const assignments: string[] = [];
+  for (const proposal of ours.filter((entry) => !entry.canWithdraw)) {
+    const read = await request.get(`/api/v1/proposals/${proposal.id}`, { headers });
+    if (read.status() === 404 || read.status() === 403) continue;
+    expect(read.status(), await read.text()).toBe(200);
+    const detail = (await read.json()) as {
+      version: number;
+      items: { id: string; decision: string; canDecide: boolean; assignmentId: string | null }[];
+    };
+    const pending = detail.items.filter((item) => item.decision === 'PENDING' && item.canDecide);
+    if (pending.length > 0) {
+      const decided = await request.post(`/api/v1/proposals/${proposal.id}/decision`, {
+        headers: { ...headers, 'If-Match': `"${detail.version}"` },
+        data: { items: pending.map((item) => ({ id: item.id, accept: false, comment: 'e2e clean-up' })) },
+      });
+      expect(decided.status(), await decided.text()).toBe(200);
     }
+    for (const item of detail.items) {
+      if (item.decision === 'ACCEPTED' && item.assignmentId) assignments.push(item.assignmentId);
+    }
+  }
+  if (assignments.length === 0) return;
+
+  // The version for If-Match comes from the board; a shift cancelled already is not on it.
+  const unit = await unitB(request);
+  const ellis = await apiAs(request, 'm.ellis');
+  const board = await ellis.get<{
+    officers: { cells: { items: { type: string; assignmentId: string; version: number }[] }[] }[];
+  }>(`/schedule?unitId=${unit}&from=${WINDOW.from}&to=${WINDOW.to}`);
+  const versions = new Map<string, number>();
+  for (const officer of board.officers) {
+    for (const cell of officer.cells) {
+      for (const item of cell.items) if (item.type === 'SHIFT') versions.set(item.assignmentId, item.version);
+    }
+  }
+  for (const id of assignments.filter((entry) => versions.has(entry))) {
+    const response = await request.delete(`/api/v1/assignments/${id}`, {
+      headers: { ...headers, 'If-Match': `"${versions.get(id)}"` },
+      data: { reason: 'e2e clean-up: shift from a test proposal' },
+    });
+    expect(response.status(), await response.text()).toBe(200);
   }
 }
 
@@ -149,8 +173,8 @@ test.describe('@api shift proposals, the inbox (v1.3 P4)', () => {
   }, testInfo) => {
     const run = `run ${Date.now().toString(36)}`;
     const unit = await unitB(request);
-    const proposalA = await send(request, `Free that Saturday and Friday (${run}).`, unit, [SAT, FRI]);
-    const proposalB = await send(request, `Sunday too if needed (${run}).`, unit, [SUN]);
+    const proposalA = await send(request, `${TAG}: free that Saturday and Friday (${run}).`, unit, [SAT, FRI]);
+    const proposalB = await send(request, `${TAG}: Sunday too if needed (${run}).`, unit, [SUN]);
     const comment = `Unit B is fully staffed on Friday (${run}).`;
 
     // Window 2: B is open before anything changes, and passes with a Warning.
@@ -179,7 +203,7 @@ test.describe('@api shift proposals, the inbox (v1.3 P4)', () => {
     await page.goto(`/proposals?proposal=${proposalA.id}`);
     const pane = page.getByRole('region', { name: 'Selected proposal' });
     await expect(pane.getByRole('heading', { name: 'Tara Nakamura' })).toBeVisible();
-    await expect(pane.getByText(`Free that Saturday and Friday (${run}).`)).toBeVisible();
+    await expect(pane.getByText(`${TAG}: free that Saturday and Friday (${run}).`)).toBeVisible();
     await expect(pane.getByText(/ h of 80 h this pay period$/)).toBeVisible();
 
     const saturday = shiftRow(page, SAT_ROW);
@@ -203,7 +227,7 @@ test.describe('@api shift proposals, the inbox (v1.3 P4)', () => {
     await shot(page, testInfo, 'supervisor', 'proposals', 'deciding');
 
     await pane.getByRole('button', { name: 'Send decision (1 accepted, 1 declined)' }).click();
-    await expect(pane.getByText(/^Sent\. Accepted shifts are on the planning board\./)).toBeVisible();
+    await expect(pane.getByText(/^Sent\. Accepted shifts are on the planning board/)).toBeVisible();
     await expect(saturday.getByText('Approved', { exact: true })).toBeVisible();
     await expect(friday.getByText(`Declined by M. Ellis: “${comment}”`)).toBeVisible();
     await expect.poll(() => navCount(page)).toBe(before - 1);
@@ -233,7 +257,7 @@ test.describe('@api shift proposals, the inbox (v1.3 P4)', () => {
     await second.close();
 
     // The board: the new shift carries the proposal in its name and tooltip.
-    await page.getByRole('link', { name: 'Open the board for the week of Sat 28 Nov' }).click();
+    await saturday.getByRole('link', { name: 'Open the board for the week of Sat 28 Nov' }).click();
     await expect(page.getByRole('heading', { name: 'Planning board', level: 1 })).toBeVisible();
     const chip = page.getByRole('button', {
       name: /for Tara Nakamura on 2026-11-28 · from an approved proposal$/,

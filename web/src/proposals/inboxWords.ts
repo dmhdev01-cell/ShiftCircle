@@ -185,3 +185,26 @@ export function itemNeeds(input: {
   }
   return null;
 }
+
+/**
+ * The open-shift match as the decider must treat it now. A fresh 422 item is
+ * authoritative: with no overtime order in it, the shift no longer matches an
+ * open shift (filled or cancelled meanwhile), so there is no order to be
+ * outside of. Otherwise the detail's match.
+ */
+export function currentMatch(
+  item: ProposalDetailItem,
+  fresh: ProposalRefusalItem | undefined,
+): ProposalOpenShiftMatch | null {
+  if (!fresh) return item.openShift;
+  if (fresh.otOrderSize === undefined) return null;
+  return {
+    id: item.openShift?.id ?? '',
+    status: item.openShift?.status ?? 'OPEN',
+    eligibility: item.openShift?.eligibility ?? '',
+    liveOffers: item.openShift?.liveOffers ?? 0,
+    otOrderPosition: fresh.otOrderPosition ?? null,
+    otOrderSize: fresh.otOrderSize,
+    outOfOrder: fresh.outOfOrder ?? false,
+  };
+}

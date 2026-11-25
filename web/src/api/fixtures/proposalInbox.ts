@@ -238,6 +238,15 @@ function card(proposal: ProposalDetail): ProposalInboxCard {
     displayState: proposal.displayState,
     version: proposal.version,
     own: proposal.own,
+    shifts: proposal.items
+      .filter((entry) => entry.inScope)
+      .map((entry) => ({
+        unit: entry.unit,
+        shiftTemplate: entry.shiftTemplate,
+        startAt: entry.startAt,
+        workDate: entry.workDate,
+        decision: entry.decision,
+      })),
   };
 }
 
@@ -380,7 +389,9 @@ export function decideProposalFixture(
         ? 'APPROVED'
         : accepts > 0
           ? 'PARTLY_APPROVED'
-          : declines > 0
+          : // Plan §1.1: Declined only when every shift is declined; a mix of
+            // expired and declined with nothing accepted reads Expired.
+            declines === items.length
             ? 'DECLINED'
             : 'EXPIRED',
     version: proposal.version + 1,

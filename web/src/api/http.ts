@@ -551,7 +551,7 @@ export function createHttpApi(): ShiftCircleApi {
     },
 
     getProposal(proposalId: string): Promise<ProposalDetail> {
-      return request<ProposalDetail>(`/proposals/${proposalId}`);
+      return request<ProposalDetail>(`/proposals/${encodeURIComponent(proposalId)}`);
     },
 
     decideProposal(
@@ -559,7 +559,7 @@ export function createHttpApi(): ShiftCircleApi {
       version: number,
       items: ProposalDecisionInput[],
     ): Promise<ProposalDetail> {
-      return request<ProposalDetail>(`/proposals/${proposalId}/decision`, {
+      return request<ProposalDetail>(`/proposals/${encodeURIComponent(proposalId)}/decision`, {
         method: 'POST',
         headers: { 'If-Match': `"${version}"` },
         body: JSON.stringify({ items }),

@@ -105,6 +105,16 @@ class ProposalDecisionApiTest {
     assertThat(card.get("waitingInScope")).isEqualTo(1);
     assertThat(card.get("displayState")).isEqualTo("WAITING");
     assertThat(card.get("own")).isEqualTo(false);
+    // v1.3 P4 gate: the card names its shifts, so two proposals from one officer differ.
+    assertThat(list(card, "shifts"))
+        .singleElement()
+        .satisfies(
+            shift -> {
+              assertThat(shift.get("unit")).isEqualTo("B");
+              assertThat(shift.get("shiftTemplate")).isEqualTo("D8");
+              assertThat(shift.get("workDate")).isEqualTo("2026-11-25");
+              assertThat(shift.get("decision")).isEqualTo("PENDING");
+            });
 
     // Unit C has no supervisor in the demo: only the planner sees it (owner Q4).
     assertThat(listOf(get("/api/v1/proposals", "j.chen"))).isEmpty();

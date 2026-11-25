@@ -1327,6 +1327,16 @@ export interface ProposalInboxCard {
   version: number;
   /** The caller's own proposal: read-only, another supervisor or the planner decides it. */
   own: boolean;
+  /** The shifts on the caller's units, in start order (v1.3 P4 gate). */
+  shifts: ProposalCardShift[];
+}
+
+export interface ProposalCardShift {
+  unit: string;
+  shiftTemplate: string;
+  startAt: string;
+  workDate: string;
+  decision: ProposalItemDecision;
 }
 
 export interface ProposalInboxQuery {

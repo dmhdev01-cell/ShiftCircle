@@ -17,7 +17,7 @@
 | Leave | **Leave is skipped by the generator and shown on the draft roster (Vac/Sick/Other), but not on the live board.** The planner enters it (Preferences → Add planned leave); there is no request, approval, balance or leave limit (maximum off per unit per day) | API and data risk on Dataset 100 |
 | Sick | Sick is recorded after the fact. There is no call-out flow (sick call → open shift → ranked offer); posting an open shift is "not available in this prototype" | New flow |
 | Planner | The quarter window (4 Jan to 11 Apr 2027) and the clock are fixed; a plan can be committed once; the 28 Dec to 3 Jan seam on Dataset 100 is thin | Window is in seeded data |
-| Workflow | Employee proposals and the supervisor inbox, FR-06 publish gating, FR-07 "changed" flags, offer withdrawal/expiry, mandatory OT and OT caps | New flows |
+| Workflow | Proposals beyond add-only (swaps, give-ups; v1.3 built add-only proposals and the inbox), FR-06 publish gating, FR-07 "changed" flags, offer withdrawal/expiry, mandatory OT and OT caps | New flows |
 | Platform | No OpenAPI or generated client; e2e is not in CI; no Java CVE scan; floating base-image tags; the auth seam is a demo mock; no phone layout | Engineering, not demo-facing |
 | Architecture | `PlannerService` and `PlannerPage` are very large; `shiftcircle-domain` and `-application` are empty placeholders (`docs/03-architecture.md` §2) | Refactors risk the demo |
 
