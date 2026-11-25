@@ -641,6 +641,15 @@ public class ProposalDecisionService {
         continue;
       }
 
+      // The clock is read again at the write: a shift that started while the rules ran (the item
+      // rows are locked, so the sweep could not expire it) is refused like an expired one.
+      if (!row.startAt().isAfter(clock.now())) {
+        throw ProposalProblemException.of(
+            409,
+            "shift-started",
+            "This shift has already started",
+            "The shift on " + row.workDate() + " started while you decided.");
+      }
       List<String> acknowledged = codes(plan.outcome(), "WARN");
       Map<String, Object> extras = new LinkedHashMap<>();
       extras.put("source", "PROPOSAL");

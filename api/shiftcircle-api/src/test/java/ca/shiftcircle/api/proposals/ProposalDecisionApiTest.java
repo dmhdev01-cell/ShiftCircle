@@ -73,6 +73,7 @@ class ProposalDecisionApiTest {
     jdbc.update("DELETE FROM shift_assignment WHERE employee_id IN (?, ?, ?)", TARA, ELLIS, OTHER);
     jdbc.update("DELETE FROM pay_period");
     jdbc.update("DROP TRIGGER IF EXISTS test_expire_on_insert ON shift_assignment");
+    jdbc.update("DROP TRIGGER IF EXISTS test_bump_on_insert ON shift_assignment");
     jdbc.update("UPDATE unit SET active = true WHERE id = ?", UNIT_B);
     jdbc.update("UPDATE shift_template SET active = true WHERE code = 'E8'");
     jdbc.update("UPDATE app_user SET employee_id = NULL WHERE username IN ('t.nakamura', 'm.ellis')");
@@ -666,6 +667,47 @@ class ProposalDecisionApiTest {
   // ---------------------------------------------------------------------------------------------
   // Concurrency, closed units, retired shift types (review r1)
   // ---------------------------------------------------------------------------------------------
+
+  @Test
+  void aProposalThatChangesUnderneathTheDecisionIsAStaleVersionAndRollsBack() throws Exception {
+    Map<String, Object> proposal =
+        send("t.nakamura", item(UNIT_B, "D8", "2026-11-25T07:00:00-06:00"));
+    // Deterministic stand-in for a concurrent change to the proposal row between the check and the
+    // final update: the shift insert bumps the proposal's version in the same transaction.
+    jdbc.execute(
+        "CREATE OR REPLACE FUNCTION test_bump_on_insert() RETURNS trigger AS $$ BEGIN"
+            + " UPDATE proposal SET version = version + 1 WHERE employee_id = NEW.employee_id;"
+            + " RETURN NEW; END $$ LANGUAGE plpgsql");
+    jdbc.execute(
+        "CREATE TRIGGER test_bump_on_insert AFTER INSERT ON shift_assignment"
+            + " FOR EACH ROW EXECUTE FUNCTION test_bump_on_insert()");
+    try {
+      HttpResponse<String> refused =
+          decideRaw("m.ellis", proposal, "\"0\"", accept(itemId(proposal, 0)));
+      assertThat(refused.statusCode()).as(refused.body()).isEqualTo(412);
+      assertThat((String) json(refused).get("type")).endsWith("/stale-version");
+    } finally {
+      jdbc.execute("DROP TRIGGER IF EXISTS test_bump_on_insert ON shift_assignment");
+    }
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM shift_assignment WHERE employee_id = ?", Integer.class, TARA))
+        .isZero();
+    assertThat(
+            jdbc.queryForMap(
+                "SELECT p.version, i.decision FROM proposal p JOIN proposal_item i"
+                    + " ON i.proposal_id = p.id WHERE p.id = ?",
+                id(proposal)))
+        .containsEntry("version", 0)
+        .containsEntry("decision", "PENDING");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM audit_event WHERE action = 'decide_proposal_item'"
+                    + " AND entity_id = ?",
+                Integer.class,
+                id(proposal)))
+        .isZero();
+  }
 
   @Test
   void anItemThatExpiresUnderneathTheDecisionRollsEverythingBack() throws Exception {

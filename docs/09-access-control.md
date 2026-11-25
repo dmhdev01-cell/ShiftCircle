@@ -35,7 +35,8 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 | Create open shifts, send offers, assign overtime | — | scope | — | — | — | — | — |
 | Accept or decline an overtime offer | own | own | own | own | — | own | — |
 | Submit and withdraw shift proposals (API, v1.3 P1; screen P3) | own | own (a supervisor is also an officer) | — | — | — | — | — |
-| Read the proposals inbox and detail, decide proposals (API, v1.3 P2; screen P4) | — | scope (the **item's** unit; a proposal with no item in scope is `404`, an out-of-scope item in a visible one is `403`); **never own** (`403`, `SelfActionGuard`) | — | — | — | ✓ facility-wide fallback decider; never own | — |
+| Read the proposals inbox and detail (API, v1.3 P2; screen P4) | — | scope (the **item's** unit): the inbox lists only proposals with an item in scope (empty otherwise); the detail is `404` with no item in scope and lists an out-of-scope item read-only (unit, time, decision; no rules, hours or actions); own proposals are shown, marked `own` | — | — | — | ✓ facility-wide | — |
+| Decide proposals (API, v1.3 P2; screen P4) | — | scope (the **item's** unit; `404` when the proposal has no item in scope, `403` for naming an out-of-scope item in the decision); **never own** (`403`, `SelfActionGuard`) | — | — | — | ✓ facility-wide fallback decider; never own | — |
 | Record actuals | — | scope | — | — | — | — | — |
 | Lock a pay period | — | facility-wide (any supervisor with at least one unit in scope; audited), ADR-022 | — | — | — | — | — |
 | Unlock a pay period | — | facility-wide (reason required; audited), ADR-022 | — | — | — | — | — |

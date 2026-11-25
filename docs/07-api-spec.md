@@ -336,7 +336,7 @@ An item outside the caller's scope is listed with its unit, time and decision on
 
 | Status | When |
 |---|---|
-| `400` | No items; an item id that is not in the proposal or is listed twice; `accept` missing; a decline without a comment of 3+ characters; a comment over 500; an unknown field |
+| `400` | No items; an item id that is not in the proposal or is listed twice; `accept` missing; a decline without a comment of 3+ characters; a comment over 500; more than 50 codes in an item's `acknowledgeWarnings`; an unknown field |
 | `403` | Your own proposal; an item on a unit outside your scope; a role that may not decide |
 | `404` | No such proposal, or none of its items is on your units |
 | `409` | `proposal-withdrawn`; `shift-started` (the item expired: its shift started before anyone answered); `already-decided`; `pay-period-locked`; `unit-closed`; `shift-type-retired` (retired after the send); `open-shift-filled` (filled between the check and the write); an overlap with a shift saved meanwhile (`shift-conflict`, the database exclusion). An item that changes underneath the decision (expired by the sweep, withdrawn) is `409` too, and the whole decision rolls back: no shift, no fill, no audit row |
