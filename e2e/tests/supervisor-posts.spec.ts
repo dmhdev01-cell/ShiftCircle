@@ -109,7 +109,7 @@ test.describe('v1.3 S6 supervisor posts on the board', () => {
     await selectUnit(page, 'Unit A · Living unit');
     const row = page.getByTestId('supervisor-on-duty');
     await expect(row).toBeVisible();
-    await expect(row.getByRole('rowheader')).toContainText('Supervisor on duty');
+    await expect(row.getByTestId('supervisor-on-duty-label')).toContainText('Supervisor on duty');
     for (const date of ['2026-11-19', GAP_DAY]) {
       const items = row.getByRole('list', { name: `Supervisor on duty, ${date}` }).getByRole('listitem');
       const words = ['DAY', 'EVENING', 'NIGHT'].map((block) => {

@@ -219,7 +219,7 @@ describe('supervisor posts: the roster grid', () => {
     expect(screen.getByRole('columnheader', { name: 'Officer' })).toBeInTheDocument();
     expect(screen.queryByText(/supervisor$/)).not.toBeInTheDocument();
     const row = screen.getByTestId('supervisor-on-duty');
-    expect(within(row).getByRole('rowheader')).toHaveTextContent('Supervisor on duty');
+    expect(within(row).getByTestId('supervisor-on-duty-label')).toHaveTextContent('Supervisor on duty');
     const day = within(row).getByRole('list', { name: `Supervisor on duty, ${DAY}` });
     expect(within(day).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
       'D Days: M. Ellis',

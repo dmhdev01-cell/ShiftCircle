@@ -419,11 +419,10 @@ export function RosterGrid({
               // supervisor post that covers it. Read-only; names are fine on
               // the signed-in board (never on the wall display).
               <tr data-testid="supervisor-on-duty">
-                <th
-                  scope="row"
+                <td
+                  data-testid="supervisor-on-duty-label"
                   style={{
                     ...stickyName,
-                    textAlign: 'left',
                     fontWeight: 600,
                     padding: compact ? '3px 6px' : 8,
                     backgroundColor: colour.bg.subtle,
@@ -435,7 +434,7 @@ export function RosterGrid({
                   <span style={{ fontWeight: 500, fontSize: compact ? 11 : 12, color: colour.text.secondary }}>
                     from the supervisor post
                   </span>
-                </th>
+                </td>
                 <td colSpan={2} style={{ backgroundColor: colour.bg.subtle, borderBottom: border }} />
                 {days.map((date, index) => {
                   const blocks = BLOCKS.map(({ block, label }) => ({
