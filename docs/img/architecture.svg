@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1300" height="340" viewBox="0 0 1300 340" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#334155"/></marker>
+    <marker id="d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#B45309"/></marker>
+  </defs>
+  <rect width="1300" height="340" fill="#FFFFFF"/>
+
+  <!-- Users -->
+  <rect x="20" y="70" width="210" height="200" rx="10" fill="#F1F5F9" stroke="#64748B" stroke-width="2"/>
+  <text x="125" y="102" text-anchor="middle" font-size="20" font-weight="700" fill="#0F172A">Browser</text>
+  <text x="125" y="130" text-anchor="middle" font-size="15" fill="#334155">officers · supervisors</text>
+  <text x="125" y="152" text-anchor="middle" font-size="15" fill="#334155">planners · rules admins</text>
+  <text x="125" y="174" text-anchor="middle" font-size="15" fill="#334155">auditors</text>
+  <text x="125" y="208" text-anchor="middle" font-size="15" fill="#334155">unit wall display (TV):</text>
+  <text x="125" y="230" text-anchor="middle" font-size="15" fill="#334155">counts only, no names</text>
+
+  <!-- Docker Compose boundary -->
+  <rect x="265" y="30" width="790" height="290" rx="12" fill="none" stroke="#94A3B8" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="285" y="54" font-size="15" font-weight="700" fill="#475569">Docker Compose · only the web port (8080) is published</text>
+
+  <!-- web -->
+  <rect x="285" y="80" width="200" height="190" rx="10" fill="#EEF2FF" stroke="#4F46E5" stroke-width="2"/>
+  <text x="385" y="112" text-anchor="middle" font-size="19" font-weight="700" fill="#1E1B4B">web</text>
+  <text x="385" y="140" text-anchor="middle" font-size="15" fill="#312E81">nginx</text>
+  <text x="385" y="162" text-anchor="middle" font-size="15" fill="#312E81">React app (static)</text>
+  <text x="385" y="194" text-anchor="middle" font-size="14" fill="#312E81">security headers, CSP</text>
+  <text x="385" y="216" text-anchor="middle" font-size="14" fill="#312E81">proxies /api only</text>
+
+  <!-- api -->
+  <rect x="535" y="80" width="300" height="190" rx="10" fill="#ECFDF5" stroke="#059669" stroke-width="2"/>
+  <text x="685" y="112" text-anchor="middle" font-size="19" font-weight="700" fill="#064E3B">api · Spring Boot (Java 21)</text>
+  <rect x="555" y="126" width="260" height="46" rx="6" fill="#D1FAE5" stroke="#10B981"/>
+  <text x="685" y="147" text-anchor="middle" font-size="15" font-weight="700" fill="#065F46">Drools rules engine</text>
+  <text x="685" y="165" text-anchor="middle" font-size="13" fill="#065F46">one engine checks every write</text>
+  <text x="685" y="196" text-anchor="middle" font-size="14" fill="#065F46">schedule · overtime · proposals</text>
+  <text x="685" y="216" text-anchor="middle" font-size="14" fill="#065F46">quarter planner · rule admin (maker/checker)</text>
+  <text x="685" y="236" text-anchor="middle" font-size="14" fill="#065F46">time · payroll · reports · audit</text>
+  <text x="685" y="258" text-anchor="middle" font-size="13" fill="#047857">role + unit scope on every endpoint</text>
+
+  <!-- db -->
+  <rect x="880" y="80" width="155" height="190" rx="10" fill="#FFF7ED" stroke="#EA580C" stroke-width="2"/>
+  <text x="957" y="112" text-anchor="middle" font-size="19" font-weight="700" fill="#7C2D12">db</text>
+  <text x="957" y="140" text-anchor="middle" font-size="15" fill="#9A3412">PostgreSQL 17</text>
+  <text x="957" y="172" text-anchor="middle" font-size="14" fill="#9A3412">schedule, rules,</text>
+  <text x="957" y="192" text-anchor="middle" font-size="14" fill="#9A3412">time, payroll</text>
+  <text x="957" y="222" text-anchor="middle" font-size="14" fill="#9A3412">audit by trigger</text>
+  <text x="957" y="242" text-anchor="middle" font-size="14" fill="#9A3412">(append-only)</text>
+
+  <!-- flows -->
+  <line x1="230" y1="170" x2="283" y2="170" stroke="#334155" stroke-width="2.5" marker-end="url(#a)" marker-start="url(#a)"/>
+  <text x="256" y="160" text-anchor="middle" font-size="12" fill="#334155">HTTP</text>
+  <line x1="485" y1="175" x2="533" y2="175" stroke="#334155" stroke-width="2.5" marker-end="url(#a)" marker-start="url(#a)"/>
+  <text x="509" y="165" text-anchor="middle" font-size="11" fill="#334155">REST</text>
+  <text x="509" y="195" text-anchor="middle" font-size="11" fill="#334155">+ JWT</text>
+  <line x1="835" y1="175" x2="878" y2="175" stroke="#334155" stroke-width="2.5" marker-end="url(#a)" marker-start="url(#a)"/>
+  <text x="857" y="165" text-anchor="middle" font-size="11" fill="#334155">SQL</text>
+
+  <!-- External services (simulated) -->
+  <rect x="1085" y="30" width="195" height="290" rx="12" fill="#FFFBEB" stroke="#B45309" stroke-width="2" stroke-dasharray="6 5"/>
+  <text x="1182" y="56" text-anchor="middle" font-size="15" font-weight="700" fill="#78350F">External services</text>
+  <text x="1182" y="76" text-anchor="middle" font-size="14" font-weight="700" fill="#B45309">SIMULATED</text>
+  <rect x="1100" y="92" width="165" height="96" rx="8" fill="#FEF3C7" stroke="#D97706"/>
+  <text x="1182" y="118" text-anchor="middle" font-size="15" font-weight="700" fill="#78350F">Identity</text>
+  <text x="1182" y="140" text-anchor="middle" font-size="13" fill="#78350F">mock sign-in issues</text>
+  <text x="1182" y="158" text-anchor="middle" font-size="13" fill="#78350F">signed tokens</text>
+  <text x="1182" y="178" text-anchor="middle" font-size="12" fill="#92400E">pilot: government SSO</text>
+  <rect x="1100" y="204" width="165" height="96" rx="8" fill="#FEF3C7" stroke="#D97706"/>
+  <text x="1182" y="230" text-anchor="middle" font-size="15" font-weight="700" fill="#78350F">Payroll</text>
+  <text x="1182" y="252" text-anchor="middle" font-size="13" fill="#78350F">CSV export of</text>
+  <text x="1182" y="270" text-anchor="middle" font-size="13" fill="#78350F">locked pay periods</text>
+  <text x="1182" y="290" text-anchor="middle" font-size="12" fill="#92400E">pilot: payroll system feed</text>
+  <path d="M800,80 C830,12 1050,12 1098,135" fill="none" stroke="#B45309" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#d)"/>
+  <path d="M800,270 C830,345 1050,345 1098,262" fill="none" stroke="#B45309" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#d)"/>
+
+  <!-- legend / write path -->
+</svg>

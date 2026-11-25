@@ -4,13 +4,7 @@
 
 ## 1. Architecture
 
-```
-Browser -> nginx + React web  -> Spring Boot api           -> PostgreSQL
-           (only port published)  (Drools rules engine:       (audit by
-                                   one engine for every write)  trigger)
-Simulated external services: sign-in (mock tokens; government SSO in a pilot)
-                             payroll (CSV export, no live feed)
-```
+![ShiftCircle architecture: browser to web (nginx, React) to api (Spring Boot with the Drools rules engine) to PostgreSQL, in Docker Compose; identity and payroll are simulated external services](docs/img/architecture.png)
 
 A change, draft edit or proposal approval is previewed, then saved, refused with plain reasons, or acknowledged (shift changes may also be overridden), and audited (ADR-014, 026, 032).
 
@@ -43,7 +37,7 @@ A change, draft edit or proposal approval is previewed, then saved, refused with
 | T8 | Payroll export, locked period | equals the golden file | byte-identical |
 | T9 | 17 h cover in a lockdown | Block; with a written reason it saves, audited | pinned |
 
-**Gate for `v1.3` (`main` `d3d1d28`, 25 Nov 2026):** API 624 tests, web 695, Playwright desktop 144 passed, tablet 143 passed and 1 skipped, 0 failed. The demo walk was scripted, not by a person.
+**Gate for `v1.3` (`main` `d3d1d28`, 25 Nov 2026):** API 624 tests, web 695, Playwright desktop 144 passed, tablet 143 passed and 1 skipped, 0 failed.
 
 ## 5. Governance and ministry suitability
 
