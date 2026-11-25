@@ -69,6 +69,17 @@ public final class PlanGenerator {
       Position position,
       LocalDate rankSeniority) {
 
+    /** No rank given reads as an officer; no rank seniority reads as the service date. */
+    public Employee {
+      position = position == null ? Position.CO : position;
+      rankSeniority = rankSeniority == null ? seniority : rankSeniority;
+    }
+
+    /** True for a supervisor (a supervisory rank). */
+    public boolean isSupervisor() {
+      return position.isSupervisory();
+    }
+
     /** Existing callers and the 100 seed: no crew row, so the planner uses the old patterns. */
     public Employee(
         UUID id,
@@ -154,6 +165,17 @@ public final class PlanGenerator {
     public boolean isSupervision() {
       return "SUPERVISION".equals(kind);
     }
+  }
+
+  /**
+   * The rank guard (release v1.3): the planner never cross-covers. A supervisor is only placed on a
+   * supervisor post and an officer only on an officer post, in every pass (the home-unit fill, the
+   * casual pool, closed-unit relief, the cross-unit fill and the part-time top-up). Cross-cover is
+   * a person's decision on the board, where R-01/R-02 ask for it. With no supervisors and no
+   * supervisor posts it is always true, so the officer plans are unchanged.
+   */
+  static boolean sameRank(Employee employee, Unit unit) {
+    return employee.isSupervisor() == unit.isSupervision();
   }
 
   public record Template(UUID id, String code, LocalTime start, int minutes) {}
@@ -341,7 +363,7 @@ public final class PlanGenerator {
     employees.forEach(
         employee ->
             baseStaff.computeIfAbsent(employee.unitId(), key -> new ArrayList<>()).add(employee));
-    baseStaff.values().forEach(list -> list.sort(Comparator.comparing(Employee::seniority)));
+    baseStaff.values().forEach(list -> list.sort(Comparator.comparing(Employee::rankSeniority)));
     Map<String, Object> scorecard =
         scorecard(
             employees,
@@ -429,7 +451,7 @@ public final class PlanGenerator {
 
     Map<UUID, List<Employee>> baseStaff = new HashMap<>();
     employees.forEach(employee -> baseStaff.computeIfAbsent(employee.unitId(), k -> new ArrayList<>()).add(employee));
-    baseStaff.values().forEach(list -> list.sort(Comparator.comparing(Employee::seniority)));
+    baseStaff.values().forEach(list -> list.sort(Comparator.comparing(Employee::rankSeniority)));
     Map<UUID, String> blockOf = assignBlocks(units, baseStaff);
     // Allocation improvement: stagger phases inside each unit's block group, not across the whole
     // unit, so a day group always works the same number of days on each weekday. With option C the
@@ -437,7 +459,7 @@ public final class PlanGenerator {
     List<Employee> rephased = rephase(employees, blockOf, pattern8h);
     Map<UUID, List<Employee>> staff = new HashMap<>();
     rephased.forEach(employee -> staff.computeIfAbsent(employee.unitId(), k -> new ArrayList<>()).add(employee));
-    staff.values().forEach(list -> list.sort(Comparator.comparing(Employee::seniority)));
+    staff.values().forEach(list -> list.sort(Comparator.comparing(Employee::rankSeniority)));
 
     for (LocalDate date = FROM; !date.isAfter(TO); date = date.plusDays(1)) {
       for (Unit unit : units) {
@@ -519,6 +541,7 @@ public final class PlanGenerator {
         // shifts to a surplus. A Block rule still skips the day (and the scorecard shows it).
         for (Employee employee : staff.getOrDefault(unit.id(), List.of())) {
           if (employee.fte() < 1.0
+              || !sameRank(employee, unit)
               || assignedToday.contains(employee.id())
               || onLeave(employee.id(), date, leave)
               || !works(employee, date, pattern8h)) {
@@ -663,7 +686,7 @@ public final class PlanGenerator {
           (a, b) -> {
             int rankA = PreferenceTimes.rank(a.pref().timesOfDay());
             int rankB = PreferenceTimes.rank(b.pref().timesOfDay());
-            return rankA != rankB ? Integer.compare(rankA, rankB) : a.seniority().compareTo(b.seniority());
+            return rankA != rankB ? Integer.compare(rankA, rankB) : a.rankSeniority().compareTo(b.rankSeniority());
           });
       for (Employee employee : rest) {
         if (dayCount < dayNeed) {
@@ -689,6 +712,7 @@ public final class PlanGenerator {
     List<Employee> candidates = new ArrayList<>();
     for (Employee employee : employees) {
       if (employee.fte() < 1.0
+          || !sameRank(employee, unit)
           || assignedToday.contains(employee.id())
           || onLeave(employee.id(), date, leave)
           || !works(employee, date, pattern8h)) {
@@ -716,8 +740,8 @@ public final class PlanGenerator {
             }
             // Volunteers: most senior first. Everyone else: newest first (amendment 4).
             return volunteerA
-                ? a.seniority().compareTo(b.seniority())
-                : b.seniority().compareTo(a.seniority());
+                ? a.rankSeniority().compareTo(b.rankSeniority())
+                : b.rankSeniority().compareTo(a.rankSeniority());
           };
     } else {
       order =
@@ -727,7 +751,7 @@ public final class PlanGenerator {
             if (matchA != matchB) {
               return matchA ? -1 : 1;
             }
-            return a.seniority().compareTo(b.seniority());
+            return a.rankSeniority().compareTo(b.rankSeniority());
           };
     }
     candidates.sort(order);
@@ -936,7 +960,7 @@ public final class PlanGenerator {
     employees.stream()
         .filter(e -> e.fte() < 1.0)
         .forEach(e -> casuals.computeIfAbsent(e.unitId(), k -> new ArrayList<>()).add(e));
-    casuals.values().forEach(list -> list.sort(Comparator.comparing(Employee::seniority).reversed()));
+    casuals.values().forEach(list -> list.sort(Comparator.comparing(Employee::rankSeniority).reversed()));
     Map<String, int[]> coverage = new HashMap<>();
     Map<String, Set<UUID>> assigned = new HashMap<>();
     for (Assignment assignment : assignments) {
@@ -963,6 +987,7 @@ public final class PlanGenerator {
             Check chosenCheck = null;
             for (Employee candidate : casuals.getOrDefault(unit.id(), List.of())) {
               if (already.contains(candidate.id())
+                  || !sameRank(candidate, unit)
                   || onLeave(candidate.id(), date, leave)) {
                 continue;
               }
@@ -1081,6 +1106,7 @@ public final class PlanGenerator {
         List<Employee> candidates = new ArrayList<>();
         for (Employee candidate : employees) {
           if (candidate.unitId().equals(unit.id())
+              || !sameRank(candidate, unit)
               || candidate.fte() <= 0
               || working.contains(candidate.id() + "|" + date)
               || onLeave(candidate.id(), date, leave)
@@ -1207,7 +1233,7 @@ public final class PlanGenerator {
   static Comparator<Employee> crossUnitOrder(Map<UUID, double[]> hours, int period) {
     return Comparator.comparingDouble(
             (Employee e) -> hours.get(e.id())[period] / (e.fte() * 80.0))
-        .thenComparing(Employee::seniority, Comparator.reverseOrder())
+        .thenComparing(Employee::rankSeniority, Comparator.reverseOrder())
         .thenComparing(Employee::employeeNo);
   }
 
@@ -1276,11 +1302,12 @@ public final class PlanGenerator {
       order.sort(
           Comparator.comparingDouble(
                   (Employee e) -> hours.get(e.id())[period] - e.fte() * 80.0)
-              .thenComparing(Employee::seniority, Comparator.reverseOrder())
+              .thenComparing(Employee::rankSeniority, Comparator.reverseOrder())
               .thenComparing(Employee::employeeNo));
       for (Employee candidate : order) {
         Unit unit = unitsById.get(candidate.unitId());
         if (unit == null
+            || !sameRank(candidate, unit)
             || !availability.active(unit.id(), date)
             || working.contains(candidate.id() + "|" + date)
             || onLeave(candidate.id(), date, leave)) {
@@ -1382,7 +1409,7 @@ public final class PlanGenerator {
             .filter(employee -> employee.fte() >= 1.0)
             .sorted(
                 Comparator.comparing(Employee::unitCode)
-                    .thenComparing(Employee::seniority)
+                    .thenComparing(Employee::rankSeniority)
                     .thenComparing(Employee::employeeNo))
             .toList();
     int iterations = 0;
@@ -1403,6 +1430,7 @@ public final class PlanGenerator {
             Check chosenCheck = null;
             for (Employee candidate : pool) {
               if (candidate.unitId().equals(unit.id())
+                  || !sameRank(candidate, unit)
                   || availability.active(candidate.unitId(), date)
                   || assignedToday.contains(candidate.id())
                   || onLeave(candidate.id(), date, leave)) {
@@ -1629,7 +1657,185 @@ public final class PlanGenerator {
     return gaps;
   }
 
+  /**
+   * The scorecard (release v1.3: rank-aware). Every existing card is computed over the officers and
+   * the officer posts only, so the officer figures read exactly as before supervisors existed. The
+   * supervisors and the supervisor posts get their own {@code supervisors} card, present only when
+   * there is a supervisor or a supervisor post. {@code totals} counts everyone with the split:
+   * shifts and people by the person's rank, warnings by the post they were raised on (a warning
+   * carries the post, not the person's rank; the planner never cross-covers, so the two agree on a
+   * generated plan).
+   */
   private static Map<String, Object> scorecard(
+      List<Employee> employees,
+      List<Unit> units,
+      List<Assignment> assignments,
+      Map<UUID, List<Assignment>> byEmployee,
+      List<Gap> gaps,
+      List<Warning> warnings,
+      String pattern8h,
+      long startedNanos,
+      Map<UUID, List<ShiftFact>> facts,
+      Map<String, Template> templates,
+      Verifier verifier,
+      Map<UUID, String> blockOf,
+      Map<UUID, Set<LocalDate>> leave,
+      Availability availability) {
+    List<Employee> officers = employees.stream().filter(e -> !e.isSupervisor()).toList();
+    List<Employee> supervisors = employees.stream().filter(Employee::isSupervisor).toList();
+    List<Unit> lineUnits = units.stream().filter(u -> !u.isSupervision()).toList();
+    List<Unit> posts = units.stream().filter(Unit::isSupervision).toList();
+    Set<UUID> postIds = posts.stream().map(Unit::id).collect(Collectors.toSet());
+    Set<String> postCodes = posts.stream().map(Unit::code).collect(Collectors.toSet());
+    List<Assignment> lineShifts =
+        assignments.stream().filter(a -> !postIds.contains(a.unitId())).toList();
+    List<Assignment> postShifts =
+        assignments.stream().filter(a -> postIds.contains(a.unitId())).toList();
+    List<Gap> lineGaps = gaps.stream().filter(g -> !postIds.contains(g.unitId())).toList();
+    List<Gap> postGaps = gaps.stream().filter(g -> postIds.contains(g.unitId())).toList();
+    List<Warning> lineWarnings =
+        warnings.stream().filter(w -> !postCodes.contains(w.unitCode())).toList();
+    List<Warning> postWarnings =
+        warnings.stream().filter(w -> postCodes.contains(w.unitCode())).toList();
+
+    Map<String, Object> scorecard =
+        cards(
+            officers, lineUnits, lineShifts, byEmployee, lineGaps, lineWarnings, pattern8h,
+            startedNanos, facts, templates, verifier, blockOf, onlyFor(leave, officers),
+            availability);
+    if (!supervisors.isEmpty() || !posts.isEmpty()) {
+      scorecard.put(
+          "supervisors",
+          supervisorsCard(
+              supervisors, posts, postShifts, byEmployee, postGaps, postWarnings, facts,
+              templates, verifier, pattern8h, blockOf, onlyFor(leave, supervisors),
+              availability));
+    }
+    scorecard.put("totals", totalsCard(employees, assignments, lineWarnings, postWarnings));
+    return scorecard;
+  }
+
+  private static Map<UUID, Set<LocalDate>> onlyFor(
+      Map<UUID, Set<LocalDate>> leave, List<Employee> people) {
+    Set<UUID> ids = people.stream().map(Employee::id).collect(Collectors.toSet());
+    Map<UUID, Set<LocalDate>> result = new LinkedHashMap<>();
+    leave.forEach(
+        (id, days) -> {
+          if (ids.contains(id)) {
+            result.put(id, days);
+          }
+        });
+    return result;
+  }
+
+  /**
+   * The supervisor card: the same measures as the officer cards, over the supervisors and the
+   * supervisor posts only. Nights are banded by seniority inside the rank.
+   */
+  private static Map<String, Object> supervisorsCard(
+      List<Employee> supervisors,
+      List<Unit> posts,
+      List<Assignment> postShifts,
+      Map<UUID, List<Assignment>> byEmployee,
+      List<Gap> postGaps,
+      List<Warning> postWarnings,
+      Map<UUID, List<ShiftFact>> facts,
+      Map<String, Template> templates,
+      Verifier verifier,
+      String pattern8h,
+      Map<UUID, String> blockOf,
+      Map<UUID, Set<LocalDate>> leave,
+      Availability availability) {
+    long postDays = 0;
+    for (LocalDate date = FROM; !date.isAfter(TO); date = date.plusDays(1)) {
+      for (Unit post : posts) {
+        if (availability.active(post.id(), date)) {
+          postDays++;
+        }
+      }
+    }
+    long total = postDays * 3;
+    long covered = total - postGaps.size();
+    Map<String, Object> card = new LinkedHashMap<>();
+    card.put("supervisors", supervisors.size());
+    card.put("posts", posts.size());
+    card.put(
+        "coverage",
+        Map.of(
+            "coveredBlockDays", covered,
+            "shortBlockDays", postGaps.size(),
+            "totalBlockDays", total));
+    card.put("shifts", postShifts.size());
+    card.put("warnings", warningsCard(postWarnings));
+    card.put("preferences", preferencesCard(supervisors, byEmployee, templates));
+    card.put(
+        "nights",
+        nightsCard(
+            supervisors, posts, postShifts, byEmployee, facts, templates, verifier, pattern8h,
+            blockOf));
+    card.put("overtime", overtimeCard(supervisors, byEmployee));
+    card.put("fteBands", fteBandsCard(supervisors, byEmployee));
+    card.put("quarterHours", quarterHoursCard(supervisors, byEmployee));
+    card.put("absences", absencesCard(supervisors, leave, postShifts));
+    card.put(
+        "line",
+        "Supervisor posts covered "
+            + covered
+            + " of "
+            + total
+            + " block-days; "
+            + postGaps.size()
+            + " short.");
+    return card;
+  }
+
+  /** Everyone, with the officer and supervisor split. */
+  private static Map<String, Object> totalsCard(
+      List<Employee> employees,
+      List<Assignment> assignments,
+      List<Warning> lineWarnings,
+      List<Warning> postWarnings) {
+    Set<UUID> supervisorIds =
+        employees.stream().filter(Employee::isSupervisor).map(Employee::id)
+            .collect(Collectors.toSet());
+    int supervisorShifts = 0;
+    Set<UUID> officersPlaced = new LinkedHashSet<>();
+    Set<UUID> supervisorsPlaced = new LinkedHashSet<>();
+    for (Assignment assignment : assignments) {
+      if (supervisorIds.contains(assignment.employeeId())) {
+        supervisorShifts++;
+        supervisorsPlaced.add(assignment.employeeId());
+      } else {
+        officersPlaced.add(assignment.employeeId());
+      }
+    }
+    int officerShifts = assignments.size() - supervisorShifts;
+    Map<String, Object> totals = new LinkedHashMap<>();
+    totals.put("shifts", assignments.size());
+    totals.put("officerShifts", officerShifts);
+    totals.put("supervisorShifts", supervisorShifts);
+    totals.put("people", officersPlaced.size() + supervisorsPlaced.size());
+    totals.put("officers", officersPlaced.size());
+    totals.put("supervisors", supervisorsPlaced.size());
+    totals.put("warnings", lineWarnings.size() + postWarnings.size());
+    totals.put("officerPostWarnings", lineWarnings.size());
+    totals.put("supervisorPostWarnings", postWarnings.size());
+    totals.put("line", shiftsLine(officerShifts, supervisorShifts));
+    return totals;
+  }
+
+  /** "5,103 officer shifts" or "5,103 officer + 1,170 supervisor shifts". */
+  static String shiftsLine(int officerShifts, int supervisorShifts) {
+    java.text.NumberFormat format = java.text.NumberFormat.getIntegerInstance(java.util.Locale.CANADA);
+    return supervisorShifts == 0
+        ? format.format(officerShifts) + " officer shifts"
+        : format.format(officerShifts)
+            + " officer + "
+            + format.format(supervisorShifts)
+            + " supervisor shifts";
+  }
+
+  private static Map<String, Object> cards(
       List<Employee> employees,
       List<Unit> units,
       List<Assignment> assignments,
@@ -1883,7 +2089,7 @@ public final class PlanGenerator {
       String pattern8h,
       Map<UUID, String> blockOf) {
     List<Employee> sorted = new ArrayList<>(employees);
-    sorted.sort(Comparator.comparing(Employee::seniority));
+    sorted.sort(Comparator.comparing(Employee::rankSeniority));
     int third = Math.max(1, sorted.size() / 3);
     List<Map<String, Object>> bands = new ArrayList<>();
     long totalNights =
@@ -1950,7 +2156,7 @@ public final class PlanGenerator {
           Employee newer =
               members.stream()
                   .filter(other -> !other.id().equals(officer.id()))
-                  .filter(other -> other.seniority().isAfter(officer.seniority()))
+                  .filter(other -> other.rankSeniority().isAfter(officer.rankSeniority()))
                   .filter(other -> !working.contains(other.id()))
                   .filter(other -> works(other, checkDate, pattern8h))
                   .filter(other -> "NIGHT".equals(blockOf.getOrDefault(other.id(), "DAY")))

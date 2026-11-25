@@ -100,6 +100,29 @@ final class PlanInputs {
     // Every unit the generator plans, the same rows as the table below (a unit with no officers
     // is still planned: its minimums become gaps).
     officers.put("units", units.size());
+    // Release v1.3: the position dimension. The totals above count everyone the generator plans;
+    // byPosition splits them by rank, and the units by kind (a supervisor post is a unit of kind
+    // SUPERVISION). The two ranks are always listed, so the shape does not depend on the data.
+    List<Map<String, Object>> byPosition = new ArrayList<>();
+    for (ca.shiftcircle.domain.Position position : ca.shiftcircle.domain.Position.values()) {
+      List<PlanGenerator.Employee> members =
+          employees.stream().filter(employee -> employee.position() == position).toList();
+      Map<String, Object> row = new LinkedHashMap<>();
+      row.put("position", position.code());
+      row.put("supervisory", position.isSupervisory());
+      row.put("total", members.size());
+      row.put("fullTime", (int) members.stream().filter(e -> e.fte() >= 1.0).count());
+      row.put("partTime", (int) members.stream().filter(e -> e.fte() < 1.0).count());
+      row.put("fte", round1(members.stream().mapToDouble(PlanGenerator.Employee::fte).sum()));
+      byPosition.add(row);
+    }
+    officers.put("byPosition", byPosition);
+    int supervisors = (int) employees.stream().filter(PlanGenerator.Employee::isSupervisor).count();
+    int posts = (int) units.stream().filter(PlanGenerator.Unit::isSupervision).count();
+    officers.put("lineUnits", units.size() - posts);
+    officers.put("posts", posts);
+    officers.put(
+        "headline", headline(employees.size() - supervisors, supervisors, units.size() - posts, posts));
     inputs.put("officers", officers);
 
     // Unit x employment x pattern, in unit code order, then the groups in a fixed order.
@@ -111,12 +134,19 @@ final class PlanInputs {
       for (PlanGenerator.Employee employee : members) {
         String employment = employee.fte() >= 1.0 ? "FULL_TIME" : "PART_TIME";
         String pattern = patternKey(employee, pattern8h);
-        String key = (employment.equals("FULL_TIME") ? "0" : "1") + patternOrder(pattern) + pattern;
+        // A supervisor's group sorts after the officers' (only a mis-homed supervisor shares a
+        // unit with officers; the planner places neither across ranks).
+        String key =
+            (employee.isSupervisor() ? "S" : "")
+                + (employment.equals("FULL_TIME") ? "0" : "1")
+                + patternOrder(pattern)
+                + pattern;
         Map<String, Object> group =
             groups.computeIfAbsent(
                 key,
                 ignored -> {
                   Map<String, Object> row = new LinkedHashMap<>();
+                  row.put("position", employee.position().code());
                   row.put("employment", employment);
                   row.put("hours", employee.effectiveLength());
                   row.put("pattern", pattern);
@@ -142,6 +172,8 @@ final class PlanInputs {
       row.put("code", unit.code());
       row.put("name", unit.name());
       row.put("allows12h", unit.allows12h());
+      row.put("kind", unit.kind());
+      row.put("supervision", unit.isSupervision());
       row.put("officers", members.size());
       row.put("fullTime", (int) members.stream().filter(e -> e.fte() >= 1.0).count());
       row.put("partTime", (int) members.stream().filter(e -> e.fte() < 1.0).count());
@@ -282,6 +314,23 @@ final class PlanInputs {
             + " Planned leave days are never rostered. Anything still short is a gap for a"
             + " supervisor.");
     return List.copyOf(steps);
+  }
+
+  /**
+   * "150 officers in 6 units", or with supervisors "150 officers + 12 supervisors in 6 units + 2
+   * supervisor posts" (release v1.3).
+   */
+  static String headline(int officers, int supervisors, int lineUnits, int posts) {
+    StringBuilder line = new StringBuilder();
+    line.append(officers).append(officers == 1 ? " officer" : " officers");
+    if (supervisors > 0) {
+      line.append(" + ").append(supervisors).append(supervisors == 1 ? " supervisor" : " supervisors");
+    }
+    line.append(" in ").append(lineUnits).append(lineUnits == 1 ? " unit" : " units");
+    if (posts > 0) {
+      line.append(" + ").append(posts).append(posts == 1 ? " supervisor post" : " supervisor posts");
+    }
+    return line.toString();
   }
 
   /** The rotation group an officer is planned in, from the same fields the generator reads. */

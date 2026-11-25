@@ -295,6 +295,47 @@ class UnitApiTest {
     assertThat(shift.get("reason")).isEqualTo("Renovation");
   }
 
+  /**
+   * Release v1.3 S3: a supervisor post cannot be closed (the closed-unit relief would move its
+   * supervisors onto officer posts); the preview and the closure answer 409 with the plain words,
+   * and nothing is written. Its minimum is changed instead.
+   */
+  @Test
+  void aSupervisorPostCannotBeClosed() throws Exception {
+    UUID post = UUID.fromString("11111111-1111-1111-1111-0000000000c3");
+    jdbc.update(
+        "INSERT INTO unit (id, code, name, kind, allows_12h, allows_16h)"
+            + " VALUES (?, 'SUP-T', 'Supervision · Test', 'SUPERVISION', true, false)",
+        post);
+    try {
+      HttpResponse<String> preview =
+          post("/api/v1/planner/units/" + post + "/closures/preview",
+              "{\"closedFrom\":\"2027-02-15\"}", planner);
+      assertThat(preview.statusCode()).as(preview.body()).isEqualTo(409);
+      assertThat(preview.body())
+          .contains("Supervisor posts can't be closed; change the minimum instead");
+      HttpResponse<String> added =
+          post("/api/v1/planner/units/" + post + "/closures",
+              "{\"closedFrom\":\"2027-02-15\",\"reason\":\"Renovation\"}", planner);
+      assertThat(added.statusCode()).as(added.body()).isEqualTo(409);
+      assertThat(added.body())
+          .contains("Supervisor posts can't be closed; change the minimum instead");
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT count(*) FROM unit_availability WHERE unit_id = ?", Integer.class, post))
+          .isZero();
+      // An officer unit still closes as before.
+      assertThat(
+              post("/api/v1/planner/units/" + unitId("C") + "/closures",
+                      "{\"closedFrom\":\"2027-02-15\",\"reason\":\"Renovation\"}", planner)
+                  .statusCode())
+          .isEqualTo(201);
+    } finally {
+      jdbc.update("DELETE FROM unit_availability WHERE unit_id = ?", post);
+      jdbc.update("DELETE FROM unit WHERE id = ?", post);
+    }
+  }
+
   @Test
   void supervisorsCannotReadOrChangeUnits() throws Exception {
     assertThat(get("/api/v1/planner/units", supervisor).statusCode()).isEqualTo(403);
