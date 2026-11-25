@@ -47,12 +47,21 @@ export function neededWords(inputs: PlanInputs): string | null {
 export function inputsHeadline(inputs: PlanInputs): string {
   const { officers, window } = inputs;
   const needed = neededWords(inputs);
+  // PR-N: a full-time-only draft plans with the full-time officers alone; say who is left out.
+  const staffTypes = inputs.options.staffTypes;
+  const fullTimeOnly =
+    Array.isArray(staffTypes) && !staffTypes.includes('PART_TIME') && officers.partTime > 0;
+  const planned = fullTimeOnly ? officers.fullTime : officers.total;
+  const plannedFte =
+    fullTimeOnly && officers.partTimeFte !== undefined ? officers.fte - officers.partTimeFte : officers.fte;
   const parts = [
-    `Planning ${count(officers.total)} ${officers.total === 1 ? 'officer' : 'officers'} in ${officers.units} ${officers.units === 1 ? 'unit' : 'units'}`,
-    officers.partTime > 0
-      ? `${count(officers.fullTime)} full-time, ${count(officers.partTime)} part-time or casual`
-      : `all ${count(officers.fullTime)} full-time`,
-    needed ? `${fte(officers.fte)} FTE against ${needed}` : `${fte(officers.fte)} FTE`,
+    `Planning ${count(planned)} ${planned === 1 ? 'officer' : 'officers'} in ${officers.units} ${officers.units === 1 ? 'unit' : 'units'}`,
+    fullTimeOnly
+      ? `full-time only, ${count(officers.partTime)} part-time or casual left out`
+      : officers.partTime > 0
+        ? `${count(officers.fullTime)} full-time, ${count(officers.partTime)} part-time or casual`
+        : `all ${count(officers.fullTime)} full-time`,
+    needed ? `${fte(plannedFte)} FTE against ${needed}` : `${fte(plannedFte)} FTE`,
     inputWindowWords(window.from, window.to),
   ];
   return parts.join(' · ');
@@ -71,11 +80,12 @@ const OPTION_LABELS: Record<string, string> = {
   pattern8h: '8 h pattern',
   staffTypes: 'Staff to include',
   partTimeFill: 'Part-time fill',
-  crossUnitFill: 'Cross-unit fill',
+  crossUnitFill: 'Cover gaps from other units',
 };
 
 const VALUE_WORDS: Record<string, Record<string, string>> = {
-  partTimeFill: { AFTER_FULL_TIME: 'after full-time, into what is still short', UP_TO_FTE: 'up to each officer’s FTE' },
+  // The same words as the Generate options (PR-N).
+  partTimeFill: { AFTER_FULL_TIME: 'fill gaps only', UP_TO_FTE: 'up to each officer’s FTE' },
   crossUnitFill: { OFF: 'off', ON: 'on' },
 };
 
@@ -123,9 +133,26 @@ export function optionWords(options: PlanInputs['options'], fromDraft: boolean):
   });
 }
 
-/** "Seed 20261001 · 8 h officers on their own pattern · rule set v3". */
+/** The Generate options at the value that makes the plan as before (PR-N). */
+const DEFAULT_OPTION_VALUES: Record<string, string> = {
+  staffTypes: 'FULL_TIME,PART_TIME',
+  partTimeFill: 'AFTER_FULL_TIME',
+  crossUnitFill: 'OFF',
+};
+
+/**
+ * "Seed 20261001 · 8 h officers on their own pattern · rule set v3". A
+ * tailoring option at its default is left out of this line (the detail still
+ * lists it); a changed one is named, e.g. "cover gaps from other units: on".
+ */
 export function optionsLine(inputs: PlanInputs, fromDraft = true): string {
-  return [...optionWords(inputs.options, fromDraft).map((option) => option.phrase), `rule set v${inputs.rules.ruleSetVersion}`].join(' · ');
+  const shown = optionWords(inputs.options, fromDraft).filter((option) => {
+    const preset = DEFAULT_OPTION_VALUES[option.key];
+    if (preset === undefined) return true;
+    const raw = inputs.options[option.key];
+    return String(Array.isArray(raw) ? raw.join(',') : raw) !== preset;
+  });
+  return [...shown.map((option) => option.phrase), `rule set v${inputs.rules.ruleSetVersion}`].join(' · ');
 }
 
 export const PATTERN_WORDS: Record<string, string> = {

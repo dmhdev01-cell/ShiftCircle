@@ -24,7 +24,19 @@ public final class PlannerViews {
       int generatedMs,
       Map<String, Object> scorecard,
       int handEdits,
-      List<UUID> editedAssignmentIds) {}
+      List<UUID> editedAssignmentIds,
+      PlanOptions options) {}
+
+  /**
+   * What a draft was made with (PR-N). Names are stable for the Plan inputs panel (PR-M):
+   * {@code staffTypes} FULL_TIME and PART_TIME (FTE below 1.0: the part-time and casual pool);
+   * {@code partTimeFill} AFTER_FULL_TIME (today) or UP_TO_FTE; {@code crossUnitFill} OFF (today)
+   * or ON.
+   */
+  public record PlanOptions(List<String> staffTypes, String partTimeFill, String crossUnitFill) {
+    public static final PlanOptions DEFAULT =
+        new PlanOptions(List.of("FULL_TIME", "PART_TIME"), "AFTER_FULL_TIME", "OFF");
+  }
 
   public record LastCommitted(UUID draftId, String at, String by, int shiftsWritten) {}
 
@@ -111,7 +123,17 @@ public final class PlannerViews {
    */
   public record LeaveItem(String type, String absenceType) {}
 
-  public record DraftCreation(long seed, String pattern8h) {}
+  /** Omitted options take their defaults, which reproduce the plan made before PR-N exactly. */
+  public record DraftCreation(
+      long seed,
+      String pattern8h,
+      List<String> staffTypes,
+      String partTimeFill,
+      String crossUnitFill) {
+    public DraftCreation(long seed, String pattern8h) {
+      this(seed, pattern8h, null, null, null);
+    }
+  }
 
   public record CommitInput(Integer acceptedWarningCount) {}
 

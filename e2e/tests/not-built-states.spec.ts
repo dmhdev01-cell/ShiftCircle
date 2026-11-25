@@ -5,8 +5,9 @@ import { expectAccessible, selectUnit, signIn } from './support';
 
 /**
  * M1 and M3 from the functional gap analysis: two links led to something the
- * prototype does not have. Each now says so plainly instead of failing (M1, a
- * 404 from POST /proposals) or quietly showing something else (M3, another
+ * prototype does not have. Each now says so plainly instead of failing (M1: the
+ * Propose card sends nothing until v1.3 P3, although POST /proposals exists now)
+ * or quietly showing something else (M3, another
  * open shift's ranked list).
  */
 

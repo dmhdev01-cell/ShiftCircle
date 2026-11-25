@@ -38,11 +38,16 @@ function ShiftCircleMark() {
 }
 
 const REGINA = 'America/Regina';
+/** The api's BusinessClock: the demo day at noon in Regina. */
+const BUSINESS_CLOCK_TIME = '12:00';
 
 /**
  * The date comes from the api when it has one, so the demo reads 19 Nov and
- * not the day the build happens to run on. The time is the browser's clock in
- * Regina time.
+ * not the day the build happens to run on. With the api's day the time is the
+ * business clock's: the demo day at noon, Regina time (BusinessClock.java), the
+ * same "now" the shift dialog says ("it is now Thu 19 Nov 2026, 12:00"). The
+ * wall clock beside the demo day said 19:34 over a dialog saying 12:00 (v1.2
+ * walk D3). Without the api's day it is the browser's clock in Regina time.
  */
 function formatClock(day: string | undefined, now: Date): string {
   const date = day ?? now.toISOString().slice(0, 10);
@@ -54,13 +59,17 @@ function formatClock(day: string | undefined, now: Date): string {
   const dayOfMonth = new Intl.DateTimeFormat('en-CA', { day: '2-digit', timeZone: 'UTC' }).format(parsed);
   const month = new Intl.DateTimeFormat('en-CA', { month: 'short', timeZone: 'UTC' }).format(parsed);
   const year = new Intl.DateTimeFormat('en-CA', { year: 'numeric', timeZone: 'UTC' }).format(parsed);
-  // The time is the browser's clock, read in the centre's time zone.
-  const time = new Intl.DateTimeFormat('en-CA', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: REGINA,
-  }).format(now);
+  // The business clock is frozen at noon on the demo day; otherwise the
+  // browser's clock, read in the centre's time zone.
+  const time =
+    day !== undefined
+      ? BUSINESS_CLOCK_TIME
+      : new Intl.DateTimeFormat('en-CA', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+          timeZone: REGINA,
+        }).format(now);
   return `${weekday} ${dayOfMonth} ${month} ${year} · ${time}`;
 }
 

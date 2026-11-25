@@ -15,7 +15,7 @@ function unit(overrides: Partial<StaffingUnitRow> & { unitId: string }): Staffin
     allocated: 25,
     filled: 25,
     needed: 25,
-    short: 0,
+    shortfall: 0,
     breakdown: { posts12Day: 5, posts12Night: 4, posts8: 1, rawNeeded: 19.4, leaveAllowance: 0.2, needed: 25 },
     ...overrides,
   };
@@ -27,15 +27,15 @@ function period(units: StaffingUnitRow[], from = '2027-01-04', to = '2027-04-11'
       allocated: sum.allocated + row.allocated,
       filled: sum.filled + row.filled,
       needed: sum.needed + row.needed,
-      short: sum.short + row.short,
+      shortfall: sum.shortfall + row.shortfall,
     }),
-    { allocated: 0, filled: 0, needed: 0, short: 0 },
+    { allocated: 0, filled: 0, needed: 0, shortfall: 0 },
   );
   return { from, to, units, totals };
 }
 
 function report(periods: StaffingPeriod[], leaveAllowance = 0.2): StaffingReport {
-  return { leaveAllowance, periods, note: 'Officers are unit-specific.' };
+  return { leaveAllowance, periods, note: 'Officers are unit-specific.', truncated: false };
 }
 
 function renderPanel(value: StaffingReport, draftGaps: number | null) {
@@ -56,7 +56,7 @@ describe('the staffing floor wording', () => {
     expect(tile.tone).toBe('info');
     expect(tile.pill).toEqual({ tone: 'info', text: 'Meets the floor' });
 
-    const short = report([period([unit({ unitId: 'unit-c', short: 2, needed: 27 })])]);
+    const short = report([period([unit({ unitId: 'unit-c', shortfall: 2, needed: 27 })])]);
     expect(staffingTile(short).pill).toEqual({ tone: 'warn', text: 'Short' });
     expect(staffingTile(short).note).toBe('25 on staff · short 2');
     expect(staffingTile(short).tone).toBe('warn');
@@ -111,8 +111,8 @@ describe('the staffing floor wording', () => {
   it('says at least how many more, per unit, and adds the draft gaps', () => {
     const short = report([
       period([
-        unit({ unitId: 'unit-c', short: 2, needed: 27 }),
-        unit({ unitId: 'unit-a', short: 1, needed: 26, unitName: 'Escort & transport', unitCode: 'ESC' }),
+        unit({ unitId: 'unit-c', shortfall: 2, needed: 27 }),
+        unit({ unitId: 'unit-a', shortfall: 1, needed: 26, unitName: 'Escort & transport', unitCode: 'ESC' }),
       ]),
     ]);
     renderPanel(short, 9);

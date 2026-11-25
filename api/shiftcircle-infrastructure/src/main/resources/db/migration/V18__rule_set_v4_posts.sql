@@ -11,7 +11,7 @@
 -- edit uses maker/checker. There are no supervisors and no supervisor posts yet, so neither rule can fire
 -- on the demo data: every dataset checksum, plan fingerprint and payroll golden is unchanged.
 --
--- The version number follows the merge order, after the positions migration (S1).
+-- The version number follows the merge order: V18, after the proposals migration (V17, P1).
 
 ALTER TABLE rule_table DROP CONSTRAINT rule_table_code_check;
 ALTER TABLE rule_table ADD CONSTRAINT rule_table_code_check
@@ -26,18 +26,18 @@ INSERT INTO rule_table (code, name, template_ref, column_schema) VALUES
 
 -- The base is whichever version is published now (v3 on every database this release meets), not a
 -- hard-coded number: exactly one version must be published, or the migration stops.
-CREATE TEMPORARY TABLE v17_base AS
+CREATE TEMPORARY TABLE v18_base AS
     SELECT id, version FROM rule_set_version WHERE status = 'PUBLISHED';
 
 DO $$
 BEGIN
-    IF (SELECT count(*) FROM v17_base) <> 1 THEN
-        RAISE EXCEPTION 'V17 needs exactly one published rule-set version to build v4 on';
+    IF (SELECT count(*) FROM v18_base) <> 1 THEN
+        RAISE EXCEPTION 'V18 needs exactly one published rule-set version to build v4 on';
     END IF;
 END;
 $$;
 
-UPDATE rule_set_version SET status = 'SUPERSEDED' WHERE id = (SELECT id FROM v17_base);
+UPDATE rule_set_version SET status = 'SUPERSEDED' WHERE id = (SELECT id FROM v18_base);
 
 INSERT INTO rule_set_version
     (id, version, status, based_on_version, effective_from, change_reason, published_at)
@@ -46,7 +46,7 @@ SELECT '00000000-0000-0000-0000-000000000004',
        DATE '2026-11-24',
        'Who can work a post: supervisor posts need a supervisor (owner item 17, release v1.3)',
        TIMESTAMPTZ '2026-11-24 00:00:00+00'
-FROM v17_base b;
+FROM v18_base b;
 
 INSERT INTO rule_row
     (rule_set_version_id, rule_table_id, code, enabled, params, severity, override_policy,
@@ -54,7 +54,7 @@ INSERT INTO rule_row
 SELECT '00000000-0000-0000-0000-000000000004', rule_table_id, code, enabled, params, severity,
        override_policy, message, source, is_placeholder, sort_order
 FROM rule_row
-WHERE rule_set_version_id = (SELECT id FROM v17_base);
+WHERE rule_set_version_id = (SELECT id FROM v18_base);
 
 INSERT INTO rule_row
     (rule_set_version_id, rule_table_id, code, params, severity, override_policy, message, source,
@@ -75,4 +75,4 @@ FROM (VALUES
 ) AS v (code, params, severity, override_policy, message, sort_order)
 JOIN rule_table t ON t.code = 'POSTS';
 
-DROP TABLE v17_base;
+DROP TABLE v18_base;
