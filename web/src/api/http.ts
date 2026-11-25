@@ -8,6 +8,10 @@ import type {
   MyOffer,
   MyProposal,
   MySchedulePayload,
+  ProposalDecisionInput,
+  ProposalDetail,
+  ProposalInboxCard,
+  ProposalInboxQuery,
   ProposalItemInput,
   ProposalPreview,
   OvertimeReport,
@@ -530,6 +534,35 @@ export function createHttpApi(): ShiftCircleApi {
       return request<MyProposal>(`/proposals/${proposalId}/withdraw`, {
         method: 'POST',
         headers: { 'If-Match': `"${version}"` },
+      });
+    },
+
+    getProposalInbox(query: ProposalInboxQuery): Promise<ProposalInboxCard[]> {
+      const params = new URLSearchParams();
+      if (query.status) params.set('status', query.status);
+      if (query.unitId) params.set('unitId', query.unitId);
+      const search = params.toString();
+      return request<ProposalInboxCard[]>(`/proposals${search ? `?${search}` : ''}`);
+    },
+
+    async getProposalCount(): Promise<number> {
+      const body = await request<{ count: number }>('/proposals/count?status=WAITING');
+      return body.count;
+    },
+
+    getProposal(proposalId: string): Promise<ProposalDetail> {
+      return request<ProposalDetail>(`/proposals/${encodeURIComponent(proposalId)}`);
+    },
+
+    decideProposal(
+      proposalId: string,
+      version: number,
+      items: ProposalDecisionInput[],
+    ): Promise<ProposalDetail> {
+      return request<ProposalDetail>(`/proposals/${encodeURIComponent(proposalId)}/decision`, {
+        method: 'POST',
+        headers: { 'If-Match': `"${version}"` },
+        body: JSON.stringify({ items }),
       });
     },
 

@@ -72,7 +72,7 @@ After sending, the card says "Sent to your supervisor. You'll see the answer und
 
 **Withdraw** a proposal while every shift in it is still waiting: press **Withdraw**, then **Withdraw proposal** to confirm. Once a supervisor has answered part of it, you can't withdraw the rest here; ask your supervisor instead.
 
-Only a supervisor with that unit, or the planner, can approve an extra shift, and an approved shift counts toward your pay-period hours like an accepted overtime offer. *In this release the supervisors' proposals inbox screen is still being built (the API behind it is ready), so in the demo a sent proposal normally stays Waiting until you withdraw it or the shift starts.*
+Only a supervisor with that unit, or the planner, can approve an extra shift, and an approved shift counts toward your pay-period hours like an accepted overtime offer. Your supervisor (or the planner) decides each shift on their **Proposals** screen, where the rules are checked again; under *My proposals* you then see Approved or Declined with their comment, and an approved shift appears on your schedule.
 
 ![After sending: the Propose shifts card says the proposal was sent, and My proposals lists two waiting proposals, one with its note, each with Withdraw](img/officer-my-proposals.png)
 

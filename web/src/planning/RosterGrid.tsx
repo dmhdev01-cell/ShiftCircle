@@ -125,6 +125,7 @@ function CellChips({
               offer={item.offer ?? false}
               proposed={item.proposed ?? false}
               edited={item.edited ?? false}
+              fromProposal={item.fromProposal ?? false}
               compact={compact}
               onClick={onPick ? () => onPick(item) : undefined}
               context={`for ${officerName} on ${date}`}

@@ -14,7 +14,7 @@ interface Landing {
   user: string;
   topBar: string;
   heading: string | RegExp;
-  nav: string[];
+  nav: (string | RegExp)[];
 }
 
 // docs/ui/build-notes.md §2.1 destinations and shell/roles.ts nav, as the
@@ -27,13 +27,15 @@ const LANDINGS: Landing[] = [
     user: 'M. Ellis',
     topBar: 'Supervisor · M. Ellis',
     heading: 'Planning board',
-    nav: ['Planning board', 'Overtime', 'Reports', 'Rules', 'Audit log', 'Wall display', 'Employee view', 'Time & attendance', 'About & version'],
+    // v1.3 P4: "Proposals (n)", the count in text, under Overtime.
+    nav: ['Planning board', 'Overtime', /^Proposals( \(\d+\))?$/, 'Reports', 'Rules', 'Audit log', 'Wall display', 'Employee view', 'Time & attendance', 'About & version'],
   },
   {
     user: 'J. Chen',
     topBar: 'Supervisor · J. Chen',
     heading: 'Planning board',
-    nav: ['Planning board', 'Overtime', 'Reports', 'Rules', 'Audit log', 'Wall display', 'Employee view', 'Time & attendance', 'About & version'],
+    // v1.3 P4: "Proposals (n)", the count in text, under Overtime.
+    nav: ['Planning board', 'Overtime', /^Proposals( \(\d+\))?$/, 'Reports', 'Rules', 'Audit log', 'Wall display', 'Employee view', 'Time & attendance', 'About & version'],
   },
   {
     user: 'T. Nakamura',

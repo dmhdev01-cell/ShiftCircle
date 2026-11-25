@@ -38,7 +38,7 @@ describe('navFor', () => {
   });
 
   it('hides Reports from the planner, whom the api answers 403', () => {
-    expect(labels('PLANNER', user(['PLANNER']))).toEqual(['Quarter plan', 'Preferences', 'Units', 'Planning board']);
+    expect(labels('PLANNER', user(['PLANNER']))).toEqual(['Quarter plan', 'Proposals', 'Preferences', 'Units', 'Planning board']);
     // The fixtures role switch acts as the role alone, with the same answer.
     expect(labels('PLANNER', null)).not.toContain('Reports');
   });

@@ -127,7 +127,7 @@ describe('AppShell', () => {
     expect(screen.queryByText('Not built yet')).not.toBeInTheDocument();
   });
 
-  it.each(['/me/hours', '/proposals', '/rules/7/review'])(
+  it.each(['/me/hours', '/rules/7/review'])(
     'keeps the planned screen at %s reachable, with the not-built page',
     async (path) => {
       renderShell(path);

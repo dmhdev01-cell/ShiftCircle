@@ -72,13 +72,16 @@ public class ScheduleQuery {
       @JsonInclude(JsonInclude.Include.NON_NULL) Boolean actualRecorded,
       @JsonInclude(JsonInclude.Include.NON_NULL) Boolean absenceRecorded,
       @JsonInclude(JsonInclude.Include.NON_NULL) Boolean fillsOpenShift,
-      @JsonInclude(JsonInclude.Include.NON_NULL) Boolean payPeriodLocked) {
+      @JsonInclude(JsonInclude.Include.NON_NULL) Boolean payPeriodLocked,
+      // v1.3 P4: true when an approved shift proposal created the shift (source PROPOSAL), for the
+      // board chip's "from a proposal" tooltip. Left out otherwise, so other payloads are unchanged.
+      @JsonInclude(JsonInclude.Include.NON_NULL) Boolean fromProposal) {
 
     public ShiftItem(
         String type, UUID assignmentId, String shiftTemplate, String startAt, String endAt,
         String kind, boolean worked, int version, boolean edited) {
       this(type, assignmentId, shiftTemplate, startAt, endAt, kind, worked, version, edited,
-          null, null, null, null);
+          null, null, null, null, null);
     }
   }
 
@@ -166,7 +169,7 @@ public class ScheduleQuery {
     List<Map<String, Object>> assignments =
         jdbc.queryForList(
             "SELECT s.id, s.employee_id, e.first_name, e.last_name, t.code AS template_code,"
-                + " s.start_at, s.end_at, s.work_date, s.kind, s.version,"
+                + " s.start_at, s.end_at, s.work_date, s.kind, s.version, s.source,"
                 + " EXISTS (SELECT 1 FROM time_entry te WHERE te.shift_assignment_id = s.id"
                 + "   AND te.absence_type IS NULL) AS worked,"
                 // The same checks AssignmentService makes before a move or cancel.
@@ -285,7 +288,8 @@ public class ScheduleQuery {
                         Boolean.TRUE.equals(shift.get("actual_recorded")),
                         Boolean.TRUE.equals(shift.get("absence_recorded")),
                         Boolean.TRUE.equals(shift.get("fills_open_shift")),
-                        Boolean.TRUE.equals(shift.get("pay_period_locked"))));
+                        Boolean.TRUE.equals(shift.get("pay_period_locked")),
+                        "PROPOSAL".equals(shift.get("source")) ? Boolean.TRUE : null));
           }
           List<DayCell> cells = new ArrayList<>();
           itemsByDay.forEach((date, items) -> cells.add(new DayCell(date, items)));

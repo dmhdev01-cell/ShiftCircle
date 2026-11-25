@@ -69,6 +69,8 @@ test.describe('the quarter plan', () => {
     const nav = page.getByRole('navigation', { name: 'Main' }).getByRole('link');
     await expect(nav).toHaveText([
       'Quarter plan',
+      // v1.3 P4: the planner is the fallback decider of shift proposals.
+      /^Proposals( \(\d+\))?$/,
       'Preferences',
       'Units',
       'Planning board',

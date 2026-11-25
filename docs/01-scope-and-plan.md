@@ -4,7 +4,7 @@
 
 > **Where the build differs from this plan**
 > - **Built:** F1, F2, F3, F5, F7, F8, F10 and F11 (Must, plus the wall display and audit viewer). Added after this plan: the **quarter planner** with draft edits (ADR-026, ADR-030), D12/N12 crews and datasets 120 and 150 (ADR-027, ADR-028), dated unit closures and staffing (release 3).
-> - **Partly built:** F9, the employee shift planner. *Propose shifts* checks one shift against the rules; **sending a proposal and the supervisor's inbox are not built** (`10-testing.md` §8).
+> - **Partly built:** F9, the employee shift planner. *Propose shifts* checks the drafts against the rules together, the officer sends them with a note, and a supervisor in scope or the planner approves or declines each shift on the **Proposals** inbox (v1.3 P1–P4); there is no sandbox copy of the roster (`10-testing.md` §8).
 > - **Future work, as planned:** F4 trades, F6 notifications, F12 drag and drop, F13.
 > - **Changed:** the 16 h shift is **retired as a template** (ADR-029). A "16 h shift" is a 12 h shift plus an extension of about 4 h, worked as overtime. §8 and the rotations row in §13 below show the original defaults, not what the demo seeds; the 100-officer demo has no 16 h rows.
 > - **The seven-day plan (§9) is superseded** by `process/HANDOFF.md` §6 and what was built; see [release notes](process/release-notes.md).

@@ -44,6 +44,8 @@ interface ShiftChipProps {
   proposed?: boolean;
   /** Hand-edited in the draft (release 7). */
   edited?: boolean;
+  /** An approved shift proposal created it (v1.3 P4): said in the tooltip and the name. */
+  fromProposal?: boolean;
   /** The smaller chip for the month calendar. */
   compact?: boolean;
   /** Makes the chip a button, so a shift can be picked. */
@@ -65,6 +67,7 @@ export function ShiftChip({
   offer = false,
   proposed = false,
   edited = false,
+  fromProposal = false,
   compact = false,
   onClick,
   context,
@@ -91,14 +94,15 @@ export function ShiftChip({
 
   const times = formatShiftTimes(template);
   const what = shiftTemplates[template]?.label ?? template;
+  const origin = fromProposal ? ' · from an approved proposal' : '';
 
   return (
     <Box
       component={onClick ? 'button' : 'span'}
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      aria-label={context ? `${label} ${context}` : undefined}
-      title={`${what} · ${times}`}
+      aria-label={context ? `${label} ${context}${origin}` : undefined}
+      title={`${what} · ${times}${origin}`}
       sx={{
         ...chipBox(style, compact),
         ...(onClick
