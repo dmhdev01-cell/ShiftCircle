@@ -34,10 +34,10 @@ import tools.jackson.databind.ObjectMapper;
  * Release v1.3 S2 (review should 2, security L3): who can work a post runs in the planner, not only
  * on the board. The datasets have no supervisor post yet, so this class adds one ("SUP-T", one
  * supervisor per block) and closes Unit C for the quarter: Unit C's officers then form the relief
- * pool, the only path that offers an officer another unit. Without the post check the planner would
- * put them on the supervisor post; with it, only the officer who holds Acting supervisor is placed
- * there (a warning), and the rest of the post is a gap. The planner's draft edit and its commit
- * refuse an officer on the post with R-01.
+ * pool, the only path that offers an officer another unit. Since S3 the planner never cross-covers:
+ * the relief pool is filtered to the post's rank, so no officer is placed on the post, not even the
+ * one who holds Acting supervisor (R-01 would only warn for them), and the whole post is a gap. The
+ * planner's draft edit and its commit refuse an officer on the post with R-01.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @SpringBootTest(
@@ -114,17 +114,17 @@ class PlannerPostEligibilityApiTest {
             draft,
             POST);
     assertThat(onPost)
-        .as("R-01 blocks every officer but the acting one from the supervisor post")
-        .isNotEmpty()
-        .allSatisfy(id -> assertThat(id).isEqualTo(acting));
+        .as("the planner never cross-covers (S3): not even the acting officer is placed")
+        .isEmpty();
+    long days = java.time.temporal.ChronoUnit.DAYS.between(PlanGenerator.FROM, PlanGenerator.TO) + 1;
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM plan_draft_gap WHERE draft_id = ? AND unit_id = ?",
                 Integer.class,
                 draft,
                 POST))
-        .as("what the acting officer cannot cover stays a gap")
-        .isPositive();
+        .as("with no supervisor in the data, every block-day of the post is a gap")
+        .isEqualTo((int) days * 3);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM plan_draft_assignment WHERE draft_id = ? AND unit_id <> ?"
