@@ -45,6 +45,9 @@ const STACK_SPECS = [
   // v1.3 P4: approves a proposal into a shift for Tara, whom parallel specs
   // use; it cleans up after itself, but must not run beside them.
   /\/proposals-inbox\.spec\.ts$/,
+  // v1.3 P5: walks demo-script §8 on the planted proposals; it approves
+  // shifts, so it resets Dataset 100 before and after itself.
+  /\/proposals-demo\.spec\.ts$/,
   /\/reset-datasets\.spec\.ts$/,
   /\/reset\.spec\.ts$/,
   /\/unit-closure\.spec\.ts$/,

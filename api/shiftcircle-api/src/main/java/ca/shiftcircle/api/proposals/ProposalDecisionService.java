@@ -857,6 +857,18 @@ public class ProposalDecisionService {
         entry.put("otOrderSize", p.order().size());
         entry.put("outOfOrder", p.order().outOfOrder());
       }
+      if (p.openShiftId() != null) {
+        // The match as it is now (P5 carry-over): the detail's offer count can be stale by the
+        // time of a refusal, and "approving withdraws N offers" must say the current N.
+        entry.put("openShiftId", p.openShiftId().toString());
+        Integer offers =
+            jdbc.queryForObject(
+                "SELECT count(*) FROM overtime_offer WHERE open_shift_id = ?"
+                    + " AND status IN ('OFFERED', 'ACCEPTED')",
+                Integer.class,
+                p.openShiftId());
+        entry.put("liveOffers", offers == null ? 0 : offers);
+      }
       items.add(entry);
     }
     Map<String, Object> extra = new LinkedHashMap<>();

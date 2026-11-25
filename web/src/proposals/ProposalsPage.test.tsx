@@ -395,6 +395,54 @@ describe('the Proposals inbox (v1.3 P4)', () => {
     expect(within(saturday).getByRole('checkbox', { name: /acknowledge the warning \(U-14\)/ })).toBeInTheDocument();
   });
 
+  it('drops the earlier refusal\'s results when a 409 reloads the proposal (P5 carry-over)', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, 'decideProposal')
+      .mockRejectedValueOnce(
+        new ApiError('Warnings need acknowledgement', 422, {
+          type: 'https://shiftcircle.local/problems/warnings-need-acknowledgement',
+          title: 'Warnings need acknowledgement',
+          status: 422,
+          items: [
+            {
+              id: 'inbox-tara-1',
+              unit: 'B',
+              shiftTemplate: 'D8',
+              startAt: '2026-11-21T07:00:00-06:00',
+              outcome: 'WARN',
+              warnCodes: ['U-14'],
+              ruleResults: [
+                { ruleCode: 'U-14', ruleTable: 'HOURS', outcome: 'WARN', overridePolicy: 'ACKNOWLEDGE', message: 'Week over 48 h.' },
+              ],
+            },
+          ],
+        }),
+      )
+      .mockRejectedValueOnce(new ApiError('This proposal changed since you read it.', 412));
+    renderInbox();
+    const saturday = await shiftRow(SAT_21);
+    await choose(user, saturday, 'Approve');
+    await user.click(within(saturday).getByRole('checkbox', { name: /outside the overtime order/ }));
+    const evening = await shiftRow(SAT_28);
+    await choose(user, evening, 'Decline');
+    await user.type(within(evening).getByLabelText('Comment for Tara (required)'), 'Not needed');
+    await user.click(screen.getByRole('button', { name: 'Send decision (1 accepted, 1 declined)' }));
+    await screen.findByRole('alert');
+    expect(
+      within(saturday).getByText('No open shift for this slot: approving adds an extra shift above minimum.'),
+    ).toBeInTheDocument();
+
+    await user.click(within(saturday).getByRole('checkbox', { name: /acknowledge the warning \(U-14\)/ }));
+    await user.click(screen.getByRole('button', { name: 'Send decision (1 accepted, 1 declined)' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Not sent: This proposal changed since you read it.');
+    // The reloaded detail is what shows: its open-shift match is back, not the stale refusal's.
+    const reloaded = await shiftRow(SAT_21);
+    expect(await within(reloaded).findByText(/^Matches an open shift: /)).toBeInTheDocument();
+    expect(
+      within(reloaded).queryByText('No open shift for this slot: approving adds an extra shift above minimum.'),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows a supervisor's own proposal read-only, waiting for another supervisor", async () => {
     const user = userEvent.setup();
     renderInbox();

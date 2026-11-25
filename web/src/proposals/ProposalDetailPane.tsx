@@ -506,6 +506,9 @@ export function ProposalDetailPane({
         setRefusal(`Not sent: ${messageOf(error)}`);
         if (error instanceof ApiError && (error.status === 409 || error.status === 412)) {
           // Someone else answered, the officer withdrew, or a shift started: show what is true now.
+          // An earlier refusal's fresh results belong to the old version: drop them, so the
+          // reloaded detail is what shows (P5 carry-over).
+          setFresh({});
           load();
         }
       }

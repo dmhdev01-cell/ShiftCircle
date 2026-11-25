@@ -68,6 +68,7 @@ class DemoResetApiTest {
   void logins() throws Exception {
     tokens.put("p.planner", login("p.planner"));
     tokens.put("m.ellis", login("m.ellis"));
+    tokens.put("j.chen", login("j.chen"));
     tokens.put("a.reviewer", login("a.reviewer"));
   }
 
@@ -83,6 +84,7 @@ class DemoResetApiTest {
             jdbc.queryForObject("SELECT count(*) FROM plan_draft", Integer.class))
         .isGreaterThan(0);
 
+    java.util.List<String> plantedIds = null;
     for (int round = 0; round < 2; round++) {
       HttpResponse<String> started =
           send("POST", "/api/v1/demo/reset",
@@ -156,6 +158,47 @@ class DemoResetApiTest {
                   "SELECT count(*) FROM audit_event WHERE action = 'demo_reset'",
                   Integer.class))
           .isEqualTo(1);
+
+      // v1.3 P5: the planted proposals, the same on every reset. The checksums above are taken
+      // after they are planted, so they prove the proposals moved no roster row.
+      assertThat(
+              jdbc.queryForList(
+                  "SELECT a.username || ' ' || u.code || ' ' || t.code || ' ' || i.work_date"
+                      + " || ' ' || i.decision || ' ' || p.status || ' '"
+                      + " || coalesce(d.username, '-') || ' ' || coalesce(i.comment, '-')"
+                      + " FROM proposal_item i JOIN proposal p ON p.id = i.proposal_id"
+                      + " JOIN app_user a ON a.employee_id = p.employee_id"
+                      + " JOIN unit u ON u.id = i.unit_id"
+                      + " JOIN shift_template t ON t.id = i.shift_template_id"
+                      + " LEFT JOIN app_user d ON d.id = i.decided_by ORDER BY i.start_at",
+                  String.class))
+          .containsExactly(
+              "t.nakamura B E8 2026-11-16 EXPIRED EXPIRED - -",
+              "t.nakamura ADM E8 2026-11-22 DECLINED DECIDED j.chen Admissions is fully staffed"
+                  + " that evening.",
+              "m.ellis SUP-L D8 2026-11-29 PENDING WAITING - -",
+              "t.nakamura B E8 2026-12-22 PENDING WAITING - -",
+              "t.nakamura ADM E8 2026-12-30 PENDING WAITING - -");
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT count(*) FROM proposal_item WHERE decision = 'PENDING'"
+                      + " AND rule_snapshot->>'outcome' = 'BLOCK'",
+                  Integer.class))
+          .as("no planted waiting shift is Blocked: the walk can approve it")
+          .isZero();
+      java.util.List<String> ids =
+          jdbc.queryForList(
+              "SELECT id::text FROM proposal_item ORDER BY start_at", String.class);
+      if (plantedIds == null) {
+        plantedIds = ids;
+      } else {
+        assertThat(ids).as("the planted ids come from their own seeded Random").isEqualTo(plantedIds);
+      }
+      // Ellis decides Tara's Unit B shift (her own SUP-L proposal is left out of her count); Chen
+      // decides Tara's Admissions shift and Ellis's own proposal.
+      assertThat(proposalCount("m.ellis")).isEqualTo(1);
+      assertThat(proposalCount("j.chen")).isEqualTo(2);
+      assertThat(proposalCount("p.planner")).isEqualTo(2);
     }
 
     byte[] bytes =
@@ -185,6 +228,13 @@ class DemoResetApiTest {
                     send("GET", "/api/v1/version", null, null).body(), Map.class)
                 .get("demoMode"))
         .isEqualTo(true);
+  }
+
+  private int proposalCount(String user) throws Exception {
+    HttpResponse<String> response =
+        send("GET", "/api/v1/proposals/count?status=WAITING", null, tokens.get(user));
+    assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+    return ((Number) mapper.readValue(response.body(), Map.class).get("count")).intValue();
   }
 
   private Map<String, Object> awaitDone() throws Exception {

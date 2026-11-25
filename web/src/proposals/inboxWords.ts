@@ -199,10 +199,11 @@ export function currentMatch(
   if (!fresh) return item.openShift;
   if (fresh.otOrderSize === undefined) return null;
   return {
-    id: item.openShift?.id ?? '',
+    id: fresh.openShiftId ?? item.openShift?.id ?? '',
     status: item.openShift?.status ?? 'OPEN',
     eligibility: item.openShift?.eligibility ?? '',
-    liveOffers: item.openShift?.liveOffers ?? 0,
+    // The refusal's count is current; the detail's may be stale by now.
+    liveOffers: fresh.liveOffers ?? item.openShift?.liveOffers ?? 0,
     otOrderPosition: fresh.otOrderPosition ?? null,
     otOrderSize: fresh.otOrderSize,
     outOfOrder: fresh.outOfOrder ?? false,

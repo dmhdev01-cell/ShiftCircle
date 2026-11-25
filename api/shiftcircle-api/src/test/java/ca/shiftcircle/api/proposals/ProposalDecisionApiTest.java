@@ -501,6 +501,41 @@ class ProposalDecisionApiTest {
     assertThat(json(ellis).get("displayState")).isEqualTo("PARTLY_APPROVED");
   }
 
+  /**
+   * P5 carry-over (privacy, mixed scope): a card names only the shifts on the caller's units. Ellis
+   * learns there is a second shift (the count) but not where or when; Chen the same the other way.
+   */
+  @Test
+  void aMixedScopeCardShowsEachSupervisorOnlyTheShiftsOnTheirUnits() throws Exception {
+    Map<String, Object> proposal =
+        send(
+            "t.nakamura",
+            item(UNIT_B, "D8", "2026-11-25T07:00:00-06:00"),
+            item(UNIT_ADM, "D8", "2026-11-27T07:00:00-06:00"));
+
+    Map<String, Object> ellis = listOf(get("/api/v1/proposals", "m.ellis")).get(0);
+    assertThat(ellis.get("id")).isEqualTo(id(proposal).toString());
+    assertThat(ellis.get("units")).isEqualTo(List.of("B"));
+    assertThat(ellis.get("waitingInScope")).isEqualTo(1);
+    assertThat(list(ellis, "shifts")).extracting(shift -> shift.get("unit")).containsExactly("B");
+    assertThat(ellis.toString()).doesNotContain("ADM").doesNotContain("2026-11-27");
+
+    Map<String, Object> chen = listOf(get("/api/v1/proposals", "j.chen")).get(0);
+    assertThat(chen.get("units")).isEqualTo(List.of("ADM"));
+    assertThat(chen.get("waitingInScope")).isEqualTo(1);
+    assertThat(list(chen, "shifts")).extracting(shift -> shift.get("unit")).containsExactly("ADM");
+    assertThat(chen.toString()).doesNotContain("2026-11-25");
+
+    // The planner sees both shifts.
+    Map<String, Object> planner = listOf(get("/api/v1/proposals", "p.planner")).get(0);
+    assertThat(list(planner, "shifts")).extracting(shift -> shift.get("unit"))
+        .containsExactly("B", "ADM");
+
+    // Both supervisors count it: each has a waiting shift to decide.
+    assertThat(json(get("/api/v1/proposals/count", "m.ellis")).get("count")).isEqualTo(1);
+    assertThat(json(get("/api/v1/proposals/count", "j.chen")).get("count")).isEqualTo(1);
+  }
+
   // ---------------------------------------------------------------------------------------------
   // State and concurrency
   // ---------------------------------------------------------------------------------------------

@@ -60,6 +60,7 @@ class SupervisorDatasetsApiTest {
       reset(dataset);
       assertOwnSchedule("m.ellis", "Morgan Ellis", "SUP-L", "2026-12-28", "2027-01-03");
       assertOwnSchedule("j.chen", "Jamie Chen", "SUP-O", "2026-12-28", "2027-01-03");
+      assertPlantedProposals(dataset);
     }
     reset("100");
   }
@@ -191,6 +192,43 @@ class SupervisorDatasetsApiTest {
               UUID.fromString((String) candidate.get("employeeId"))));
     }
     return ranks;
+  }
+
+  /**
+   * v1.3 P5: the 120 and 150 resets plant the same four proposals, on the first dates where the
+   * rules (on that dataset's roster) do not Block, so Ellis decides 1 and Chen 2 there too.
+   */
+  @SuppressWarnings("unchecked")
+  private void assertPlantedProposals(String dataset) throws Exception {
+    assertThat(
+            jdbc.queryForList(
+                "SELECT e.first_name || ' ' || e.last_name || ' ' || u.code || ' ' || i.decision"
+                    + " FROM proposal_item i JOIN proposal p ON p.id = i.proposal_id"
+                    + " JOIN employee e ON e.id = p.employee_id"
+                    + " JOIN unit u ON u.id = i.unit_id ORDER BY e.first_name, i.start_at",
+                String.class))
+        .as(dataset + ": the dataset's own Tara Nakamura (its T. Nakamura sign-in is not linked)")
+        .containsExactly(
+            "Morgan Ellis SUP-L PENDING",
+            "Tara Nakamura B EXPIRED",
+            "Tara Nakamura ADM DECLINED",
+            "Tara Nakamura B PENDING",
+            "Tara Nakamura ADM PENDING");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM proposal_item WHERE decision = 'PENDING'"
+                    + " AND rule_snapshot->>'outcome' = 'BLOCK'",
+                Integer.class))
+        .as(dataset)
+        .isZero();
+    for (Map.Entry<String, Integer> expected : Map.of("m.ellis", 1, "j.chen", 2).entrySet()) {
+      HttpResponse<String> count =
+          send("GET", "/api/v1/proposals/count?status=WAITING", null, login(expected.getKey()));
+      assertThat(count.statusCode()).as(count.body()).isEqualTo(200);
+      assertThat(((Number) mapper.readValue(count.body(), Map.class).get("count")).intValue())
+          .as(dataset + " " + expected.getKey())
+          .isEqualTo(expected.getValue());
+    }
   }
 
   @SuppressWarnings("unchecked")

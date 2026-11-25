@@ -28,6 +28,7 @@ const STEP_WORDS: Record<string, string> = {
   // The dataset line says which dataset, below; this step is generic.
   generating: 'Generating the roster',
   rules: 'Checking every shift against the rules',
+  proposals: 'Adding the demo shift proposals',
   checksum: 'Checking the dataset checksum',
   done: 'Done',
 };
