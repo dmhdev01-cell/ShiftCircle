@@ -26,7 +26,7 @@
 
 ### Measured performance (NFR-05, 2026-11-20)
 
-Full demo dataset (100 officers, 6,456 assignments, 84 schedule periods, checksum `4156077d76d41bd5fcf6d6a9a0f51111e9007d16c8a0c6b311e09c6fe801da6b`), PostgreSQL 17 in a Testcontainer, `PerformanceSmokeTest` in `maven:3.9-eclipse-temurin-21` on Docker Desktop for macOS. That is a VM, slower than the target host, so a pass here is pessimistic. Five warm-up calls, then 20 timed calls; the board range is four weeks (NFR-05 says 14 days, so this is stricter); the publish figures are single calls.
+Full demo dataset as it was before release v1.3 S4 added the supervisors (100 officers, 6,456 assignments, 84 schedule periods, checksum `4156077d76d41bd5fcf6d6a9a0f51111e9007d16c8a0c6b311e09c6fe801da6b`; measured before S4, not re-measured since), PostgreSQL 17 in a Testcontainer, `PerformanceSmokeTest` in `maven:3.9-eclipse-temurin-21` on Docker Desktop for macOS. That is a VM, slower than the target host, so a pass here is pessimistic. Five warm-up calls, then 20 timed calls; the board range is four weeks (NFR-05 says 14 days, so this is stricter); the publish figures are single calls.
 
 | Case | Median | p95 | Limit |
 |---|---|---|---|

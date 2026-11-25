@@ -104,6 +104,14 @@ class Demo150ResetApiTest {
             Integer.class))
         .as("M. Ellis's planted vacation week")
         .isEqualTo(7);
+    // Every full-time supervisor has the officers' 20% leave: 20 of the 98 quarter days, Ellis's
+    // planted week included; the part-timer has none.
+    assertThat(jdbc.queryForList(
+            "SELECT (SELECT count(*) FROM absence a WHERE a.employee_id = e.id"
+                + " AND a.shift_assignment_id IS NULL) FROM employee e"
+                + " WHERE e.classification = 'CS' ORDER BY e.employee_no",
+            Integer.class))
+        .containsExactly(20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 0);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM employee e JOIN rotation_pattern r"

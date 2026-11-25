@@ -137,7 +137,7 @@ erDiagram
 | Time entries (past days; the generator writes `ACTUAL` entries only, and scheduled hours come from the assignments) | ~3,400 (generator run, seed 20261001: 3,366) |
 | Overtime offers | ~400 |
 | Audit events | ~6,000 after seeding |
-| 120 crew dataset (separate provider) | 120 employees (100 full-time + 20 casual), a quarter plan of 5,103 shifts on commit, 38 short ESC evening block-days; checksum `82b19cf8…32ca` |
+| 120 crew dataset (separate provider) | 130 employees: 120 officers (100 full-time + 20 casual) and, since release v1.3 S4, 10 supervisors; a quarter plan of 5,595 shifts on commit (5,103 officer + 492 supervisor), 38 short ESC evening block-days and no supervisor-post gaps; checksum `ca73467d…a64a` (the officers alone: `82b19cf8…32ca`, the pre-S4 checksum) |
 
 Tiny for PostgreSQL. The performance targets (NFR-05) come down to sensible indexes and loading only a ±7-day window of shifts for each rule check.
 

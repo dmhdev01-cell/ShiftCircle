@@ -100,8 +100,8 @@ final class DemoSupervisorCrews {
     if (with150Extras) {
       seedLeave(supervisors);
     }
-    link("m.ellis", supervisors.get(0));
-    link("j.chen", supervisors.get(5));
+    link("m.ellis", firstDaySupervisor(supervisors, "SUP-L"));
+    link("j.chen", firstDaySupervisor(supervisors, "SUP-O"));
     check(with150Extras ? 12 : 10);
     return supervisors;
   }
@@ -258,6 +258,14 @@ final class DemoSupervisorCrews {
         type,
         java.sql.Timestamp.from(date.atStartOfDay(REGINA).toInstant()),
         java.sql.Timestamp.from(date.plusDays(1).atStartOfDay(REGINA).toInstant()));
+  }
+
+  /** The post's first D12 day-crew supervisor: M. Ellis on SUP-L, J. Chen on SUP-O. */
+  private static Supervisor firstDaySupervisor(List<Supervisor> supervisors, String post) {
+    return supervisors.stream()
+        .filter(s -> post.equals(s.post()) && "D12_DAY_4ON4OFF".equals(s.crew()) && s.crewIndex() == 0)
+        .findFirst()
+        .orElseThrow(() -> new IllegalStateException(post + " has no day-crew supervisor"));
   }
 
   private void link(String username, Supervisor supervisor) {

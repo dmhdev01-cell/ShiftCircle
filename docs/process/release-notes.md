@@ -390,6 +390,19 @@ both posts) and Q6 (Dataset 100 gets supervisors and is re-pinned once).
   and the self-offer guard.
 - **My schedule's overtime rank is counted inside the person's rank**, for the same reason: an
   officer's "Rank n of 100 on the overtime list" is unchanged, and a supervisor's reads "of 10".
+- **The supervisors' self-edit guard (owner answer Q3), brought forward from S5** after the security
+  gate showed j.chen recording 14 h on their own 8 h shift (`PUT /time-entries`, 200). Linking the
+  two demo supervisors inside their own scope made it reachable. Every supervisor write path on a
+  shift, time entry, absence, overtime offer or confirm and override now answers 403 "You can't
+  change your own schedule; ask another supervisor or the planner." on the caller's own record
+  (`SelfActionGuard.requireNotOwnSchedule`): `POST /assignments` (override included), `PATCH` and
+  `DELETE /assignments/{id}` (the shift moved and the person it moves to), `PUT` and
+  `DELETE /time-entries/{id}`, `POST /absences`, `POST /open-shifts/{id}/offers` (every listed
+  employee, before anything is written), `POST /open-shifts/{id}/assign` and
+  `POST /offers/{id}/confirm`. Accepting or declining one's own offer on My schedule is unchanged.
+  Proposal decisions already used the same guard (P2). S5 is left with the overtime pools.
+- **Compare and the commit links name the posts** ("Supervision · Living units coverage gaps", not
+  "SUP-L coverage gaps"); the cross-unit "still short" line keeps the posts' full names.
 - **`DemoChecksum.officersOnly` / `officersOnlyWithNames`**: the checksum over the officers' shifts
   and the officer units' periods (with the officers' names for 120/150).
 

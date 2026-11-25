@@ -4,6 +4,7 @@ import ca.shiftcircle.api.csv.Csv;
 import ca.shiftcircle.api.security.AuthPrincipal;
 import ca.shiftcircle.api.time.BusinessClock;
 import ca.shiftcircle.api.security.ScopeGuard;
+import ca.shiftcircle.api.security.SelfActionGuard;
 import ca.shiftcircle.rules.pay.PayClassification;
 import ca.shiftcircle.rules.pay.PayClassifier;
 import ca.shiftcircle.rules.pay.PayPolicy;
@@ -325,6 +326,8 @@ public class PayrollService {
     }
     Assignment assignment = assignment(assignmentId);
     scopeGuard.requireUnit(principal, assignment.unitCode());
+    // Release v1.3 S4: a supervisor does not record their own time (owner answer Q3).
+    SelfActionGuard.requireNotOwnSchedule(principal, assignment.employeeId());
     PayPeriodRecord period = periodFor(assignment.workDate());
     requireOpen(period);
 
@@ -397,6 +400,7 @@ public class PayrollService {
     }
     Assignment assignment = assignment(input.assignmentId());
     scopeGuard.requireUnit(principal, assignment.unitCode());
+    SelfActionGuard.requireNotOwnSchedule(principal, assignment.employeeId());
     PayPeriodRecord period = periodFor(assignment.workDate());
     requireOpen(period);
     return saveAbsence(assignment, period, input.type(), principal);
@@ -410,6 +414,7 @@ public class PayrollService {
   public PayrollViews.RecordActualResult clearActual(UUID assignmentId, AuthPrincipal principal) {
     Assignment assignment = assignment(assignmentId);
     scopeGuard.requireUnit(principal, assignment.unitCode());
+    SelfActionGuard.requireNotOwnSchedule(principal, assignment.employeeId());
     PayPeriodRecord period = periodFor(assignment.workDate());
     requireOpen(period);
 

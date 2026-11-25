@@ -580,6 +580,10 @@ public final class DemoDataSelfCheck {
    * Release v1.3 (S4): the supervisors work the two supervisor posts only, every post block-hour is
    * covered at the same 97.5% floor as the line units, and the two demo supervisors are linked to
    * their records so My schedule has rows.
+   *
+   * <p>Dataset 100 only, like the rest of this self-check: the head count (10) and the window (90
+   * days from 1 Oct 2026) are {@code DemoDataGenerator}'s. Datasets 120 and 150 check their own
+   * supervisors in {@code DemoSupervisorCrews}.
    */
   private void checkSupervisors(List<String> violations) {
     int posts = count("SELECT count(*) FROM unit WHERE kind = 'SUPERVISION'");

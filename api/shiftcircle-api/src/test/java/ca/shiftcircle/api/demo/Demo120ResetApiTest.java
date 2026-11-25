@@ -134,6 +134,23 @@ class Demo120ResetApiTest {
               "SELECT count(*) FROM employee WHERE classification = 'CS'", Integer.class))
           .as("10 supervisors on the two posts (release v1.3)")
           .isEqualTo(10);
+      // Per post 2 D12 + 2 N12 crew supervisors and one relief (N12 on SUP-L, D12 on SUP-O).
+      assertThat(jdbc.queryForList(
+              "SELECT u.code || ' ' || r.code FROM employee e JOIN unit u ON u.id = e.home_unit_id"
+                  + " JOIN rotation_pattern r ON r.id = e.rotation_pattern_id"
+                  + " WHERE e.classification = 'CS' ORDER BY e.employee_no",
+              String.class))
+          .containsExactly(
+              "SUP-L D12_DAY_4ON4OFF", "SUP-L D12_DAY_4ON4OFF",
+              "SUP-L N12_NIGHT_4ON4OFF", "SUP-L N12_NIGHT_4ON4OFF", "SUP-L N12_NIGHT_RELIEF",
+              "SUP-O D12_DAY_4ON4OFF", "SUP-O D12_DAY_4ON4OFF",
+              "SUP-O N12_NIGHT_4ON4OFF", "SUP-O N12_NIGHT_4ON4OFF", "SUP-O D12_DAY_RELIEF");
+      assertThat(jdbc.queryForObject(
+              "SELECT count(*) FROM absence a JOIN employee e ON e.id = a.employee_id"
+                  + " WHERE e.classification = 'CS'",
+              Integer.class))
+          .as("Dataset 120 seeds no supervisor leave")
+          .isZero();
       assertThat(jdbc.queryForObject(
               "SELECT count(*) FROM employee WHERE first_name ~ '^First[0-9]+$'"
                   + " OR last_name ~ '^Last[0-9]+$'",

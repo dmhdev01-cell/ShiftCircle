@@ -175,6 +175,12 @@ class DisplayApiTest {
     Map<String, Object> body = json(response);
     assertThat(body.get("asOf")).isEqualTo("2026-11-19");
     List<Map<String, Object>> units = (List<Map<String, Object>>) body.get("units");
+    // Release v1.3 S4: the supervisor posts (V19) are not unit tiles; the TV shows the six line
+    // units only (eight tiles do not fit a 1920x1080 screen; the posts get their own strip later).
+    assertThat(units)
+        .extracting(unit -> (String) ((Map<String, Object>) unit.get("unit")).get("name"))
+        .hasSize(6)
+        .noneMatch(name -> name.startsWith("Supervision ·"));
     Map<String, Object> unitA =
         units.stream()
             .filter(unit -> "Unit A · Living unit".equals(((Map<String, Object>) unit.get("unit")).get("name")))
@@ -242,7 +248,9 @@ class DisplayApiTest {
     List<Map<String, Object>> chenUnits = (List<Map<String, Object>>) chen.get("units");
     assertThat(chenUnits)
         .extracting(unit -> ((Map<String, Object>) unit.get("unit")).get("name"))
-        .doesNotContain("Unit A · Living unit");
+        .doesNotContain("Unit A · Living unit")
+        // Both posts are in J. Chen's scope (V19), and still not tiles.
+        .doesNotContain("Supervision · Living units", "Supervision · Operations");
 
     assertThat(get("/api/v1/display/today", "a.reviewer").statusCode()).isEqualTo(200);
     for (String role : new String[] {"t.nakamura", "l.fraser", "p.singh"}) {

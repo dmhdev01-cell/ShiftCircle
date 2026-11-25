@@ -7,6 +7,7 @@ import ca.shiftcircle.api.rules.RuleCheckService;
 import ca.shiftcircle.api.rules.RuleViolationException;
 import ca.shiftcircle.api.security.AuthPrincipal;
 import ca.shiftcircle.api.security.ScopeGuard;
+import ca.shiftcircle.api.security.SelfActionGuard;
 import ca.shiftcircle.domain.Position;
 import ca.shiftcircle.rules.RuleEvaluator;
 import ca.shiftcircle.rules.facts.OvertimeRankingFact;
@@ -398,6 +399,11 @@ public class OvertimeService {
     if ("CANCELLED".equals(shift.get("status"))) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "This shift was cancelled");
     }
+    // Release v1.3 S4: a supervisor does not offer overtime to themselves (owner answer Q3). Every
+    // name is checked before any offer is written, so a list with yourself in it writes nothing.
+    for (UUID employeeId : request.employeeIds()) {
+      SelfActionGuard.requireNotOwnSchedule(principal, employeeId);
+    }
 
     UUID unitId = (UUID) shift.get("unit_id");
     String templateCode = (String) shift.get("template_code");
@@ -563,6 +569,9 @@ public class OvertimeService {
     // assignment (review-r1 F3).
     Map<String, Object> offer = offerRowForUpdate(offerId);
     scopeGuard.requireUnit(principal, (String) shift.get("unit_code"));
+    // Release v1.3 S4: a supervisor does not confirm their own overtime; accepting it on My
+    // schedule stays the employee's own consent.
+    SelfActionGuard.requireNotOwnSchedule(principal, (UUID) offer.get("employee_id"));
 
     if (!"ACCEPTED".equals(offer.get("status"))) {
       throw new ResponseStatusException(
@@ -644,6 +653,8 @@ public class OvertimeService {
     if (request == null || request.employeeId() == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "employeeId is required");
     }
+    // Release v1.3 S4: not to yourself (assign() checks it again on the shared write path).
+    SelfActionGuard.requireNotOwnSchedule(principal, request.employeeId());
     if ("FILLED".equals(shift.get("status"))) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "This shift is already filled");
     }

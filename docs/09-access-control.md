@@ -21,7 +21,9 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 
 ✓ = allowed · **own** = only their own records · **scope** = only units in `user_unit_scope` · — = denied
 
-**"Own" needs a linked officer.** `/me/schedule`, `/me/offers` and `/me/preferences` answer for the officer linked to the signed-in account. In the demo only **T. Nakamura** has one; the other demo accounts, including the two supervisors, get `404` (schedule) or `403` (preferences) there, whatever the matrix says about "own".
+**"Own" needs a linked officer.** `/me/schedule`, `/me/offers` and `/me/preferences` answer for the officer linked to the signed-in account. In the demo **T. Nakamura** has one and, since release v1.3 S4, so do the two supervisors (**M. Ellis** is Morgan Ellis on SUP-L, **J. Chen** Jamie Chen on SUP-O); the other demo accounts get `404` (schedule) or `403` (preferences) there, whatever the matrix says about "own".
+
+**Never your own schedule (release v1.3 S4, owner answer Q3).** A supervisor whose own record is in their scope still can't change it: `POST`/`PATCH`/`DELETE /assignments` (an override included), `PUT`/`DELETE /time-entries/{id}`, `POST /absences`, `POST /open-shifts/{id}/offers` (any listed officer), `POST /open-shifts/{id}/assign` and `POST /offers/{id}/confirm` answer `403` "You can't change your own schedule; ask another supervisor or the planner." when the shift or record is the caller's (`SelfActionGuard`, the predicate shift proposals use). Accepting or declining an offer on My schedule stays the employee's own. A refusal is a plain `403` and is not audited, like the other authorization refusals.
 
 | Capability | EMPLOYEE | SUPERVISOR | RULES_ADMIN | RULES_APPROVER | AUDITOR | PLANNER | DISPLAY |
 |---|---|---|---|---|---|---|---|
@@ -29,15 +31,15 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 | View unit roster (names and shifts) | — (not built: an officer sees only their own schedule; `GET /schedule` is `403`) | scope | — | — | ✓ | ✓ (read-only) | — |
 | View others' hours, absences, overtime totals (Reports; absence types in Time & attendance) | — | scope | — | — | ✓ | — (`403` on the reports and on Time & attendance; the board shows hours and overtime status only) | — |
 | Absence **type** (sick/vacation) for others (Time & attendance) | — | scope | — | — | ✓ | — (no absence items in the board or draft payload yet; `403` on Time & attendance) | — |
-| Assign, move or cancel shifts | — | scope (the target unit; the officer may come from any unit: cross-unit cover, ADR-024) | — | — | — | — | — |
-| Emergency override of a Block rule whose policy allows one (U-01, U-03, U-05; ADR-023) | — | scope (reason required) | — | — | — | — | — |
+| Assign, move or cancel shifts | — | scope (the target unit; the officer may come from any unit: cross-unit cover, ADR-024); **never own** (`403`) | — | — | — | — | — |
+| Emergency override of a Block rule whose policy allows one (U-01, U-03, U-05; ADR-023) | — | scope (reason required); **never own** (`403`) | — | — | — | — | — |
 | Publish a schedule period | — | scope | — | — | — | — | — |
-| Create open shifts, send offers, assign overtime | — | scope | — | — | — | — | — |
+| Create open shifts, send offers, assign overtime | — | scope; never offer, assign or confirm to oneself (`403`) | — | — | — | — | — |
 | Accept or decline an overtime offer | own | own | own | own | — | own | — |
 | Submit and withdraw shift proposals (API, v1.3 P1; screen P3) | own | own (a supervisor is also an officer) | — | — | — | — | — |
 | Read the proposals inbox and detail (API, v1.3 P2; screen P4) | — | scope (the **item's** unit): the inbox lists only proposals with an item in scope (empty otherwise); the detail is `404` with no item in scope and lists an out-of-scope item read-only (unit, time, decision; no rules, hours or actions); own proposals are shown, marked `own` | — | — | — | ✓ facility-wide | — |
 | Decide proposals (API, v1.3 P2; screen P4) | — | scope (the **item's** unit; `404` when the proposal has no item in scope, `403` for naming an out-of-scope item in the decision); **never own** (`403`, `SelfActionGuard`) | — | — | — | ✓ facility-wide fallback decider; never own | — |
-| Record actuals | — | scope | — | — | — | — | — |
+| Record actuals | — | scope; **never own** (`403`) | — | — | — | — | — |
 | Lock a pay period | — | facility-wide (any supervisor with at least one unit in scope; audited), ADR-022 | — | — | — | — | — |
 | Unlock a pay period | — | facility-wide (reason required; audited), ADR-022 | — | — | — | — | — |
 | Payroll export | — | facility-wide (audited with file hash), ADR-022 | — | — | — | — | — |
@@ -72,8 +74,8 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 
 | User | Roles | Scope |
 |---|---|---|
-| M. Ellis | SUPERVISOR, EMPLOYEE | Units A, B |
-| J. Chen | SUPERVISOR, EMPLOYEE | Admissions, Control, Escort & transport |
+| M. Ellis | SUPERVISOR, EMPLOYEE | Units A, B; both supervisor posts (SUP-L, SUP-O; V19, release v1.3) |
+| J. Chen | SUPERVISOR, EMPLOYEE | Admissions, Control, Escort & transport; both supervisor posts (SUP-L, SUP-O; V19, release v1.3) |
 | T. Nakamura | EMPLOYEE | — |
 | L. Fraser | RULES_ADMIN | — |
 | P. Singh | RULES_APPROVER | — |
