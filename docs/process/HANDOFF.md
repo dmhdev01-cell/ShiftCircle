@@ -28,9 +28,10 @@ ShiftCircle is a **working prototype** for the *AI Solutions Architect – Scree
 | AI development log | ✅ Started (`docs/process/ai-dev-log.md`); **keep it updated** |
 | Code | ✅ Built and on `main`: `api/` (Java 21, Spring Boot 4.x, Drools), `web/` (React), `docker-compose.yml`, `e2e/`, GitHub Actions CI. Every development step in §6 is done except the items listed as not built in `docs/10-testing.md` §8 |
 | Build record, demo script | ✅ `BUILD_RECORD.md`, `docs/demo-script.md` |
+| Submission and releases | ✅ The course submission is the release tag **`v1.3`**: supervisors on their own posts (ADR-031) and shift proposals with the inbox (ADR-032), on top of **v1.2** (plan options, the shift dialog). The earlier submission build was `v1.1.2-submission`. `docs/process/release-notes.md` has each release with its measured counts |
 | Demo recording (§6 step 13) | ⏳ With the project lead; not part of the repository |
 
-*This note was written on 2026-11-19, before any code existed. §2 was brought up to date on 2026-11-24; the rest is kept as the brief the team worked from. Where §3 to §9 and the current docs differ, the current docs win (`docs/index.md` has the map).*
+*This note was written on 2026-11-19, before any code existed. §2 was brought up to date on 2026-11-24 and again for release v1.3 on 2026-11-25; the rest is kept as the brief the team worked from. Where §3 to §9 and the current docs differ, the current docs win (`docs/index.md` has the map).*
 
 ## 3. Repo map
 
@@ -49,7 +50,7 @@ docs/09-access-control.md    roles, permission matrix, enforcement, mock sign-in
 docs/10-testing.md           test layers, rule boundary matrix, scenarios, E2E flows, dataset spec
 docs/ui/README.md            UI spec: tokens (Sask palette), components, every screen, routes
 docs/ui/screens/*.dc.html    exact design files (reference markup, not runnable)
-docs/decisions.md            the decision log (ADR-001 … ADR-030)
+docs/decisions.md            the decision log (ADR-001 … ADR-032)
 docs/process/ai-dev-log.md   AI-assisted development log (assessment requirement)
 ```
 
@@ -102,7 +103,7 @@ Each step lists its "done when" check. If time runs short, cut from the bottom o
 | 9 | **Time & attendance:** actuals, period-based overtime (P-01, P-01b, P-04), lock/unlock, **payroll CSV** | T8 golden file passes; E4 passes |
 | 10 | **Reports:** coverage (hourly-based), hours, overtime, overrides; CSV export | Numbers reconcile with time entries; NFR-05 timings met |
 | 11 | **Rules admin** (incl. the **Shift types** table, ADR-015): decision-table grid, plain-language sentences, build (validate → compile → scenarios → dry run), submit, approve, publish (hot swap), version history | T7, T10, T13 and E3 pass |
-| 12 | Should items if time allows: **wall display** (E5), shift planner/proposals, Excel round-trip (not built: docs/10 §8), audit viewer | Their tests pass |
+| 12 | Should items if time allows: **wall display** (E5), shift planner and proposals (built in v1.2/v1.3, ADR-026/032), Excel round-trip (not built: docs/10 §8), audit viewer | Their tests pass |
 | 13 | **Submission:** `README.md` setup section, `BUILD_RECORD.md` (≤ 2 pages; architecture diagram, decisions, AI use with ≥ 1 rejected suggestion, 2–5 tests T2/T3/T7/T8/T9, governance and next steps; governance must state the guardrail 4 exception in §5, and next steps must list restoring human review of the boundary tests), `docs/demo-script.md`, ≤ 5-minute recording | A clean clone + `docker compose up` works on a second machine; the recording shows working vs simulated parts and one safeguard |
 
 ## 7. Testing: what's required (summary of `docs/10-testing.md`)

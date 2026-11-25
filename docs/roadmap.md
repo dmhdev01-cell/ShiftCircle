@@ -1,6 +1,6 @@
 # ShiftCircle: roadmap and known limits
 
-**Status:** 2026-11-24, written for the 26 Nov 2026 submission. This is what is **not** in the prototype, why, and the order we would build it. Efforts are rough dev-days for one developer.
+**Status:** 2026-11-24, written for the 26 Nov 2026 submission; brought up to date for release v1.3 on 2026-11-25 (supervisors on their own posts, ADR-031; add-only shift proposals, ADR-032). This is what is **not** in the prototype, why, and the order we would build it. Efforts are rough dev-days for one developer.
 
 ## 1. Known limits and defects (cut ii): documented, not fixed in this submission
 
@@ -18,6 +18,7 @@
 | Sick | Sick is recorded after the fact. There is no call-out flow (sick call → open shift → ranked offer); posting an open shift is "not available in this prototype" | New flow |
 | Planner | The quarter window (4 Jan to 11 Apr 2027) and the clock are fixed; a plan can be committed once; the 28 Dec to 3 Jan seam on Dataset 100 is thin | Window is in seeded data |
 | Workflow | Proposals beyond add-only (swaps, give-ups; v1.3 built add-only proposals and the inbox), FR-06 publish gating, FR-07 "changed" flags, offer withdrawal/expiry, mandatory OT and OT caps | New flows |
+| Supervisors | v1.3 knows two ranks (a third is a `position` row plus a code change); P-01 overtime applies to supervisors as written (no exclusion by position); Dataset 100 leaves 230 of 588 supervisor-post block-days short (8 h supervisors, and the planner puts no 8 h person on nights); a supervisor post can't be closed | A position-scoped P-01 row and a 12 h supervisor crew on Dataset 100 move the pins again |
 | Platform | No OpenAPI or generated client; e2e is not in CI; no Java CVE scan; floating base-image tags; the auth seam is a demo mock; no phone layout | Engineering, not demo-facing |
 | Architecture | `PlannerService` and `PlannerPage` are very large; `shiftcircle-domain` and `-application` are empty placeholders (`docs/03-architecture.md` §2) | Refactors risk the demo |
 
@@ -32,7 +33,7 @@
 
 | Requirement | Today | Roadmap package |
 |---|---|---|
-| Positions and qualified-first placement | Posts are unit × block counts; qualifications are reported, not used | 4 |
+| Positions and qualified-first placement | Positions are built (v1.3: officer and supervisor ranks, two supervisor posts, seniority within rank, ADR-031); posts are still unit × block counts and qualifications are reported, not used for placement | 4 |
 | Seniority-ordered offering (extra shifts, part-time hours, vacation picks) | Nights and OT only; casual pool newest-first | 3 |
 | Leave visible and managed with approval | Skipped by the generator; planner entry dialog; shown on the draft roster only | 2 |
 | Sick call-out | After-the-fact actuals only | 5 |
@@ -51,7 +52,7 @@
 | 5 | **Sick call-out** | "Call in sick" on a future shift → absence + open shift → ranked offer | 3 d |
 | 6 | **Rolling planner window and Clock** | Next quarter after today, plan again after a commit, timezone from config, injected `Clock` | 2 to 3 d |
 | 7 | **Spreadsheet parity II** | Bulk edits through a batch rule check, undo, keyboard entry, quarter overview / xlsx | 5 to 8 d |
-| 8 | **Workflow completeness** | Proposals + inbox, FR-06 gating + FR-07, offer withdraw/expiry, mandatory OT, OT caps, notice rules (S-01, S-02, P-05) | 5 to 7 d |
+| 8 | **Workflow completeness** | Swap and give-up proposals (add-only proposals and the inbox are built in v1.3), FR-06 gating + FR-07, offer withdraw/expiry, mandatory OT, OT caps, notice rules (S-01, S-02, P-05) | 5 to 7 d |
 | 9 | **Pay completeness** | OT 2× band, stat holiday, day of rest, call-back; payroll golden update | 2 to 3 d |
 | 10 | **Engineering hardening** | e2e in CI, image digests, Java CVE gate, OpenAPI → generated `types.ts`, split the large classes, extract or delete the empty modules, test isolation, OIDC-ready auth | 8 to 10 d |
 

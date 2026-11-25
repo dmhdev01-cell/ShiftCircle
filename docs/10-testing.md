@@ -1,6 +1,6 @@
 # ShiftCircle — Test Strategy and Test Data
 
-**Status:** Draft v1.0 · 2026-11-19
+**Status:** v1.1 · 2026-11-19; current counts for release v1.3 (the course submission) 2026-11-25
 
 ## 1. Goals
 
@@ -44,9 +44,23 @@ the NFR limits, so a regression fails the build rather than being noticed in the
 
 **Definition of done for any feature:** its rule and use-case tests pass, its endpoints have authorization tests, and the demo flow touching it passes in Playwright.
 
-### Current counts (API and Playwright at `5a38580`, web unit tests at `8ae4bbd`, 24 Nov 2026)
+### Current counts (release v1.3, the course submission; 25 Nov 2026)
 
-The sections after this one are the **history** of how the counts grew, release by release; read this block for today's numbers. Counting method: `@Test` methods on their own line (no parameterised tests), and each suite's own runner. Every number below was run on `5a38580` (release 11 `5a3be22` plus the docs PRs and the PR-H rules-wording fix), on a fresh stack per viewport; the API suite ran in GitHub CI (`mvn verify` on PR #19, the same command).
+**Read this block for today's numbers.** Measured on the final `main` for v1.3 (`d3d1d28`: S1–S7 and P1–P5), on S8's branch at `bd7d377` (S8 changes only docs, `install.sh`'s pin and `BUILD_RECORD.md`):
+
+| Suite | Result | How it was obtained |
+|---|---|---|
+| API (Maven, Testcontainers) | **624 = 140 rules + 38 infrastructure + 446 api**, 0 failures, errors or skipped | `docker compose -p sc-sc-s8 --profile test run --rm --build api-test` (`mvn -B verify`), `BUILD SUCCESS`, default class order |
+| Web unit tests (Vitest) | **695 passed** in 66 files | `pnpm test` in Docker. `pnpm lint`: 4 warnings, 0 errors. `tsc -b` clean |
+| Playwright, real api, desktop | `desktop-datasets`: **144 passed**, 0 failed | Fresh stack (own project `sc-sc-s8`, port 18848), `EXPECT_COMMIT=bd7d377`, `E2E_WORKERS=1`: the parallel `desktop` project, then the stack-wide specs one at a time |
+| Playwright, real api, tablet | `tablet-datasets`: **143 passed, 1 skipped**, 0 failed | The same on a second fresh stack; the TV-size check is desktop-only |
+| Dataset checksums, payroll golden, plan rows | unchanged since S4 | 100 `beb2e222…b7d1`, 120 `ca73467d…a64a`, 150 `353e2e62…91a5`; golden 1,124 lines `b946ef1f…00e6`; plan rows 7,266 / 5,595 / 5,877 (the paragraph "v1.3 S4" below has the full pins and the officers-only invariance). `check-audit-codes.sh`: 55 codes |
+
+The fixtures-mode web suite was not re-run for v1.3. The sections after this one are the **history** of how the counts grew, release by release.
+
+#### Earlier current-counts block (API and Playwright at `5a38580`, web unit tests at `8ae4bbd`, 24 Nov 2026; history)
+
+Counting method: `@Test` methods on their own line (no parameterised tests), and each suite's own runner. Every number below was run on `5a38580` (release 11 `5a3be22` plus the docs PRs and the PR-H rules-wording fix), on a fresh stack per viewport; the API suite ran in GitHub CI (`mvn verify` on PR #19, the same command).
 
 **v1.2 (PR-O, PR-M, PR-N and PR-Q; not the submission tag, whose counts are the table below):** API **503 = 127 rules + 28 infrastructure + 348 api** (`mvn verify` in GitHub CI on PR #24, reproduced by the v1.2 release walk; PR-N adds 23: `PlanGeneratorOptionsTest` 14, `PlannerOptionsApiTest` 6, `PlanInputsFillOrderTest` 3; PR-Q changes no api code); web unit tests **591** in 58 files (the walk measured 583 in 57 at `958209c`; PR-Q adds 8); Playwright, a fresh stack per viewport, `E2E_WORKERS=1`: desktop **132 passed**, tablet **131 passed and 1 skipped** (the walk measured 129 and 128 + 1 at `958209c`; PR-Q adds the three `planner-inputs` staffing tests). Before PR-N: API 480, web 567 in 56 files, lint 4 warnings, `tsc -b` clean; Playwright on PR-M's code before the PR-O merge (`421627a`, a fresh stack per viewport): `desktop-datasets` **126 passed**, `tablet-datasets` **125 passed, 1 skipped** (run with `E2E_WORKERS=1` on a loaded host), fixtures (all four projects) **45 passed, 159 skipped**. Checksums, payroll golden and plan fingerprints unchanged.
 
@@ -61,7 +75,7 @@ The sections after this one are the **history** of how the counts grew, release 
 | Playwright, fixtures-mode web | **23 passed**, 79 skipped, 0 failed | `--grep-invert @api --project desktop-datasets` against the fixtures build; the skipped tests need the real api |
 | Dataset checksums, payroll golden, plan fingerprints | unchanged | no migration or generator change since release 8: 100 `4156077d…da6b`, 120 `82b19cf8…32ca`, 150 `2e6cd938…d7f8`, payroll golden `9f2d51b3…04ff` (asserted by the reset and generator tests in the API run above). **Moved once in release v1.3 S4; see the paragraph above the table** |
 
-#### Earlier states (history)
+##### Earlier states (history)
 
 **Final verified state (`5d0f810`, 2026-11-21; the security fixes below are newer).** dev-qa's independent pipeline on the candidate: API
 **422 = 123 rules + 27 infrastructure + 272 api** tests, green in the default order and with random
@@ -256,7 +270,7 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 
 ## 8. Intentionally not built
 
-Things the design describes that the prototype does **not** have. They are listed so that nothing reads as an implied feature, and no test claims to cover them. Checked against the code on 2026-11-20.
+Things the design describes that the prototype does **not** have. They are listed so that nothing reads as an implied feature, and no test claims to cover them. Checked against the code on 2026-11-20 and re-checked for v1.3 on 2026-11-25.
 
 | Not built | What exists instead | Where it is designed |
 |---|---|---|

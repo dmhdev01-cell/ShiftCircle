@@ -14,18 +14,18 @@ the host.
 One command. It needs a bash shell (macOS, Linux, or Git Bash/WSL on Windows), `curl`, `git`, Docker with Compose v2, a running Docker daemon and a free port. It clones into `./ShiftCircle`, creates `.env` with freshly generated random secrets that it never prints, runs `docker compose up -d --build --wait`, checks `/healthz` and `/api/v1/version`, and prints the URL:
 
 ```sh
-curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.2/install.sh && bash install.sh
+curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.3/install.sh && bash install.sh
 ```
 
 A failed download stops at the `curl` step with a non-zero exit. (`curl -fsSL <url> | bash` also works, because the script does nothing until it has all been read, but the pipe reports bash's exit status, so a failed download looks like success.) The safest way is to read it first:
 
 ```sh
-curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.2/install.sh
+curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.3/install.sh
 less install.sh
 bash install.sh
 ```
 
-**Course submission:** the version submitted for the assessment is the tag `v1.1.2-submission` (v1.1.1 plus the staffing-shortfall hotfix). Its own `install.sh` stays pinned to that tag, so the same one-liner with `v1.1.2-submission` in place of `v1.2` installs the submission exactly; `v1.2` is the later release these instructions install.
+**Course submission:** the version submitted for the assessment is the release tag **`v1.3`**, which the one-liner above installs (supervisors on their own posts and shift proposals, on top of v1.2). The earlier submission build was the tag `v1.1.2-submission` (v1.1.1 plus the staffing-shortfall hotfix); its own `install.sh` stays pinned to that tag, so the same one-liner with `v1.1.2-submission` in place of `v1.3` still installs it exactly.
 
 Overrides (environment variables, put them before `bash install.sh`): `SC_WEB_PORT` (host port, 1-65535, default 8080, for example `SC_WEB_PORT=9090 bash install.sh`), `SHIFTCIRCLE_PROJECT` (compose project name, default `shiftcircle`; a `COMPOSE_PROJECT_NAME` already in your shell is ignored on purpose), `SHIFTCIRCLE_REF` (tag or branch to install, default the release tag), `SHIFTCIRCLE_DIR` (default `./ShiftCircle`), and, advanced, `SHIFTCIRCLE_REPO` (clone URL). The port and project name are saved in `.env` (`SC_WEB_PORT`, `COMPOSE_PROJECT_NAME`). It refuses to touch an existing non-empty directory that is not a ShiftCircle checkout; re-running in the same place skips the clone and keeps the `.env` (it only fills a blank secret). It never runs `docker compose down`. The manual steps are below.
 

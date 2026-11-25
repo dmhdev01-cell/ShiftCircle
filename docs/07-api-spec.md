@@ -1,6 +1,6 @@
 # ShiftCircle — API Specification
 
-**Status:** v1.0, checked against the controllers on `main` (23 Nov 2026) · REST + JSON · this document is the contract (no generated OpenAPI document exists in the prototype; docs/10 §8)
+**Status:** v1.1, checked against the controllers on `main` (23 Nov 2026; release v1.3 endpoints and fields, proposals and supervisor posts, added through 25 Nov 2026) · REST + JSON · this document is the contract (no generated OpenAPI document exists in the prototype; docs/10 §8)
 
 ## 1. Conventions
 

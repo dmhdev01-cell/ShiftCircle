@@ -150,8 +150,10 @@ built for the **proposed** shift only, from the person's position (`employee.cla
 qualifications they hold that day and the unit's kind (`SUPERVISION` is a supervisor post, every
 other kind an officer post); it is not part of `ShiftFact`, so no other builder changed. The
 board's rule check, the planner's generator check, the draft edits and the commit check all pass
-it. There are no supervisors or supervisor posts in the datasets yet, so neither rule fires on the
-demo data and every plan fingerprint is unchanged. Version 3 stays as history. The build's dry run
+it. Version 4 itself moved no pin (the datasets had no supervisors then); since release v1.3 S4 every
+dataset has supervisors on two supervisor posts, and the planner never cross-covers (S3), so neither
+rule fires on a generated row: they fire on a manual assignment, a draft edit or a proposal
+(ADR-031). Version 3 stays as history. The build's dry run
 builds the same post fact for every shift on the published roster, so a POSTS edit reports what it
 changes before an approver sees it. The planner's one-time lookup fails closed: a person or unit it
 cannot resolve reads as an unknown position on a supervisor post, which R-01 blocks.
