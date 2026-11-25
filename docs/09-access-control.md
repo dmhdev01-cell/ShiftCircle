@@ -1,6 +1,6 @@
 # ShiftCircle — Access Control
 
-**Status:** v1.0, checked against the API on `main` (23 Nov 2026; the planner cells were probed by hand with a signed-in token, see §3)
+**Status:** v1.1, checked against the API on `main` (23 Nov 2026; the planner cells were probed by hand with a signed-in token, see §3; release v1.3 rows for proposals, supervisor posts and the self-edit guard added 25 Nov 2026, ADR-031, ADR-032)
 
 ## 1. Roles
 

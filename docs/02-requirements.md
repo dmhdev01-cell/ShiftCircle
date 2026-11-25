@@ -1,6 +1,6 @@
 # ShiftCircle — Requirements
 
-**Status:** v0.3 requirements, with the **prototype status** of each item marked where it is not fully built (checked 23 Nov 2026; the proof for each is in [traceability.md](traceability.md), the list of what is not built in [10-testing.md §8](10-testing.md#8-intentionally-not-built)) · IDs are stable. Priorities: M = Must, S = Should, C = Could.
+**Status:** v0.3 requirements, with the **prototype status** of each item marked where it is not fully built (checked 23 Nov 2026; release v1.3 proposals and supervisors, FR-30/31 and FR-35 to FR-38, added 25 Nov 2026; the proof for each is in [traceability.md](traceability.md), the list of what is not built in [10-testing.md §8](10-testing.md#8-intentionally-not-built)) · IDs are stable. Priorities: M = Must, S = Should, C = Could.
 
 ## 1. Screens
 
@@ -49,6 +49,15 @@ FR-10 to FR-13 (trade request, colleague acceptance, supervisor approval, monthl
 |---|---|---|
 | FR-30 | An employee drafts preferred shifts in a sandbox copy of the roster. Rule results show live. **Prototype status: partial** (v1.3: the officer's draft shifts on My schedule are rule-checked together, each with the others as facts, through `POST /proposals/preview`; no sandbox roster). | S |
 | FR-31 | The employee submits the draft as a recommendation. The supervisor sees the difference from the current roster and can accept all, accept some, or decline. **Prototype status: partial (v1.3).** The officer submits proposals with a note (`POST /proposals`), sees each shift's outcome and the decider's comment, and withdraws while waiting (P1 API, P3 screen). The supervisor or planner accepts some and declines others with a comment on the Proposals inbox (P2 API, P4 screen), re-checked at approval; there is no roster diff view, the inbox shows each added shift's rule result instead. Add-only: no swap or give-up (owner Q2). | S |
+
+### Supervisors and positions (owner item 17; built in release v1.3, ADR-031)
+
+| ID | Requirement | Priority |
+|---|---|---|
+| FR-35 | Every employee has a **position** (rank): Correctional officer or Correctional supervisor. Seniority is counted **within the rank** (the promotion date for a supervisor). | S |
+| FR-36 | Supervisors work rostered shifts on their own **supervisor posts** (two area posts, one supervisor per block, 24/7), shown on the board, the wall display (counts only), the reports and the quarter plan. | S |
+| FR-37 | **Who can work a post** is an editable rule table: an officer on a supervisor post is blocked unless they hold Acting supervisor (then a warning); a supervisor on an officer post is a warning. The planner never cross-covers. | S |
+| FR-38 | Supervisors follow the same rest, hours and pay rules; overtime is offered from separate pools by position; a supervisor can't change their own schedule, records or overtime. | S |
 
 ### Notifications — future work
 FR-40 and FR-41 (email/SMS outbox, message templates) are reserved for a later phase. Until then, changes and offers are visible in the app only.
