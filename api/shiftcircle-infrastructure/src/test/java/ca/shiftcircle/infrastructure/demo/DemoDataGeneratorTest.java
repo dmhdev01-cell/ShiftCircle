@@ -55,8 +55,9 @@ class DemoDataGeneratorTest {
 
   @Test
   void generatesADatasetThatPassesItsOwnSelfCheck() {
-    assertThat(count("SELECT count(*) FROM employee")).isEqualTo(100);
-    assertThat(count("SELECT count(*) FROM shift_assignment")).isBetween(4000, 7000);
+    assertThat(count("SELECT count(*) FROM employee WHERE classification = 'CO'")).isEqualTo(100);
+    assertThat(count("SELECT count(*) FROM employee WHERE classification = 'CS'")).isEqualTo(10);
+    assertThat(count("SELECT count(*) FROM shift_assignment")).isBetween(4000, 7500);
     assertThat(count("SELECT count(*) FROM time_entry")).isGreaterThan(3000);
     assertThat(count("SELECT count(*) FROM pay_period WHERE status = 'LOCKED'"))
         .isGreaterThanOrEqualTo(3);
@@ -167,32 +168,87 @@ class DemoDataGeneratorTest {
     assertThat(count("SELECT count(*) FROM schedule_period")).isEqualTo(firstPeriods);
   }
 
+  /**
+   * Release v1.3 (S4): the supervisors come from their own Random after every officer row, so the
+   * officers' roster and periods are the pre-supervisor dataset (checksum 4156077d…da6b).
+   */
+  @Test
+  void theSupervisorsLeaveTheOfficersRosterUnchanged() {
+    assertThat(DemoChecksum.officersOnly(jdbc))
+        .isEqualTo("4156077d76d41bd5fcf6d6a9a0f51111e9007d16c8a0c6b311e09c6fe801da6b");
+    assertThat(DemoChecksum.of(jdbc)).isNotEqualTo(DemoChecksum.officersOnly(jdbc));
+  }
+
+  /** The supervisors work the two posts only, on 8 h shifts, with M. Ellis and J. Chen linked. */
+  @Test
+  void theSupervisorsWorkTheirPostsOnEightHourShifts() {
+    assertThat(
+            count(
+                "SELECT count(*) FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
+                    + " JOIN unit u ON u.id = s.unit_id"
+                    + " WHERE (u.kind = 'SUPERVISION') <> (e.classification = 'CS')"))
+        .as("nobody on the wrong kind of post")
+        .isZero();
+    assertThat(
+            jdbc.queryForList(
+                "SELECT DISTINCT t.code FROM shift_assignment s"
+                    + " JOIN employee e ON e.id = s.employee_id"
+                    + " JOIN shift_template t ON t.id = s.shift_template_id"
+                    + " WHERE e.classification = 'CS' ORDER BY t.code",
+                String.class))
+        .containsExactly("D8", "E8", "N8");
+    assertThat(
+            jdbc.queryForList(
+                "SELECT a.username || '=' || e.employee_no || ' ' || e.first_name || ' '"
+                    + " || e.last_name || ' ' || u.code FROM app_user a"
+                    + " JOIN employee e ON e.id = a.employee_id"
+                    + " JOIN unit u ON u.id = e.home_unit_id"
+                    + " WHERE e.classification = 'CS' ORDER BY a.username",
+                String.class))
+        .containsExactly("j.chen=S-006 Jamie Chen SUP-O", "m.ellis=S-001 Morgan Ellis SUP-L");
+    assertThat(
+            count(
+                "SELECT count(*) FROM overtime_offer o JOIN employee e ON e.id = o.employee_id"
+                    + " JOIN open_shift s ON s.id = o.open_shift_id JOIN unit u ON u.id = s.unit_id"
+                    + " WHERE u.kind = 'SUPERVISION' AND e.classification = 'CS'"))
+        .as("a supervisor sick call is offered to another supervisor")
+        .isPositive();
+    assertThat(
+            count(
+                "SELECT count(*) FROM overtime_offer o JOIN employee e ON e.id = o.employee_id"
+                    + " JOIN open_shift s ON s.id = o.open_shift_id JOIN unit u ON u.id = s.unit_id"
+                    + " WHERE (u.kind = 'SUPERVISION') <> (e.classification = 'CS')"))
+        .as("no offer crosses the rank")
+        .isZero();
+  }
+
   @Test
   void seedsTheRosterWeeksEveryUnitCanPublish() {
-    // Six units, one Monday-to-Sunday period per week of the 90-day window (14 weeks).
-    assertThat(count("SELECT count(DISTINCT unit_id) FROM schedule_period")).isEqualTo(6);
+    // Six units and two supervisor posts, one Monday-to-Sunday period per week of the 90-day
+    // window (14 weeks).
+    assertThat(count("SELECT count(DISTINCT unit_id) FROM schedule_period")).isEqualTo(8);
     assertThat(
             count(
                 "SELECT count(*) FROM schedule_period WHERE start_date = DATE '2026-09-28'"
                     + " AND end_date = DATE '2026-10-04'"))
-        .isEqualTo(6);
+        .isEqualTo(8);
     assertThat(
             count(
                 "SELECT count(*) FROM schedule_period WHERE start_date = DATE '2026-12-28'"
                     + " AND end_date = DATE '2027-01-03'"))
-        .isEqualTo(6);
+        .isEqualTo(8);
 
     // Past weeks are published history; the demo week and the week after it are drafts.
     assertThat(
             count(
                 "SELECT count(*) FROM schedule_period WHERE end_date < DATE '2026-11-19'"
                     + " AND status = 'PUBLISHED' AND published_at IS NOT NULL"))
-        .isEqualTo(6 * 7);
+        .isEqualTo(8 * 7);
     assertThat(
             count(
                 "SELECT count(*) FROM schedule_period WHERE end_date >= DATE '2026-11-19'"
                     + " AND status = 'DRAFT'"))
-        .isEqualTo(6 * 7);
+        .isEqualTo(8 * 7);
 
     // Every shift belongs to the period that covers its work date.
     assertThat(count("SELECT count(*) FROM shift_assignment WHERE schedule_period_id IS NULL"))

@@ -111,8 +111,8 @@ Sign-in is **simulated**. The sign-in screen lists fictional demo users (`GET /a
 
 | User | Roles | Scope | Use it for |
 |---|---|---|---|
-| M. Ellis | Supervisor, Employee | Units A, B | Planning board, overtime, time and payroll |
-| J. Chen | Supervisor, Employee | Admissions, Control, Escort | Scope checks (can't see Unit B) |
+| M. Ellis | Supervisor, Employee | Units A, B and both supervisor posts | Planning board, overtime, time and payroll; her own schedule (Employee view) as Morgan Ellis, SUP-L day supervisor |
+| J. Chen | Supervisor, Employee | Admissions, Control, Escort and both supervisor posts | Scope checks (can't see Unit B); their own schedule (Employee view) as Jamie Chen, SUP-O day supervisor |
 | T. Nakamura | Employee | own records | My schedule, offers (accept/decline) |
 | L. Fraser | Rules admin | none | Edit, build and submit rule changes |
 | P. Singh | Rules approver | none | Approve and publish (not their own drafts) |
@@ -123,9 +123,11 @@ Sign-in is **simulated**. The sign-in screen lists fictional demo users (`GET /a
 ### Demo data and the quarter planner
 
 A reset rebuilds a known state from a fixed seed. **About & version → Reset the demo data** (signed in as P. Planner) selects:
-- **Dataset 100**: the default 100 officers × 90 days; roster and period checksum `4156077d…da6b`.
-- **Dataset 120**: 100 full-time D12/N12/E8 crew officers plus 20 casual relief officers; checksum `82b19cf8…32ca`.
-- **Dataset 150**: 120 full-time officers plus 30 part-time officers, with a deterministic 20% leave placement; checksum `2e6cd938…d7f8`.
+- **Dataset 100**: the default 100 officers × 90 days, plus 10 supervisors on 8 h D8/E8/N8 shifts; roster and period checksum `beb2e222…b7d1`.
+- **Dataset 120**: 100 full-time D12/N12/E8 crew officers plus 20 casual relief officers, plus 10 supervisors on D12/N12 crews; checksum `ca73467d…a64a`.
+- **Dataset 150**: 120 full-time officers plus 30 part-time officers, with a deterministic 20% leave placement, plus 12 supervisors (the 120 ten, a D8 day supervisor and a 0.6 FTE part-timer, with their own 20% leave); checksum `353e2e62…91a5`.
+
+Since release v1.3 every dataset has **supervisors on their own posts**: two supervisor posts, **Supervision · Living units** (SUP-L, covers A, B and C) and **Supervision · Operations** (SUP-O, covers Admissions, Control and Escort), each needing one supervisor per block, 24/7. M. Ellis and J. Chen are linked to supervisor records, so their **Employee view** shows their own schedule. The supervisors were added after every officer row from their own seeded streams, so the officers' roster, plan and payroll rows are unchanged: the officers alone still give the earlier checksums (`4156077d…da6b`, `82b19cf8…32ca`, `2e6cd938…d7f8`), and a test asserts it.
 
 The reset is asynchronous, one at a time and audited, takes a few seconds, and leaves the payroll golden file unchanged.
 
@@ -133,7 +135,7 @@ The reset is asynchronous, one at a time and audited, takes a few seconds, and l
 
 Before committing, the planner can **change single shifts in the draft**: move one (time or unit), give it to another officer, remove it, or add one. Each change is checked by the same rules engine: a Block saves nothing, a Warn needs a second, acknowledged save, and there is no emergency override in a draft. The whole scorecard is worked out again after each change, edited shifts read "· edited", and each edit is in the audit log. Generating again or discarding drops the hand edits after a confirm.
 
-Commit re-checks every shift, hand edits included, needs the warning list accepted once, and refuses a stale draft or a locked period. On Dataset 120 the measured draft is 38 gaps of 1,764 (all Escort evening), 7 warnings, zero Block, and 5,103 shifts on commit. The demo script in [`docs/demo-script.md`](docs/demo-script.md) §7 walks it.
+Commit re-checks every shift, hand edits included, needs the warning list accepted once, and refuses a stale draft or a locked period. On Dataset 120 the measured draft is 38 gaps of 1,764 officer block-days (all Escort evening), 7 warnings, zero Block, and 5,595 shifts on commit (5,103 officer + 492 supervisor; the supervisor posts have no gaps). The demo script in [`docs/demo-script.md`](docs/demo-script.md) §7 walks it.
 
 **Known limits**, stated on the scorecard and in [`BUILD_RECORD.md`](BUILD_RECORD.md):
 - **Rules (mock values, known defects):** U-03 and U-11 are dormant, because they key on the retired L16 template, so no new shift can trigger them. A 12 h + extension day is still bounded by U-02 and U-04 (Warn), U-01 and U-05 (Block); only the dedicated 12 h-rest Block is missing. L-01 still lists 16 h as a regular length (a 16 h day is 12 h + extension). P-01's 80 h per-period threshold makes 4-on/4-off 12 h crews built-in overtime, because U-13 cycle averaging is not built.
@@ -219,7 +221,7 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
 
 The `v1.1.1-submission` gate (the submission line before the `v1.1.2-submission` hotfix) was on API 470, web 532 in 54 files, desktop 124 and tablet 123 + 1 (fixtures 23 passed, 79 skipped); that table is in [docs/10-testing.md](docs/10-testing.md).
 
-The dataset checksums, the payroll golden and the plan fingerprints are unchanged: the v1.3 positions migration adds no unit and no employee rows, and the generator does not change. Earlier counts, release by release, are in [docs/process/release-notes.md](docs/process/release-notes.md); each round is in `docs/process/review-rounds.md`.
+**Pins (release v1.3 S4, moved once):** the supervisors move every dataset pin once. Dataset checksums 100 `beb2e222…b7d1`, 120 `ca73467d…a64a`, 150 `353e2e62…91a5`; plan rows 7,266 / 5,595 / 5,877; the payroll golden for 26 Oct – 8 Nov is 1,124 lines, sha256 `b946ef1f…00e6`. The move is additive and a test proves it (`GeneratorCharacterizationTest`): the officers alone still give the earlier checksums (`4156077d…da6b`, `82b19cf8…32ca`, `2e6cd938…d7f8`), plan fingerprints (`ec337014…`, `e8b29ce6…`, `a1e093f7…`), rows (6,586 / 5,103 / 5,414) and scorecard warnings (135 / 7 / 39), and the golden's first 1,038 lines are the earlier file byte for byte (`9f2d51b3…04ff`), with only the supervisors' `S-…` rows appended. Earlier counts, release by release, are in [docs/process/release-notes.md](docs/process/release-notes.md); each round is in `docs/process/review-rounds.md`.
 
 **One viewport per fresh stack; dataset specs last.** `--project desktop-datasets` runs the parallel `desktop` specs first, then the thirteen stack-wide specs (dataset resets, quarter-plan generate/commit/discard, the E4 pay-period lock) one at a time, because they would corrupt each other in parallel (`e2e/README.md`). The real-API specs change the data (an offer is confirmed, a rule version is published, a period is locked), so a second viewport run on the same database fails on the changed data. Run `--project desktop-datasets`, then `docker compose -p sc-test down -v && docker compose -p sc-test up -d --wait`, then `--project tablet-datasets`. The web unit tests write `web/node_modules` with Linux binaries.
 

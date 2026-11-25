@@ -216,8 +216,9 @@ class AuthorizationMatrixTest {
     java.util.List<String> ellisUnits = (java.util.List<String>) ellis.get("units");
     @SuppressWarnings("unchecked")
     java.util.List<String> chenUnits = (java.util.List<String>) chen.get("units");
-    assertThat(ellisUnits).containsExactly("A", "B");
-    assertThat(chenUnits).containsExactly("ADM", "CTL", "ESC");
+    // Both demo supervisors also have both supervisor posts (V19, release v1.3 S4).
+    assertThat(ellisUnits).containsExactly("A", "B", "SUP-L", "SUP-O");
+    assertThat(chenUnits).containsExactly("ADM", "CTL", "ESC", "SUP-L", "SUP-O");
     assertThat(UNIT_A.toString()).isNotBlank();
     assertThat(UNIT_B.toString()).isNotBlank();
   }

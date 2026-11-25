@@ -50,7 +50,11 @@ class DemoResetApiTest {
     registry.add("spring.datasource.password", POSTGRES::getPassword);
   }
 
+  /** Release v1.3 (S4): the 100 officers plus their 10 supervisors. */
   private static final String CHECKSUM =
+      "beb2e222b8c9100c98d329e37f5ffcf670f81d0083045d84f179f7f0681ab7d1";
+  /** The pre-S4 checksum, which the officers alone still produce. */
+  private static final String OFFICER_CHECKSUM =
       "4156077d76d41bd5fcf6d6a9a0f51111e9007d16c8a0c6b311e09c6fe801da6b";
 
   @Autowired private JdbcTemplate jdbc;
@@ -112,8 +116,19 @@ class DemoResetApiTest {
               "SELECT active FROM shift_template WHERE code = 'L16'", Boolean.class))
           .isFalse();
 
-      assertThat(jdbc.queryForObject("SELECT count(*) FROM employee", Integer.class))
+      assertThat(jdbc.queryForObject(
+              "SELECT count(*) FROM employee WHERE classification = 'CO'", Integer.class))
           .isEqualTo(100);
+      assertThat(jdbc.queryForObject(
+              "SELECT count(*) FROM employee WHERE classification = 'CS'", Integer.class))
+          .as("10 supervisors, 5 per post")
+          .isEqualTo(10);
+      assertThat(jdbc.queryForList(
+              "SELECT a.username || '=' || e.employee_no FROM app_user a"
+                  + " JOIN employee e ON e.id = a.employee_id ORDER BY a.username",
+              String.class))
+          .as("the demo sign-ins with an employee record")
+          .containsExactly("j.chen=S-006", "m.ellis=S-001", "t.nakamura=E-001");
       assertThat(jdbc.queryForObject("SELECT count(*) FROM app_user", Integer.class))
           .isEqualTo(8);
       assertThat(jdbc.queryForObject("SELECT count(*) FROM plan_draft", Integer.class))
@@ -129,6 +144,9 @@ class DemoResetApiTest {
                   Integer.class))
           .isZero();
       assertThat(DemoChecksum.of(jdbc)).isEqualTo(CHECKSUM);
+      assertThat(DemoChecksum.officersOnly(jdbc))
+          .as("the officers' roster is the pre-supervisor roster")
+          .isEqualTo(OFFICER_CHECKSUM);
       assertThat(
               jdbc.queryForObject(
                   "SELECT action FROM audit_event ORDER BY id LIMIT 1", String.class))
@@ -143,7 +161,7 @@ class DemoResetApiTest {
     byte[] bytes =
         getClass().getResourceAsStream("/payroll/pc05-2026-10-26.csv").readAllBytes();
     assertThat(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes)))
-        .isEqualTo("9f2d51b38581abea673fe5c85aead3670ca45b36db390fee1d2033d1faa004ff");
+        .isEqualTo("b946ef1f9f3d3529bd826e41a9452fe35633d9e1ee38e7d79d7a70732bc200e6");
   }
 
   @Test

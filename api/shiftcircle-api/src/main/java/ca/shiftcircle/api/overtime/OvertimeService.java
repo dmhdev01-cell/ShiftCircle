@@ -7,6 +7,7 @@ import ca.shiftcircle.api.rules.RuleCheckService;
 import ca.shiftcircle.api.rules.RuleViolationException;
 import ca.shiftcircle.api.security.AuthPrincipal;
 import ca.shiftcircle.api.security.ScopeGuard;
+import ca.shiftcircle.domain.Position;
 import ca.shiftcircle.rules.RuleEvaluator;
 import ca.shiftcircle.rules.facts.OvertimeRankingFact;
 import ca.shiftcircle.rules.facts.RuleOutcome;
@@ -230,7 +231,16 @@ public class OvertimeService {
 
     List<OvertimeRanker.Candidate> pool = new ArrayList<>();
     Map<UUID, RuleCheckService.OutcomeView> outcomes = new LinkedHashMap<>();
+    // Release v1.3 (S4): the datasets now hold supervisors, and both demo supervisors have the
+    // supervisor posts in scope. The ranked list stays within the post's rank, so a supervisor
+    // post lists supervisors and an officer post lists officers, exactly as before (owner answer
+    // Q4). S5 builds the full pools on this (acting officers, rank seniority, self-offer guard).
+    boolean supervisorPost = "SUPERVISION".equals(shift.get("unit_kind"));
     for (Map<String, Object> officer : officers(principal)) {
+      if (Position.fromCodeOrDefault((String) officer.get("classification")).isSupervisory()
+          != supervisorPost) {
+        continue;
+      }
       UUID employeeId = (UUID) officer.get("id");
       List<String> qualifications = strings(officer.get("qualifications"));
 
@@ -611,7 +621,7 @@ public class OvertimeService {
     List<Map<String, Object>> officers =
         jdbc.queryForList(
             "SELECT e.id, e.first_name || ' ' || e.last_name AS name, e.seniority_date,"
-                + " u.code AS home_unit,"
+                + " e.classification, u.code AS home_unit,"
                 + " coalesce((SELECT sum(te.hours) FROM time_entry te"
                 + "   WHERE te.employee_id = e.id AND te.pay_code = 'OT15'"
                 + "   AND te.start_at >= ?), 0) AS overtime_hours,"

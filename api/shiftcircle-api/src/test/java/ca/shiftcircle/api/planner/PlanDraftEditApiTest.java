@@ -80,7 +80,8 @@ class PlanDraftEditApiTest {
             null);
     assertThat(preview.statusCode()).as(preview.body()).isEqualTo(200);
     assertThat(version(draft)).isEqualTo(version);
-    assertThat(count(draft)).isEqualTo(5103);
+    // The 120 plan: 5,103 officer + 492 supervisor shifts since release v1.3 S4.
+    assertThat(count(draft)).isEqualTo(5595);
 
     // Remove, then add the same shift back: the draft is restored and the scorecard is recomputed.
     HttpResponse<String> removed =

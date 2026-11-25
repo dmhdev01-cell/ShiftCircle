@@ -410,7 +410,7 @@ class PlannerApiTest {
         mapper.readValue(
             send("GET", "/api/v1/planner/preferences", null, tokens.get("p.planner")).body(),
             List.class);
-    assertThat(all).hasSize(100);
+    assertThat(all).as("100 officers and, since release v1.3 S4, 10 supervisors").hasSize(110);
     assertThat(all.get(0)).containsKeys(
         "employeeId", "name", "shiftLength", "timesOfDay", "daysOff", "inDraft");
     assertThat(all.get(0)).doesNotContainKey("timeOfDay");
@@ -602,7 +602,8 @@ class PlannerApiTest {
                     tokens.get("p.planner"))
                 .body(),
             List.class);
-    assertThat(units).hasSize(6);
+    // Six line units and the two supervisor posts (release v1.3 S4).
+    assertThat(units).hasSize(8);
     assertThat(units.get(0)).containsKeys("unitId", "unitName", "coverage");
     assertThat((List<?>) units.get(0).get("coverage")).hasSize(21);
 
@@ -758,7 +759,7 @@ class PlannerApiTest {
         assertThat(entry.getValue().get("unit")).isNotNull();
       }
     }
-    assertThat(unitRows).isEqualTo(6);
+    assertThat(unitRows).as("six line units and two supervisor posts").isEqualTo(8);
     assertThat(unitDraftGaps).isEqualTo(draftGaps);
   }
 
@@ -813,7 +814,7 @@ class PlannerApiTest {
         mapper.readValue(
             send("GET", "/api/v1/planner/preferences", null, tokens.get("p.planner")).body(),
             List.class);
-    assertThat(preferences).hasSize(100);
+    assertThat(preferences).as("100 officers and 10 supervisors").hasSize(110);
     assertThat(preferences.stream().noneMatch(row -> "NO_DRAFT".equals(row.get("inDraft"))))
         .as("every row evaluates the committed plan")
         .isTrue();

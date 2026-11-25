@@ -9,7 +9,7 @@ You run your unit's roster week to week. Your menu has these screens:
 - **Rules**
 - **Audit log**
 - **Wall display**
-- **Employee view** (only when your account is linked to an officer; the demo supervisors are not, so they don't see it)
+- **Employee view** (your own schedule, when your account is linked to an employee record; since release v1.3 both demo supervisors are)
 - **Time & attendance**
 
 ## Planning board
@@ -188,7 +188,7 @@ It is a shared screen, so it shows counts only, no names. **Leave the wall displ
 
 ## Employee view
 
-Employee view opens **My schedule** for the officer record linked to your account, exactly as an officer sees it. It appears in your menu only when your account is linked to an officer; the demo supervisors (M. Ellis, J. Chen) are not, so they don't see it. Sign in as T. Nakamura to see an officer's view.
+Employee view opens **My schedule** for the employee record linked to your account, exactly as an officer sees it. It appears in your menu only when your account is linked to a record. Since release v1.3 the demo supervisors are rostered on their own supervisor posts, so both have one: **M. Ellis** is Morgan Ellis, a day supervisor on **Supervision · Living units** (SUP-L, covers Units A, B and C), and **J. Chen** is Jamie Chen, a day supervisor on **Supervision · Operations** (SUP-O, covers Admissions, Control and Escort). The header reads "Correctional supervisor". On Dataset 100 their 8 h shifts run through the Oct–Dec window; on Datasets 120 and 150 their D12 crew history runs to Sun 3 Jan 2027, and the quarter plan adds the rest once committed. Both supervisors also have both posts in scope on the planning board and the Overtime board; their officer-unit scope is unchanged. Sign in as T. Nakamura to see an officer's view.
 
 ## What you can't do here
 

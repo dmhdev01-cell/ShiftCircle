@@ -56,9 +56,10 @@ class PlanInputsApiTest {
     reset("120");
     Map<String, Object> inputs = inputs();
 
+    // Release v1.3 S4: everyone the generator plans, the 120 officers and the 10 supervisors.
     Map<String, Object> officers = (Map<String, Object>) inputs.get("officers");
-    assertThat(officers.get("total")).isEqualTo(120);
-    assertThat(officers.get("fullTime")).isEqualTo(100);
+    assertThat(officers.get("total")).isEqualTo(130);
+    assertThat(officers.get("fullTime")).isEqualTo(110);
     assertThat(officers.get("partTime")).isEqualTo(20);
     assertThat(((Number) officers.get("fte")).doubleValue())
         .isEqualTo(round1(jdbc.queryForObject("SELECT sum(fte) FROM employee", Double.class)));
@@ -68,13 +69,13 @@ class PlanInputsApiTest {
 
     List<Map<String, Object>> units = (List<Map<String, Object>>) inputs.get("units");
     assertThat(units).hasSize(jdbc.queryForObject("SELECT count(*) FROM unit", Integer.class));
-    assertThat(units.stream().mapToInt(unit -> (int) unit.get("officers")).sum()).isEqualTo(120);
+    assertThat(units.stream().mapToInt(unit -> (int) unit.get("officers")).sum()).isEqualTo(130);
     int grouped =
         units.stream()
             .flatMap(unit -> ((List<Map<String, Object>>) unit.get("groups")).stream())
             .mapToInt(group -> (int) group.get("officers"))
             .sum();
-    assertThat(grouped).as("every officer is in exactly one unit x pattern group").isEqualTo(120);
+    assertThat(grouped).as("every officer is in exactly one unit x pattern group").isEqualTo(130);
     // The 20 casual relief officers are a relief pool, 8 of them on 12 h.
     int relief12 =
         units.stream()
@@ -124,16 +125,18 @@ class PlanInputsApiTest {
 
     Map<String, Object> inputs = mapper.readValue(live.body(), Map.class);
     Map<String, Object> officers = (Map<String, Object>) inputs.get("officers");
-    assertThat(officers.get("total")).isEqualTo(150);
-    assertThat(officers.get("fullTime")).isEqualTo(120);
-    assertThat(officers.get("partTime")).isEqualTo(30);
-    assertThat(((Number) officers.get("fte")).doubleValue()).isEqualTo(138.0);
+    // Release v1.3 S4: the 150 officers and the 12 supervisors (one of them 0.6 FTE).
+    assertThat(officers.get("total")).isEqualTo(162);
+    assertThat(officers.get("fullTime")).isEqualTo(131);
+    assertThat(officers.get("partTime")).isEqualTo(31);
+    assertThat(((Number) officers.get("fte")).doubleValue()).isEqualTo(149.6);
     // The floor is the Staffing card's own figure: one stretch (no closures), so the whole quarter.
     List<Map<String, Object>> staffingPeriods = staffingPeriods();
     assertThat(staffingPeriods).hasSize(1);
     assertThat(officers.get("neededFte"))
         .isEqualTo(((Map<String, Object>) staffingPeriods.get(0).get("totals")).get("needed"))
-        .isEqualTo(127);
+        .as("the officer units' 127 and the two supervisor posts' 5 each")
+        .isEqualTo(137);
     assertThat(officers.get("neededFrom")).isEqualTo("2027-01-04");
     assertThat(officers.get("neededTo")).isEqualTo("2027-04-11");
 
@@ -142,7 +145,7 @@ class PlanInputsApiTest {
     assertThat(days).as("Dataset 150 seeds 20% leave in the quarter").isPositive();
     Map<String, Integer> byType = (Map<String, Integer>) leave.get("byType");
     assertThat(byType.values().stream().mapToInt(Integer::intValue).sum()).isEqualTo(days);
-    assertThat((int) leave.get("officers")).isPositive().isLessThanOrEqualTo(150);
+    assertThat((int) leave.get("officers")).isPositive().isLessThanOrEqualTo(162);
 
     Map<String, Object> preferences = (Map<String, Object>) inputs.get("preferences");
     Map<String, Integer> lengths = (Map<String, Integer>) preferences.get("shiftLength");
@@ -199,9 +202,9 @@ class PlanInputsApiTest {
         "UPDATE employee SET fte = 0.5 WHERE id = (SELECT id FROM employee WHERE fte = 1.0"
             + " ORDER BY employee_no LIMIT 1)");
     Map<String, Object> after = (Map<String, Object>) inputs().get("officers");
-    assertThat(after.get("partTime")).isEqualTo(31);
+    assertThat(after.get("partTime")).isEqualTo(32);
     assertThat(((Map<String, Object>) draftInputs(draft).get("officers")).get("partTime"))
-        .isEqualTo(30);
+        .isEqualTo(31);
   }
 
   @Test

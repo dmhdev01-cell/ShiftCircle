@@ -48,6 +48,8 @@ What the options did on the demo data (seed 20261001, measured on 24 Nov 2026; p
 | 150 | other units | 72 | 59 | 3,337 h | 5,455 | 28 (41 shifts, 26 officers) |
 | 150 | fill up to FTE + other units | 72 | 71 | 496 h | 5,769 | 28 (41 shifts, 26 officers) |
 | 150 | full-time only | 687 | 5 | 10,080 h | 4,691 | n/a |
+
+These rows were measured before release v1.3 S4 added the supervisors and are the **officers'** figures; S4's officer-only test holds them for the defaults rows. Since S4 the supervisors are always planned too, so a draft's shift total adds their shifts: Dataset 120 defaults is **5,595** (5,103 officer + 492 supervisor shifts, no supervisor-post gaps) and Dataset 150 defaults **5,877** (5,414 + 463, with 93 supervisor-post block-days short from the supervisors' leave).
 | 150 | full-time only + other units | 529 | 115 | 10,080 h | 4,894 | 158 (203 shifts, 82 officers) |
 
 ![Dataset 150 draft made with Cover gaps from other units: 72 gaps, 59 warnings, and the line 28 gaps covered from other units, 41 shifts by 26 officers](img/planner-scorecard-cross-unit.png)
@@ -122,7 +124,7 @@ Below the tiles, these cards give the detail:
 - **Preferences by kind**
 - **Staffing by unit**
 
-With supervisors in the plan (release v1.3), every tile and card above counts the **officers and the officer units only**, so the officer figures read as they did before. The supervisors and their posts get a **supervisors** card of their own (posts covered *x* of *y* block-days, gaps, warnings, preferences, nights by seniority inside the rank, hours by FTE band, leave), and the totals give the split, for example "5,103 officer + 1,170 supervisor shifts". The API carries these now (`scorecard.supervisors`, `scorecard.totals`); the screen shows them in a later release.
+With supervisors in the plan (release v1.3), every tile and card above counts the **officers and the officer units only**, so the officer figures read as they did before. The supervisors and their posts get a **supervisors** card of their own (posts covered *x* of *y* block-days, gaps, warnings, preferences, nights by seniority inside the rank, hours by FTE band, leave), and the totals give the split, for example "5,103 officer + 492 supervisor shifts" on Dataset 120. The API carries these now (`scorecard.supervisors`, `scorecard.totals`); the screen shows them in a later release.
 
 Two of them need a note:
 - **Qualified staff:** this is a warning only. The planner does not enforce qualifications. Qualification start dates are not checked: an officer with a qualification counts as qualified for the whole quarter.

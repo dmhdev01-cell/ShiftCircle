@@ -185,6 +185,8 @@ public class Demo120DatasetProvider implements DemoDatasetProvider {
     seedHistory(fullTime, units, templates, starts);
     seedPeriods(units);
     selfCheck(fullTime, casuals, units);
+    // Release v1.3 (S4): the supervisors, after every officer row, so the officers are unchanged.
+    new DemoSupervisorCrews(jdbc, DATASET).seed(false, units, patterns, templates, starts);
   }
 
   @Override

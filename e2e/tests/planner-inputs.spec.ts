@@ -15,7 +15,7 @@ import { shot } from './shots';
  */
 
 interface Inputs {
-  officers: { total: number; fullTime: number; partTime: number; fte: number; neededFte: number | null };
+  officers: { total: number; fullTime: number; partTime: number; fte: number; neededFte: number | null; units?: number };
   leave: { days: number; byType: Record<string, number> };
   preferences: { officers: number };
   rules: { ruleSetVersion: number };
@@ -59,7 +59,9 @@ test.describe('plan inputs on the quarter plan', () => {
     await resetTo(request, '150');
     const api = await apiAs(request, 'p.planner');
     const inputs = await api.get<Inputs>('/planner/inputs');
-    expect(inputs.officers).toMatchObject({ total: 150, fullTime: 120, partTime: 30, fte: 138 });
+    // Release v1.3 (S4): the 150 officers plus 12 supervisors (11 full-time, one 0.6 FTE) on
+    // 6 units and 2 supervisor posts. The headline counts everyone until S7 words the split.
+    expect(inputs.officers).toMatchObject({ total: 162, fullTime: 131, partTime: 31, fte: 149.6, units: 8 });
     expect(inputs.leave.days).toBeGreaterThan(0);
 
     await signIn(page, 'P. Planner');
@@ -68,7 +70,7 @@ test.describe('plan inputs on the quarter plan', () => {
     await expect(page.getByText('Plan inputs · what Generate will use')).toBeVisible();
     const headline = page.getByTestId('plan-inputs-headline');
     await expect(headline).toHaveText(
-      `Planning 150 officers in 6 units · 120 full-time, 30 part-time or casual · 138 FTE against about ${inputs.officers.neededFte} needed · 4 Jan – 11 Apr 2027`,
+      `Planning 162 officers in 8 units · 131 full-time, 31 part-time or casual · 149.6 FTE against about ${inputs.officers.neededFte} needed · 4 Jan – 11 Apr 2027`,
     );
     await expect(
       page.getByText(
@@ -93,7 +95,7 @@ test.describe('plan inputs on the quarter plan', () => {
     await page.getByRole('button', { name: 'Generate draft' }).click();
     await expect(page.getByText('Coverage gaps')).toBeVisible({ timeout: 120_000 });
     await expect(page.getByText('Plan inputs · what this draft was generated with')).toBeVisible();
-    await expect(headline).toContainText('Planning 150 officers in 6 units · 120 full-time, 30 part-time or casual');
+    await expect(headline).toContainText('Planning 162 officers in 8 units · 131 full-time, 31 part-time or casual');
     await expect(page.getByText(/^Seed 20261001 · 8 h officers on their own pattern/)).toBeVisible();
     await expect(page.getByText('have changed since this draft was generated', { exact: false })).toHaveCount(0);
     const tablist = page.getByRole('tablist', { name: 'Quarter plan' });
@@ -110,13 +112,14 @@ test.describe('plan inputs on the quarter plan', () => {
     await resetTo(request, '120');
     const api = await apiAs(request, 'p.planner');
     const inputs = await api.get<Inputs>('/planner/inputs');
-    expect(inputs.officers).toMatchObject({ total: 120, fullTime: 100, partTime: 20 });
+    // Release v1.3 (S4): the 120 officers plus 10 full-time supervisors on the 2 posts.
+    expect(inputs.officers).toMatchObject({ total: 130, fullTime: 110, partTime: 20, units: 8 });
     expect(inputs.leave.days).toBe(0);
 
     await signIn(page, 'P. Planner');
     await navTo(page, 'Quarter plan');
     await expect(page.getByTestId('plan-inputs-headline')).toHaveText(
-      `Planning 120 officers in 6 units · 100 full-time, 20 part-time or casual · ${inputs.officers.fte} FTE against about ${inputs.officers.neededFte} needed · 4 Jan – 11 Apr 2027`,
+      `Planning 130 officers in 8 units · 110 full-time, 20 part-time or casual · ${inputs.officers.fte} FTE against about ${inputs.officers.neededFte} needed · 4 Jan – 11 Apr 2027`,
     );
     await page.getByRole('button', { name: 'Show plan inputs' }).click();
     const detail = page.getByRole('region', { name: 'Plan inputs detail' });
@@ -142,7 +145,9 @@ test.describe('plan inputs on the quarter plan', () => {
       );
       expect(inputs.officers.neededFte, 'the headline needs what the floor needs').toBe(worst.totals.needed);
       if (dataset === '120') {
-        expect(staffing.periods[0].totals).toMatchObject({ needed: 127, filled: 120, shortfall: 7 });
+        // Release v1.3 (S4): the two supervisor posts need 5 each and have 5 each, so the
+        // shortfall stays 7 (the officers' units).
+        expect(staffing.periods[0].totals).toMatchObject({ needed: 137, filled: 130, shortfall: 7 });
       }
 
       await signIn(page, 'P. Planner');

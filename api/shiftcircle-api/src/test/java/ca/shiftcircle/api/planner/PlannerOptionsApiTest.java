@@ -190,12 +190,17 @@ class PlannerOptionsApiTest {
         on.gaps(), off.gaps(), on.warnings(), off.warnings(), on.unused(), off.unused(), card);
     assertThat(off).isEqualTo(new Capacity(6565, 10080, 3515, 100, 39));
     assertThat(on).isEqualTo(new Capacity(6743, 10080, 3337, 72, 59));
+    // Release v1.3 S4: the card counts the supervisor posts too (the 100 officer gaps plus 93 post
+    // gaps; supervisors relieve the other post, never an officer unit). The officers' part is the
+    // pre-S4 28 gaps, 41 shifts and 26 officers, asserted on the board below.
     assertThat(card)
-        .containsEntry("gapsBefore", 100)
-        .containsEntry("gapsCovered", 28)
-        .containsEntry("shifts", 41)
-        .containsEntry("officers", 26)
-        .containsEntry("stillShortReasons", Map.of("NOT_QUALIFIED", 46, "NO_HOURS_LEFT", 14, "RULE_BLOCK", 12));
+        .containsEntry("gapsBefore", 193)
+        .containsEntry("gapsCovered", 56)
+        .containsEntry("shifts", 63)
+        .containsEntry("officers", 36)
+        .containsEntry(
+            "stillShortReasons",
+            Map.of("NOT_QUALIFIED", 46, "NO_HOURS_LEFT", 57, "RULE_BLOCK", 22, "NO_SHIFT_FITS", 12));
 
     UUID id = UUID.fromString((String) cross.get("id"));
     // Every cross-unit shift is rule-clean (no Block) by construction; it holds the block's
@@ -260,7 +265,8 @@ class PlannerOptionsApiTest {
         mapper.readValue(
             send("GET", "/api/v1/planner/drafts/" + bothId + "/commit-preview", null, planner).body(),
             Map.class);
-    assertThat(preview.get("shiftsToWrite")).isEqualTo(5769);
+    assertThat(preview.get("shiftsToWrite")).isEqualTo(6256);
+    assertThat(preview.get("officerShifts")).as("the pre-S4 officer plan").isEqualTo(5769);
     HttpResponse<String> committed =
         send(
             "POST",
@@ -274,15 +280,24 @@ class PlannerOptionsApiTest {
                 "SELECT count(*) FROM shift_assignment WHERE plan_draft_id = ?",
                 Integer.class,
                 bothId))
-        .isEqualTo(5769);
-    // The cross-unit shifts reach the board in the unit they cover.
+        .isEqualTo(6256);
+    // The cross-unit shifts reach the board in the unit they cover: the officers' 41, as before
+    // the supervisors, and 22 supervisor shifts on the other supervisor post.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
+                    + " WHERE s.plan_draft_id = ? AND s.unit_id <> e.home_unit_id"
+                    + " AND e.classification = 'CO'",
+                Integer.class,
+                bothId))
+        .isEqualTo(41);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
                     + " WHERE s.plan_draft_id = ? AND s.unit_id <> e.home_unit_id",
                 Integer.class,
                 bothId))
-        .isEqualTo(41);
+        .isEqualTo(63);
   }
 
   @Test
@@ -295,24 +310,29 @@ class PlannerOptionsApiTest {
     reset(planner, "150");
     Map<String, Object> upTo = generate(planner, "{\"seed\":20261001,\"partTimeFill\":\"UP_TO_FTE\"}");
     assertThat(capacity(upTo)).isEqualTo(new Capacity(9584, 10080, 496, 100, 51));
-    assertThat(commit(planner, upTo)).isEqualTo(5746);
+    assertThat(officerShifts(planner, upTo)).as("the pre-S4 officer plan").isEqualTo(5746);
+    assertThat(commit(planner, upTo)).isEqualTo(6218);
 
     reset(planner, "150");
     // Full-time only plus other units: 529 gaps, 115 warnings, 4,894 shifts, 158 covered.
     Map<String, Object> fullTimeCross =
         generate(planner, "{\"seed\":20261001,\"staffTypes\":[\"FULL_TIME\"],\"crossUnitFill\":\"ON\"}");
     assertThat(capacity(fullTimeCross)).isEqualTo(new Capacity(0, 10080, 10080, 529, 115));
-    assertThat(shifts(planner, fullTimeCross)).isEqualTo(4894);
+    assertThat(officerShifts(planner, fullTimeCross)).as("the pre-S4 officer plan").isEqualTo(4894);
+    assertThat(shifts(planner, fullTimeCross)).isEqualTo(5356);
+    // Release v1.3 S4: the card counts the supervisor posts too (pre-S4, officers only: 158
+    // covered, 203 shifts, 82 officers).
     Map<String, Object> card = crossUnit(fullTimeCross);
-    assertThat(card).containsEntry("gapsCovered", 158).containsEntry("shifts", 203)
-        .containsEntry("officers", 82);
+    assertThat(card).containsEntry("gapsCovered", 178).containsEntry("shifts", 221)
+        .containsEntry("officers", 92);
     assertThat((Map<String, Object>) card.get("stillShortReasons"))
-        .isEqualTo(Map.of("NOT_QUALIFIED", 268, "NO_HOURS_LEFT", 201, "RULE_BLOCK", 51, "NO_SHIFT_FITS", 9));
+        .isEqualTo(Map.of("NOT_QUALIFIED", 268, "NO_HOURS_LEFT", 272, "RULE_BLOCK", 63, "NO_SHIFT_FITS", 25));
 
     // Other units alone: 5,455 shifts, commits.
     Map<String, Object> cross = generate(planner, "{\"seed\":20261001,\"crossUnitFill\":\"ON\"}");
     assertThat(capacity(cross)).isEqualTo(new Capacity(6743, 10080, 3337, 72, 59));
-    assertThat(commit(planner, cross)).isEqualTo(5455);
+    assertThat(officerShifts(planner, cross)).as("the pre-S4 officer plan").isEqualTo(5455);
+    assertThat(commit(planner, cross)).isEqualTo(5940);
   }
 
   @Test
@@ -322,7 +342,8 @@ class PlannerOptionsApiTest {
     reset(planner, "120");
     Map<String, Object> cross = generate(planner, "{\"seed\":20261001,\"crossUnitFill\":\"ON\"}");
     assertThat(capacity(cross)).isEqualTo(new Capacity(1248, 6720, 5472, 38, 7));
-    assertThat(shifts(planner, cross)).isEqualTo(5103);
+    assertThat(officerShifts(planner, cross)).as("the pre-S4 officer plan").isEqualTo(5103);
+    assertThat(shifts(planner, cross)).as("plus the 492 supervisor shifts").isEqualTo(5595);
     Map<String, Object> card = crossUnit(cross);
     // All 38 gaps are Escort evenings, and no free officer in another unit holds Escort.
     assertThat(card).containsEntry("gapsCovered", 0).containsEntry("shifts", 0);
@@ -332,7 +353,8 @@ class PlannerOptionsApiTest {
     Map<String, Object> fullTimeCross =
         generate(planner, "{\"seed\":20261001,\"staffTypes\":[\"FULL_TIME\"],\"crossUnitFill\":\"ON\"}");
     assertThat(capacity(fullTimeCross)).isEqualTo(new Capacity(0, 6720, 6720, 152, 6));
-    assertThat(shifts(planner, fullTimeCross)).isEqualTo(4958);
+    assertThat(officerShifts(planner, fullTimeCross)).as("the pre-S4 officer plan").isEqualTo(4958);
+    assertThat(shifts(planner, fullTimeCross)).isEqualTo(5450);
     assertThat(crossUnit(fullTimeCross)).containsEntry("gapsCovered", 4);
 
     // GET /planner/inputs follows the Generate form's options, and refuses a bad one.
@@ -363,9 +385,10 @@ class PlannerOptionsApiTest {
         mapper.readValue(
             send("GET", "/api/v1/planner/drafts/" + id + "/commit-preview", null, token).body(),
             Map.class);
-    // The commit's own recount agrees with the draft's warning count.
+    // The commit's own recount agrees with the draft's warning count: everyone's, the totals
+    // (the warnings card is the officers' since release v1.3 S3).
     assertThat(preview.get("warningCount"))
-        .isEqualTo(((Map<String, Object>) ((Map<String, Object>) draft.get("scorecard")).get("warnings")).get("total"));
+        .isEqualTo(((Map<String, Object>) ((Map<String, Object>) draft.get("scorecard")).get("totals")).get("warnings"));
     HttpResponse<String> committed =
         send(
             "POST",
@@ -385,6 +408,18 @@ class PlannerOptionsApiTest {
                         .body(),
                     Map.class)
                 .get("shiftsToWrite"))
+        .intValue();
+  }
+
+  /** The officers' shifts in a draft (release v1.3: the commit preview's split). */
+  @SuppressWarnings("unchecked")
+  private int officerShifts(String token, Map<String, Object> draft) throws Exception {
+    return ((Number)
+            mapper.readValue(
+                    send("GET", "/api/v1/planner/drafts/" + draft.get("id") + "/commit-preview", null, token)
+                        .body(),
+                    Map.class)
+                .get("officerShifts"))
         .intValue();
   }
 

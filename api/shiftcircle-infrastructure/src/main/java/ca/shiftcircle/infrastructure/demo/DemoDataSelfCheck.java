@@ -58,6 +58,7 @@ public final class DemoDataSelfCheck {
     checkPastShiftsHaveActuals(violations);
     checkPlantedCases(violations);
     checkSchedulePeriods(violations);
+    checkSupervisors(violations);
 
     if (!violations.isEmpty()) {
       throw new DemoDataSelfCheckException(violations);
@@ -313,11 +314,14 @@ public final class DemoDataSelfCheck {
   private void checkOvertime(List<String> violations) {
     Double totalHours =
         jdbc.queryForObject(
-            "SELECT coalesce(sum(hours), 0) FROM time_entry WHERE absence_type IS NULL",
+            "SELECT coalesce(sum(t.hours), 0) FROM time_entry t" + OFFICER_ENTRY
+                + " AND t.absence_type IS NULL",
             Double.class);
     Double overtimeHours =
         jdbc.queryForObject(
-            "SELECT coalesce(sum(hours), 0) FROM time_entry WHERE pay_code = 'OT15'", Double.class);
+            "SELECT coalesce(sum(t.hours), 0) FROM time_entry t" + OFFICER_ENTRY
+                + " AND t.pay_code = 'OT15'",
+            Double.class);
     double total = totalHours == null ? 0 : totalHours;
     double overtime = overtimeHours == null ? 0 : overtimeHours;
     double ratio = total == 0 ? 0 : overtime / total;
@@ -335,7 +339,8 @@ public final class DemoDataSelfCheck {
         jdbc.queryForObject(
             "SELECT count(*) FROM (SELECT e.id, coalesce(sum(CASE WHEN t.pay_code = 'OT15'"
                 + " THEN t.hours ELSE 0 END), 0) AS ot FROM employee e"
-                + " LEFT JOIN time_entry t ON t.employee_id = e.id GROUP BY e.id) x WHERE ot = 0",
+                + " LEFT JOIN time_entry t ON t.employee_id = e.id WHERE e.classification = 'CO'"
+                + " GROUP BY e.id) x WHERE ot = 0",
             Integer.class);
     if (zero == null || zero < 10) {
       violations.add(zero + " officers with zero overtime, expected at least 10");
@@ -345,8 +350,8 @@ public final class DemoDataSelfCheck {
         jdbc.queryForObject(
             "SELECT count(*) FROM (SELECT e.id, coalesce(sum(CASE WHEN t.pay_code = 'OT15'"
                 + " THEN t.hours ELSE 0 END), 0) AS ot FROM employee e"
-                + " LEFT JOIN time_entry t ON t.employee_id = e.id GROUP BY e.id) x"
-                + " WHERE ot > 25",
+                + " LEFT JOIN time_entry t ON t.employee_id = e.id WHERE e.classification = 'CO'"
+                + " GROUP BY e.id) x WHERE ot > 25",
             Integer.class);
     if (high == null || high < 5) {
       violations.add(high + " officers above 25 h overtime, expected at least 5");
@@ -488,8 +493,8 @@ public final class DemoDataSelfCheck {
             "SELECT count(*) FROM (SELECT ot FROM"
                 + " (SELECT e.id, min(e.seniority_date) AS seniority, coalesce(sum(CASE WHEN"
                 + " t.pay_code = 'OT15' THEN t.hours ELSE 0 END), 0) AS ot FROM employee e"
-                + " LEFT JOIN time_entry t ON t.employee_id = e.id GROUP BY e.id) x"
-                + " GROUP BY ot HAVING count(*) > 1 AND count(DISTINCT seniority) > 1) y");
+                + " LEFT JOIN time_entry t ON t.employee_id = e.id WHERE e.classification = 'CO'"
+                + " GROUP BY e.id) x GROUP BY ot HAVING count(*) > 1 AND count(DISTINCT seniority) > 1) y");
     if (ties < 1) {
       violations.add("PC-07: no two officers share overtime hours with different seniority");
     }
@@ -504,7 +509,7 @@ public final class DemoDataSelfCheck {
     int unqualifiedLeader =
         count(
             "SELECT count(*) FROM (SELECT e.id FROM employee e LEFT JOIN time_entry t"
-                + " ON t.employee_id = e.id GROUP BY e.id ORDER BY coalesce(sum(CASE WHEN"
+                + " ON t.employee_id = e.id WHERE e.classification = 'CO' GROUP BY e.id ORDER BY coalesce(sum(CASE WHEN"
                 + " t.pay_code = 'OT15' THEN t.hours ELSE 0 END), 0), e.seniority_date LIMIT 1) leader"
                 + " JOIN employee_qualification eq ON eq.employee_id = leader.id"
                 + " JOIN qualification q ON q.id = eq.qualification_id WHERE q.code = 'CONTROL'");
@@ -570,6 +575,90 @@ public final class DemoDataSelfCheck {
           unlinked + " shifts without the schedule period that covers their work date");
     }
   }
+
+  /**
+   * Release v1.3 (S4): the supervisors work the two supervisor posts only, every post block-hour is
+   * covered at the same 97.5% floor as the line units, and the two demo supervisors are linked to
+   * their records so My schedule has rows.
+   */
+  private void checkSupervisors(List<String> violations) {
+    int posts = count("SELECT count(*) FROM unit WHERE kind = 'SUPERVISION'");
+    if (posts == 0) {
+      return;
+    }
+    int supervisors = count("SELECT count(*) FROM employee WHERE classification = 'CS'");
+    if (supervisors != 10) {
+      violations.add(supervisors + " supervisors, expected 10");
+    }
+    int officersOnPosts =
+        count(
+            "SELECT count(*) FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
+                + " JOIN unit u ON u.id = s.unit_id"
+                + " WHERE u.kind = 'SUPERVISION' AND e.classification <> 'CS'");
+    if (officersOnPosts > 0) {
+      violations.add(officersOnPosts + " officer shifts on a supervisor post");
+    }
+    int supervisorsOnLine =
+        count(
+            "SELECT count(*) FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
+                + " JOIN unit u ON u.id = s.unit_id"
+                + " WHERE u.kind <> 'SUPERVISION' AND e.classification = 'CS'");
+    if (supervisorsOnLine > 0) {
+      violations.add(supervisorsOnLine + " supervisor shifts on an officer post");
+    }
+    int linked =
+        count(
+            "SELECT count(*) FROM app_user a JOIN employee e ON e.id = a.employee_id"
+                + " WHERE a.username IN ('m.ellis', 'j.chen') AND e.classification = 'CS'");
+    if (linked != 2) {
+      violations.add(linked + " of the 2 demo supervisors are linked to a supervisor record");
+    }
+
+    Map<String, Integer> coverage = new HashMap<>();
+    jdbc.query(
+        "SELECT u.code AS unit_code, s.start_at, s.end_at FROM shift_assignment s"
+            + " JOIN unit u ON u.id = s.unit_id WHERE u.kind = 'SUPERVISION'"
+            + " AND s.status <> 'CANCELLED'"
+            + " AND NOT EXISTS (SELECT 1 FROM absence a WHERE a.shift_assignment_id = s.id)",
+        (org.springframework.jdbc.core.RowCallbackHandler) resultSet -> {
+          Instant start = resultSet.getTimestamp("start_at").toInstant();
+          Instant end = resultSet.getTimestamp("end_at").toInstant();
+          for (long hour = start.getEpochSecond() / 3600; hour < end.getEpochSecond() / 3600;
+              hour++) {
+            coverage.merge(resultSet.getString("unit_code") + "|" + hour, 1, Integer::sum);
+          }
+        });
+    List<String> codes =
+        jdbc.queryForList("SELECT code FROM unit WHERE kind = 'SUPERVISION' ORDER BY code",
+            String.class);
+    LocalDate windowStart = LocalDate.parse("2026-10-01");
+    int slots = 0;
+    int met = 0;
+    for (int day = 0; day < 90; day++) {
+      LocalDate date = windowStart.plusDays(day);
+      for (String code : codes) {
+        for (int hour = 0; hour < 24; hour++) {
+          slots++;
+          long epochHour =
+              date.atTime(hour, 0).atZone(DemoSettings.REGINA).toInstant().getEpochSecond()
+                  / 3600;
+          if (coverage.getOrDefault(code + "|" + epochHour, 0) >= 1) {
+            met++;
+          }
+        }
+      }
+    }
+    double ratio = slots == 0 ? 0 : (double) met / slots;
+    if (ratio < 0.975) {
+      violations.add(String.format(
+          "supervisor post coverage %.2f%% below 97.5%% (%d of %d hour-slots)", ratio * 100, met,
+          slots));
+    }
+  }
+
+  /** The officers' time entries: the overtime band and its skew are officer measures. */
+  private static final String OFFICER_ENTRY =
+      " JOIN employee e ON e.id = t.employee_id WHERE e.classification = 'CO'";
 
   private int count(String sql) {
     Integer value = jdbc.queryForObject(sql, Integer.class);
