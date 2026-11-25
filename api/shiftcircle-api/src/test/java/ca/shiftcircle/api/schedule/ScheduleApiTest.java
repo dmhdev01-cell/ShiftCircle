@@ -562,11 +562,11 @@ class ScheduleApiTest {
     return byBlock;
   }
 
-  private java.util.List<?> qualificationsOf(String body, String name) throws Exception {
+  private java.util.List<Object> qualificationsOf(String body, String name) throws Exception {
     for (Object entry : (java.util.List<?>) mapper.readValue(body, Map.class).get("officers")) {
       Map<?, ?> row = (Map<?, ?>) entry;
       if (name.equals(row.get("name"))) {
-        return (java.util.List<?>) row.get("qualifications");
+        return new java.util.ArrayList<Object>((java.util.List<?>) row.get("qualifications"));
       }
     }
     throw new AssertionError("no row for " + name);
