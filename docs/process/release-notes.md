@@ -564,6 +564,23 @@ Playwright against the real API, a fresh stack per viewport: desktop-datasets **
 tablet-datasets **139 passed and 1 skipped**; the new spec also passed again on the reused stack after
 the full run (8 of 8).
 
+**Review round** (gates on #39: review CHANGES 1 must / 3 should / 3 nits, security PASS with 3
+info, UI test PASS with 2 lows / 2 nits). The "Supervisor on duty" line leaves out a shift with a
+recorded absence (Tue 17 Nov nights on Unit A–C now reads J. Chen alone, not the sick Tara Osei), a
+day the unit is closed, and a covering post outside the caller's scope. A post's coverage and the
+on-duty names count only a supervisor or an officer holding a valid Acting supervisor
+qualification that day, so an officer left on a post after losing it is a row but not "1 / 1". The
+gap panel lists the signed-in supervisor last with the button disabled and "This is you" (the API
+refuses own-schedule changes). A post's board says supervisors in search, export, print and the
+empty-filter note. The board sends the position's `supervisory` flag and the web keys on it; the block
+windows are `CoverageCalculator.BLOCKS`, used by coverage and the on-duty line alike. Docs say
+1 / 1 or 2 / 1 (+1 over) where two shifts overlap. Tests: `ScheduleApiTest` +1 (absence, no acting,
+expired acting, valid acting, out-of-scope post), `PlannerLeaveRosterApiTest` pins the draft without
+`kind`, `position`, `supervisory` and `supervisorsOnDuty`; web +3 (Acting/Officer badges, the
+supervisory flag, the disabled own row); the spec pins Tue 17 Nov nights and the post's words. Counts:
+API **619** (441 api), web **674** in 64 files; `supervisor-posts`, `gap-fill`, `board-filters` and
+`layout` 26 of 26 on desktop and tablet at `54f12db`.
+
 ### Shift proposals, P1: the officer API
 
 The first of five proposal PRs (P1 to P5; plan `v1.2-proposals`, owner answers Q1 to Q5 approved). **P1 is the API for the officer side only; there is no screen yet.** An officer can preview a multi-item proposal (each item rule-checked with the earlier items as extra facts, so rest between two drafts shows), send it (a Block can't be sent, a Warn can), list their own proposals, and withdraw one while every item still waits. A waiting item expires when its shift starts, on every read and withdraw and by an hourly sweep. Nothing creates a shift: the inbox and the decision are P2, so until then a sent proposal stays Waiting and then Expires.
