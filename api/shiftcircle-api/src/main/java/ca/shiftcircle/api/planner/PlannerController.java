@@ -76,6 +76,22 @@ public class PlannerController {
     return planner.state();
   }
 
+  /**
+   * Plan inputs (PR-M): what Generate would use now: officers by unit, employment and pattern,
+   * FTE, planned leave, preferences, seniority, unit minimums, the rule set and the fill order.
+   * Counts only. A draft carries its own snapshot in {@code scorecard.inputs}.
+   */
+  @GetMapping("/inputs")
+  public Map<String, Object> inputs(
+      @RequestParam(required = false) java.util.List<String> staffTypes,
+      @RequestParam(required = false) String partTimeFill,
+      @RequestParam(required = false) String crossUnitFill) {
+    // PR-N: the Generate form's options, so the inputs and fill order match what Generate would
+    // use; omitted ones are the defaults, bad values the same 400 as POST /drafts.
+    return planner.inputs(
+        new PlannerViews.DraftCreation(0, null, staffTypes, partTimeFill, crossUnitFill));
+  }
+
   @PostMapping("/drafts")
   @ResponseStatus(HttpStatus.CREATED)
   public PlannerViews.DraftSummary generate(

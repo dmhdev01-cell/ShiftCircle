@@ -14,15 +14,89 @@ You work in a **draft**. Nobody else sees it until you commit it.
 
 ## 1. Generate a draft
 
-1. Open **Quarter plan**.
+1. Open **Quarter plan**. Before anything is generated, the **Plan inputs** card says what Generate will use (see "What the plan uses" below).
 2. Optionally enter a seed (a whole number). The same seed always gives the same plan.
-3. Press **Generate draft**. It takes a few seconds.
+3. Optionally change the **Plan options** (below). The defaults make the same plan as before.
+4. Press **Generate draft**. It takes a few seconds.
+
+### Plan options
+
+Three choices tailor how the plan is built. Each says in one sentence what it does and what it costs, and the scorecard shows its effect.
+
+| Option | Choices | What it does |
+|---|---|---|
+| **Staff to include** | **Full-time officers** (always on) · **Part-time and casual officers** (on by default) | Untick part-time to see the plan the full-time crews make alone. Part-time officers are anyone below 1.0 FTE; in Datasets 120 and 150 that includes the casual relief pool. |
+| **Part-time fill** | **Fill gaps only (as before)** · **Fill up to each officer's FTE** | As before, a part-time officer gets a shift only where their home unit is still short after the full-time crews. *Fill up to FTE* then also gives each part-time officer shifts above the minimum in their home unit where cover is thinnest, up to FTE × 80 h in each pay period, spread evenly through the period. It never takes a shift from a gap and every shift passes the same rule check, but it adds rule warnings (Warn, never Block). Part-time officers have no fixed pattern here, so these shifts can fall on any day the rules allow. |
+| **Other units** | **Cover gaps from other units** (off by default) | After each unit's own officers (and closed-unit relief), every gap still open is offered to officers homed in another unit: part-time or full-time, not already working that day or on leave, with room under FTE × 80 h in that pay period (so a full-time officer only takes a shift in a short period, never into overtime), holding the qualification the gap's block asks for (first aid on the living units, Control, Escort), and a 12 h officer only where the unit allows 12 h. The lowest share of target planned goes first, then the newest officer. Every proposal passes the same rule check; a Block skips that officer. The roster marks such an officer **From** their home unit. It runs before *Fill up to FTE*, so gaps come first. |
+
+The **Plan inputs** panel lists the three options with the seed and pattern, and its fill order adds a step for each option that changes it (cover gaps from other units after closed-unit relief, then the up-to-FTE extras; with part-time officers left out, it says they get no shifts).
+
+Under the status line, **Made with:** says what the draft was made with, for example "Made with: full-time and part-time officers · part-time filled up to FTE · gaps covered from other units". **Generate again** opens with the last draft's options already filled in, and after the replace a **Compared with the previous draft** line gives every figure before and after: gaps, rule warnings, unused part-time hours, shifts and gaps covered from other units. With *Cover gaps from other units* on, a line under the tiles says how many gaps were covered from other units, by how many shifts and officers.
+
+What the options did on the demo data (seed 20261001, measured on 24 Nov 2026; pinned in `PlannerOptionsApiTest` and `GeneratorCharacterizationTest`, except three Dataset 120 rows measured by hand on the author's stack: *fill up to FTE*, *fill up to FTE + other units* and *full-time only*):
+
+| Dataset | Options | Gaps | Rule warnings | Unused part-time capacity | Shifts | Gaps covered from other units |
+|---|---|---|---|---|---|---|
+| 120 | defaults | 38 | 7 | 5,472 h | 5,103 | n/a |
+| 120 | fill up to FTE | 38 | 17 | 260 h | 5,667 | n/a |
+| 120 | other units | 38 | 7 | 5,472 h | 5,103 | 0 |
+| 120 | fill up to FTE + other units | 38 | 17 | 260 h | 5,667 | 0 |
+| 120 | full-time only | 156 | 6 | 6,720 h | 4,954 | n/a |
+| 120 | full-time only + other units | 152 | 6 | 6,720 h | 4,958 | 4 |
+| 150 | defaults | 100 | 39 | 3,515 h | 5,414 | n/a |
+| 150 | fill up to FTE | 100 | 51 | 496 h | 5,746 | n/a |
+| 150 | other units | 72 | 59 | 3,337 h | 5,455 | 28 (41 shifts, 26 officers) |
+| 150 | fill up to FTE + other units | 72 | 71 | 496 h | 5,769 | 28 (41 shifts, 26 officers) |
+| 150 | full-time only | 687 | 5 | 10,080 h | 4,691 | n/a |
+| 150 | full-time only + other units | 529 | 115 | 10,080 h | 4,894 | 158 (203 shifts, 82 officers) |
+
+![Dataset 150 draft made with Cover gaps from other units: 72 gaps, 59 warnings, and the line 28 gaps covered from other units, 41 shifts by 26 officers](img/planner-scorecard-cross-unit.png)
+
+**What stays short, and why.** *Fill up to FTE* alone closes no gap: it only adds shifts where the minimum is already met. *Cover gaps from other units* is what closes gaps, and under the gaps-covered line the scorecard says why the rest are still short, for example "Still short: 46 not qualified · 14 no hours left · 12 would break a rule. Most are Escort & transport evenings (16), Control evenings (14), Unit B evenings (11)." When it covers nothing it says why instead, for example "No gap could be covered from another unit: no free officer in another unit holds the post's qualification." Each gap counts once, under the first check no officer passed: *no officer free*, *not qualified* (for the gap's block, or for any other block a borrowed 12 h shift covers), *no shift that fits* (no free officer works a shift that covers that block), *no hours left*, *would break a rule*.
+- **Dataset 120 (38 short, none covered):** all 38 are Escort & transport evenings. Escort needs every officer on duty to hold Escort, and no free officer in another unit holds it, so all 38 are *not qualified*.
+- **Dataset 150 (72 short after 28 covered):** 46 *not qualified* (Control and Escort need every officer qualified; Control evenings and nights and Escort evenings are most of them), 14 *no hours left* (every qualified free officer whose shift fits is at FTE × 80 h for the pay period) and 12 *would break a rule* (a qualified officer with hours left was blocked, mostly by rest rules). By unit and block: Control evening 14, Escort evening 16, Unit B evening 11, Control night 8, and small numbers elsewhere.
+- **Full-time only plus other units:** Dataset 150 529 short (268 not qualified, 201 no hours left, 51 would break a rule, 9 no shift that fits); Dataset 120 152 short.
+
+Closing the rest needs more qualified officers (Escort and Control endorsements), not a different fill order. The extra shifts from other units add rule warnings (150: 39 to 59 for 41 shifts; all Warn), because they often land next to the officer's own rotation. Dataset 100 has no part-time officers; the first two options change nothing there.
+
+![Plan options on the Quarter plan landing: Staff to include, Part-time fill and Other units, each choice with one sentence](img/planner-options-landing.png)
 
 The draft opens with four tabs: **Scorecard**, **Gaps (n)**, **Roster** and **Compare**.
 
 A note on the draft reminds you that it isn't on the planning board yet. Officers and supervisors can't see it until it's committed.
 
-<!-- No screenshot yet: desktop__planner__planner__no-draft (no clean capture from the gated build) -->
+### What the plan uses
+
+The **Plan inputs** card sits above the scorecard (and on the empty quarter before a draft). Its headline says, in one line, who the plan is for, for example on Dataset 150:
+
+> Planning 150 officers in 6 units · 120 full-time, 30 part-time or casual · 138 FTE against about 127 needed · 4 Jan – 11 Apr 2027
+
+The line under it gives the Generate options (before a draft, the **default seed**; with a draft, the seed it used), the 8 h pattern ("8 h officers on their own pattern" unless one pattern was forced for everyone, in which case the table groups the 8 h officers under that pattern too), any other option the draft was made with, the rule set version, the planned leave days and how many officers have preferences on file.
+
+"About … needed" is the **Staffing by unit** floor. When no unit closes in the quarter it covers the whole quarter. When a closure splits the quarter into stretches, the headline gives the stretch that needs the most officers and its dates, for example "about 127 needed for the stretch that needs the most (4 Jan – 14 Feb)". If two stretches need the same number, it names the earlier one.
+
+**Show plan inputs** opens the detail:
+- **Officers by unit:** full-time and part-time or casual officers, their FTE and their shift patterns (12 h day or night crew, 8 h day or evening crew, an 8 h rotation, or the relief pool with no fixed rotation), and each unit's minimum for night, day and evening. A closed-days column appears when a unit is closed for part of the quarter.
+- **Planned leave in the quarter:** leave days by type (Vacation, Sick, Other) and how many officers have leave. An officer is never rostered on a leave day.
+- **Preferences on file:** how many officers asked for each shift length, time of day and days off. 16 h wishes are counted but never rostered.
+- **Seniority and rules:** the oldest and newest seniority dates, the rule set, the pay periods and the staffing floor.
+- **Generate options:** every option the draft was made with (or Generate's defaults before a draft), one line each, in words.
+- **How the plan is filled:** the order the generator follows, in plain words:
+  1. Day by day and unit by unit, night then day then evening, full-time officers whose rotation has them on fill the unit's minimum. Only 12 h officers work nights: those who asked for nights first (most senior first), then the newest. Day and evening go first to officers whose preferred time matches, then by seniority.
+  2. Every other full-time officer whose rotation has them on that day is rostered too, even above the minimum.
+  3. Part-time and casual officers (under 1.0 FTE) then fill what is still short, in their home unit only, newest first, up to their FTE × 80 h in each pay period.
+  4. Where a unit is closed on a day, its full-time officers may fill another unit's shortage.
+  5. Every shift is checked by the rules engine against the officer's last 35 days: a Block skips that officer, a warning is kept. Anything still short is a gap.
+
+The generator does not tell part-time from casual: every officer under 1.0 FTE is filled the same way, so the card counts them together.
+
+With a draft open, the card shows **what this draft was generated with**: the draft keeps its own copy, so it still reads true if staff, leave or preferences change later. If they have changed (officers, FTE, planned leave or preferences), a yellow note says what ("The plan's inputs have changed since this draft was generated: now 151 officers (was 150) …") and suggests generating again. A draft made before v1.2 kept no record, so with one open the card shows today's inputs and says so. The card shows counts only, never an officer's name.
+
+![Quarter plan with no draft on Dataset 150: the Plan inputs card open, its headline Planning 150 officers in 6 units, and the Officers by unit table with each unit's crews and minimums](img/planner-inputs-open.png)
+
+![Quarter plan with a Dataset 150 draft: the Plan inputs card, headed What this draft was generated with, above the Scorecard tab and its tiles](img/planner-inputs-draft.png)
+
+The same figures come from `GET /api/v1/planner/inputs` (planner only).
 
 ## 2. Read the scorecard
 
@@ -50,11 +124,13 @@ Two of them need a note:
 - **Qualified staff:** this is a warning only. The planner does not enforce qualifications. Qualification start dates are not checked: an officer with a qualification counts as qualified for the whole quarter.
 - **Needed (at least):** a floor. Part-time and casual officers work fewer shifts, so a plan can still have gaps when the floor is met. The draft's own gaps are the real test.
 
-Under the tiles, a yellow **Unused part-time capacity** line says how many part-time hours the plan leaves unused, for example "Unused part-time capacity: 5,472 h. Part-time officers are planned 1,248 h of their 6,720 h target this quarter, while 38 block-days stay short." Part-time hours are not guaranteed: a part-time officer is planned only into shifts still open in their home unit, up to their FTE target.
+Under the tiles, a yellow **Unused part-time capacity** line says how many part-time hours the plan leaves unused, for example "Unused part-time capacity: 5,472 h. Part-time officers are planned 1,248 h of their 6,720 h target this quarter, while 38 block-days stay short." Part-time hours are not guaranteed: with the default fill, a part-time officer is planned only into shifts still open in their home unit, up to their FTE target. The line ends by saying how the draft filled part-time officers; with **Fill up to each officer's FTE** it drops sharply (Dataset 150: 3,515 h to 496 h).
 
-![Quarter plan scorecard on Dataset 120 with the yellow Unused part-time capacity line under the tiles](img/planner-scorecard-part-time.png)
+![Dataset 150 scorecard made with Fill up to FTE: Made with line under the status, 100 gaps, 51 warnings, unused part-time capacity 496 h](img/planner-scorecard-up-to-fte.png)
 
-![Quarter plan scorecard for a 120-officer draft: eight tiles, including Coverage gaps 39, Rule warnings 7 and Qualified staff 0 (All met)](img/planner-scorecard.png)
+![Quarter plan scorecard on Dataset 120: the Needed (at least) tile reads 127, Short, 120 on staff · short 7, with the yellow Unused part-time capacity line (5,472 h) under the tiles and the FTE bands below](img/planner-scorecard-part-time.png)
+
+![Quarter plan scorecard for a 120-officer draft: eight tiles, including Coverage gaps 38, Rule warnings 7, Qualified staff 0 (All met) and Needed (at least) 127, Short, 120 on staff · short 7, with the yellow Unused part-time capacity line and the FTE bands below](img/planner-scorecard.png)
 
 <!-- No screenshot yet: tablet__planner__scorecard (no clean capture from the gated build) -->
 
@@ -81,6 +157,9 @@ Some gaps can't be filled without breaking a rule, so the draft leaves them open
 - **All units** shows the week's figures for every unit in one table. It starts closed: press **Show all units** to open it.
 - A small **⚠** on a shift means a rule warning names it. Hover or focus it to read the warning, for example "Fewer than 2 days off in 7: Fewer than 2 consecutive days off in 7 days."
 - Leave shows as **Vac**, **Sick** or **Other** instead of Off (section 8).
+- An officer placed in this unit from another unit (by *Cover gaps from other units*, or as relief while their own unit is closed) has a **From Unit A** marker (their home unit) next to their name.
+
+![A draft roster row with the From Unit A marker under the officer's name](img/planner-roster-from-unit.png)
 
 ![Roster tab: Go to week, the unit list with gap counts, the collapsed All units table and the draft grid](img/planner-roster-week-picker.png)
 
@@ -127,10 +206,12 @@ If you see "The draft changed since you opened it" or "This draft was committed 
 - **Commit plan…** asks "Commit the quarter plan?". Then **Commit plan** writes the whole draft to the planning board, where supervisors and officers see it.
   - Commit checks every shift again, hand edits included.
   - If something changed since the draft was made, commit refuses with a reason ("Not committed: …"), and nothing is written.
-- **Generate again** replaces the draft. Press **Replace draft** to confirm. **Your hand edits are lost**; the confirm text says how many.
+- **Generate again** replaces the draft. The dialog shows the **Plan options** filled in from the current draft; change any, then press **Replace draft**. **Your hand edits are lost**; the confirm text says how many.
+
+![Replace this draft? dialog with the plan options filled in from the draft, Fill up to each officer's FTE chosen](img/planner-generate-again-options.png)
 - **Discard draft…** then **Discard draft** removes the draft and its hand edits. Nothing on the planning board changes.
 
-![Quarter plan after commit: the Committed badge and a Plan committed box with a button to open each unit on the planning board](img/planner-committed.png)
+![Quarter plan after commit on Dataset 120: the Committed badge, a Plan committed box with a button to open each unit on the planning board, and the scorecard with Needed (at least) 127, Short, 120 on staff · short 7](img/planner-committed.png)
 
 <!-- No screenshot yet: desktop__planner__regenerate-confirm__edits (no clean capture from the gated build) -->
 

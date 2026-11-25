@@ -182,6 +182,8 @@ export interface OfficerRow {
   payPeriodThreshold: number;
   overtimeStatus: OvertimeStatus;
   cells: DayCell[];
+  /** Draft roster only: the home unit of an officer placed in this unit from another. */
+  homeUnit?: string;
 }
 
 export interface SchedulePayload {
@@ -755,8 +757,70 @@ export interface PlannerWindow {
   periods: number;
 }
 
+/**
+ * Plan inputs (PR-M, GET /planner/inputs and `scorecard.inputs` on a draft):
+ * what the generator works from, counts only. Generate options live in
+ * `options`, so new tailoring options are added there.
+ */
+export interface PlanInputs {
+  window: { from: string; to: string; periods: number };
+  options: { seed: number; pattern8h: string | null } & Record<string, unknown>;
+  officers: {
+    total: number;
+    fullTime: number;
+    /** Every officer under 1.0 FTE: the generator fills part-time and casual alike. */
+    partTime: number;
+    fte: number;
+    /** PR-N: the FTE of the part-time and casual officers (absent in an older snapshot). */
+    partTimeFte?: number;
+    /**
+     * The staffing floor: the stretch of the quarter (between unit closures)
+     * that needs the most officers, or null. With one stretch it is the quarter.
+     */
+    neededFte: number | null;
+    neededFrom?: string | null;
+    neededTo?: string | null;
+    /** How many stretches the quarter has (1 when no unit closes). */
+    neededPeriods?: number;
+    /** Every unit the generator plans (the rows of `units`). */
+    units: number;
+  };
+  units: {
+    code: string;
+    name: string;
+    allows12h: boolean;
+    officers: number;
+    fullTime: number;
+    partTime: number;
+    fte: number;
+    minimums: Record<'NIGHT' | 'DAY' | 'EVENING', number>;
+    closedDays: number;
+    groups: {
+      employment: 'FULL_TIME' | 'PART_TIME';
+      hours: number;
+      pattern: string;
+      patternWords: string;
+      officers: number;
+      fte: number;
+    }[];
+  }[];
+  leave: { days: number; officers: number; byType: Record<string, number> };
+  preferences: {
+    officers: number;
+    shiftLengthOfficers: number;
+    shiftLength: Record<string, number>;
+    timesOfDayOfficers: number;
+    timesOfDay: Record<string, number>;
+    daysOffOfficers: number;
+  };
+  seniority: { earliest: string | null; latest: string | null };
+  rules: { ruleSetVersion: number; historyDays: number; fillOrder: string[] };
+}
+
 export interface PlannerScorecard {
   coverage: { shortBlockDays: number; totalBlockDays: number };
+  /** What this draft was generated with (PR-M); absent on a draft from before v1.2. */
+  inputs?: PlanInputs;
   warnings: {
     total: number;
     byRule: { ruleName: string; count: number }[];
@@ -829,6 +893,18 @@ export interface PlannerScorecard {
   };
   /** The api's plain note about the 5-on/2-off changeover warnings. */
   warningNote?: string;
+  /** v1.2: present when the draft was made with crossUnitFill ON. */
+  crossUnit?: {
+    gapsBefore: number;
+    gapsCovered: number;
+    shifts: number;
+    officers: number;
+    fromUnits?: Record<string, number>;
+    /** Gaps the pass tried and could not cover, by the first filter nobody passed. */
+    stillShortReasons?: Record<string, number>;
+    stillShortByUnitBlock?: Record<string, number>;
+    line: string;
+  };
   pattern8h?: string;
   overtime: { officersOver: number; hoursOver: number; thresholdHours: number };
   generatedMs: number;
@@ -850,6 +926,25 @@ export interface PlannerDraft {
   /** Release 7: shifts edited by hand in this draft. */
   handEdits?: number;
   editedAssignmentIds?: string[];
+  /** v1.2: the options this draft was made with (absent on an older api). */
+  options?: PlanOptions;
+}
+
+/**
+ * The quarter plan's tailoring options (v1.2). The names are shared with the
+ * Plan inputs panel: staffTypes, partTimeFill, crossUnitFill.
+ */
+export interface PlanOptions {
+  /** FULL_TIME always; PART_TIME = officers below 1.0 FTE (part-time and casual). */
+  staffTypes: ('FULL_TIME' | 'PART_TIME')[];
+  partTimeFill: 'AFTER_FULL_TIME' | 'UP_TO_FTE';
+  /** ON: cover gaps left after the home-unit fills with qualified officers from other units. */
+  crossUnitFill: 'OFF' | 'ON';
+}
+
+export interface PlannerDraftCreation extends Partial<PlanOptions> {
+  seed: number;
+  pattern8h?: string;
 }
 
 export interface PlannerPlan {
@@ -1068,7 +1163,7 @@ export interface StaffingUnitRow {
   allocated: number;
   filled: number;
   needed: number;
-  short: number;
+  shortfall: number;
   breakdown: StaffingBreakdown;
 }
 
@@ -1076,15 +1171,15 @@ export interface StaffingPeriod {
   from: string;
   to: string;
   units: StaffingUnitRow[];
-  totals: { allocated: number; filled: number; needed: number; short: number };
+  totals: { allocated: number; filled: number; needed: number; shortfall: number };
 }
 
 export interface StaffingReport {
   leaveAllowance: number;
   periods: StaffingPeriod[];
   note: string;
-  /** Present when more than three periods were collapsed. */
-  truncatedNote?: string;
+  /** True when more than three periods were collapsed; `note` then says so. */
+  truncated: boolean;
 }
 
 export interface PlannerCompareRow {
@@ -1145,7 +1240,10 @@ export interface ShiftCircleApi {
 
   /** Quarter planner (PLANNER role): plan, drafts, gaps, warnings, commit. */
   getPlannerPlan(): Promise<PlannerPlan>;
-  createPlannerDraft(body: { seed: number; pattern8h?: string }): Promise<PlannerDraft>;
+  /** What Generate would use now (PR-M). PLANNER only. */
+  /** PR-N: with the Generate form's options, so the inputs match what Generate would use. */
+  getPlannerInputs(options?: PlanOptions): Promise<PlanInputs>;
+  createPlannerDraft(body: PlannerDraftCreation): Promise<PlannerDraft>;
   /** POST /planner/absences: the planner records one day of planned leave (PR-D, fit-gap A9). */
   planAbsence(input: PlannedAbsenceInput): Promise<PlannedAbsence>;
   /** PUT /planner/preferences/{employeeId}/pattern: the planner sets an 8 h officer's pattern. */

@@ -9,6 +9,7 @@
 
 import type {
   Block,
+  PlanOptions,
   OfficerPattern,
   PlannerCommitPreview,
   PlannerCompare,
@@ -17,6 +18,7 @@ import type {
   PlannerGap,
   PlannerPlan,
   PlannerWarningGroup,
+  PlanInputs,
   MyPreferences,
   MyPreferencesInput,
   PlannerPreferenceRow,
@@ -24,7 +26,9 @@ import type {
   SchedulePayload,
 } from '../types';
 import { PATTERN_WORDS } from '../../planner/patternWords';
+import { DEFAULT_PLAN_OPTIONS } from '../../planner/planOptions';
 import { scheduleForRange } from './schedule';
+import { PLAN_INPUTS_120 } from './planInputs';
 
 export const PLANNER_WINDOW = { from: '2027-01-04', to: '2027-04-11', periods: 7 };
 export const PLANNER_DEFAULT_SEED = 20261001;
@@ -152,6 +156,11 @@ function scorecard(seed: number) {
   };
 }
 
+/** What Generate would use now: Dataset 120's captured inputs (PR-M). */
+export function plannerInputs(): PlanInputs {
+  return JSON.parse(JSON.stringify(PLAN_INPUTS_120)) as PlanInputs;
+}
+
 export function plannerPlan(): PlannerPlan {
   return {
     window: PLANNER_WINDOW,
@@ -164,7 +173,17 @@ export function plannerPlan(): PlannerPlan {
   };
 }
 
-export function generatePlannerDraft(seed: number, pattern8h?: string): PlannerDraft {
+export function generatePlannerDraft(
+  seed: number,
+  pattern8h?: string,
+  options: Partial<PlanOptions> = {},
+): PlannerDraft {
+  // Only the option fields, as the api returns them (review N3).
+  const resolvedOptions: PlanOptions = {
+    staffTypes: options.staffTypes ?? DEFAULT_PLAN_OPTIONS.staffTypes,
+    partTimeFill: options.partTimeFill ?? DEFAULT_PLAN_OPTIONS.partTimeFill,
+    crossUnitFill: options.crossUnitFill ?? DEFAULT_PLAN_OPTIONS.crossUnitFill,
+  };
   draft = {
     id: `draft-${seed}`,
     version: 1,
@@ -174,7 +193,28 @@ export function generatePlannerDraft(seed: number, pattern8h?: string): PlannerD
     createdAt: '2026-11-21T09:14:00-06:00',
     createdBy: 'P. Planner',
     generatedMs: 2400,
-    scorecard: scorecard(seed),
+    scorecard: {
+      ...scorecard(seed),
+      inputs: {
+        ...plannerInputs(),
+        options: { seed, pattern8h: pattern8h ?? null, ...resolvedOptions },
+      },
+      ...(resolvedOptions.crossUnitFill === 'ON'
+        ? {
+            crossUnit: {
+              gapsBefore: 5,
+              gapsCovered: 3,
+              shifts: 3,
+              officers: 2,
+              fromUnits: { A: 2, B: 1 },
+              stillShortReasons: { NOT_QUALIFIED: 1, RULE_BLOCK: 1 },
+              stillShortByUnitBlock: { 'CTL EVENING': 1, 'B NIGHT': 1 },
+              line: '3 gaps covered from other units (3 shifts by 2 officers); 2 still short.',
+            },
+          }
+        : {}),
+    },
+    options: resolvedOptions,
   };
   return draft;
 }
@@ -252,7 +292,7 @@ let myPreferences: MyPreferences = {
   timesOfDay: [],
   daysOff: [],
   maxDaysOff: 2,
-  allowedLengths: [8, 12, 16],
+  allowedLengths: [8, 12],
   updatedAt: null,
 };
 
@@ -457,7 +497,7 @@ export function resetPlannerFixtures(): void {
     timesOfDay: [],
     daysOff: [],
     maxDaysOff: 2,
-    allowedLengths: [8, 12, 16],
+    allowedLengths: [8, 12],
     updatedAt: null,
   };
 }

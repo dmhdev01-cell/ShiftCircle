@@ -1,4 +1,4 @@
--- V18: shift proposals, end to end (v1.3 P1, plan .factory/plans/v1.2-proposals.md §1).
+-- V17: shift proposals, end to end (v1.3 P1, plan .factory/plans/v1.2-proposals.md §1).
 --
 -- V1 created `proposal` and `proposal_item` and nothing has used them, so they hold no rows.
 -- This migration reshapes them in place instead of adding new tables:
@@ -9,9 +9,8 @@
 -- No dataset checksum, payroll golden or plan fingerprint reads these tables.
 --
 -- The number rule for v1.3: a migration takes the NEXT FREE number at the moment it merges, so
--- Flyway never sees an out-of-order version on an installed database. This file is the highest
--- one for now; it is renamed just before merge if a lower one has been taken or is still free.
--- Nothing in the code, tests or docs depends on the number.
+-- Flyway never sees an out-of-order version on an installed database. V17 was the next free number
+-- after S1's V16__positions. Nothing in the code or tests depends on the number.
 
 -- ---------------------------------------------------------------------------------------------
 -- proposal

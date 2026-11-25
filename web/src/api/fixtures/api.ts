@@ -49,6 +49,8 @@ import type {
   ShiftCircleApi,
   PlannedAbsence,
   PlannedAbsenceInput,
+  PlannerDraftCreation,
+  PlanOptions,
 } from '../types';
 
 import {
@@ -98,6 +100,7 @@ import {
   saveMyPreferences,
   plannerDraft,
   plannerGaps,
+  plannerInputs,
   plannerPlan,
   plannerWarnings,
   resetPlannerFixtures,
@@ -539,11 +542,17 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
       return plannerPlan();
     },
 
-    async createPlannerDraft(body: { seed: number; pattern8h?: string }) {
+    async getPlannerInputs(options?: PlanOptions) {
+      await pause();
+      const inputs = plannerInputs();
+      return options ? { ...inputs, options: { ...inputs.options, ...options } } : inputs;
+    },
+
+    async createPlannerDraft(body: PlannerDraftCreation) {
       await pause();
       plannerEditCount = 0;
       plannerEditedIds = [];
-      return generatePlannerDraft(body.seed, body.pattern8h);
+      return generatePlannerDraft(body.seed, body.pattern8h, body);
     },
 
     async getPlannerDraft() {

@@ -3,9 +3,11 @@ package ca.shiftcircle.api.planner;
 import ca.shiftcircle.api.rules.RuleCheckService;
 import ca.shiftcircle.api.schedule.ScheduleQuery;
 import ca.shiftcircle.api.security.AuthPrincipal;
+import ca.shiftcircle.domain.Position;
 import ca.shiftcircle.rules.build.ShiftFact;
 import ca.shiftcircle.rules.build.ShiftKind;
 import java.sql.Array;
+import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -54,6 +56,7 @@ public class PlannerService {
   private final ScheduleQuery scheduleQuery;
   private final ca.shiftcircle.api.units.ActiveUnits activeUnits;
   private final ca.shiftcircle.api.units.UnitsService unitsService;
+  private final ca.shiftcircle.api.config.PublishedRuleSet publishedRuleSet;
   private final ObjectMapper mapper = new ObjectMapper();
 
   public PlannerService(
@@ -61,12 +64,14 @@ public class PlannerService {
       RuleCheckService ruleCheck,
       ScheduleQuery scheduleQuery,
       ca.shiftcircle.api.units.ActiveUnits activeUnits,
-      ca.shiftcircle.api.units.UnitsService unitsService) {
+      ca.shiftcircle.api.units.UnitsService unitsService,
+      ca.shiftcircle.api.config.PublishedRuleSet publishedRuleSet) {
     this.jdbc = jdbc;
     this.ruleCheck = ruleCheck;
     this.scheduleQuery = scheduleQuery;
     this.activeUnits = activeUnits;
     this.unitsService = unitsService;
+    this.publishedRuleSet = publishedRuleSet;
   }
 
   public record CommitAttempt(int status, Object body) {}
@@ -115,6 +120,7 @@ public class PlannerService {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "pattern8h must be ROTATING_5_2, 5_ON_2_OFF or 7_ON_3_OFF");
     }
+    PlannerViews.PlanOptions options = planOptions(creation);
     Map<String, Object> committed =
         jdbc.queryForList(
                 "SELECT d.id, d.committed_at, u.display_name FROM plan_draft d"
@@ -146,7 +152,7 @@ public class PlannerService {
     Map<String, PlanGenerator.Template> templates = loadTemplates();
     Map<UUID, List<ShiftFact>> history =
         loadHistory(
-            FROM.minusDays(35).atStartOfDay(REGINA).toInstant(),
+            FROM.minusDays(PlanGenerator.HISTORY_DAYS).atStartOfDay(REGINA).toInstant(),
             FROM.atStartOfDay(REGINA).toInstant());
     // Warnings the seeded history already has are not this plan's warnings: subtract them so the
     // scorecard counts what the draft adds, not the same history window repeated per proposal.
@@ -185,7 +191,9 @@ public class PlannerService {
         };
 
     long before = System.nanoTime();
-    Map<UUID, java.util.Set<LocalDate>> leave = loadLeave();
+    PlanGenerator.Options chosen = generatorOptions(options);
+    List<PlanInputs.LeaveDay> leaveDays = loadLeaveDays();
+    Map<UUID, java.util.Set<LocalDate>> leave = leaveSets(leaveDays);
     PlanGenerator.Result result =
         new PlanGenerator()
             .generate(
@@ -197,18 +205,52 @@ public class PlannerService {
                 seed,
                 verifier,
                 leave,
-                activeUnits::active);
+                activeUnits::active,
+                chosen,
+                // Only the cross-unit fill reads qualifications; skip the two queries otherwise.
+                chosen.crossUnitFill() ? loadQualifications() : PlanGenerator.Qualifications.NONE);
+    if (chosen.fillPartTimeToFte() || chosen.crossUnitFill()) {
+      // The extra passes each keep their own warning de-duplication, so the same officer and rule
+      // can be counted twice and the commit's recount would refuse the draft (WARNINGS_CHANGED).
+      // Score the finished draft once, chronologically, exactly as a hand edit and the commit do.
+      // The default path is not re-scored, so its plans and pinned figures are untouched.
+      // The verifier carries the same history baseline the commit subtracts (same rule check, same
+      // 35-day history, same start-then-employee order, same officer|rule de-duplication), so the
+      // re-score and the commit's recount agree; PlannerOptionsApiTest commits a draft per option.
+      Object crossUnit = result.scorecard().get("crossUnit");
+      result =
+          new PlanGenerator()
+              .assess(
+                  employees,
+                  units,
+                  templates,
+                  history,
+                  pattern,
+                  verifier,
+                  leave,
+                  activeUnits::active,
+                  result.assignments());
+      if (crossUnit != null) {
+        result.scorecard().put("crossUnit", crossUnit);
+      }
+      // The Generated in tile shows the whole run, not only the re-score (UI test N1).
+      result.scorecard().put("generatedMs", (System.nanoTime() - before) / 1_000_000);
+    }
     operationalCards(result.scorecard(), result.assignments());
     int generatedMs = (int) ((System.nanoTime() - before) / 1_000_000);
+    // PR-M: what this draft was generated with, from the same lists the generator was given, so
+    // the draft still says so after staff change. It sits beside the generator's own cards.
+    result.scorecard().put("inputs", inputs(units, employees, leaveDays, seed, pattern, options));
 
     UUID id = UUID.randomUUID();
     String scorecardJson = mapper.writeValueAsString(result.scorecard());
     String warningsJson = mapper.writeValueAsString(warningMaps(result.warnings()));
     jdbc.update(
         "INSERT INTO plan_draft (id, from_date, to_date, seed, pattern8h, status, version,"
-            + " created_by, generated_ms, scorecard, warnings, warning_count)"
+            + " created_by, generated_ms, scorecard, warnings, warning_count,"
+            + " staff_types, part_time_fill, cross_unit_fill)"
             + " VALUES (?, ?, ?, ?, ?, 'DRAFT', 0, (SELECT id FROM app_user WHERE username = ?),"
-            + " ?, ?::jsonb, ?::jsonb, ?)",
+            + " ?, ?::jsonb, ?::jsonb, ?, ?::text[], ?, ?)",
         id,
         FROM,
         TO,
@@ -218,7 +260,10 @@ public class PlannerService {
         generatedMs,
         scorecardJson,
         warningsJson,
-        result.warnings().size());
+        result.warnings().size(),
+        "{" + String.join(",", options.staffTypes()) + "}",
+        options.partTimeFill(),
+        options.crossUnitFill());
     List<Object[]> assignmentRows = new ArrayList<>();
     for (PlanGenerator.Assignment assignment : result.assignments()) {
       assignmentRows.add(
@@ -254,7 +299,17 @@ public class PlannerService {
             + " reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         gapRows);
 
-    audit(principal, "generate_plan", "plan_draft", id, Map.of("assignments", result.assignments().size(), "gaps", result.gaps().size(), "warnings", result.warnings().size(), "seed", seed, "pattern8h", pattern == null ? "PER_OFFICER" : pattern, "generatedMs", generatedMs));
+    Map<String, Object> generated = new LinkedHashMap<>();
+    generated.put("assignments", result.assignments().size());
+    generated.put("gaps", result.gaps().size());
+    generated.put("warnings", result.warnings().size());
+    generated.put("seed", seed);
+    generated.put("pattern8h", pattern == null ? "PER_OFFICER" : pattern);
+    generated.put("generatedMs", generatedMs);
+    generated.put("staffTypes", options.staffTypes());
+    generated.put("partTimeFill", options.partTimeFill());
+    generated.put("crossUnitFill", options.crossUnitFill());
+    audit(principal, "generate_plan", "plan_draft", id, generated);
 
     Map<String, Object> row =
         jdbc.queryForMap(
@@ -262,6 +317,81 @@ public class PlannerService {
                 + " LEFT JOIN app_user u ON u.id = d.created_by WHERE d.id = ?",
             id);
     return draftSummary(row);
+  }
+
+  private static final List<String> STAFF_TYPES = List.of("FULL_TIME", "PART_TIME");
+  private static final List<String> PART_TIME_FILLS = List.of("AFTER_FULL_TIME", "UP_TO_FTE");
+  private static final List<String> ON_OFF = List.of("OFF", "ON");
+
+  /**
+   * The tailoring options, validated (PR-N). Omitted values take the defaults; anything else that
+   * is not one of the documented values is a 400 problem detail naming the field.
+   */
+  static PlannerViews.PlanOptions planOptions(PlannerViews.DraftCreation creation) {
+    PlannerViews.PlanOptions defaults = PlannerViews.PlanOptions.DEFAULT;
+    List<String> staffTypes = defaults.staffTypes();
+    if (creation.staffTypes() != null) {
+      Set<String> chosen = new HashSet<>();
+      for (String value : creation.staffTypes()) {
+        if (value == null || !STAFF_TYPES.contains(value)) {
+          throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST, "staffTypes may contain only FULL_TIME and PART_TIME");
+        }
+        chosen.add(value);
+      }
+      if (!chosen.contains("FULL_TIME")) {
+        throw new ResponseStatusException(
+            HttpStatus.BAD_REQUEST,
+            "staffTypes must include FULL_TIME: the full-time crews are the plan");
+      }
+      staffTypes = STAFF_TYPES.stream().filter(chosen::contains).toList();
+    }
+    String partTimeFill =
+        creation.partTimeFill() == null ? defaults.partTimeFill() : creation.partTimeFill();
+    if (!PART_TIME_FILLS.contains(partTimeFill)) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "partTimeFill must be AFTER_FULL_TIME or UP_TO_FTE");
+    }
+    if ("UP_TO_FTE".equals(partTimeFill) && !staffTypes.contains("PART_TIME")) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST,
+          "partTimeFill UP_TO_FTE needs PART_TIME in staffTypes: there is no one to fill");
+    }
+    String crossUnitFill =
+        creation.crossUnitFill() == null ? defaults.crossUnitFill() : creation.crossUnitFill();
+    if (!ON_OFF.contains(crossUnitFill)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "crossUnitFill must be OFF or ON");
+    }
+    return new PlannerViews.PlanOptions(staffTypes, partTimeFill, crossUnitFill);
+  }
+
+  private static PlanGenerator.Options generatorOptions(PlannerViews.PlanOptions options) {
+    return new PlanGenerator.Options(
+        options.staffTypes().contains("PART_TIME"),
+        "UP_TO_FTE".equals(options.partTimeFill()),
+        "ON".equals(options.crossUnitFill()));
+  }
+
+  /** Who holds which qualification, and what each unit block with a qualified minimum asks for. */
+  private PlanGenerator.Qualifications loadQualifications() {
+    Map<UUID, Map<String, UUID>> required = new HashMap<>();
+    jdbc.query(
+        "SELECT unit_id, block, qualification_id FROM unit_requirement"
+            + " WHERE effective_to IS NULL AND qualification_id IS NOT NULL"
+            + " AND min_with_qualification > 0",
+        (RowCallbackHandler)
+            rs ->
+                required
+                    .computeIfAbsent(rs.getObject("unit_id", UUID.class), key -> new HashMap<>())
+                    .put(rs.getString("block"), rs.getObject("qualification_id", UUID.class)));
+    Map<UUID, Set<UUID>> held = new HashMap<>();
+    jdbc.query(
+        "SELECT employee_id, qualification_id FROM employee_qualification",
+        (RowCallbackHandler)
+            rs ->
+                held.computeIfAbsent(rs.getObject("employee_id", UUID.class), key -> new HashSet<>())
+                    .add(rs.getObject("qualification_id", UUID.class)));
+    return new PlanGenerator.Qualifications(required, held);
   }
 
   public PlannerViews.DraftSummary draft(UUID id) {
@@ -298,7 +428,7 @@ public class PlannerService {
     Map<String, PlanGenerator.Template> templates = loadTemplates();
     Map<UUID, List<ShiftFact>> history =
         loadHistory(
-            FROM.minusDays(35).atStartOfDay(REGINA).toInstant(),
+            FROM.minusDays(PlanGenerator.HISTORY_DAYS).atStartOfDay(REGINA).toInstant(),
             FROM.atStartOfDay(REGINA).toInstant());
     Map<UUID, Set<String>> baselineWarnings = new HashMap<>();
     history.forEach(
@@ -370,6 +500,14 @@ public class PlannerService {
                 activeUnits::active,
                 assignments);
     operationalCards(result.scorecard(), result.assignments());
+    // A hand edit changes shifts, not what the draft was generated with: keep the snapshot, and
+    // the cross-unit card, which is measured when the draft is generated.
+    Map<String, Object> previous = storedScorecard(draft);
+    for (String kept : List.of("inputs", "crossUnit")) {
+      if (previous.get(kept) != null) {
+        result.scorecard().put(kept, previous.get(kept));
+      }
+    }
     String scorecardJson = mapper.writeValueAsString(result.scorecard());
     String warningsJson = mapper.writeValueAsString(warningMaps(result.warnings()));
     int generatedMs = (int) ((System.nanoTime() - started) / 1_000_000);
@@ -579,7 +717,9 @@ public class PlannerService {
                   periodHours,
                   80.0,
                   status,
-                  dayCells));
+                  dayCells,
+                  // Placed away from home (cross-unit fill or closed-unit relief): say from where.
+                  unitId.equals(row.get("home_unit_id")) ? null : (String) row.get("home_unit_name")));
         });
     leave.leaveOnlyNames()
         .forEach(
@@ -601,7 +741,8 @@ public class PlannerService {
                       0.0,
                       80.0,
                       "UNDER",
-                      dayCells));
+                      dayCells,
+                      null));
             });
     return new ca.shiftcircle.api.schedule.ScheduleQuery.SchedulePayload(
         new ca.shiftcircle.api.schedule.ScheduleQuery.UnitView(
@@ -761,9 +902,11 @@ public class PlannerService {
     return jdbc.queryForList(
         "SELECT a.id, a.employee_id, a.work_date, a.start_at, a.end_at,"
             + " e.first_name || ' ' || e.last_name AS employee_name, e.shift_pattern,"
-            + " t.code AS template_code, t.duration_minutes"
+            + " t.code AS template_code, t.duration_minutes, e.home_unit_id,"
+            + " hu.name AS home_unit_name"
             + " FROM plan_draft_assignment a JOIN employee e ON e.id = a.employee_id"
             + " JOIN shift_template t ON t.id = a.shift_template_id"
+            + " LEFT JOIN unit hu ON hu.id = e.home_unit_id"
             + " WHERE a.draft_id = ? AND a.unit_id = ? AND a.work_date BETWEEN ? AND ?"
             + " ORDER BY a.start_at",
         draftId,
@@ -921,7 +1064,7 @@ public class PlannerService {
             id);
     Map<UUID, List<ShiftFact>> facts =
         loadHistory(
-            FROM.minusDays(35).atStartOfDay(REGINA).toInstant(),
+            FROM.minusDays(PlanGenerator.HISTORY_DAYS).atStartOfDay(REGINA).toInstant(),
             TO.plusDays(1).atStartOfDay(REGINA).toInstant());
     Map<UUID, Set<String>> baselineWarnings = new HashMap<>();
     facts.forEach(
@@ -1590,7 +1733,9 @@ public class PlannerService {
             ? List.of()
             : daysOff((Array) row.get("days_off")),
         2,
-        List.of(8, 12, 16),
+        // L16 is retired (ADR-029): 16 h is no longer offered. A stored 16 h wish still reads
+        // back and saves unchanged; the card shows it as unavailable.
+        List.of(8, 12),
         row.get("updated_at") == null ? null : ((Timestamp) row.get("updated_at")).toInstant().toString());
   }
 
@@ -1660,7 +1805,8 @@ public class PlannerService {
   // Loading and helpers
   // ---------------------------------------------------------------------------------------------
 
-  private List<PlanGenerator.Unit> loadUnits() {
+  /** The units the generator plans, with the kind a supervisor post carries. */
+  List<PlanGenerator.Unit> loadUnits() {
     Map<UUID, Map<String, Integer>> requirements = new HashMap<>();
     jdbc.query(
         "SELECT unit_id, block, min_staff FROM unit_requirement WHERE effective_to IS NULL",
@@ -1670,7 +1816,7 @@ public class PlannerService {
               .put(rs.getString("block"), rs.getInt("min_staff"));
         });
     return jdbc.query(
-        "SELECT id, code, name, allows_12h, allows_16h FROM unit ORDER BY code",
+        "SELECT id, code, name, kind, allows_12h, allows_16h FROM unit ORDER BY code",
         (rs, row) ->
             new PlanGenerator.Unit(
                 rs.getObject("id", UUID.class),
@@ -1678,7 +1824,8 @@ public class PlannerService {
                 rs.getString("name"),
                 rs.getBoolean("allows_12h"),
                 rs.getBoolean("allows_16h"),
-                requirements.getOrDefault(rs.getObject("id", UUID.class), Map.of())));
+                requirements.getOrDefault(rs.getObject("id", UUID.class), Map.of()),
+                rs.getString("kind")));
   }
 
   /**
@@ -1704,12 +1851,15 @@ public class PlannerService {
     return 8;
   }
 
-  private List<PlanGenerator.Employee> loadEmployees(List<PlanGenerator.Unit> units) {    Map<UUID, PlanGenerator.Unit> byId = new HashMap<>();
+  /** The officers the generator plans, with their position and their seniority inside the rank. */
+  List<PlanGenerator.Employee> loadEmployees(List<PlanGenerator.Unit> units) {
+    Map<UUID, PlanGenerator.Unit> byId = new HashMap<>();
     units.forEach(unit -> byId.put(unit.id(), unit));
     Map<UUID, Integer> phases = new HashMap<>();
     return jdbc.query(
         "SELECT e.id, e.employee_no, e.first_name || ' ' || e.last_name AS name,"
-            + " e.home_unit_id, e.seniority_date, e.fte, e.shift_pattern,"
+            + " e.home_unit_id, e.seniority_date, e.position_since, e.classification, e.fte,"
+            + " e.shift_pattern,"
             + " p.shift_length, p.times_of_day, p.days_off,"
             + " rp.code AS crew"
             + " FROM employee e LEFT JOIN officer_preference p ON p.employee_id = e.id"
@@ -1722,19 +1872,27 @@ public class PlannerService {
           Integer preferred = rs.getObject("shift_length", Integer.class);
           String crew = rs.getString("crew");
           int effective = effectiveLength(crew, preferred, unit.allows12h());
+          LocalDate service = rs.getDate("seniority_date").toLocalDate();
+          // Seniority inside the rank: null until an officer is promoted, so it is the service date
+          // for every officer there is today.
+          Date promoted = rs.getDate("position_since");
           return new PlanGenerator.Employee(
               rs.getObject("id", UUID.class),
               rs.getString("employee_no"),
               rs.getString("name"),
               unitId,
               unit.code(),
-              rs.getDate("seniority_date").toLocalDate(),
+              service,
               rs.getDouble("fte"),
               new PlanGenerator.Pref(preferred, timesOfDay(rs.getArray("times_of_day")), daysOff(rs.getArray("days_off"))),
               effective,
               index % 7,
               crew,
-              rs.getString("shift_pattern"));
+              rs.getString("shift_pattern"),
+              // A rank this build does not know is treated as the lowest, non-supervisory one, so
+              // it can never make the planner treat someone as a supervisor by accident.
+              Position.fromCodeOrDefault(rs.getString("classification")),
+              promoted == null ? service : promoted.toLocalDate());
         });
   }
 
@@ -1754,15 +1912,32 @@ public class PlannerService {
     return templates;
   }
 
-  /** Committed assignments around the window; the planner verifies against these, not the draft. */
   /** Planned absences in the quarter: employee -> dates they are unavailable. Read-only input. */
   private Map<UUID, java.util.Set<LocalDate>> loadLeave() {
+    return leaveSets(loadLeaveDays());
+  }
+
+  private static Map<UUID, java.util.Set<LocalDate>> leaveSets(List<PlanInputs.LeaveDay> days) {
     Map<UUID, java.util.Set<LocalDate>> leave = new HashMap<>();
+    for (PlanInputs.LeaveDay day : days) {
+      leave.computeIfAbsent(day.employeeId(), key -> new HashSet<>()).add(day.date());
+    }
+    return leave;
+  }
+
+  /**
+   * The one planned-leave query: every (officer, date) in the quarter, once, with the type of the
+   * first absence on it. The generator uses the dates; the inputs panel counts the types.
+   */
+  private List<PlanInputs.LeaveDay> loadLeaveDays() {
+    Map<UUID, Map<LocalDate, String>> leave = new LinkedHashMap<>();
     jdbc.query(
-        "SELECT employee_id, start_at, end_at FROM absence WHERE start_at < ? AND end_at > ?",
+        "SELECT employee_id, type, start_at, end_at FROM absence WHERE start_at < ? AND end_at > ?"
+            + " ORDER BY start_at, id",
         (RowCallbackHandler)
             rs -> {
               UUID employeeId = rs.getObject("employee_id", UUID.class);
+              String type = rs.getString("type");
               Instant start = rs.getTimestamp("start_at").toInstant();
               Instant end = rs.getTimestamp("end_at").toInstant();
               LocalDate startDate = start.atZone(REGINA).toLocalDate();
@@ -1774,13 +1949,66 @@ public class PlannerService {
                   !date.isAfter(endDate);
                   date = date.plusDays(1)) {
                 if (!date.isBefore(FROM) && !date.isAfter(TO)) {
-                  leave.computeIfAbsent(employeeId, key -> new HashSet<>()).add(date);
+                  leave.computeIfAbsent(employeeId, key -> new LinkedHashMap<>())
+                      .putIfAbsent(date, type);
                 }
               }
             },
         Timestamp.from(TO.plusDays(1).atStartOfDay(REGINA).toInstant()),
         Timestamp.from(FROM.atStartOfDay(REGINA).toInstant()));
-    return leave;
+    List<PlanInputs.LeaveDay> days = new ArrayList<>();
+    leave.forEach(
+        (employeeId, byDate) ->
+            byDate.forEach((date, type) -> days.add(new PlanInputs.LeaveDay(employeeId, date, type))));
+    return days;
+  }
+
+  /**
+   * PR-M: what Generate would use right now (GET /planner/inputs). The same loaders generate()
+   * calls, nothing else; the options are the ones the Generate form would send (PR-N), validated
+   * the same way, the defaults when omitted.
+   */
+  public Map<String, Object> inputs(PlannerViews.DraftCreation form) {
+    PlannerViews.PlanOptions options = planOptions(form);
+    List<PlanGenerator.Unit> units = loadUnits();
+    return inputs(
+        units, loadEmployees(units), loadLeaveDays(), DEFAULT_SEED, null, options);
+  }
+
+  private Map<String, Object> inputs(
+      List<PlanGenerator.Unit> units,
+      List<PlanGenerator.Employee> employees,
+      List<PlanInputs.LeaveDay> leaveDays,
+      long seed,
+      String pattern8h,
+      PlannerViews.PlanOptions planOptions) {
+    Map<String, Object> options = new LinkedHashMap<>();
+    options.put("seed", seed);
+    // null: every 8 h officer works their own pattern (the one-release override is not sent).
+    options.put("pattern8h", pattern8h);
+    // PR-N tailoring options, folded in here as PR-M asked (not new top-level keys).
+    options.put("staffTypes", planOptions.staffTypes());
+    options.put("partTimeFill", planOptions.partTimeFill());
+    options.put("crossUnitFill", planOptions.crossUnitFill());
+    // The staffing floor over the whole quarter (PlanInputs.needed: the neediest stretch).
+    PlanInputs.Needed needed = PlanInputs.needed(unitsService.staffingPeriods());
+    return PlanInputs.build(
+        FROM,
+        TO,
+        PlanGenerator.PERIODS,
+        units,
+        employees,
+        leaveDays,
+        activeUnits::active,
+        publishedRuleSet.version(),
+        needed,
+        options);
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<String, Object> storedScorecard(Map<String, Object> draft) {
+    Object raw = draft.get("scorecard");
+    return raw == null ? Map.of() : mapper.readValue(raw.toString(), Map.class);
   }
 
   /**
@@ -1947,7 +2175,26 @@ public class PlannerService {
         ((Number) row.get("generated_ms")).intValue(),
         scorecard,
         handEdits((UUID) row.get("id")),
-        editedAssignmentIds((UUID) row.get("id")));
+        editedAssignmentIds((UUID) row.get("id")),
+        storedOptions(row));
+  }
+
+  /**
+   * The options a stored draft was made with. V14/V15 backfill older rows with the defaults (NOT
+   * NULL with defaults), so the null branches are defensive only. {@code daysOff} is the generic
+   * text[] reader despite its name.
+   */
+  private PlannerViews.PlanOptions storedOptions(Map<String, Object> row) {
+    PlannerViews.PlanOptions defaults = PlannerViews.PlanOptions.DEFAULT;
+    Object types = row.get("staff_types");
+    List<String> staffTypes =
+        types instanceof Array array ? daysOff(array) : defaults.staffTypes();
+    Object fill = row.get("part_time_fill");
+    Object crossUnit = row.get("cross_unit_fill");
+    return new PlannerViews.PlanOptions(
+        staffTypes.isEmpty() ? defaults.staffTypes() : staffTypes,
+        fill == null ? defaults.partTimeFill() : fill.toString(),
+        crossUnit == null ? defaults.crossUnitFill() : crossUnit.toString());
   }
 
   private int handEdits(UUID draftId) {

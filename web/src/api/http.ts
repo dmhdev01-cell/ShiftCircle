@@ -1,5 +1,7 @@
 import type {
   CoverageReport,
+  PlannerDraftCreation,
+  PlanOptions,
   DemoUser,
   HoursReport,
   MockLoginResult,
@@ -30,6 +32,7 @@ import type {
   PlannerDraft,
   PlannerGap,
   PlannerPlan,
+  PlanInputs,
   PlannerWarningGroup,
   RecordActualInput,
   RecordActualResult,
@@ -229,7 +232,15 @@ export function createHttpApi(): ShiftCircleApi {
     getPlannerPlan(): Promise<PlannerPlan> {
       return request<PlannerPlan>('/planner/plan');
     },
-    createPlannerDraft(body: { seed: number; pattern8h?: string }): Promise<PlannerDraft> {
+    getPlannerInputs(options?: PlanOptions): Promise<PlanInputs> {
+      if (!options) return request<PlanInputs>('/planner/inputs');
+      const query = new URLSearchParams();
+      options.staffTypes.forEach((type) => query.append('staffTypes', type));
+      query.set('partTimeFill', options.partTimeFill);
+      query.set('crossUnitFill', options.crossUnitFill);
+      return request<PlanInputs>(`/planner/inputs?${query.toString()}`);
+    },
+    createPlannerDraft(body: PlannerDraftCreation): Promise<PlannerDraft> {
       return request<PlannerDraft>('/planner/drafts', {
         method: 'POST',
         body: JSON.stringify(body),
