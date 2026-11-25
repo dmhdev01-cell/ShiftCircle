@@ -6,7 +6,7 @@
 
 | Role | Who | Purpose |
 |---|---|---|
-| `EMPLOYEE` | Correctional officer | Own schedule, hours, offers and preferences (proposals are not built) |
+| `EMPLOYEE` | Correctional officer | Own schedule, hours, offers and preferences; proposes extra shifts (API built in v1.3, the screen is P3) |
 | `SUPERVISOR` | Shift supervisor / scheduler | Plans and changes schedules **for the units in their scope**; overtime; actuals; pay-period lock; payroll export |
 | `RULES_ADMIN` | HR / labour relations analyst | Edits rule tables in drafts and builds them; **can't approve or publish** |
 | `RULES_APPROVER` | Senior labour relations or a manager | Approves, rejects and publishes rule versions; **can't edit drafts they approve** |
@@ -15,7 +15,7 @@
 
 A user can hold several roles (e.g. a supervisor is usually also an employee). Separation of duties is enforced per action, not per person: the same person can't both create and approve the same rule version.
 
-**PLANNER (ADR-026, added 2026-11-21) is facility-wide.** A planner generates, reads, commits and discards quarter drafts; reads every officer's preferences; and reads the planning board and the schedule screens like the auditor (read-only, all units); the reports are supervisor/auditor only. A planner cannot edit a supervisor's board, save an assignment, lock a pay period, change a rule or approve one. Units, dated closures, flagged shifts and staffing (allocated headcount, leave allowance) are PLANNER-only; supervisors and officers get 403. Supervisors stay unit-scoped. An officer edits only their own preferences through `/me/preferences`; `/planner/preferences` answers only to PLANNER.
+**PLANNER (ADR-026, added 2026-11-21) is facility-wide.** A planner generates, reads, commits and discards quarter drafts; reads every officer's preferences; and reads the planning board and the schedule screens like the auditor (read-only, all units); the reports are supervisor/auditor only. A planner cannot edit a supervisor's board, save an assignment on the board, lock a pay period, change a rule or approve one. **Exception (v1.3 P2, owner Q4):** the planner is the fallback decider of shift proposals for every unit, so approving a proposal creates a `shift_assignment` (kind `EXTRA`, source `PROPOSAL`) through the board's own rule check, with no override; this is the only place a planner writes a shift outside a plan commit (ADR-032, written in P5). Units, dated closures, flagged shifts and staffing (allocated headcount, leave allowance) are PLANNER-only; supervisors and officers get 403. Supervisors stay unit-scoped. An officer edits only their own preferences through `/me/preferences`; `/planner/preferences` answers only to PLANNER.
 
 ## 2. Permission matrix
 
@@ -34,8 +34,9 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 | Publish a schedule period | — | scope | — | — | — | — | — |
 | Create open shifts, send offers, assign overtime | — | scope | — | — | — | — | — |
 | Accept or decline an overtime offer | own | own | own | own | — | own | — |
-| Submit shift proposals | not built | not built | — | — | — | — | — |
-| Decide on proposals | — | not built | — | — | — | — | — |
+| Submit and withdraw shift proposals (API, v1.3 P1; screen P3) | own | own (a supervisor is also an officer) | — | — | — | — | — |
+| Read the proposals inbox and detail (API, v1.3 P2; screen P4) | — | scope (the **item's** unit): the inbox lists only proposals with an item in scope (empty otherwise); the detail is `404` with no item in scope and lists an out-of-scope item read-only (unit, time, decision; no rules, hours or actions); own proposals are shown, marked `own` | — | — | — | ✓ facility-wide | — |
+| Decide proposals (API, v1.3 P2; screen P4) | — | scope (the **item's** unit; `404` when the proposal has no item in scope, `403` for naming an out-of-scope item in the decision); **never own** (`403`, `SelfActionGuard`) | — | — | — | ✓ facility-wide fallback decider; never own | — |
 | Record actuals | — | scope | — | — | — | — | — |
 | Lock a pay period | — | facility-wide (any supervisor with at least one unit in scope; audited), ADR-022 | — | — | — | — | — |
 | Unlock a pay period | — | facility-wide (reason required; audited), ADR-022 | — | — | — | — | — |
@@ -56,7 +57,7 @@ A user can hold several roles (e.g. a supervisor is usually also an employee). S
 |---|---|
 | UI | Menu items and buttons are shown by role. A convenience only, never the control. |
 | API (role) | Spring Security method security: `@PreAuthorize("hasRole('SUPERVISOR')")` on each use case |
-| API (scope) | A `ScopeGuard` checks the target unit against the caller's `user_unit_scope`. For an employee's own request it also checks the caller's linked officer. **Cross-unit cover (ADR-024):** a supervisor may assign an officer from **any** unit into a unit in their own scope. The rule preview then shows that officer's rest and hours conflicts, which the supervisor needs in order to decide. A supervisor can't assign **into** a unit outside their scope, and can't read an officer's data outside their scope except through that preview. Out-of-scope IDs return `404`, so they don't reveal what exists. "Own" checks compare against the caller's linked `employee_id`. |
+| API (scope) | A `ScopeGuard` checks the target unit against the caller's `user_unit_scope`. For an employee's own request it also checks the caller's linked officer. **Cross-unit cover (ADR-024):** a supervisor may assign an officer from **any** unit into a unit in their own scope. The rule preview then shows that officer's rest and hours conflicts, which the supervisor needs in order to decide. The same exception covers a **shift proposal** on a unit in scope from an officer of another unit: its decider sees that officer's rule results, pay-period hours and place in the overtime order for that item only (docs/07 §4.4); the note is shown as plain text and never audited. A supervisor can't assign **into** a unit outside their scope, and can't read an officer's data outside their scope except through that preview. Out-of-scope IDs return `404`, so they don't reveal what exists. "Own" checks compare against the caller's linked `employee_id`. |
 | Data queries | Repository methods for lists take the caller's scope as a parameter (no unfiltered list queries in controllers) |
 | Database | Triggers refuse `UPDATE`, `DELETE` and `TRUNCATE` on `audit_event` (role grants deferred to a pilot, ADR-018); `CHECK (approved_by <> created_by)` on rule versions; a trigger blocks changes to time entries in locked pay periods |
 | Tests | Authorization tests for the denied or scoped cells of the supervisor, employee, rules, auditor and display roles, grouped by area method plus per-endpoint tests, against real HTTP endpoints. **The planner's `403` cells (reports, audit log, rules, Time & attendance, payroll) are enforced by `@PreAuthorize` and were probed by hand; no automated test covers them yet.** |
