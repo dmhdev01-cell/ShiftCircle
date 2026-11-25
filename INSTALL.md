@@ -25,7 +25,7 @@ less install.sh
 bash install.sh
 ```
 
-**Course submission:** the version submitted for the assessment is the tag `v1.1.1-submission`. Its own `install.sh` stays pinned to that tag, so the same one-liner with `v1.1.1-submission` in place of `v1.2` installs the submission exactly; `v1.2` is the later release these instructions install.
+**Course submission:** the version submitted for the assessment is the tag `v1.1.2-submission` (v1.1.1 plus the staffing-shortfall hotfix). Its own `install.sh` stays pinned to that tag, so the same one-liner with `v1.1.2-submission` in place of `v1.2` installs the submission exactly; `v1.2` is the later release these instructions install.
 
 Overrides (environment variables, put them before `bash install.sh`): `SC_WEB_PORT` (host port, 1-65535, default 8080, for example `SC_WEB_PORT=9090 bash install.sh`), `SHIFTCIRCLE_PROJECT` (compose project name, default `shiftcircle`; a `COMPOSE_PROJECT_NAME` already in your shell is ignored on purpose), `SHIFTCIRCLE_REF` (tag or branch to install, default the release tag), `SHIFTCIRCLE_DIR` (default `./ShiftCircle`), and, advanced, `SHIFTCIRCLE_REPO` (clone URL). The port and project name are saved in `.env` (`SC_WEB_PORT`, `COMPOSE_PROJECT_NAME`). It refuses to touch an existing non-empty directory that is not a ShiftCircle checkout; re-running in the same place skips the clone and keeps the `.env` (it only fills a blank secret). It never runs `docker compose down`. The manual steps are below.
 

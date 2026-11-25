@@ -58,7 +58,7 @@ less install.sh
 bash install.sh
 ```
 
-**Course submission:** the version submitted for the assessment is the tag `v1.1.1-submission`. Its own `install.sh` stays pinned to that tag, so the same one-liner with `v1.1.1-submission` in place of `v1.2` installs the submission exactly; `v1.2` is the later release these instructions install.
+**Course submission:** the version submitted for the assessment is the tag `v1.1.2-submission` (v1.1.1 plus the staffing-shortfall hotfix). Its own `install.sh` stays pinned to that tag, so the same one-liner with `v1.1.2-submission` in place of `v1.2` installs the submission exactly; `v1.2` is the later release these instructions install.
 
 Overrides (environment variables, put them before `bash install.sh`): `SC_WEB_PORT` (host port, 1-65535, default 8080, for example `SC_WEB_PORT=9090 bash install.sh`), `SHIFTCIRCLE_PROJECT` (compose project name, default `shiftcircle`; a `COMPOSE_PROJECT_NAME` already in your shell is ignored on purpose), `SHIFTCIRCLE_REF` (tag or branch to install, default the release tag), `SHIFTCIRCLE_DIR` (default `./ShiftCircle`), and, advanced, `SHIFTCIRCLE_REPO` (clone URL). The port and project name are saved in `.env` (`SC_WEB_PORT`, `COMPOSE_PROJECT_NAME`). It refuses to touch an existing non-empty directory that is not a ShiftCircle checkout; re-running in the same place skips the clone and keeps the `.env` (it only fills a blank secret). It never runs `docker compose down`. The manual steps are below.
 
@@ -217,7 +217,7 @@ docker run --rm --add-host=host.docker.internal:host-gateway -v "$PWD/e2e":/work
 - Web unit tests: **591** in 58 files (the walk's 583 in 57, plus PR-Q's 8); lint 0 errors (4 warnings); `tsc -b` clean.
 - Playwright against the real API, whole suite per viewport (`--project desktop-datasets` and `--project tablet-datasets`, which run the parallel specs and then the stack-wide specs one at a time): desktop **132 passed**; tablet **131 passed and 1 skipped** (the TV-size check runs on desktop only); no failures on either. The walk measured 129 and 128 + 1; PR-Q adds three staffing checks on Datasets 100, 120 and 150.
 
-The course submission (tag `v1.1.1-submission`) was gated on API 470, web 532 in 54 files, desktop 124 and tablet 123 + 1 (fixtures 23 passed, 79 skipped); that table is in [docs/10-testing.md](docs/10-testing.md).
+The `v1.1.1-submission` gate (the submission line before the `v1.1.2-submission` hotfix) was on API 470, web 532 in 54 files, desktop 124 and tablet 123 + 1 (fixtures 23 passed, 79 skipped); that table is in [docs/10-testing.md](docs/10-testing.md).
 
 The dataset checksums, the payroll golden and the plan fingerprints are unchanged (no migration or generator change since release 8). Earlier counts, release by release, are in [docs/process/release-notes.md](docs/process/release-notes.md); each round is in `docs/process/review-rounds.md`.
 
