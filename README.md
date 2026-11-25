@@ -1,6 +1,6 @@
 # ShiftCircle
 
-A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervisors plan 8- and 12-hour shifts (a 16 h day is a 12 h shift plus an extension) against a **configurable rules engine** (rest and hours limits, consecutive shifts, staffing, qualifications, overtime). A planner builds a whole-quarter draft through the same engine, changes single shifts in it by hand, and commits it to the planning board. Employees see their schedule and hours and can draft and rule-check shift ideas (sending them to a supervisor is not available yet). Time feeds a payroll export, and reports show coverage and overtime as planned vs. actual.
+A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervisors plan 8- and 12-hour shifts (a 16 h day is a 12 h shift plus an extension) against a **configurable rules engine** (rest and hours limits, consecutive shifts, staffing, qualifications, overtime). A planner builds a whole-quarter draft through the same engine, changes single shifts in it by hand, and commits it to the planning board. Employees see their schedule and hours, and can propose extra shifts: each draft is rule-checked with the others, then sent with a note, followed and withdrawn on My schedule (v1.3; the supervisor's inbox screen comes next). Time feeds a payroll export, and reports show coverage and overtime as planned vs. actual.
 
 > A prototype. **All data is synthetic.** Payroll and sign-on are simulated. The default demo seeds 100 fictional officers over 90 days; the About reset card can also load Dataset 120 and Dataset 150 for the quarter planner.
 
@@ -244,7 +244,7 @@ docker run --rm -v "$PWD/api":/src -v /var/run/docker.sock:/var/run/docker.sock 
 | Period-based overtime classification and the payroll CSV | "Today" is fixed at 19 Nov 2026 (`SC_DEMO_TODAY`) |
 | PostgreSQL with Flyway migrations | |
 
-**Not built at all** (designed, but not in the prototype): the Excel round-trip for rule tables, the employee shift planner and proposals inbox, offer withdrawal, a payroll-clerk role, arrow-key grid navigation, the two extra selectable patterns measured for decision 15, and more. The full list, with what exists instead, is in [docs/10-testing.md §8](docs/10-testing.md#8-intentionally-not-built).
+**Not built at all** (designed, but not in the prototype): the Excel round-trip for rule tables, the supervisor's proposals inbox screen (the officer side is built in v1.3), offer withdrawal, a payroll-clerk role, arrow-key grid navigation, the two extra selectable patterns measured for decision 15, and more. The full list, with what exists instead, is in [docs/10-testing.md §8](docs/10-testing.md#8-intentionally-not-built).
 
 **Known limit, by decision (ADR-025):** on the `prod-like` profile the sign-in token is kept in memory only, so a page refresh, a new tab or a deep link asks you to sign in again ("Please sign in to continue."; the demo profile keeps the session across a same-tab refresh in `sessionStorage`, per the ADR-025 amendment) and then returns you to the screen you asked for.
 

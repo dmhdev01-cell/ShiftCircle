@@ -43,20 +43,40 @@ Good to know:
 
 <!-- No screenshot yet: desktop__employee__my-preferences (no clean capture from the gated build) -->
 
-## Propose a shift
+## Propose extra shifts
 
-**Propose shifts** lets you check a shift you'd like to work against the rules before you ask for it.
+**Propose shifts** lets you ask your supervisor for extra shifts. Each shift is checked against the rules before you send it, together with the other shifts you are proposing, so two shifts too close together show it.
 
-1. Press **Add a shift**, pick the day and shift, then press **Add and check the rules**.
-2. The answer shows right away:
-   - **Rules OK for you**;
-   - **Rules OK, with a warning**;
-   - **A rule blocks this for you**.
-3. Ask your supervisor directly. Sending a proposal from ShiftCircle is **not available in this prototype**: there is no proposals inbox yet, and the card says so.
+1. Press **Add a shift**. Pick the **date** (from tomorrow to 11 Apr 2027), the **unit** (your own unit is chosen first; you can pick any open unit) and the **shift**, then press **Add and check the rules**.
+2. The shift appears as a draft with its answer:
+   - **Passes**;
+   - **Warning** with the rule codes (for example *Warning · U-12, U-14*) and the first reason. You can still send it; your supervisor sees the warning too;
+   - **Blocked** with the rule codes and the reason. A blocked shift **can't be sent**;
+   - **Can't be sent** with a reason that is not a rule (for example, the pay period is locked, or you already have that shift waiting).
+   
+   With two or more drafts, each says "Checked with your other drafts".
+3. **Remove** takes a draft off the list. Your drafts stay if you refresh the page in the same tab; they are not sent until you press Send.
+4. Optionally write a **note to your supervisor** (up to 500 characters). Don't include medical details.
+5. Press **Send to supervisor**. The button is off while a draft is Blocked or still being checked, and the reason is shown next to it, for example "1 shift can't be sent. Remove it to send the others."
 
-Only a supervisor can authorise an extra shift.
+After sending, the card says "Sent to your supervisor. You'll see the answer under My proposals." and the drafts clear. At most 10 shifts go in one proposal, and at most 20 can wait for an answer at once.
 
-<!-- No screenshot yet: desktop__employee__my-schedule__rule-result (no clean capture from the gated build) -->
+![The Propose shifts card with two drafts: Sat 28 Nov passes with a warning, Tue 1 Dec is blocked by U-14 when checked with the Saturday draft, and Send to supervisor is off with the reason](img/officer-propose-blocked.png)
+
+## Follow your proposals
+
+**My proposals**, under the Propose shifts card, lists what you sent in the last 90 days, newest first. Each proposal shows when you sent it, your note, and its state: **Waiting**, **Approved**, **Partly approved**, **Declined**, **Withdrawn** or **Expired**. Each shift in it has its own answer:
+- **Approved by M. Ellis.** The shift is on your schedule.
+- **Declined by M. Ellis: "Unit is fully staffed that night".** The supervisor's comment is shown as they wrote it.
+- **Expired: the shift started before anyone answered.**
+
+**Withdraw** a proposal while every shift in it is still waiting: press **Withdraw**, then **Withdraw proposal** to confirm. Once a supervisor has answered part of it, you can't withdraw the rest here; ask your supervisor instead.
+
+Only a supervisor with that unit, or the planner, can approve an extra shift, and an approved shift counts toward your pay-period hours like an accepted overtime offer. *In this release the supervisors' proposals inbox screen is still being built (the API behind it is ready), so in the demo a sent proposal normally stays Waiting until you withdraw it or the shift starts.*
+
+![My proposals with a waiting proposal and its note, and a withdrawn one](img/officer-my-proposals.png)
+
+The old **/me/propose** link opens My schedule at the Propose shifts card. On a phone the cards stack, and the calendar scrolls sideways.
 
 ## What you can't do here
 

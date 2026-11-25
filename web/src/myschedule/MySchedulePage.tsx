@@ -164,14 +164,16 @@ export function MySchedulePage() {
   const [proposalsKey, setProposalsKey] = useState(0);
   const location = useLocation();
   const loaded = scheduleState.kind === 'ready';
+  const offersSettled = offersState.kind !== 'loading';
 
   // /me/propose redirects to #propose (or #my-proposals): bring that card into
-  // view once the page has drawn it.
+  // view once the page has drawn it, and again once the offers above it have
+  // loaded and pushed it down.
   useEffect(() => {
     if (!loaded || !location.hash) return;
     const target = document.getElementById(location.hash.slice(1));
     if (target && typeof target.scrollIntoView === 'function') target.scrollIntoView();
-  }, [loaded, location.hash]);
+  }, [loaded, offersSettled, location.hash]);
 
   if (scheduleState.kind === 'loading') {
     return (
