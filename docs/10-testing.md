@@ -270,7 +270,7 @@ These five flows are also the backbone of the ≤ 5-minute demo recording.
 
 ## 8. Intentionally not built
 
-Things the design describes that the prototype does **not** have. They are listed so that nothing reads as an implied feature, and no test claims to cover them. Checked against the code on 2026-11-20.
+Things the design describes that the prototype does **not** have. They are listed so that nothing reads as an implied feature, and no test claims to cover them. Checked against the code on 2026-11-20 and re-checked for v1.3 on 2026-11-25.
 
 | Not built | What exists instead | Where it is designed |
 |---|---|---|

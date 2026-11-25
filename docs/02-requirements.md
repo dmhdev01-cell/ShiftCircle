@@ -1,6 +1,6 @@
 # ShiftCircle — Requirements
 
-**Status:** v0.3 requirements, with the **prototype status** of each item marked where it is not fully built (checked 23 Nov 2026; release v1.3 proposals and supervisors, FR-30/31 and FR-35 to FR-38, added 25 Nov 2026; the proof for each is in [traceability.md](traceability.md), the list of what is not built in [10-testing.md §8](10-testing.md#8-intentionally-not-built)) · IDs are stable. Priorities: M = Must, S = Should, C = Could.
+**Status:** v0.3 requirements, with the **prototype status** of each item marked where it is not fully built (checked 23 Nov 2026; release v1.3 proposals and supervisors, FR-30/31 updated and FR-35 to FR-38 added 25 Nov 2026; the proof for each is in [traceability.md](traceability.md), the list of what is not built in [10-testing.md §8](10-testing.md#8-intentionally-not-built)) · IDs are stable. Priorities: M = Must, S = Should, C = Could.
 
 ## 1. Screens
 
