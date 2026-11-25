@@ -11,6 +11,7 @@ import type { Block, BlockCoverage, CellItem, OfficerRow, SchedulePayload, Shift
 import { colour, grid } from '../theme/tokens';
 import { CoverageCell } from './CoverageCell';
 import { dayTotals, isWeekend, officerTotals, payPeriodOf, rangeWords } from './rosterView';
+import { isActingOfficer, isSupervisor, isSupervisorPost, onDuty, shortName } from './supervisorPosts';
 import type { RosterDensity } from './rosterView';
 
 /** A chip and its words stay together when the key wraps. */
@@ -21,6 +22,15 @@ function LegendItem({ children }: { children: ReactNode }) {
     </Box>
   );
 }
+
+const VISUALLY_HIDDEN_TEXT = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+} as const;
 
 const BLOCKS: { block: Block; label: string }[] = [
   { block: 'DAY', label: 'Days' },
@@ -233,6 +243,7 @@ export function RosterGrid({
   chipWarning,
 }: RosterGridProps) {
   const officers = shownOfficers ?? payload.officers;
+  const onPost = isSupervisorPost(payload.unit);
   const threshold = payload.officers[0]?.payPeriodThreshold ?? 80;
   const compact = density === 'compact';
   const days = payload.days;
@@ -292,7 +303,7 @@ export function RosterGrid({
           <thead>
             <tr>
               <th style={{ ...headStyle, ...stickyName, textAlign: 'left', padding: 6, zIndex: 2 }}>
-                Officer
+                {onPost ? 'Supervisor' : 'Officer'}
               </th>
               <th style={{ ...headStyle, textAlign: 'left', whiteSpace: 'nowrap' }}>
                 Shifts · h
@@ -367,7 +378,8 @@ export function RosterGrid({
                     {compact ? ' ' : <br />}
                     <span style={{ fontWeight: 500, fontSize: compact ? 11 : 12, color: colour.text.secondary }}>
                       needs {requirement}
-                      {filtered ? ' · whole unit' : ''}
+                      {onPost ? (requirement === 1 ? ' supervisor' : ' supervisors') : ''}
+                      {filtered ? (onPost ? ' · whole post' : ' · whole unit') : ''}
                     </span>
                   </td>
                   <td colSpan={2} style={{ backgroundColor: colour.bg.subtle, borderBottom: border }} />
@@ -392,6 +404,7 @@ export function RosterGrid({
                             compact={compact}
                             onFill={onFillGap}
                             selected={selectedGap?.date === date && selectedGap.block === block}
+                            {...(onPost ? { noun: 'Supervisor' } : {})}
                           />
                         ) : null}
                       </td>
@@ -401,8 +414,113 @@ export function RosterGrid({
               );
             })}
 
+            {payload.supervisorsOnDuty ? (
+              // v1.3 S6: who supervises this unit in each block, from the
+              // supervisor post that covers it. Read-only; names are fine on
+              // the signed-in board (never on the wall display).
+              <tr data-testid="supervisor-on-duty">
+                <th
+                  scope="row"
+                  style={{
+                    ...stickyName,
+                    textAlign: 'left',
+                    fontWeight: 600,
+                    padding: compact ? '3px 6px' : 8,
+                    backgroundColor: colour.bg.subtle,
+                    borderBottom: border,
+                  }}
+                >
+                  Supervisor on duty
+                  {compact ? ' ' : <br />}
+                  <span style={{ fontWeight: 500, fontSize: compact ? 11 : 12, color: colour.text.secondary }}>
+                    from the supervisor post
+                  </span>
+                </th>
+                <td colSpan={2} style={{ backgroundColor: colour.bg.subtle, borderBottom: border }} />
+                {days.map((date, index) => {
+                  const blocks = BLOCKS.map(({ block, label }) => ({
+                    block,
+                    label,
+                    names: onDuty(payload, date, block) ?? [],
+                  }));
+                  const words = blocks
+                    .map(({ label, names }) => `${label}: ${names.length > 0 ? names.join(', ') : 'none'}`)
+                    .join(' · ');
+                  const allCovered = blocks.every(({ names }) => names.length > 0);
+                  return (
+                    <td
+                      key={date}
+                      style={{
+                        padding: cellPad,
+                        borderBottom: border,
+                        textAlign: compact ? 'center' : undefined,
+                        ...dayStyle(date, index),
+                      }}
+                    >
+                      {compact ? (
+                        <Box
+                          component="span"
+                          role="img"
+                          title={words}
+                          aria-label={`Supervisor on duty. ${words}`}
+                          sx={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: allCovered ? colour.text.secondary : colour.status.warn.text,
+                          }}
+                        >
+                          {allCovered ? '✓' : '!'}
+                        </Box>
+                      ) : (
+                        <Box
+                          component="ul"
+                          aria-label={`Supervisor on duty, ${date}`}
+                          sx={{ listStyle: 'none', m: 0, p: 0, fontSize: 11, lineHeight: 1.45 }}
+                        >
+                          {blocks.map(({ block, label, names }) => (
+                            <Box
+                              component="li"
+                              key={block}
+                              title={`${label}: ${names.length > 0 ? names.join(', ') : 'none'}`}
+                              sx={{
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                maxWidth: 120,
+                                color: names.length > 0 ? colour.text.primary : colour.status.warn.text,
+                              }}
+                            >
+                              <Box component="span" aria-hidden="true" sx={{ fontWeight: 700, color: colour.text.secondary }}>
+                                {label.charAt(0)}{' '}
+                              </Box>
+                              <Box component="span" sx={VISUALLY_HIDDEN_TEXT}>
+                                {label}:{' '}
+                              </Box>
+                              {names.length > 0 ? names.map(shortName).join(', ') : 'none'}
+                            </Box>
+                          ))}
+                        </Box>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ) : null}
+
             {officers.map((officer) => {
               const totals = officerTotals(officer);
+              // v1.3 S6: a supervisor on an officer post (R-02 cross-cover)
+              // reads "Sup"; an officer on a supervisor post reads "Acting"
+              // (holds Acting supervisor) or "Officer".
+              const positionBadge = onPost
+                ? isSupervisor(officer) || officer.position === undefined
+                  ? null
+                  : isActingOfficer(officer)
+                    ? { text: 'Acting', title: 'Officer acting as supervisor (R-01 warning)' }
+                    : { text: 'Officer', title: 'Officer on a supervisor post (R-01)' }
+                : isSupervisor(officer)
+                  ? { text: 'Sup', title: 'Supervisor working an officer post (R-02)' }
+                  : null;
               return (
                 <tr key={officer.employeeId} data-officer-name={officer.name}>
                   <td
@@ -426,6 +544,27 @@ export function RosterGrid({
                       <Box component="span" sx={{ fontWeight: 600, whiteSpace: compact ? 'nowrap' : undefined }}>
                         {officer.name}
                       </Box>
+                      {positionBadge ? (
+                        <Box
+                          component="span"
+                          data-testid="position-badge"
+                          title={positionBadge.title}
+                          sx={{
+                            fontSize: compact ? 11 : 12,
+                            fontWeight: 700,
+                            px: 0.75,
+                            borderRadius: '4px',
+                            backgroundColor: colour.status.warn.bg,
+                            color: colour.status.warn.text,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {positionBadge.text}
+                          <Box component="span" sx={VISUALLY_HIDDEN_TEXT}>
+                            {`: ${positionBadge.title}`}
+                          </Box>
+                        </Box>
+                      ) : null}
                       {officer.homeUnit ? (
                         <Box
                           component="span"

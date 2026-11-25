@@ -43,6 +43,10 @@ public class ScheduleQuery {
     this.clock = clock;
   }
 
+  /**
+   * The board's unit. {@code kind} (v1.3 S6) is set on the planning board only: {@code SUPERVISION}
+   * for a supervisor post, else the line unit's kind. The planner's draft leaves it out.
+   */
   public record UnitView(
       UUID id,
       String name,
@@ -50,7 +54,27 @@ public class ScheduleQuery {
       LocalDate closedTo,
       String closedLabel,
       String closedReason,
-      List<LocalDate> closedDates) {}
+      List<LocalDate> closedDates,
+      @JsonInclude(JsonInclude.Include.NON_NULL) String kind) {
+
+    public UnitView(
+        UUID id,
+        String name,
+        LocalDate closedFrom,
+        LocalDate closedTo,
+        String closedLabel,
+        String closedReason,
+        List<LocalDate> closedDates) {
+      this(id, name, closedFrom, closedTo, closedLabel, closedReason, closedDates, null);
+    }
+  }
+
+  /**
+   * v1.3 S6: who supervises a line unit in one block of one day, from the supervisor posts that
+   * cover it ({@code unit_supervision}). A name is listed when their shift on a post overlaps the
+   * block's hours. Names are fine here: this is the signed-in board, not the wall display.
+   */
+  public record SupervisorOnDuty(LocalDate date, String block, List<String> names) {}
 
   public record ShortHour(String from, String to, int count) {}
 
@@ -98,7 +122,19 @@ public class ScheduleQuery {
       // JSON when null, so the planning board's payload is unchanged.
       @com.fasterxml.jackson.annotation.JsonInclude(
               com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-          String homeUnit) {}
+          String homeUnit,
+      // v1.3 S6, planning board only: the employee's position (CO officer, CS supervisor), for the
+      // "Sup" badge and the gap-fill pool. Left out elsewhere, so other payloads are unchanged.
+      @JsonInclude(JsonInclude.Include.NON_NULL) String position) {
+
+    public OfficerRow(
+        UUID employeeId, String name, String rotation, List<String> qualifications,
+        double payPeriodHours, double payPeriodThreshold, String overtimeStatus,
+        List<DayCell> cells, String homeUnit) {
+      this(employeeId, name, rotation, qualifications, payPeriodHours, payPeriodThreshold,
+          overtimeStatus, cells, homeUnit, null);
+    }
+  }
 
   /**
    * Whether the board's period is published, and how many of its shifts changed after the
@@ -122,7 +158,19 @@ public class ScheduleQuery {
       UnitView unit, LocalDate from, LocalDate to, List<LocalDate> days, String asOf,
       @JsonInclude(JsonInclude.Include.NON_NULL) String now,
       List<BlockCoverage> coverage, List<OfficerRow> officers, int warnings,
-      int overridesThisPeriod, PublishedState publishedState, PeriodView period) {}
+      int overridesThisPeriod, PublishedState publishedState, PeriodView period,
+      // v1.3 S6: on a line unit covered by a supervisor post, one entry per day and block. Left
+      // out for a supervisor post itself and for the planner's draft.
+      @JsonInclude(JsonInclude.Include.NON_NULL) List<SupervisorOnDuty> supervisorsOnDuty) {
+
+    public SchedulePayload(
+        UnitView unit, LocalDate from, LocalDate to, List<LocalDate> days, String asOf,
+        String now, List<BlockCoverage> coverage, List<OfficerRow> officers, int warnings,
+        int overridesThisPeriod, PublishedState publishedState, PeriodView period) {
+      this(unit, from, to, days, asOf, now, coverage, officers, warnings, overridesThisPeriod,
+          publishedState, period, null);
+    }
+  }
 
   public String unitCode(UUID unitId) {
     return jdbc.queryForObject("SELECT code FROM unit WHERE id = ?", String.class, unitId);
@@ -130,7 +178,7 @@ public class ScheduleQuery {
 
   public SchedulePayload forUnit(UUID unitId, LocalDate from, LocalDate to) {
     Map<String, Object> unitRow =
-        jdbc.queryForMap("SELECT id, code, name, active FROM unit WHERE id = ?", unitId);
+        jdbc.queryForMap("SELECT id, code, name, kind, active FROM unit WHERE id = ?", unitId);
     List<LocalDate> closedDates = activeUnits.closedDates(unitId, from, to);
     List<ca.shiftcircle.api.units.ActiveUnits.Closure> closures =
         activeUnits.closuresIn(unitId, from, to);
@@ -156,7 +204,8 @@ public class ScheduleQuery {
             closedTo,
             closedLabel,
             closedReason,
-            closedDates);
+            closedDates,
+            (String) unitRow.get("kind"));
 
     Map<String, Integer> required = new LinkedHashMap<>();
     jdbc.query(
@@ -168,7 +217,8 @@ public class ScheduleQuery {
 
     List<Map<String, Object>> assignments =
         jdbc.queryForList(
-            "SELECT s.id, s.employee_id, e.first_name, e.last_name, t.code AS template_code,"
+            "SELECT s.id, s.employee_id, e.first_name, e.last_name, e.classification,"
+                + " t.code AS template_code,"
                 + " s.start_at, s.end_at, s.work_date, s.kind, s.version, s.source,"
                 + " EXISTS (SELECT 1 FROM time_entry te WHERE te.shift_assignment_id = s.id"
                 + "   AND te.absence_type IS NULL) AS worked,"
@@ -304,7 +354,8 @@ public class ScheduleQuery {
                   80.0,
                   status,
                   cells,
-                  null));
+                  null,
+                  (String) row.get("classification")));
         });
 
     // The period the board shows: the one whose dates contain the board's range. Its id is what
@@ -345,7 +396,69 @@ public class ScheduleQuery {
         0,
         overrides == null ? 0 : overrides,
         new PublishedState(published, unpublishedChanges),
-        period);
+        period,
+        supervisorsOnDuty(unitId, days));
+  }
+
+  /** The block windows the board's coverage uses (ADR-013): start hour and length in hours. */
+  private static final List<Map.Entry<String, int[]>> BLOCK_WINDOWS =
+      List.of(
+          Map.entry("DAY", new int[] {7, 8}),
+          Map.entry("EVENING", new int[] {15, 8}),
+          Map.entry("NIGHT", new int[] {23, 8}));
+
+  /**
+   * v1.3 S6: the supervisors on duty for a line unit, per day and block, from the posts that cover
+   * it. Null when no post covers the unit (a supervisor post itself, or a unit with no link), so
+   * the field is left out of the JSON.
+   */
+  private List<SupervisorOnDuty> supervisorsOnDuty(UUID unitId, List<LocalDate> days) {
+    if (days.isEmpty()) {
+      return null;
+    }
+    List<UUID> posts =
+        jdbc.queryForList(
+            "SELECT supervision_unit_id FROM unit_supervision WHERE unit_id = ?",
+            UUID.class,
+            unitId);
+    if (posts.isEmpty()) {
+      return null;
+    }
+    record Shift(java.time.Instant start, java.time.Instant end, String name) {}
+    List<Shift> shifts = new ArrayList<>();
+    for (UUID post : posts) {
+      shifts.addAll(
+          jdbc.query(
+              "SELECT s.start_at, s.end_at, e.first_name, e.last_name FROM shift_assignment s"
+                  + " JOIN employee e ON e.id = s.employee_id"
+                  + " WHERE s.unit_id = ? AND s.status <> 'CANCELLED'"
+                  + " AND s.work_date BETWEEN ? AND ? ORDER BY s.start_at, e.last_name",
+              (rs, rowNum) ->
+                  new Shift(
+                      rs.getTimestamp("start_at").toInstant(),
+                      rs.getTimestamp("end_at").toInstant(),
+                      rs.getString("first_name") + " " + rs.getString("last_name")),
+              post,
+              days.get(0).minusDays(1),
+              days.get(days.size() - 1).plusDays(1)));
+    }
+    List<SupervisorOnDuty> onDuty = new ArrayList<>();
+    for (LocalDate date : days) {
+      for (Map.Entry<String, int[]> window : BLOCK_WINDOWS) {
+        java.time.Instant from =
+            date.atTime(window.getValue()[0], 0).atZone(REGINA).toInstant();
+        java.time.Instant to = from.plusSeconds(window.getValue()[1] * 3600L);
+        List<String> names = new ArrayList<>();
+        for (Shift shift : shifts) {
+          if (shift.start().isBefore(to) && shift.end().isAfter(from)
+              && !names.contains(shift.name())) {
+            names.add(shift.name());
+          }
+        }
+        onDuty.add(new SupervisorOnDuty(date, window.getKey(), names));
+      }
+    }
+    return onDuty;
   }
 
   /** The period whose dates contain the board's range, or null when the range is not inside one. */

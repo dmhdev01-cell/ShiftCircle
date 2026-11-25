@@ -406,6 +406,73 @@ class ScheduleApiTest {
   }
 
   /**
+   * v1.3 S6: the board names the unit's kind and each row's position, and a line unit lists who
+   * supervises each block from the post that covers it (SUP-L covers Unit A). A supervisor post's
+   * own board has no "on duty" line: its rows are the supervisors.
+   */
+  @Test
+  void theBoardNamesThePositionAndTheSupervisorOnDutyPerBlock() throws Exception {
+    UUID supervisor = UUID.fromString("33333333-3333-3333-3333-0000000000c5");
+    UUID supL = UUID.fromString("11111111-1111-1111-1111-000000000007");
+    UUID shift = UUID.fromString("55555555-5555-5555-5555-0000000000c5");
+    jdbc.update(
+        "INSERT INTO employee (id, employee_no, first_name, last_name, home_unit_id,"
+            + " seniority_date, classification) VALUES (?, 'S-T1', 'Sam', 'Super', ?,"
+            + " DATE '2010-01-01', 'CS') ON CONFLICT DO NOTHING",
+        supervisor,
+        supL);
+    jdbc.update(
+        "INSERT INTO shift_assignment (id, employee_id, unit_id, shift_template_id, start_at,"
+            + " end_at, work_date, kind, source) SELECT ?, ?, ?, t.id,"
+            + " TIMESTAMPTZ '2026-11-18 07:00:00-06', TIMESTAMPTZ '2026-11-18 15:00:00-06',"
+            + " DATE '2026-11-18', 'ROSTERED', 'ROTATION' FROM shift_template t WHERE t.code = 'D8'"
+            + " ON CONFLICT DO NOTHING",
+        shift,
+        supervisor,
+        supL);
+    try {
+      Map<?, ?> line = mapper.readValue(get(schedulePath(), login("m.ellis")).body(), Map.class);
+      assertThat(((Map<?, ?>) line.get("unit")).get("kind")).isEqualTo("LIVING");
+      assertThat(((Map<?, ?>) ((java.util.List<?>) line.get("officers")).get(0)).get("position"))
+          .isEqualTo("CO");
+      var onDuty = (java.util.List<?>) line.get("supervisorsOnDuty");
+      assertThat(onDuty).hasSize(3);
+      Map<String, Object> byBlock = new java.util.HashMap<>();
+      for (Object entry : onDuty) {
+        Map<?, ?> block = (Map<?, ?>) entry;
+        assertThat(block.get("date")).isEqualTo("2026-11-18");
+        byBlock.put((String) block.get("block"), block.get("names"));
+      }
+      assertThat(byBlock.get("DAY")).isEqualTo(java.util.List.of("Sam Super"));
+      assertThat(byBlock.get("EVENING")).isEqualTo(java.util.List.of());
+      assertThat(byBlock.get("NIGHT")).isEqualTo(java.util.List.of());
+
+      String postPath = "/api/v1/schedule?unitId=" + supL + "&from=" + DAY + "&to=" + DAY;
+      HttpResponse<String> response = get(postPath, login("m.ellis"));
+      assertThat(response.statusCode()).isEqualTo(200);
+      Map<?, ?> post = mapper.readValue(response.body(), Map.class);
+      assertThat(((Map<?, ?>) post.get("unit")).get("kind")).isEqualTo("SUPERVISION");
+      assertThat(post.containsKey("supervisorsOnDuty")).isFalse();
+      var rows = (java.util.List<?>) post.get("officers");
+      assertThat(rows).hasSize(1);
+      assertThat(((Map<?, ?>) rows.get(0)).get("position")).isEqualTo("CS");
+      var coverage = (java.util.List<?>) post.get("coverage");
+      assertThat(coverage).hasSize(3);
+      Map<?, ?> day =
+          (Map<?, ?>)
+              coverage.stream()
+                  .filter(entry -> "DAY".equals(((Map<?, ?>) entry).get("block")))
+                  .findFirst()
+                  .orElseThrow();
+      assertThat(day.get("required")).isEqualTo(1);
+      assertThat(((Map<?, ?>) day.get("scheduled")).get("lowestHourly")).isEqualTo(1);
+    } finally {
+      jdbc.update("DELETE FROM shift_assignment WHERE id = ?", shift);
+      jdbc.update("DELETE FROM employee WHERE id = ?", supervisor);
+    }
+  }
+
+  /**
    * PR-O: the board says what the shift dialog needs to know before a move or cancel: the business
    * clock's "now" (noon on the demo day, 18:00Z) and the refusals the api would give, per shift.
    */
