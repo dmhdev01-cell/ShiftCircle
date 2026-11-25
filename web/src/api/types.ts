@@ -193,6 +193,11 @@ export interface OfficerRow {
    * (supervisor). Left out of the planner's draft.
    */
   position?: string;
+  /**
+   * Planning board only (v1.3 S6): the position is supervisory (the
+   * position table's flag), so a later supervisory position needs no web change.
+   */
+  supervisory?: boolean;
 }
 
 /**

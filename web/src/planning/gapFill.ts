@@ -50,6 +50,11 @@ export interface GapCandidate {
    * post after the supervisors. R-01 is then a warning to acknowledge.
    */
   acting?: boolean;
+  /**
+   * v1.3 S6: the signed-in person's own row. The api refuses anyone changing
+   * their own schedule (403), so the panel lists it last and does not offer it.
+   */
+  self?: boolean;
 }
 
 /** "Sat" for an ISO day. */
@@ -201,7 +206,9 @@ export function gapCandidates(
   gap: BlockCoverage,
   template: string,
   periodHours?: Map<string, PeriodHours>,
+  selfEmployeeId?: string,
 ): GapCandidate[] {
+  const isSelf = (officer: OfficerRow) => Boolean(selfEmployeeId) && officer.employeeId === selfEmployeeId;
   const onPost = isSupervisorPost(payload.unit);
   return payload.officers
     // v1.3 S6: the pool follows the unit's kind (supervisors on a post, plus
@@ -221,12 +228,14 @@ export function gapCandidates(
     .sort(
       (a, b) =>
         // On a post, acting officers come after every supervisor (Q4's order).
+        Number(isSelf(a)) - Number(isSelf(b)) ||
         (onPost ? Number(isActingOfficer(a)) - Number(isActingOfficer(b)) : 0) ||
         a.payPeriodHours - b.payPeriodHours ||
         a.name.localeCompare(b.name),
     )
     .map((officer) => ({
       ...(onPost && isActingOfficer(officer) ? { acting: true } : {}),
+      ...(isSelf(officer) ? { self: true } : {}),
       officer,
       status:
         officer.overtimeStatus === 'IN_OVERTIME'

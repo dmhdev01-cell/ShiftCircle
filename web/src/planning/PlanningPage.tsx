@@ -54,6 +54,7 @@ import type { RosterFilterState } from './filterRoster';
 import { RosterGrid } from './RosterGrid';
 import { RuleCheckPanel } from './RuleCheckPanel';
 import { isSupervisorPost, nameWithPosition, unitGroups } from './supervisorPosts';
+import { getSessionUser } from '../api/session';
 import { RulesHelpDialog } from './RulesHelpDialog';
 import { ShiftActionsDialog } from './ShiftActionsDialog';
 import { boardNow } from './shiftWords';
@@ -482,7 +483,10 @@ export function PlanningPage() {
     setSearchParams(writeFilters(searchParams, next), { replace: true });
   };
 
-  const officersWord = (count: number) => `${count} ${count === 1 ? 'officer' : 'officers'}`;
+  // v1.3 S6: a supervisor post's rows are supervisors.
+  const peopleOne = onPost ? 'supervisor' : 'officer';
+  const peopleMany = onPost ? 'supervisors' : 'officers';
+  const officersWord = (count: number) => `${count} ${count === 1 ? peopleOne : peopleMany}`;
 
   const exportView = () => {
     downloadCsv(exportFileName(payload, filtered), toCsv(rosterRows(payload, shownOfficers, filtered)));
@@ -491,7 +495,7 @@ export function PlanningPage() {
 
   const exportUnit = () => {
     downloadCsv(exportFileName(payload, false), toCsv(rosterRows(payload, payload.officers)));
-    setExportStatus(`CSV saved: all ${payload.officers.length} officers, ${payload.days.length} days`);
+    setExportStatus(`CSV saved: all ${payload.officers.length} ${peopleMany}, ${payload.days.length} days`);
   };
 
   const copyView = () => {
@@ -726,8 +730,8 @@ export function PlanningPage() {
           </Typography>
           <Typography data-print="only" sx={{ display: 'none', fontSize: 12, color: colour.text.secondary }}>
             {filtered
-              ? `Printed: ${shownOfficers.length} of ${payload.officers.length} officers (${filterWords(filters, qualificationLabel)})`
-              : `Printed: all ${payload.officers.length} officers`}
+              ? `Printed: ${shownOfficers.length} of ${payload.officers.length} ${peopleMany} (${filterWords(filters, qualificationLabel)})`
+              : `Printed: all ${payload.officers.length} ${peopleMany}`}
           </Typography>
         </Box>
 
@@ -925,11 +929,12 @@ export function PlanningPage() {
         onPrint={() => window.print()}
         onCopy={copyView}
         exportStatus={exportStatus}
+        onPost={onPost}
       />
 
       {filtered && shownOfficers.length === 0 ? (
         <Typography role="note" sx={{ fontSize: 13, color: colour.text.secondary }}>
-          No officer on this board matches these filters. Clear the filters to see everyone.
+          No {peopleOne} on this board matches these filters. Clear the filters to see everyone.
         </Typography>
       ) : null}
 
@@ -1049,6 +1054,7 @@ export function PlanningPage() {
           template={gapTemplate}
           onTemplate={setGapTemplate}
           onCheck={checkFromGap}
+          {...(getSessionUser()?.employeeId ? { selfEmployeeId: getSessionUser()!.employeeId } : {})}
           onClose={closeGap}
           findEligibleHref={`/overtime?unit=${encodeURIComponent(payload.unit.id)}&startAt=${encodeURIComponent(
             `${gapEntry.date}T${shiftTemplates[gapTemplate].start}:00${REGINA_OFFSET}`,

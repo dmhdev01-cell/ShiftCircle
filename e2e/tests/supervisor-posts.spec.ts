@@ -92,6 +92,9 @@ test.describe('v1.3 S6 supervisor posts on the board', () => {
     }
     // Supervisors on their own post carry no badge; no Supervisor on duty line here.
     await expect(page.getByTestId('position-badge')).toHaveCount(0);
+    // The post's own words: its rows are supervisors.
+    await expect(page.getByText(`Showing all ${expected.officers.length} supervisors`)).toBeVisible();
+    await expect(page.getByRole('searchbox', { name: 'Find supervisor' })).toBeVisible();
     await expect(page.getByTestId('supervisor-on-duty')).toHaveCount(0);
     await expectAccessible(page, testInfo, 'planning-supervisor-post');
     await shot(page, testInfo, 'supervisor', 'planning', 'supervisor-post-sup-l');
@@ -104,13 +107,17 @@ test.describe('v1.3 S6 supervisor posts on the board', () => {
     expect(onDuty).toHaveLength(21);
     // SUP-L covers every block of the week, so each one names someone.
     expect(onDuty.every((entry) => entry.names.length > 0)).toBe(true);
+    // Tara Osei's seeded sick call (Tue 17 Nov nights on SUP-L) is not on duty: J. Chen covered it.
+    expect(onDuty.find((entry) => entry.date === '2026-11-17' && entry.block === 'NIGHT')!.names).toEqual([
+      'Jamie Chen',
+    ]);
 
     await board(page);
     await selectUnit(page, 'Unit A · Living unit');
     const row = page.getByTestId('supervisor-on-duty');
     await expect(row).toBeVisible();
     await expect(row.getByTestId('supervisor-on-duty-label')).toContainText('Supervisor on duty');
-    for (const date of ['2026-11-19', GAP_DAY]) {
+    for (const date of ['2026-11-17', '2026-11-19', GAP_DAY]) {
       const items = row.getByRole('list', { name: `Supervisor on duty, ${date}` }).getByRole('listitem');
       const words = ['DAY', 'EVENING', 'NIGHT'].map((block) => {
         const names = onDuty.find((entry) => entry.date === date && entry.block === block)!.names;

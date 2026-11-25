@@ -33,6 +33,8 @@ interface GapFillPanelProps {
    * period's own schedule, read separately.
    */
   period?: { label: string; state: 'loading' | 'ready' | 'error'; hours?: Map<string, PeriodHours> };
+  /** v1.3 S6: the signed-in person's employee id; their own row is listed but not offered. */
+  selfEmployeeId?: string;
 }
 
 /** The panel's id, for the gap buttons' aria-controls. */
@@ -60,6 +62,7 @@ export function GapFillPanel({
   findEligibleHref,
   hidden = false,
   period,
+  selfEmployeeId,
 }: GapFillPanelProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const words = BLOCK_WORDS[gap.block];
@@ -69,7 +72,7 @@ export function GapFillPanel({
   const tone = met ? coverageTones.ok : missing >= 2 ? coverageTones.gap2 : coverageTones.gap;
   const periodPending = period !== undefined && period.state !== 'ready';
   const candidates =
-    met || periodPending ? [] : gapCandidates(payload, gap, template, period?.hours);
+    met || periodPending ? [] : gapCandidates(payload, gap, template, period?.hours, selfEmployeeId);
   const hoursLabel = period ? `h in pay period ${period.label}` : 'h this pay period';
   // v1.3 S6: a supervisor post's panel speaks of supervisors.
   const onPost = isSupervisorPost(payload.unit);
@@ -240,7 +243,7 @@ export function GapFillPanel({
               aria-label={onPost ? 'Free supervisors' : 'Free officers'}
               sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: 1.5 }}
             >
-              {candidates.map(({ officer, status, hints, acting }) => (
+              {candidates.map(({ officer, status, hints, acting, self }) => (
                 <Box
                   component="li"
                   key={officer.employeeId}
@@ -278,6 +281,7 @@ export function GapFillPanel({
                     <Button
                       variant="outlined"
                       color="primary"
+                      disabled={self}
                       onClick={() => onCheck(officer, template)}
                       aria-label={`Check & assign ${template}: ${officer.name}, ${dayWords(gap.date)}`}
                       sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
@@ -286,6 +290,7 @@ export function GapFillPanel({
                     </Button>
                   </Box>
                   <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
+                    {self ? "This is you: you can't assign your own shift; ask another supervisor or the planner · " : ''}
                     {acting ? 'Officer who holds Acting supervisor: R-01 needs acknowledgement · ' : ''}
                     {hints.length === 0
                       ? '✓ no conflict visible on the board'

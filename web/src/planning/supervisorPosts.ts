@@ -9,7 +9,10 @@ import type { Block, OfficerRow, SchedulePayload, Unit } from '../api/types';
 
 export const SUPERVISION = 'SUPERVISION';
 
-/** The position codes (docs/06 `position`). */
+/**
+ * The position codes (docs/06 `position`). The board sends `supervisory` from
+ * the position table; CS is only the fallback for a payload without it.
+ */
 export const SUPERVISOR = 'CS';
 export const OFFICER = 'CO';
 
@@ -20,12 +23,12 @@ export function isSupervisorPost(unit: { kind?: string | undefined } | undefined
   return unit?.kind === SUPERVISION;
 }
 
-export function isSupervisor(officer: Pick<OfficerRow, 'position'>): boolean {
-  return officer.position === SUPERVISOR;
+export function isSupervisor(officer: Pick<OfficerRow, 'position' | 'supervisory'>): boolean {
+  return officer.supervisory ?? officer.position === SUPERVISOR;
 }
 
 /** An officer (not a supervisor) who holds Acting supervisor. */
-export function isActingOfficer(officer: Pick<OfficerRow, 'position' | 'qualifications'>): boolean {
+export function isActingOfficer(officer: Pick<OfficerRow, 'position' | 'supervisory' | 'qualifications'>): boolean {
   return !isSupervisor(officer) && (officer.qualifications ?? []).includes(ACTING_SUP);
 }
 
@@ -35,17 +38,17 @@ export function isActingOfficer(officer: Pick<OfficerRow, 'position' | 'qualific
  * board, so its words are unchanged.
  */
 export function positionTag(
-  officer: Pick<OfficerRow, 'position'>,
+  officer: Pick<OfficerRow, 'position' | 'supervisory'>,
   unit: { kind?: string | undefined } | undefined,
 ): 'supervisor' | 'officer' | null {
   if (isSupervisor(officer)) return 'supervisor';
-  if (isSupervisorPost(unit) && officer.position === OFFICER) return 'officer';
+  if (isSupervisorPost(unit) && officer.position !== undefined) return 'officer';
   return null;
 }
 
 /** "Morgan Ellis (supervisor)", or the name alone on an officers-only board. */
 export function nameWithPosition(
-  officer: Pick<OfficerRow, 'name' | 'position'>,
+  officer: Pick<OfficerRow, 'name' | 'position' | 'supervisory'>,
   unit: { kind?: string | undefined } | undefined,
 ): string {
   const tag = positionTag(officer, unit);
@@ -60,7 +63,7 @@ export function nameWithPosition(
  * position (an older payload) counts as an officer.
  */
 export function inGapPool(
-  officer: Pick<OfficerRow, 'position' | 'qualifications'>,
+  officer: Pick<OfficerRow, 'position' | 'supervisory' | 'qualifications'>,
   unit: { kind?: string | undefined } | undefined,
 ): boolean {
   if (isSupervisorPost(unit)) return isSupervisor(officer) || isActingOfficer(officer);

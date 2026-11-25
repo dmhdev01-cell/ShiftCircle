@@ -251,6 +251,58 @@ describe('supervisor posts: the roster grid', () => {
   });
 });
 
+describe('supervisor posts: review round', () => {
+  it('marks an officer on a post "Acting" or "Officer"', () => {
+    const payload = board(POST, [
+      person('Morgan Ellis', 'CS'),
+      person('Acting Andy', 'CO', 40, ['ACTING_SUP']),
+      person('Plain Pat', 'CO'),
+    ]);
+    wrap(<RosterGrid payload={payload} today="2026-11-19" />);
+    const badges = screen.getAllByTestId('position-badge');
+    expect(badges).toHaveLength(2);
+    const andy = badges.find((badge) => badge.closest('tr')?.dataset.officerName === 'Acting Andy')!;
+    const pat = badges.find((badge) => badge.closest('tr')?.dataset.officerName === 'Plain Pat')!;
+    expect(andy).toHaveTextContent(/^Acting/);
+    expect(andy).toHaveAttribute('title', 'Officer acting as supervisor (R-01 warning)');
+    expect(pat).toHaveTextContent(/^Officer/);
+    expect(pat).toHaveAttribute('title', 'Officer on a supervisor post (R-01)');
+  });
+
+  it('keys on the supervisory flag the board sends, not the CS code', () => {
+    // A later supervisory position (a Lead) is a row in the position table.
+    const lead = { ...person('Lee Lead', 'LD'), supervisory: true };
+    expect(positionTag(lead, LINE)).toBe('supervisor');
+    expect(inGapPool(lead, POST)).toBe(true);
+    expect(positionTag({ ...person('Odd Code', 'CS'), supervisory: false }, POST)).toBe('officer');
+  });
+
+  it('lists the signed-in supervisor last and does not offer their own row', () => {
+    const payload = board(POST, [person('Morgan Ellis', 'CS', 10), person('Sam Sup', 'CS', 30)]);
+    const list = gapCandidates(payload, block(DAY, 'DAY', 0), 'D8', undefined, 'morgan-ellis');
+    expect(list.map((entry) => [entry.officer.name, entry.self ?? false])).toEqual([
+      ['Sam Sup', false],
+      ['Morgan Ellis', true],
+    ]);
+    wrap(
+      <GapFillPanel
+        payload={payload}
+        gap={block(DAY, 'DAY', 0)}
+        template="D8"
+        onTemplate={vi.fn()}
+        onCheck={vi.fn()}
+        onClose={vi.fn()}
+        findEligibleHref="/overtime"
+        selfEmployeeId="morgan-ellis"
+      />,
+    );
+    const items = within(screen.getByRole('list', { name: 'Free supervisors' })).getAllByRole('listitem');
+    expect(within(items[0]).getByRole('button', { name: /Check & assign D8: Sam Sup/ })).toBeEnabled();
+    expect(within(items[1]).getByRole('button', { name: /Check & assign D8: Morgan Ellis/ })).toBeDisabled();
+    expect(items[1]).toHaveTextContent("This is you: you can't assign your own shift");
+  });
+});
+
 describe('supervisor posts: the rule check and the shift dialog', () => {
   it('shows R-01 as a Block with no Assign and no override', () => {
     const outcome: RuleCheckOutcome = {

@@ -230,12 +230,17 @@ The payload also has `unit { id, name }`, `days` (ISO dates), `asOf` (the demo t
 
 **Supervisor posts (v1.3 S6):** on the live board `unit` also carries `kind` (`SUPERVISION` for a
 supervisor post, else the line unit's kind), each officer row carries `position` (`CO` officer, `CS`
-supervisor), and a line unit covered by a post (`unit_supervision`) carries
-`supervisorsOnDuty: [{ date, block, names[] }]`, one entry per day and block: the people on the
-post whose shift overlaps the block's hours (Days 07–15, Evenings 15–23, Nights 23–07), empty when
-nobody. Names are sent because this is the signed-in board; the wall display stays counts only. A
+supervisor) and `supervisory` (the position's `is_supervisory` flag), and a line unit covered by a
+post (`unit_supervision`) carries `supervisorsOnDuty: [{ date, block, names[] }]`, one entry per
+day and block: the people on the post whose shift overlaps the block's hours (Days 07–15, Evenings
+15–23, Nights 23–07, the coverage windows) **and has no recorded absence**, counting only a
+supervisor or an officer holding Acting supervisor on that day; empty when nobody, and on a day the
+unit is closed. Only posts in the caller's scope are read (facility-wide roles see all); with none,
+the field is left out. Names are sent because this is the signed-in board; the wall display stays
+counts only. On a post's own board the coverage counts the same people (R-01): an officer left on
+the post without a valid Acting supervisor qualification is a row but does not cover it. A
 supervisor post's own board and the planner's draft leave `supervisorsOnDuty` out, and the draft
-leaves `kind` and `position` out too.
+leaves `kind`, `position` and `supervisory` out too.
 
 **Move and cancel refusals known in advance (v1.2):** on the live board each `SHIFT` item also
 carries `actualRecorded` (any time entry references it, actual or absence), `absenceRecorded` (an

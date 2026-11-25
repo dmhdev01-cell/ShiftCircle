@@ -31,6 +31,11 @@ public class ScopeGuard {
     throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unit not found");
   }
 
+  /** True when the caller sees this unit: facility-wide roles see every unit. */
+  public boolean inScope(AuthPrincipal principal, String unitCode) {
+    return facilityWide(principal) || principal.scopesUnit(unitCode);
+  }
+
   /** An employee row is visible when it is the caller's own or inside their unit scope. */
   public void requireEmployeeAccess(AuthPrincipal principal, UUID employeeId, String unitCode) {
     if (facilityWide(principal) || principal.scopesUnit(unitCode)) {

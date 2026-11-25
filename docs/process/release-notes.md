@@ -518,7 +518,8 @@ Built on S4 (#35) and S5 (#37), both merged. Plan §2.4 and §4 S6.
 - **Unit picker:** the two posts are grouped under **Supervisor posts**, after the units (the
   `<optgroup>` appears only when a post is in scope, so an officers-only scope is unchanged).
 - **A post's board** (`kind = SUPERVISION`): the first column reads **Supervisor**, the coverage
-  labels "needs 1 supervisor", each cell **"Supervisor 1 / 1"**; same `CoverageCell`, same hourly
+  labels "needs 1 supervisor", each cell **"Supervisor 1 / 1"** (2 / 1, +1 over, where two shifts
+  overlap, as on Sun 22 Nov nights); same `CoverageCell`, same hourly
   coverage.
 - **Supervisor on duty** on a line unit: a read-only line under the coverage rows names who works the
   covering post in each block (D, E, N; "none" when nobody; a ✓ or ! in Compact, names in the

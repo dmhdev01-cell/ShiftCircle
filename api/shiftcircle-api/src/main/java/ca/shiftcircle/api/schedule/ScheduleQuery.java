@@ -27,6 +27,21 @@ public class ScheduleQuery {
 
   private static final ZoneId REGINA = ZoneId.of("America/Regina");
 
+  private static final String SUPERVISION = "SUPERVISION";
+
+  /**
+   * v1.3 S6: who counts toward a supervisor post on the shift's day (R-01): a supervisory position,
+   * or an officer holding Acting supervisor then. Expects the aliases {@code s} (shift) and {@code
+   * e} (employee).
+   */
+  private static final String POST_ELIGIBLE =
+      "(EXISTS (SELECT 1 FROM position p WHERE p.code = e.classification AND p.is_supervisory)"
+          + " OR EXISTS (SELECT 1 FROM employee_qualification eq"
+          + "   JOIN qualification q ON q.id = eq.qualification_id"
+          + "   WHERE eq.employee_id = e.id AND q.code = 'ACTING_SUP'"
+          + "   AND eq.valid_from <= s.work_date"
+          + "   AND (eq.valid_to IS NULL OR eq.valid_to >= s.work_date)))";
+
   private final JdbcTemplate jdbc;
   private final String asOf;
   private final ca.shiftcircle.api.units.ActiveUnits activeUnits;
@@ -125,14 +140,17 @@ public class ScheduleQuery {
           String homeUnit,
       // v1.3 S6, planning board only: the employee's position (CO officer, CS supervisor), for the
       // "Sup" badge and the gap-fill pool. Left out elsewhere, so other payloads are unchanged.
-      @JsonInclude(JsonInclude.Include.NON_NULL) String position) {
+      @JsonInclude(JsonInclude.Include.NON_NULL) String position,
+      // v1.3 S6, planning board only: the position's is_supervisory flag, so the web keys on it
+      // rather than on the CS code (a later supervisory position is a row, not a code change).
+      @JsonInclude(JsonInclude.Include.NON_NULL) Boolean supervisory) {
 
     public OfficerRow(
         UUID employeeId, String name, String rotation, List<String> qualifications,
         double payPeriodHours, double payPeriodThreshold, String overtimeStatus,
         List<DayCell> cells, String homeUnit) {
       this(employeeId, name, rotation, qualifications, payPeriodHours, payPeriodThreshold,
-          overtimeStatus, cells, homeUnit, null);
+          overtimeStatus, cells, homeUnit, null, null);
     }
   }
 
@@ -176,7 +194,18 @@ public class ScheduleQuery {
     return jdbc.queryForObject("SELECT code FROM unit WHERE id = ?", String.class, unitId);
   }
 
+  /** The board with every covering post visible (the planner's internal gap count). */
   public SchedulePayload forUnit(UUID unitId, LocalDate from, LocalDate to) {
+    return forUnit(unitId, from, to, postCode -> true);
+  }
+
+  /**
+   * The board. {@code postVisible} says which covering supervisor posts the caller may see by code:
+   * the "Supervisor on duty" line names people on those posts only.
+   */
+  public SchedulePayload forUnit(
+      UUID unitId, LocalDate from, LocalDate to,
+      java.util.function.Predicate<String> postVisible) {
     Map<String, Object> unitRow =
         jdbc.queryForMap("SELECT id, code, name, kind, active FROM unit WHERE id = ?", unitId);
     List<LocalDate> closedDates = activeUnits.closedDates(unitId, from, to);
@@ -218,6 +247,8 @@ public class ScheduleQuery {
     List<Map<String, Object>> assignments =
         jdbc.queryForList(
             "SELECT s.id, s.employee_id, e.first_name, e.last_name, e.classification,"
+                + " (SELECT p.is_supervisory FROM position p WHERE p.code = e.classification)"
+                + "   AS supervisory,"
                 + " t.code AS template_code,"
                 + " s.start_at, s.end_at, s.work_date, s.kind, s.version, s.source,"
                 + " EXISTS (SELECT 1 FROM time_entry te WHERE te.shift_assignment_id = s.id"
@@ -243,10 +274,15 @@ public class ScheduleQuery {
     // Coverage is absolute time (ADR-013/017): the NIGHT block on date D runs 23:00 D to 07:00
     // D+1, so a 23:00 shift must be counted in the hours after midnight. The display query above
     // keeps one row per shift; these intervals include the next day's early shift for that block.
+    // v1.3 S6: on a supervisor post only a supervisor, or an officer who holds Acting supervisor
+    // on the day, counts toward its minimum (R-01). An officer left on a post after losing the
+    // qualification is still a row on the board, but does not cover it.
+    String postFilter = SUPERVISION.equals(unitRow.get("kind")) ? " AND " + POST_ELIGIBLE : "";
     List<CoverageCalculator.Interval> scheduledIntervals =
         jdbc.query(
-            "SELECT start_at, end_at FROM shift_assignment WHERE unit_id = ?"
-                + " AND status <> 'CANCELLED' AND work_date BETWEEN ? AND ?",
+            "SELECT s.start_at, s.end_at FROM shift_assignment s"
+                + " JOIN employee e ON e.id = s.employee_id WHERE s.unit_id = ?"
+                + " AND s.status <> 'CANCELLED' AND s.work_date BETWEEN ? AND ?" + postFilter,
             (rs, rowNum) ->
                 new CoverageCalculator.Interval(
                     rs.getTimestamp("start_at").toInstant(),
@@ -258,8 +294,9 @@ public class ScheduleQuery {
         jdbc.query(
             "SELECT te.start_at, te.end_at FROM time_entry te"
                 + " JOIN shift_assignment s ON s.id = te.shift_assignment_id"
+                + " JOIN employee e ON e.id = s.employee_id"
                 + " WHERE s.unit_id = ? AND s.work_date BETWEEN ? AND ?"
-                + " AND te.absence_type IS NULL",
+                + " AND te.absence_type IS NULL" + postFilter,
             (rs, rowNum) ->
                 new CoverageCalculator.Interval(
                     rs.getTimestamp("start_at").toInstant(),
@@ -355,7 +392,8 @@ public class ScheduleQuery {
                   status,
                   cells,
                   null,
-                  (String) row.get("classification")));
+                  (String) row.get("classification"),
+                  (Boolean) row.get("supervisory")));
         });
 
     // The period the board shows: the one whose dates contain the board's range. Its id is what
@@ -397,30 +435,33 @@ public class ScheduleQuery {
         overrides == null ? 0 : overrides,
         new PublishedState(published, unpublishedChanges),
         period,
-        supervisorsOnDuty(unitId, days));
+        supervisorsOnDuty(unitId, days, postVisible));
   }
-
-  /** The block windows the board's coverage uses (ADR-013): start hour and length in hours. */
-  private static final List<Map.Entry<String, int[]>> BLOCK_WINDOWS =
-      List.of(
-          Map.entry("DAY", new int[] {7, 8}),
-          Map.entry("EVENING", new int[] {15, 8}),
-          Map.entry("NIGHT", new int[] {23, 8}));
 
   /**
    * v1.3 S6: the supervisors on duty for a line unit, per day and block, from the posts that cover
-   * it. Null when no post covers the unit (a supervisor post itself, or a unit with no link), so
-   * the field is left out of the JSON.
+   * it. Null when no post the caller sees covers the unit (a supervisor post itself, a unit with no
+   * link, or a post outside the caller's scope), so the field is left out of the JSON. A shift
+   * with a recorded absence (sick, vacation) is not on duty, and on a post only someone who counts
+   * toward it (a supervisor, or an officer holding Acting supervisor that day) is named. A day the
+   * unit is closed names nobody, as its coverage rows are empty too.
    */
-  private List<SupervisorOnDuty> supervisorsOnDuty(UUID unitId, List<LocalDate> days) {
+  private List<SupervisorOnDuty> supervisorsOnDuty(
+      UUID unitId, List<LocalDate> days, java.util.function.Predicate<String> postVisible) {
     if (days.isEmpty()) {
       return null;
     }
-    List<UUID> posts =
-        jdbc.queryForList(
-            "SELECT supervision_unit_id FROM unit_supervision WHERE unit_id = ?",
-            UUID.class,
-            unitId);
+    List<UUID> posts = new ArrayList<>();
+    jdbc.query(
+        "SELECT u.id, u.code FROM unit_supervision us JOIN unit u ON u.id = us.supervision_unit_id"
+            + " WHERE us.unit_id = ? ORDER BY u.code",
+        (org.springframework.jdbc.core.RowCallbackHandler)
+            rs -> {
+              if (postVisible.test(rs.getString("code"))) {
+                posts.add((UUID) rs.getObject("id"));
+              }
+            },
+        unitId);
     if (posts.isEmpty()) {
       return null;
     }
@@ -432,7 +473,11 @@ public class ScheduleQuery {
               "SELECT s.start_at, s.end_at, e.first_name, e.last_name FROM shift_assignment s"
                   + " JOIN employee e ON e.id = s.employee_id"
                   + " WHERE s.unit_id = ? AND s.status <> 'CANCELLED'"
-                  + " AND s.work_date BETWEEN ? AND ? ORDER BY s.start_at, e.last_name",
+                  + " AND s.work_date BETWEEN ? AND ? AND " + POST_ELIGIBLE
+                  + " AND NOT EXISTS (SELECT 1 FROM absence a WHERE a.shift_assignment_id = s.id)"
+                  + " AND NOT EXISTS (SELECT 1 FROM time_entry te WHERE te.shift_assignment_id = s.id"
+                  + "   AND te.absence_type IS NOT NULL)"
+                  + " ORDER BY s.start_at, e.last_name",
               (rs, rowNum) ->
                   new Shift(
                       rs.getTimestamp("start_at").toInstant(),
@@ -444,18 +489,20 @@ public class ScheduleQuery {
     }
     List<SupervisorOnDuty> onDuty = new ArrayList<>();
     for (LocalDate date : days) {
-      for (Map.Entry<String, int[]> window : BLOCK_WINDOWS) {
+      boolean open = activeUnits.active(unitId, date);
+      for (CoverageCalculator.Window window : CoverageCalculator.BLOCKS) {
         java.time.Instant from =
-            date.atTime(window.getValue()[0], 0).atZone(REGINA).toInstant();
-        java.time.Instant to = from.plusSeconds(window.getValue()[1] * 3600L);
+            date.atStartOfDay(REGINA).plusHours(window.fromHour()).toInstant();
+        java.time.Instant to =
+            date.atStartOfDay(REGINA).plusHours(window.toHour()).toInstant();
         List<String> names = new ArrayList<>();
-        for (Shift shift : shifts) {
+        for (Shift shift : open ? shifts : List.<Shift>of()) {
           if (shift.start().isBefore(to) && shift.end().isAfter(from)
               && !names.contains(shift.name())) {
             names.add(shift.name());
           }
         }
-        onDuty.add(new SupervisorOnDuty(date, window.getKey(), names));
+        onDuty.add(new SupervisorOnDuty(date, window.code(), names));
       }
     }
     return onDuty;
