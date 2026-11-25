@@ -78,7 +78,7 @@ Severity: **Block** = can't be saved. An emergency override exists only where ma
 | ID | Rule | Default | Severity | Based on |
 |---|---|---|---|---|
 | O-01 | Offer overtime **equitably** among available, qualified officers | — | Info (ranking) | **CX** |
-| O-02 | Ranking: **fewest overtime hours this quarter** first, ties broken by **seniority** | quarter / seniority | Info | **MOCK** (CX leaves the method to local agreement) |
+| O-02 | Ranking: **fewest overtime hours this quarter** first, ties broken by **seniority** inside the rank (the service date for an officer, the promotion date for a supervisor; release v1.3) | quarter / seniority | Info | **MOCK** (CX leaves the method to local agreement) |
 | O-03 | Officers who would break a Block rule (e.g. U-01, U-03, U-05) are **skipped**, shown as "bypassed: insufficient rest", and **not penalized** in the ranking | — | Info | **MOCK**. Whether a bypassed officer loses their turn has been disputed in practice, so this is a judgment call to confirm |
 | O-04 | **Voluntary first.** Ordered (mandatory) overtime only after the voluntary list is used up, in reverse ranking, at most once per officer every 14 days | 14 d | Warn | **MOCK**. CX case law found that chronic reliance on ordered overtime to cover staffing shortages is inconsistent with the agreement |
 

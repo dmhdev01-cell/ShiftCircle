@@ -268,6 +268,19 @@ draft roster leaves `now` and the four flags out. "Already cancelled" cannot be 
 | POST | `/open-shifts/{id}/offers` | `{ "employeeIds": [...], "ordered": false }` → offers recorded in-app | SUPERVISOR; never to oneself (`403` if any listed employee is the caller; nothing is written) |
 | POST | `/open-shifts/{id}/assign` | Assign directly (§3 rules and overrides apply) | SUPERVISOR; never to oneself (`403`) |
 
+**Overtime pools by position (release v1.3, S5; owner answer Q4).** The candidate list and the
+offer path keep to the post's pool. For an open shift on a `SUPERVISION` unit the list holds the
+supervisors (`CS`), ranked by O-01/O-02, then the officers who hold `ACTING_SUP`, ranked by
+O-01/O-02 among themselves and placed after every supervisor (R-01 makes each a `WARN`); other
+officers are not listed. For an open shift on an officer unit the list holds officers (`CO`) only.
+O-02's tie-break and `seniorityDate` are **seniority inside the rank**,
+`coalesce(position_since, seniority_date)` (an officer's service date; a supervisor's promotion
+date). Overtime hours this quarter are each person's own. `POST /open-shifts/{id}/offers` with
+anyone outside the pool answers `422` (`.../problems/officer-unavailable`, detail "Not in this
+officer post's overtime pool …" or "Not in this supervisor post's overtime pool …") before any
+offer is written. A direct assign is not limited by the pool: the rule check (R-01/R-02) decides it,
+as on the board. The proposal's `openShift.otOrderPosition`/`otOrderSize` read the same pools.
+
 A direct assign and an offer confirm both lock the `open_shift` row before the officer, then fill
 it conditionally: of any number of concurrent attempts, even by different officers, exactly one
 succeeds and the rest answer `409` "This shift is already filled".
@@ -275,13 +288,17 @@ succeeds and the rest answer `409` "This shift is already filled".
 | POST | `/offers/{id}/accept` · `/offers/{id}/decline` | Respond. Accepting re-checks rules; the supervisor then confirms. | EMPLOYEE (own) |
 | POST | `/offers/{id}/confirm` | Confirm an accepted offer → creates the assignment | SUPERVISOR; never one's own offer (`403`, after the offer and shift state checks: a filled shift is still `409`) |
 
-**Who appears in the candidate list.** The list is the fair-distribution order for officers in the
-caller's unit scope; a supervisor outside that scope gets `404` for the shift. The ranking is still
-fewest overtime hours this quarter, ties by seniority (O-02); an officer a Block rule would stop is
-`SKIPPED` in place, and an officer who cannot take the shift (unqualified for Control or Escort,
+**Who appears in the candidate list.** The list is the fair-distribution order for the people in
+the post's overtime pool whose home unit is in the caller's scope: for an officer post, officers;
+for a supervisor post, supervisors and then officers who hold `ACTING_SUP` (release v1.3 S5, above).
+A supervisor outside the shift's scope gets `404` for it. The ranking is still fewest overtime hours
+this quarter, ties by seniority inside the rank (O-02); a person a Block rule would stop is
+`SKIPPED` in place, and a person who cannot take the shift (unqualified for Control or Escort,
 already scheduled) is `UNAVAILABLE` in place, so the fairest next person stays visible (O-03, PC-09).
 
-**Offers and confirmation.** The supervisor makes offers only to officers the rules allow; a
+**Offers and confirmation.** The supervisor makes offers only to people in the post's pool whom the
+rules allow (outside the pool: `422 officer-unavailable`, checked again at confirmation for an
+offer made before the pools); a
 `BLOCK` at offer time is refused with the rule results. The employee's accept re-checks the rules.
 The confirmation re-checks again: a `BLOCK` refuses, a warning the supervisor already saw in the
 offer-time snapshot does not need a second answer, but a **new** warning is refused with
@@ -331,7 +348,7 @@ An officer proposes **extra shifts to add**; a supervisor in scope approves or d
 - `outcomeAtSubmit` / `ruleAtSubmit`: the result stored when the officer sent it.
 - `outcomeNow` / `ruleNow` (waiting items): a fresh evaluation, made the way the send was (each waiting item with the waiting items that start before it as extra facts), and `ruleChanged` when the outcome or the Warn/Block codes differ ("was Passes, now Warning U-14").
 - `wouldBeOvertimeHours` and `payPeriod { start, end, hoursBefore, hoursAfter, thresholdHours, wouldBeOvertimeHours, overtimeStatus }` (waiting items, when a pay period covers the date): the officer's hours as the board's U-15 pill counts them (actuals before the business "today", scheduled hours from it), and the overtime the item adds under P-01/P-04 (owner Q5: paid like any extra shift). Each item is computed on its own.
-- `openShift { id, status, otOrderPosition, otOrderSize, eligibility, outOfOrder, liveOffers }` (waiting items) when an `OPEN` or `OFFERED` open shift has the same unit, shift type and start: the officer's place among the eligible candidates (ELIGIBLE or WARN) of the O-01/O-02 ranking the decider's Overtime board shows (a supervisor's units; every active officer for the planner), with the proposer always in the pool.
+- `openShift { id, status, otOrderPosition, otOrderSize, eligibility, outOfOrder, liveOffers }` (waiting items) when an `OPEN` or `OFFERED` open shift has the same unit, shift type and start: the officer's place among the eligible candidates (ELIGIBLE or WARN) of the O-01/O-02 ranking the decider's Overtime board shows (a supervisor's units; every active person for the planner), kept to the post's overtime pool (S5), with the proposer always considered: a proposer outside the pool has no position, `eligibility: UNAVAILABLE`, and `outOfOrder` is true when anyone in the pool is eligible.
 
 An item outside the caller's scope is listed with its unit, time and decision only, with no rule detail and no action. The note is the officer's plain text: clients show it as text, never as HTML, and it is never in an audit row, a report or the wall display.
 
