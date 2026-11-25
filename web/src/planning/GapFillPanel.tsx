@@ -9,6 +9,7 @@ import { StatusPill } from '../components/StatusPill';
 import { colour, coverageTones, focusRing } from '../theme/tokens';
 import { BLOCK_TEMPLATES, BLOCK_WORDS, dayWords, gapCandidates } from './gapFill';
 import type { PeriodHours } from './gapFill';
+import { isSupervisorPost } from './supervisorPosts';
 
 export const GAP_PANEL_HEADING_ID = 'gap-fill-heading';
 
@@ -32,6 +33,8 @@ interface GapFillPanelProps {
    * period's own schedule, read separately.
    */
   period?: { label: string; state: 'loading' | 'ready' | 'error'; hours?: Map<string, PeriodHours> };
+  /** v1.3 S6: the signed-in person's employee id; their own row is listed but not offered. */
+  selfEmployeeId?: string;
 }
 
 /** The panel's id, for the gap buttons' aria-controls. */
@@ -59,6 +62,7 @@ export function GapFillPanel({
   findEligibleHref,
   hidden = false,
   period,
+  selfEmployeeId,
 }: GapFillPanelProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const words = BLOCK_WORDS[gap.block];
@@ -68,8 +72,11 @@ export function GapFillPanel({
   const tone = met ? coverageTones.ok : missing >= 2 ? coverageTones.gap2 : coverageTones.gap;
   const periodPending = period !== undefined && period.state !== 'ready';
   const candidates =
-    met || periodPending ? [] : gapCandidates(payload, gap, template, period?.hours);
+    met || periodPending ? [] : gapCandidates(payload, gap, template, period?.hours, selfEmployeeId);
   const hoursLabel = period ? `h in pay period ${period.label}` : 'h this pay period';
+  // v1.3 S6: a supervisor post's panel speaks of supervisors.
+  const onPost = isSupervisorPost(payload.unit);
+  const people = onPost ? 'supervisors' : 'officers';
   const shortWords = gap.scheduled.shortHours
     .map((range) => `${range.from.slice(0, 5)}–${range.to.slice(0, 5)}`)
     .join(', ');
@@ -153,7 +160,7 @@ export function GapFillPanel({
 
       {met ? (
         <Box role="status" sx={{ fontSize: 14, color: colour.text.primary }}>
-          This block now has the officers it needs. Close the panel, or pick another gap on the board.
+          This block now has the {people} it needs. Close the panel, or pick another gap on the board.
         </Box>
       ) : (
         <>
@@ -210,8 +217,9 @@ export function GapFillPanel({
             <Box component="h3" sx={{ display: 'inline', m: 0, fontSize: 14, fontWeight: 700, color: colour.text.primary }}>
               Free on this board{periodPending ? '' : ` (${candidates.length})`}
             </Box>{' '}
-            · the officers with a shift in this unit on the days shown who have nothing that day,
-            lowest pay-period hours first. The hints are read from the board; the rule check decides.
+            {onPost
+              ? '· the supervisors with a shift on this post on the days shown who have nothing that day, lowest pay-period hours first, then any officer here who holds Acting supervisor. The hints are read from the board; the rule check decides.'
+              : '· the officers with a shift in this unit on the days shown who have nothing that day, lowest pay-period hours first. The hints are read from the board; the rule check decides.'}
           </Box>
 
           {period?.state === 'loading' ? (
@@ -225,15 +233,17 @@ export function GapFillPanel({
             </Box>
           ) : candidates.length === 0 ? (
             <Box sx={{ fontSize: 14 }}>
-              No officer on this board is free that day. The Overtime board also covers other units.
+              {onPost
+                ? 'No supervisor on this post is free that day. The Overtime board offers the post to the other supervisors.'
+                : 'No officer on this board is free that day. The Overtime board also covers other units.'}
             </Box>
           ) : (
             <Box
               component="ul"
-              aria-label="Free officers"
+              aria-label={onPost ? 'Free supervisors' : 'Free officers'}
               sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: 1.5 }}
             >
-              {candidates.map(({ officer, status, hints }) => (
+              {candidates.map(({ officer, status, hints, acting, self }) => (
                 <Box
                   component="li"
                   key={officer.employeeId}
@@ -261,11 +271,17 @@ export function GapFillPanel({
                         <StatusPill tone={STATUS_PILL[status].tone} small>
                           {STATUS_PILL[status].text}
                         </StatusPill>
+                        {acting ? (
+                          <StatusPill tone="warn" small>
+                            Acting · Warn
+                          </StatusPill>
+                        ) : null}
                       </Box>
                     </Box>
                     <Button
                       variant="outlined"
                       color="primary"
+                      disabled={self}
                       onClick={() => onCheck(officer, template)}
                       aria-label={`Check & assign ${template}: ${officer.name}, ${dayWords(gap.date)}`}
                       sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
@@ -274,6 +290,8 @@ export function GapFillPanel({
                     </Button>
                   </Box>
                   <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
+                    {self ? "This is you: you can't assign your own shift; ask another supervisor or the planner · " : ''}
+                    {acting ? 'Officer who holds Acting supervisor: R-01 needs acknowledgement · ' : ''}
                     {hints.length === 0
                       ? '✓ no conflict visible on the board'
                       : hints.map((hint) => `${hint.tone === 'warn' ? '⚠ ' : ''}${hint.text}`).join(' · ')}
@@ -288,7 +306,9 @@ export function GapFillPanel({
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 'auto', pt: 1 }}>
         <Box>
           <Button variant="outlined" color="primary" component={Link} to={findEligibleHref}>
-            Find eligible officer in other units → Overtime board
+            {onPost
+              ? 'Find eligible supervisor → Overtime board'
+              : 'Find eligible officer in other units → Overtime board'}
           </Button>
         </Box>
         <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>

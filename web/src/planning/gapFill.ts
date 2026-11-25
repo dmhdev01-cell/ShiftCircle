@@ -11,6 +11,7 @@
 import { shiftTemplates } from '../api/shiftTemplates';
 import type { Block, BlockCoverage, OfficerRow, SchedulePayload, ShiftItem } from '../api/types';
 import { addDays, countsTowardTotals } from './rosterView';
+import { inGapPool, isActingOfficer, isSupervisorPost } from './supervisorPosts';
 
 /** The block's hours, as the overtime board names them ("Days 07:00 – 15:00"). */
 export const BLOCK_WORDS: Record<Block, { name: string; start: string; end: string }> = {
@@ -44,6 +45,16 @@ export interface GapCandidate {
   /** under, near (approaching) or OT, as the status pill says it. */
   status: 'under' | 'near' | 'ot';
   hints: GapHint[];
+  /**
+   * v1.3 S6: an officer who holds Acting supervisor, listed on a supervisor
+   * post after the supervisors. R-01 is then a warning to acknowledge.
+   */
+  acting?: boolean;
+  /**
+   * v1.3 S6: the signed-in person's own row. The api refuses anyone changing
+   * their own schedule (403), so the panel lists it last and does not offer it.
+   */
+  self?: boolean;
 }
 
 /** "Sat" for an ISO day. */
@@ -195,8 +206,14 @@ export function gapCandidates(
   gap: BlockCoverage,
   template: string,
   periodHours?: Map<string, PeriodHours>,
+  selfEmployeeId?: string,
 ): GapCandidate[] {
+  const isSelf = (officer: OfficerRow) => Boolean(selfEmployeeId) && officer.employeeId === selfEmployeeId;
+  const onPost = isSupervisorPost(payload.unit);
   return payload.officers
+    // v1.3 S6: the pool follows the unit's kind (supervisors on a post, plus
+    // acting officers; officers only on a line unit).
+    .filter((officer) => inGapPool(officer, payload.unit))
     .filter((officer) => isFree(officer, gap.date))
     .map((officer) => {
       if (!periodHours) return officer;
@@ -208,8 +225,17 @@ export function gapCandidates(
         payPeriodThreshold: own?.payPeriodThreshold ?? officer.payPeriodThreshold,
       };
     })
-    .sort((a, b) => a.payPeriodHours - b.payPeriodHours || a.name.localeCompare(b.name))
+    .sort(
+      (a, b) =>
+        // On a post, acting officers come after every supervisor (Q4's order).
+        Number(isSelf(a)) - Number(isSelf(b)) ||
+        (onPost ? Number(isActingOfficer(a)) - Number(isActingOfficer(b)) : 0) ||
+        a.payPeriodHours - b.payPeriodHours ||
+        a.name.localeCompare(b.name),
+    )
     .map((officer) => ({
+      ...(onPost && isActingOfficer(officer) ? { acting: true } : {}),
+      ...(isSelf(officer) ? { self: true } : {}),
       officer,
       status:
         officer.overtimeStatus === 'IN_OVERTIME'

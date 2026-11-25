@@ -137,7 +137,7 @@ No api, migration, generator or rules change: dataset checksums, the payroll gol
 
 The owner approved the plan in `.factory/plans/v1.2-supervisors.md` (the plan file still says v1.2; the
 release was split afterwards, so it is v1.3 here). The work is eight small pull requests, **S1 to S8**;
-this entry covers **S1** to **S5**. The plan is not in the repository, so this section is the record of what
+this entry covers **S1** to **S6**. The plan is not in the repository, so this section is the record of what
 these pull requests did.
 
 ### S1 — Positions and the SUPERVISION kind (API, schema only)
@@ -509,6 +509,77 @@ offer and proposal-order prose name the pools; docs/05's O-02 says seniority ins
 `OvertimeSupervisorPoolApiTest` +1 (the pre-S5 accepted offer) and a mixed-name list that writes
 nothing; the dataset test is renamed `theOvertimeListKeepsToThePostsPool`. API **617 = 140 rules +
 38 infrastructure + 439 api** (GitHub CI `mvn verify`).
+
+### S6 — Supervisor posts on the board, the shift dialog and gap fill (web + one API field set)
+
+Built on S4 (#35) and S5 (#37), both merged. Plan §2.4 and §4 S6.
+
+**What it does.**
+- **Unit picker:** the two posts are grouped under **Supervisor posts**, after the units (the
+  `<optgroup>` appears only when a post is in scope, so an officers-only scope is unchanged).
+- **A post's board** (`kind = SUPERVISION`): the first column reads **Supervisor**, the coverage
+  labels "needs 1 supervisor", each cell **"Supervisor 1 / 1"** (2 / 1, +1 over, where two shifts
+  overlap, as on Sun 22 Nov nights); same `CoverageCell`, same hourly
+  coverage.
+- **Supervisor on duty** on a line unit: a read-only line under the coverage rows names who works the
+  covering post in each block (D, E, N; "none" when nobody; a ✓ or ! in Compact, names in the
+  accessible name). Names are fine on the signed-in board; the wall display is untouched (S7).
+- **Badges:** a supervisor on an officer post reads **Sup** (R-02); an officer on a post reads
+  **Officer**, or **Acting** with Acting supervisor.
+- **Gap fill by position:** a post lists free supervisors, then acting officers tagged **Acting · Warn**
+  (after every supervisor, as in S5's pools); a line unit lists officers only. Post wording: "Free
+  supervisors", "Find eligible supervisor → Overtime board".
+- **Shift dialog and rule check** name the person "(supervisor)", or "(officer)" on a post; an
+  officers-only board reads exactly as before. R-01/R-02 render through the existing `RuleCheckPanel`:
+  R-01 is a Block with override NONE, so there is no Assign, no Acknowledge and no override, and the
+  link reads **Find eligible supervisor**.
+
+**API.** `GET /schedule` gains `unit.kind`, `officers[].position` and, on a line unit covered by a
+post, `supervisorsOnDuty: [{date, block, names[]}]` (a shift on the post counts in a block when it
+overlaps the block's hours). All three are left out of the planner's draft (compatibility
+constructors, so `PlannerService` is unchanged). No pin moves.
+
+**Left for S7** (as the plan places them): the Plan inputs headline and the commit dialog still count
+supervisors as officers ("Planning 130 officers in 8 units", "5,595 shifts for 107 officers"); the
+per-unit supervisor counts on the plan-inputs rows, the scorecard card grain and warning key names, and
+PR-M's fill order wording; My schedule, the display strip and reports.
+
+**Tests.** API: `ScheduleApiTest` +1 (kind, position, the on-duty names per block on Unit A, and
+SUP-L's own board with no on-duty field and "1 of 1"). Web: new `supervisorPosts.test.tsx` (+15:
+words, pools, grouping, grid on a post and a line unit, compact, Sup badge, gap panel, R-01 panel,
+dialog title, picker). Playwright: new `supervisor-posts.spec.ts` (+4 per viewport, read-only, skips
+unless Dataset 100 is active): picker groups and SUP-L at "Supervisor n / 1" in all 21 block-days; Unit
+A's on-duty names equal the API's; SUP-L gap fill lists supervisors only and an officer is Blocked by
+R-01 (Dataset 100 has no post gap, so one block is marked short and an officer row is added by route;
+the rule check is the real API's); no sideways page scroll at 390 on a post and on Unit A. Demo §2 gains
+one sentence about the on-duty line; no quoted number changes.
+
+**Counts at this gate** (author run, `2d52743`, with main (S4 #35, S5 #37) merged in for the API run;
+own compose project `sc-sc-s6`, port 18646): API **618 = 140 rules + 38 infrastructure + 440 api**
+(617 on main + `ScheduleApiTest`'s 1), 0 failures, errors or skipped. The single-JVM `api-test` run
+was killed twice (exit 137, out of memory) while other workers' suites shared the Docker VM, so the
+api module ran in three `mvn verify` batches (planner 88, demo 18, the rest 334; `-Xmx1g`) and the
+rules and infrastructure modules come from those full runs (140 and 38, green both times); web unit tests **671** in 64 files (656 + 15), lint 0 errors (4 warnings), `tsc -b` clean;
+Playwright against the real API, a fresh stack per viewport: desktop-datasets **140 passed**,
+tablet-datasets **139 passed and 1 skipped**; the new spec also passed again on the reused stack after
+the full run (8 of 8).
+
+**Review round** (gates on #39: review CHANGES 1 must / 3 should / 3 nits, security PASS with 3
+info, UI test PASS with 2 lows / 2 nits). The "Supervisor on duty" line leaves out a shift with a
+recorded absence (Tue 17 Nov nights on Unit A–C now reads J. Chen alone, not the sick Tara Osei), a
+day the unit is closed, and a covering post outside the caller's scope. A post's coverage and the
+on-duty names count only a supervisor or an officer holding a valid Acting supervisor
+qualification that day, so an officer left on a post after losing it is a row but not "1 / 1". The
+gap panel lists the signed-in supervisor last with the button disabled and "This is you" (the API
+refuses own-schedule changes). A post's board says supervisors in search, export, print and the
+empty-filter note. The board sends the position's `supervisory` flag and the web keys on it; the block
+windows are `CoverageCalculator.BLOCKS`, used by coverage and the on-duty line alike. Docs say
+1 / 1 or 2 / 1 (+1 over) where two shifts overlap. Tests: `ScheduleApiTest` +1 (absence, no acting,
+expired acting, valid acting, out-of-scope post), `PlannerLeaveRosterApiTest` pins the draft without
+`kind`, `position`, `supervisory` and `supervisorsOnDuty`; web +3 (Acting/Officer badges, the
+supervisory flag, the disabled own row); the spec pins Tue 17 Nov nights and the post's words. Counts:
+API **619** (441 api), web **674** in 64 files; `supervisor-posts`, `gap-fill`, `board-filters` and
+`layout` 26 of 26 on desktop and tablet at `54f12db`.
 
 ### Shift proposals, P1: the officer API
 

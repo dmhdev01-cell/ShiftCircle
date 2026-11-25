@@ -37,6 +37,7 @@ class ScheduleApiTest {
 
   @Autowired private JdbcTemplate jdbc;
   @Autowired private Environment environment;
+  @Autowired private ScheduleQuery scheduleQuery;
 
   private final ObjectMapper mapper = new ObjectMapper();
   private final HttpClient client = HttpClient.newHttpClient();
@@ -403,6 +404,182 @@ class ScheduleApiTest {
     var items = (java.util.List<?>) ((Map<?, ?>) ((java.util.List<?>) officer.get("cells")).get(0)).get("items");
     assertThat(items).hasSize(1);
     assertThat(((Map<?, ?>) items.get(0)).get("shiftTemplate")).isEqualTo("D8");
+  }
+
+  /**
+   * v1.3 S6: the board names the unit's kind and each row's position, and a line unit lists who
+   * supervises each block from the post that covers it (SUP-L covers Unit A). A supervisor post's
+   * own board has no "on duty" line: its rows are the supervisors.
+   */
+  @Test
+  void theBoardNamesThePositionAndTheSupervisorOnDutyPerBlock() throws Exception {
+    UUID supervisor = UUID.fromString("33333333-3333-3333-3333-0000000000c5");
+    UUID supL = UUID.fromString("11111111-1111-1111-1111-000000000007");
+    UUID shift = UUID.fromString("55555555-5555-5555-5555-0000000000c5");
+    jdbc.update(
+        "INSERT INTO employee (id, employee_no, first_name, last_name, home_unit_id,"
+            + " seniority_date, classification) VALUES (?, 'S-T1', 'Sam', 'Super', ?,"
+            + " DATE '2010-01-01', 'CS') ON CONFLICT DO NOTHING",
+        supervisor,
+        supL);
+    jdbc.update(
+        "INSERT INTO shift_assignment (id, employee_id, unit_id, shift_template_id, start_at,"
+            + " end_at, work_date, kind, source) SELECT ?, ?, ?, t.id,"
+            + " TIMESTAMPTZ '2026-11-18 07:00:00-06', TIMESTAMPTZ '2026-11-18 15:00:00-06',"
+            + " DATE '2026-11-18', 'ROSTERED', 'ROTATION' FROM shift_template t WHERE t.code = 'D8'"
+            + " ON CONFLICT DO NOTHING",
+        shift,
+        supervisor,
+        supL);
+    try {
+      Map<?, ?> line = mapper.readValue(get(schedulePath(), login("m.ellis")).body(), Map.class);
+      assertThat(((Map<?, ?>) line.get("unit")).get("kind")).isEqualTo("LIVING");
+      assertThat(((Map<?, ?>) ((java.util.List<?>) line.get("officers")).get(0)).get("position"))
+          .isEqualTo("CO");
+      assertThat(((Map<?, ?>) ((java.util.List<?>) line.get("officers")).get(0)).get("supervisory"))
+          .isEqualTo(false);
+      var onDuty = (java.util.List<?>) line.get("supervisorsOnDuty");
+      assertThat(onDuty).hasSize(3);
+      Map<String, Object> byBlock = new java.util.HashMap<>();
+      for (Object entry : onDuty) {
+        Map<?, ?> block = (Map<?, ?>) entry;
+        assertThat(block.get("date")).isEqualTo("2026-11-18");
+        byBlock.put((String) block.get("block"), block.get("names"));
+      }
+      assertThat(byBlock.get("DAY")).isEqualTo(java.util.List.of("Sam Super"));
+      assertThat(byBlock.get("EVENING")).isEqualTo(java.util.List.of());
+      assertThat(byBlock.get("NIGHT")).isEqualTo(java.util.List.of());
+
+      String postPath = "/api/v1/schedule?unitId=" + supL + "&from=" + DAY + "&to=" + DAY;
+      HttpResponse<String> response = get(postPath, login("m.ellis"));
+      assertThat(response.statusCode()).isEqualTo(200);
+      Map<?, ?> post = mapper.readValue(response.body(), Map.class);
+      assertThat(((Map<?, ?>) post.get("unit")).get("kind")).isEqualTo("SUPERVISION");
+      assertThat(post.containsKey("supervisorsOnDuty")).isFalse();
+      var rows = (java.util.List<?>) post.get("officers");
+      assertThat(rows).hasSize(1);
+      assertThat(((Map<?, ?>) rows.get(0)).get("position")).isEqualTo("CS");
+      assertThat(((Map<?, ?>) rows.get(0)).get("supervisory")).isEqualTo(true);
+      var coverage = (java.util.List<?>) post.get("coverage");
+      assertThat(coverage).hasSize(3);
+      Map<?, ?> day =
+          (Map<?, ?>)
+              coverage.stream()
+                  .filter(entry -> "DAY".equals(((Map<?, ?>) entry).get("block")))
+                  .findFirst()
+                  .orElseThrow();
+      assertThat(day.get("required")).isEqualTo(1);
+      assertThat(((Map<?, ?>) day.get("scheduled")).get("lowestHourly")).isEqualTo(1);
+    } finally {
+      jdbc.update("DELETE FROM shift_assignment WHERE id = ?", shift);
+      jdbc.update("DELETE FROM employee WHERE id = ?", supervisor);
+    }
+  }
+
+  /**
+   * v1.3 S6 review: the "Supervisor on duty" line and a post's coverage count only who is really on
+   * duty there. A sick supervisor is not named; an officer on the post counts only while holding
+   * Acting supervisor that day (an expired one does not); a caller who does not see the post gets
+   * no line at all.
+   */
+  @Test
+  void theOnDutyLineLeavesOutAnAbsenceAndAnOfficerWithoutActingSupervisor() throws Exception {
+    UUID supL = UUID.fromString("11111111-1111-1111-1111-000000000007");
+    UUID supervisor = UUID.fromString("33333333-3333-3333-3333-0000000000c6");
+    UUID officer = UUID.fromString("33333333-3333-3333-3333-0000000000c7");
+    UUID sickShift = UUID.fromString("55555555-5555-5555-5555-0000000000c6");
+    UUID officerShift = UUID.fromString("55555555-5555-5555-5555-0000000000c7");
+    java.time.LocalDate day = java.time.LocalDate.of(2026, 11, 25);
+    jdbc.update(
+        "INSERT INTO employee (id, employee_no, first_name, last_name, home_unit_id,"
+            + " seniority_date, classification) VALUES (?, 'S-T2', 'Sid', 'Sick', ?,"
+            + " DATE '2010-01-01', 'CS'), (?, 'E-T7', 'Olive', 'Officer', ?, DATE '2015-01-01', 'CO')"
+            + " ON CONFLICT DO NOTHING",
+        supervisor, supL, officer, UNIT);
+    insertShift(sickShift, supervisor, supL, "D8", "2026-11-25 07:00:00-06", "2026-11-25 15:00:00-06");
+    insertShift(officerShift, officer, supL, "E8", "2026-11-25 15:00:00-06", "2026-11-25 23:00:00-06");
+    jdbc.update(
+        "INSERT INTO absence (employee_id, shift_assignment_id, type, start_at, end_at)"
+            + " VALUES (?, ?, 'SICK', TIMESTAMPTZ '2026-11-25 07:00:00-06',"
+            + " TIMESTAMPTZ '2026-11-25 15:00:00-06')",
+        supervisor, sickShift);
+    String token = login("m.ellis");
+    String unitA = "/api/v1/schedule?unitId=" + UNIT + "&from=" + day + "&to=" + day;
+    String post = "/api/v1/schedule?unitId=" + supL + "&from=" + day + "&to=" + day;
+    try {
+      // The sick supervisor and the officer without Acting supervisor: nobody is on duty.
+      Map<String, Object> names = onDutyNames(get(unitA, token).body());
+      assertThat(names.get("DAY")).isEqualTo(java.util.List.of());
+      assertThat(names.get("EVENING")).isEqualTo(java.util.List.of());
+      assertThat(lowest(get(post, token).body(), "EVENING")).isZero();
+
+      // An expired Acting supervisor qualification still does not count.
+      jdbc.update(
+          "INSERT INTO employee_qualification (employee_id, qualification_id, valid_from, valid_to)"
+              + " SELECT ?, id, DATE '2020-01-01', DATE '2026-11-24' FROM qualification"
+              + " WHERE code = 'ACTING_SUP'",
+          officer);
+      assertThat(onDutyNames(get(unitA, token).body()).get("EVENING")).isEqualTo(java.util.List.of());
+      assertThat(lowest(get(post, token).body(), "EVENING")).isZero();
+      // Nor does it badge the row (or put the officer in the post's gap-fill pool).
+      assertThat(qualificationsOf(get(post, token).body(), "Olive Officer")).doesNotContain("ACTING_SUP");
+
+      // Valid on the day: the acting officer covers the post and is named.
+      jdbc.update(
+          "UPDATE employee_qualification SET valid_to = NULL WHERE employee_id = ?", officer);
+      assertThat(onDutyNames(get(unitA, token).body()).get("EVENING"))
+          .isEqualTo(java.util.List.of("Olive Officer"));
+      assertThat(lowest(get(post, token).body(), "EVENING")).isEqualTo(1);
+      assertThat(qualificationsOf(get(post, token).body(), "Olive Officer")).contains("ACTING_SUP");
+
+      // A caller who does not see the covering post gets no on-duty line.
+      assertThat(scheduleQuery.forUnit(UNIT, day, day, code -> false).supervisorsOnDuty())
+          .isNull();
+    } finally {
+      jdbc.update("DELETE FROM employee_qualification WHERE employee_id = ?", officer);
+      jdbc.update("DELETE FROM absence WHERE shift_assignment_id = ?", sickShift);
+      jdbc.update("DELETE FROM shift_assignment WHERE id IN (?, ?)", sickShift, officerShift);
+      jdbc.update("DELETE FROM employee WHERE id IN (?, ?)", supervisor, officer);
+    }
+  }
+
+  private void insertShift(
+      UUID id, UUID employee, UUID unit, String template, String start, String end) {
+    jdbc.update(
+        "INSERT INTO shift_assignment (id, employee_id, unit_id, shift_template_id, start_at,"
+            + " end_at, work_date, kind, source) SELECT ?, ?, ?, t.id, ?::timestamptz,"
+            + " ?::timestamptz, (?::timestamptz AT TIME ZONE 'America/Regina')::date, 'ROSTERED',"
+            + " 'ROTATION' FROM shift_template t WHERE t.code = ? ON CONFLICT DO NOTHING",
+        id, employee, unit, start, end, start, template);
+  }
+
+  private Map<String, Object> onDutyNames(String body) throws Exception {
+    Map<String, Object> byBlock = new java.util.HashMap<>();
+    for (Object entry : (java.util.List<?>) mapper.readValue(body, Map.class).get("supervisorsOnDuty")) {
+      Map<?, ?> block = (Map<?, ?>) entry;
+      byBlock.put((String) block.get("block"), block.get("names"));
+    }
+    return byBlock;
+  }
+
+  private java.util.List<Object> qualificationsOf(String body, String name) throws Exception {
+    for (Object entry : (java.util.List<?>) mapper.readValue(body, Map.class).get("officers")) {
+      Map<?, ?> row = (Map<?, ?>) entry;
+      if (name.equals(row.get("name"))) {
+        return new java.util.ArrayList<Object>((java.util.List<?>) row.get("qualifications"));
+      }
+    }
+    throw new AssertionError("no row for " + name);
+  }
+
+  private int lowest(String body, String block) throws Exception {
+    for (Object entry : (java.util.List<?>) mapper.readValue(body, Map.class).get("coverage")) {
+      Map<?, ?> cell = (Map<?, ?>) entry;
+      if (block.equals(cell.get("block"))) {
+        return ((Number) ((Map<?, ?>) cell.get("scheduled")).get("lowestHourly")).intValue();
+      }
+    }
+    throw new AssertionError("no " + block + " coverage");
   }
 
   /**
