@@ -257,7 +257,7 @@ Things the design describes that the prototype does **not** have. They are liste
 | Not built | What exists instead | Where it is designed |
 |---|---|---|
 | **Excel round-trip** for rule tables (download/upload `.xlsx`) | The in-app grid only. No export or import endpoint, no Apache POI dependency | docs/04 §2, docs/07 §4.7, FR-74 |
-| The supervisor's **proposals inbox** (`/proposals`) | A placeholder page that says what is planned. The `/proposals` api is built (v1.3 P1 officer side, P2 decider side, docs/07 §4.4), and the officer's side is on My schedule (P3: Propose shifts and My proposals; `/me/propose` redirects there); the inbox screen is P4. Until P4 a sent proposal stays Waiting, or is withdrawn or expires. The `! D proposed` chip exists only in the fixtures web | docs/07 §4.4, docs/ui/README §6 |
+| Waiting proposals drawn on the planning board | Built since v1.3 P4: the supervisor's **Proposals inbox** (`/proposals`) decides proposals, and an approved one is an `extra` chip with "from an approved proposal" in its tooltip. A **waiting** proposal is not drawn on the board (plan §3.2: the inbox is the place); the `! D proposed` chip exists only in the fixtures web | docs/07 §4.4, docs/ui/README §6 |
 | **My hours** (`/me/hours`) and a separate **rule version review** page (`/rules/{version}/review`) | Placeholder pages; the approver reviews and approves on the rules screen | docs/ui/README §6 |
 | **Withdrawing or expiring an overtime offer** | Offers are accepted or declined. The schema has `WITHDRAWN` and `EXPIRED` statuses, but nothing sets them | docs/07 §4.2 (move and cancel) |
 | **`ETag`/`If-Match` in general** | Only assignment move and cancel (docs/07 §4.2); rule drafts rely on the build fingerprint | docs/07 §1 |

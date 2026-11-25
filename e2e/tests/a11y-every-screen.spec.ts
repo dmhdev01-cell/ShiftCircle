@@ -85,7 +85,6 @@ test.describe('accessibility on every screen', () => {
     await signIn(page, 'M. Ellis');
     await ready(page, 'Planning board');
     for (const [path, heading] of [
-      ['/proposals', 'Proposals inbox'],
       ['/me/hours', 'My hours'],
       ['/rules/1/review', 'Rule version review'],
       ['/no-such-page', 'Page not found'],

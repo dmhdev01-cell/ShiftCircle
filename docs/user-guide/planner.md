@@ -6,6 +6,7 @@ You plan the whole quarter for every unit.
 
 Your menu has these screens:
 - **Quarter plan**
+- **Proposals (n)**: officers' proposed extra shifts, for every unit. You are the fallback decider: Unit C has no supervisor in the demo, and a supervisor's own proposal comes to you. The screen works as in the [supervisor guide](supervisor.md#proposals); approving is the one place you add a shift to the live roster, always through the rule check and never past a Block.
 - **Preferences**
 - **Units**
 - **Planning board** (read-only for you)

@@ -271,6 +271,8 @@ describe('the Proposals inbox (v1.3 P4)', () => {
     expect(within(saturday).getByText('Only 0 h of rest after the night shift ending 07:00.')).toBeInTheDocument();
     expect(within(saturday).getByRole('radio', { name: 'Approve' })).toBeDisabled();
     expect(within(saturday).getByRole('note')).toHaveTextContent(/can't be approved from a proposal/);
+    // No acknowledgement can make a Block approvable, so none is offered.
+    expect(within(saturday).queryByRole('checkbox')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Send decision (1 accepted, 1 declined)' })).toBeDisabled();
     expect(screen.getByText("A Blocked shift can't be approved from a proposal. Decline it.")).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /override/i })).not.toBeInTheDocument();

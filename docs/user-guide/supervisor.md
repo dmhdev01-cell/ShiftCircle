@@ -5,6 +5,7 @@
 You run your unit's roster week to week. Your menu has these screens:
 - **Planning board**
 - **Overtime**
+- **Proposals (n)**: officers' proposed extra shifts on your units; *n* is how many wait for you
 - **Reports**
 - **Rules**
 - **Audit log**
@@ -134,6 +135,31 @@ Ordered (mandatory) overtime is only offered once the voluntary list is used up.
 
 <!-- No screenshot yet: desktop__supervisor__overtime (no clean capture from the gated build) -->
 
+## Proposals
+
+Officers can offer to work extra shifts (*Propose shifts* on their My schedule). A proposed shift on one of your units comes to you; the planner sees every unit, so a unit with no supervisor, and a supervisor's own proposal, always have someone to decide. **Proposals (n)** in the menu says how many proposals wait for you.
+
+The screen has two parts, like the Overtime board. On the left: the proposals (officer, units, number of shifts, sent time, state), with **Waiting** or **All** and a **Unit** filter. On the right: the selected proposal.
+
+1. Read the header: the officer, their hours in the pay period with the overtime pill, and their note. The note is shown exactly as typed, as plain text.
+2. For each shift, check:
+   - **Rules when sent** and **Rules now**, side by side. If the result moved since the officer sent it (another shift was added, a rule was published), the box turns yellow and says so: "Changed since it was sent: Was Warning · U-14, now Blocked · U-08, U-14". The Warn and Block rules are listed with their messages.
+   - **Would be overtime: N h**: how many of this shift's hours would be past the 80 h pay-period threshold. Approved shifts are paid like any extra shift.
+   - The **open shift** it matches, if any, and the officer's place in the overtime order ("Tara is 3rd of 12"). Approving fills that open shift and withdraws its waiting offers. With no match, it is an extra shift above minimum.
+3. Choose **Approve** or **Decline** for every shift. A decline needs a comment (at least 3 characters); the officer sees it. Don't include medical details.
+4. Approving a shift with warnings needs **I acknowledge the warnings … and approve anyway**. Approving someone who is not first in the overtime order needs its own tick, **I'm approving outside the overtime order**; it is recorded in the audit log.
+5. Press **Send decision (1 accepted, 1 declined)**. It stays off, with the reason shown beside it, until every shift has a choice, each decline has a comment and each approval has its acknowledgements.
+
+![A proposal with two shifts: one approved with its warnings acknowledged, one declined with a comment, and Send decision (1 accepted, 1 declined)](img/supervisor-proposals-deciding.png)
+
+The rules run again when you send. If a shift you approved now breaks a Block rule, nothing is saved: the page says "Not sent", and the shift shows its fresh result with **Approve** turned off. **A Blocked shift can't be approved from a proposal and there is no override here.** Decline it; if the shift is truly needed, decline it and use the planning board, which has its own emergency override with a written reason. A new warning works the same way: tick the new acknowledgement and send again.
+
+![A shift that passed with a warning when sent and is now Blocked by U-08 and U-14 after another shift was approved: Not sent, Approve is off, and the note says to decline it](img/supervisor-proposals-blocked-now.png)
+
+After sending: "Sent. Accepted shifts are on the planning board.", with a link to that week. On the board the shift is an **extra** chip whose tooltip ends "from an approved proposal". The officer sees each answer and your comment under *My proposals*.
+
+**Your own proposal** (a supervisor who is also an officer) shows in your list marked **Yours**, read-only: "Yours: waiting for another supervisor or the planner." You can't approve your own proposal.
+
 ## Time & attendance
 
 Record what actually happened on past shifts, then lock the pay period for payroll.
@@ -194,3 +220,4 @@ Employee view opens **My schedule** for the officer record linked to your accoun
 
 - See or change the planner's draft quarter plan. You see it only after it is committed.
 - Change the rules. A rules admin drafts changes, and a rules approver publishes them.
+- Approve a Blocked proposed shift, or approve your own proposal.

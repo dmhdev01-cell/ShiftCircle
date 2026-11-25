@@ -113,9 +113,11 @@ interface ItemRowProps {
   fresh: ProposalRefusalItem | undefined;
   draft: ItemDraft;
   onChange: (next: ItemDraft) => void;
+  /** Other shifts of this proposal still wait: "rules now" assumes they are approved too. */
+  withOthers: boolean;
 }
 
-function ItemRow({ item, firstName, fresh, draft, onChange }: ItemRowProps) {
+function ItemRow({ item, firstName, fresh, draft, onChange, withOthers }: ItemRowProps) {
   const commentId = useId();
   const what = `${shiftLine(item.workDate, item.shiftTemplate, item.unitName)} · extra`;
 
@@ -212,6 +214,13 @@ function ItemRow({ item, firstName, fresh, draft, onChange }: ItemRowProps) {
         ) : null}
       </Box>
 
+      {withOthers && !fresh ? (
+        <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
+          Rules now count the earlier waiting shifts of this proposal as approved (docs/07 §4.4);
+          sending re-checks with only the shifts you approve.
+        </Box>
+      ) : null}
+
       {now ? <FlaggedRules results={now.ruleResults} /> : null}
 
       {overtime ? (
@@ -276,7 +285,7 @@ function ItemRow({ item, firstName, fresh, draft, onChange }: ItemRowProps) {
             </Box>
           ) : null}
 
-          {draft.choice === 'accept' && warnCodes.length > 0 ? (
+          {draft.choice === 'accept' && !blocked && warnCodes.length > 0 ? (
             <FormControlLabel
               control={
                 <Checkbox
@@ -293,7 +302,7 @@ function ItemRow({ item, firstName, fresh, draft, onChange }: ItemRowProps) {
             />
           ) : null}
 
-          {draft.choice === 'accept' && outOfOrder ? (
+          {draft.choice === 'accept' && !blocked && outOfOrder ? (
             <FormControlLabel
               control={
                 <Checkbox
@@ -420,6 +429,7 @@ export function ProposalDetailPane({
   const pay = detail.items.find((item) => item.payPeriod)?.payPeriod ?? null;
 
   const draftOf = (id: string) => drafts[id] ?? EMPTY_DRAFT;
+  const pendingInScope = detail.items.filter((item) => item.inScope && item.decision === 'PENDING').length;
   const needs = decidable
     .map((item) => {
       const now = currentRule(item, fresh[item.id]);
@@ -610,6 +620,7 @@ export function ProposalDetailPane({
             firstName={firstName}
             fresh={fresh[item.id]}
             draft={draftOf(item.id)}
+            withOthers={pendingInScope > 1}
             onChange={(next) => setDrafts((current) => ({ ...current, [item.id]: next }))}
           />
         ))}

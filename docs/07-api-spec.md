@@ -223,7 +223,9 @@ The payload also has `unit { id, name }`, `days` (ISO dates), `asOf` (the demo t
 **Move and cancel refusals known in advance (v1.2):** on the live board each `SHIFT` item also
 carries `actualRecorded` (any time entry references it, actual or absence), `absenceRecorded` (an
 absence row references it), `fillsOpenShift` (it fills an open shift) and `payPeriodLocked` (its
-work date is in a locked pay period, the first state the api checks), the same queries
+work date is in a locked pay period, the first state the api checks), and `fromProposal: true`
+when an approved shift proposal created it (`source = 'PROPOSAL'`, v1.3 P4; left out otherwise, for
+the chip's "from an approved proposal" tooltip), the same queries
 `PATCH`/`DELETE /assignments/{id}` run. With `now` (a shift has started when `startAt <= now`) the
 shift dialog says which action the api would refuse, in the api's own words, and does not offer
 it. `now` and the flags are as of the board's last load: a board left open across a shift's start
@@ -278,9 +280,9 @@ offer-time snapshot does not need a second answer, but a **new** warning is refu
 `422 warnings-need-acknowledgement`. The assignment is created through the normal rules/override
 path (`POST /assignments`), so S-04 and the audit event still hold.
 
-### 4.4 Proposals (employee shift planner) — API built (v1.3 P1 officer side, P2 decider side); officer screen built (P3), inbox screen not built
+### 4.4 Proposals (employee shift planner) — API built (v1.3 P1 officer side, P2 decider side); officer screen built (P3), inbox screen built (P4)
 
-An officer proposes **extra shifts to add**; a supervisor in scope approves or declines each one, and an approved shift becomes an `EXTRA` / `PROPOSAL` assignment. The API for both sides is built: preview, send, list, withdraw and expiry (P1), and the inbox, detail and decision (P2). **The officer's screen is built (P3):** My schedule's *Propose shifts* card previews, sends and lists through these endpoints, and `/me/propose` redirects to it. `/proposals` in the web is still a placeholder until P4. Design: owner answers Q1 to Q5 (overtime-order acknowledgement, add-only, no sending Blocked drafts, any active unit with supervisors in scope deciding and the planner as fallback, paid like an accepted overtime offer).
+An officer proposes **extra shifts to add**; a supervisor in scope approves or declines each one, and an approved shift becomes an `EXTRA` / `PROPOSAL` assignment. The API for both sides is built: preview, send, list, withdraw and expiry (P1), and the inbox, detail and decision (P2). **The officer's screen is built (P3):** My schedule's *Propose shifts* card previews, sends and lists through these endpoints, and `/me/propose` redirects to it. **The inbox screen is built (P4):** `/proposals` lists, opens and decides through these endpoints, with "Proposals (n)" in the nav from `GET /proposals/count`; a `422` decision refusal's `items` replace the shown "rules now" in place. Design: owner answers Q1 to Q5 (overtime-order acknowledgement, add-only, no sending Blocked drafts, any active unit with supervisors in scope deciding and the planner as fallback, paid like an accepted overtime offer).
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
@@ -332,7 +334,7 @@ An item outside the caller's scope is listed with its unit, time and decision on
 4. A declined item needs a comment of at least 3 characters (`400`); the officer sees it in `/me/proposals`. Comments are at most 500 characters.
 5. The proposal's version goes up by one, conditionally on the version the decision checked; it is `DECIDED` once no item waits. Every item update must change exactly one row. Either check failing rolls back the whole decision.
 
-**`ruleNow` and the decision gate differ on purpose.** The detail's `ruleNow` assumes every earlier waiting item is approved (as the send did); the decision checks each accepted item only with the items accepted earlier in the same send. An item can therefore show a Warn in the detail that the decision does not ask about when the earlier item is declined. The inbox screen (P4) should present `ruleNow` as "if all are approved".
+**`ruleNow` and the decision gate differ on purpose.** The detail's `ruleNow` assumes every earlier waiting item is approved (as the send did); the decision checks each accepted item only with the items accepted earlier in the same send. An item can therefore show a Warn in the detail that the decision does not ask about when the earlier item is declined. The inbox screen (P4) says so under each item while other items of the proposal wait.
 
 | Status | When |
 |---|---|
@@ -559,7 +561,7 @@ ids are stable, so a signed-in planner stays signed in.
 |---|---|
 | Planning board | `GET /schedule`, `POST /rule-checks`, `POST/PATCH/DELETE /assignments`, `POST /schedule-periods/{id}/publish` |
 | My schedule | `GET /me/schedule`, `GET /me/offers`, `POST /offers/{id}/accept`, `POST /rule-checks`, `POST /proposals/preview`, `POST /proposals`, `GET /me/proposals`, `POST /proposals/{id}/withdraw` (the API is built in v1.3 P1; the screen still only rule-checks and does not send until P3) |
-| Proposals inbox | `GET /proposals`, `GET /proposals/count`, `GET /proposals/{id}`, `POST /proposals/{id}/decision` (the API is built in v1.3 P2; the screen is a placeholder until P4) |
+| Proposals inbox | `GET /proposals`, `GET /proposals/count`, `GET /proposals/{id}`, `POST /proposals/{id}/decision` (API v1.3 P2, screen P4) |
 | Overtime board | `GET /open-shifts`, `GET /open-shifts/{id}/candidates`, `POST /open-shifts/{id}/offers`, `POST /open-shifts/{id}/assign` |
 | Rules | `GET /rule-sets…`, `PUT …/rows`, `POST …/build`, `…/submit`, `…/approve`, `…/publish` (Excel export/import: not built) |
 | Reports | `GET /reports/*`, `GET /pay-periods/{id}/payroll-export` |
