@@ -501,6 +501,44 @@ class ProposalDecisionApiTest {
     assertThat(json(ellis).get("displayState")).isEqualTo("PARTLY_APPROVED");
   }
 
+  /**
+   * P5 carry-over (privacy, mixed scope): the inbox CARD names only the shifts on the caller's
+   * units. On the card Ellis learns there is a second shift (the count) but not where or when;
+   * Chen the same the other way. The DETAIL, by design (docs/07 §4.4), lists the other shift with
+   * its unit, time and decision but no rule detail and no action
+   * ({@link #aSupervisorDecidesOnlyTheShiftsOnTheirUnits}).
+   */
+  @Test
+  void aMixedScopeCardShowsEachSupervisorOnlyTheShiftsOnTheirUnits() throws Exception {
+    Map<String, Object> proposal =
+        send(
+            "t.nakamura",
+            item(UNIT_B, "D8", "2026-11-25T07:00:00-06:00"),
+            item(UNIT_ADM, "D8", "2026-11-27T07:00:00-06:00"));
+
+    Map<String, Object> ellis = listOf(get("/api/v1/proposals", "m.ellis")).get(0);
+    assertThat(ellis.get("id")).isEqualTo(id(proposal).toString());
+    assertThat(ellis.get("units")).isEqualTo(List.of("B"));
+    assertThat(ellis.get("waitingInScope")).isEqualTo(1);
+    assertThat(list(ellis, "shifts")).extracting(shift -> shift.get("unit")).containsExactly("B");
+    assertThat(ellis.toString()).doesNotContain("ADM").doesNotContain("2026-11-27");
+
+    Map<String, Object> chen = listOf(get("/api/v1/proposals", "j.chen")).get(0);
+    assertThat(chen.get("units")).isEqualTo(List.of("ADM"));
+    assertThat(chen.get("waitingInScope")).isEqualTo(1);
+    assertThat(list(chen, "shifts")).extracting(shift -> shift.get("unit")).containsExactly("ADM");
+    assertThat(chen.toString()).doesNotContain("2026-11-25");
+
+    // The planner sees both shifts.
+    Map<String, Object> planner = listOf(get("/api/v1/proposals", "p.planner")).get(0);
+    assertThat(list(planner, "shifts")).extracting(shift -> shift.get("unit"))
+        .containsExactly("B", "ADM");
+
+    // Both supervisors count it: each has a waiting shift to decide.
+    assertThat(json(get("/api/v1/proposals/count", "m.ellis")).get("count")).isEqualTo(1);
+    assertThat(json(get("/api/v1/proposals/count", "j.chen")).get("count")).isEqualTo(1);
+  }
+
   // ---------------------------------------------------------------------------------------------
   // State and concurrency
   // ---------------------------------------------------------------------------------------------
@@ -677,7 +715,8 @@ class ProposalDecisionApiTest {
     assertThat(match.get("otOrderPosition")).isEqualTo(1);
     assertThat(match.get("otOrderSize")).isEqualTo(3);
     assertThat(match.get("outOfOrder")).isEqualTo(false);
-    assertThat(match.get("liveOffers")).isEqualTo(2);
+    // Only the OFFERED offer is withdrawn by an approval, so only it counts (P5 review).
+    assertThat(match.get("liveOffers")).isEqualTo(1);
 
     HttpResponse<String> approved = decideRaw("m.ellis", proposal, "\"0\"", accept(itemId(proposal, 0)));
     assertThat(approved.statusCode()).as(approved.body()).isEqualTo(200);
@@ -714,14 +753,24 @@ class ProposalDecisionApiTest {
     Map<String, Object> proposal =
         send("t.nakamura", item(UNIT_B, "D8", "2026-11-25T07:00:00-06:00"));
     UUID item = itemId(proposal, 0);
+    // Offers sent after the detail was read: the refusal says the current count (P5 carry-over),
+    // and an ACCEPTED offer, which an approval does not withdraw, is not counted.
+    insertOffer(openShift, OTHER);
+    UUID accepted = insertOffer(openShift, ELLIS);
+    jdbc.update("UPDATE overtime_offer SET status = 'ACCEPTED' WHERE id = ?", accepted);
+    String statusBefore =
+        jdbc.queryForObject("SELECT status FROM open_shift WHERE id = ?", String.class, openShift);
 
     HttpResponse<String> refused = decideRaw("m.ellis", proposal, "\"0\"", accept(item));
     assertThat(refused.statusCode()).isEqualTo(422);
     Map<String, Object> problem = json(refused);
     assertThat((String) problem.get("type")).endsWith("/out-of-overtime-order");
     assertThat(list(problem, "items").get(0).get("otOrderPosition")).isEqualTo(2);
+    assertThat(list(problem, "items").get(0).get("openShiftId")).isEqualTo(openShift.toString());
+    assertThat(list(problem, "items").get(0).get("liveOffers")).isEqualTo(1);
+    // Refused: the open shift is not filled.
     assertThat(jdbc.queryForObject("SELECT status FROM open_shift WHERE id = ?", String.class, openShift))
-        .isEqualTo("OPEN");
+        .isEqualTo(statusBefore);
 
     Map<String, Object> acknowledged = accept(item);
     acknowledged.put("acknowledgeOutOfOrder", true);

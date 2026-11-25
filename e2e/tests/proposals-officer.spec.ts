@@ -22,18 +22,24 @@ interface MyProposal {
   id: string;
   version: number;
   canWithdraw: boolean;
+  note: string | null;
 }
 
+/** Every note this spec sends ends with this run's token, "(run <id>)." */
+const OWN_NOTE = /\(run [0-9a-z]+\)\.$/;
+
 /**
- * Withdraw whatever Tara still has waiting: before the spec, so a re-run on the
- * same stack starts clean, and after it, so no Waiting proposal is left for the
- * inbox specs. Withdrawn proposals stay in her history, so the assertions below
- * find this run's proposals by a token in their note, never by the day alone.
+ * Withdraw what this spec left waiting: before the spec, so a re-run on the
+ * same stack starts clean, and after it, so no Waiting proposal of ours is left
+ * for the inbox specs. Only this spec's own proposals (by the token in their
+ * note): the demo's planted Waiting proposal (v1.3 P5) stays for the walk.
+ * Withdrawn proposals stay in her history, so the assertions below find this
+ * run's proposals by the token, never by the day alone.
  */
 async function withdrawTarasWaiting(request: APIRequestContext): Promise<void> {
   const api = await apiAs(request, 't.nakamura');
   const mine = await api.get<MyProposal[]>('/me/proposals');
-  for (const proposal of mine.filter((entry) => entry.canWithdraw)) {
+  for (const proposal of mine.filter((entry) => entry.canWithdraw && OWN_NOTE.test(entry.note ?? ''))) {
     const result = await api.postIfMatch(`/proposals/${proposal.id}/withdraw`, proposal.version);
     expect(result.status, JSON.stringify(result.body)).toBe(200);
   }

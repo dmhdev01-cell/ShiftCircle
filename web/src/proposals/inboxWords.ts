@@ -199,12 +199,24 @@ export function currentMatch(
   if (!fresh) return item.openShift;
   if (fresh.otOrderSize === undefined) return null;
   return {
-    id: item.openShift?.id ?? '',
+    id: fresh.openShiftId ?? item.openShift?.id ?? '',
     status: item.openShift?.status ?? 'OPEN',
     eligibility: item.openShift?.eligibility ?? '',
-    liveOffers: item.openShift?.liveOffers ?? 0,
+    // The refusal's count is current; the detail's may be stale by now.
+    liveOffers: fresh.liveOffers ?? item.openShift?.liveOffers ?? 0,
     otOrderPosition: fresh.otOrderPosition ?? null,
     otOrderSize: fresh.otOrderSize,
     outOfOrder: fresh.outOfOrder ?? false,
   };
+}
+
+/**
+ * A unit's card label from its name (P5 UI gate): "Admissions" and
+ * "Supervision · Living units" rather than "Unit ADM" / "Unit SUP-L"; a living
+ * unit keeps its short "Unit B". Falls back to the code while units load.
+ */
+export function unitLabel(code: string, names: Map<string, string>): string {
+  const name = names.get(code);
+  if (!name) return `Unit ${code}`;
+  return name.startsWith('Unit ') ? name.split(' · ')[0] : name;
 }

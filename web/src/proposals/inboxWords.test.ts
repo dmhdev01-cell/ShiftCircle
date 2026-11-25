@@ -10,6 +10,7 @@ import {
   resultChanged,
   ruleLabel,
   sendLabel,
+  unitLabel,
   wasNowLine,
 } from './inboxWords';
 
@@ -179,5 +180,37 @@ describe('the inbox words (v1.3 P4)', () => {
     expect(
       currentMatch(item({ openShift: match }), { ...fresh, otOrderPosition: 1, otOrderSize: 12, outOfOrder: false }),
     ).toMatchObject({ otOrderPosition: 1, otOrderSize: 12, outOfOrder: false });
+  });
+
+  it('takes the live offer count from a fresh refusal, not the stale detail (P5)', () => {
+    const match = {
+      id: 'os',
+      status: 'OFFERS_SENT',
+      otOrderPosition: 3,
+      otOrderSize: 12,
+      eligibility: 'ELIGIBLE',
+      outOfOrder: true,
+      liveOffers: 4,
+    };
+    const fresh = { id: 'i1', unit: 'B', shiftTemplate: 'D8', startAt: 'x', outcome: 'WARN' as const, warnCodes: [], ruleResults: [] };
+    expect(
+      currentMatch(item({ openShift: match }), { ...fresh, otOrderPosition: 2, otOrderSize: 12, outOfOrder: true, openShiftId: 'os', liveOffers: 1 }),
+    ).toMatchObject({ id: 'os', liveOffers: 1 });
+    // An older api without the count keeps the detail's.
+    expect(
+      currentMatch(item({ openShift: match }), { ...fresh, otOrderPosition: 2, otOrderSize: 12, outOfOrder: true }),
+    ).toMatchObject({ liveOffers: 4 });
+  });
+
+  it('labels a card unit by its name, keeping the short "Unit B" (P5 UI gate)', () => {
+    const names = new Map([
+      ['B', 'Unit B · Living unit'],
+      ['ADM', 'Admissions'],
+      ['SUP-L', 'Supervision · Living units'],
+    ]);
+    expect(unitLabel('B', names)).toBe('Unit B');
+    expect(unitLabel('ADM', names)).toBe('Admissions');
+    expect(unitLabel('SUP-L', names)).toBe('Supervision · Living units');
+    expect(unitLabel('CTL', names)).toBe('Unit CTL');
   });
 });
