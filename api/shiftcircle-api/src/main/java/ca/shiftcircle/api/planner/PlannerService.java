@@ -189,6 +189,7 @@ public class PlannerService {
         };
 
     long before = System.nanoTime();
+    PlanGenerator.Options chosen = generatorOptions(options);
     List<PlanInputs.LeaveDay> leaveDays = loadLeaveDays();
     Map<UUID, java.util.Set<LocalDate>> leave = leaveSets(leaveDays);
     PlanGenerator.Result result =
@@ -203,14 +204,17 @@ public class PlannerService {
                 verifier,
                 leave,
                 activeUnits::active,
-                generatorOptions(options),
-                loadQualifications());
-    PlanGenerator.Options chosen = generatorOptions(options);
+                chosen,
+                // Only the cross-unit fill reads qualifications; skip the two queries otherwise.
+                chosen.crossUnitFill() ? loadQualifications() : PlanGenerator.Qualifications.NONE);
     if (chosen.fillPartTimeToFte() || chosen.crossUnitFill()) {
       // The extra passes each keep their own warning de-duplication, so the same officer and rule
       // can be counted twice and the commit's recount would refuse the draft (WARNINGS_CHANGED).
       // Score the finished draft once, chronologically, exactly as a hand edit and the commit do.
       // The default path is not re-scored, so its plans and pinned figures are untouched.
+      // The verifier carries the same history baseline the commit subtracts (same rule check, same
+      // 35-day history, same start-then-employee order, same officer|rule de-duplication), so the
+      // re-score and the commit's recount agree; PlannerOptionsApiTest commits a draft per option.
       Object crossUnit = result.scorecard().get("crossUnit");
       result =
           new PlanGenerator()
@@ -227,6 +231,8 @@ public class PlannerService {
       if (crossUnit != null) {
         result.scorecard().put("crossUnit", crossUnit);
       }
+      // The Generated in tile shows the whole run, not only the re-score (UI test N1).
+      result.scorecard().put("generatedMs", (System.nanoTime() - before) / 1_000_000);
     }
     operationalCards(result.scorecard(), result.assignments());
     int generatedMs = (int) ((System.nanoTime() - before) / 1_000_000);
@@ -1944,13 +1950,14 @@ public class PlannerService {
 
   /**
    * PR-M: what Generate would use right now (GET /planner/inputs). The same loaders generate()
-   * calls, nothing else; the options are the defaults Generate starts from.
+   * calls, nothing else; the options are the ones the Generate form would send (PR-N), validated
+   * the same way, the defaults when omitted.
    */
-  public Map<String, Object> inputs() {
+  public Map<String, Object> inputs(PlannerViews.DraftCreation form) {
+    PlannerViews.PlanOptions options = planOptions(form);
     List<PlanGenerator.Unit> units = loadUnits();
     return inputs(
-        units, loadEmployees(units), loadLeaveDays(), DEFAULT_SEED, null,
-        PlannerViews.PlanOptions.DEFAULT);
+        units, loadEmployees(units), loadLeaveDays(), DEFAULT_SEED, null, options);
   }
 
   private Map<String, Object> inputs(

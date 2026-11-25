@@ -771,6 +771,8 @@ export interface PlanInputs {
     /** Every officer under 1.0 FTE: the generator fills part-time and casual alike. */
     partTime: number;
     fte: number;
+    /** PR-N: the FTE of the part-time and casual officers (absent in an older snapshot). */
+    partTimeFte?: number;
     /**
      * The staffing floor: the stretch of the quarter (between unit closures)
      * that needs the most officers, or null. With one stretch it is the quarter.
@@ -898,6 +900,9 @@ export interface PlannerScorecard {
     shifts: number;
     officers: number;
     fromUnits?: Record<string, number>;
+    /** Gaps the pass tried and could not cover, by the first filter nobody passed. */
+    stillShortReasons?: Record<string, number>;
+    stillShortByUnitBlock?: Record<string, number>;
     line: string;
   };
   pattern8h?: string;
@@ -1236,7 +1241,8 @@ export interface ShiftCircleApi {
   /** Quarter planner (PLANNER role): plan, drafts, gaps, warnings, commit. */
   getPlannerPlan(): Promise<PlannerPlan>;
   /** What Generate would use now (PR-M). PLANNER only. */
-  getPlannerInputs(): Promise<PlanInputs>;
+  /** PR-N: with the Generate form's options, so the inputs match what Generate would use. */
+  getPlannerInputs(options?: PlanOptions): Promise<PlanInputs>;
   createPlannerDraft(body: PlannerDraftCreation): Promise<PlannerDraft>;
   /** POST /planner/absences: the planner records one day of planned leave (PR-D, fit-gap A9). */
   planAbsence(input: PlannedAbsenceInput): Promise<PlannedAbsence>;

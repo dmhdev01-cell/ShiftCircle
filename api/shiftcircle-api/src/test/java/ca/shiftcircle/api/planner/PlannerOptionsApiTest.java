@@ -285,7 +285,113 @@ class PlannerOptionsApiTest {
         .isEqualTo(41);
   }
 
+  @Test
+  @SuppressWarnings("unchecked")
+  void dataset150EachExtraOptionCommitsOnItsOwnAndTheFullTimePlusOtherUnitsRowIsPinned()
+      throws Exception {
+    String planner = loginToken("p.planner");
+
+    // Fill up to FTE alone: the 51-warning draft the commit used to refuse now commits.
+    reset(planner, "150");
+    Map<String, Object> upTo = generate(planner, "{\"seed\":20261001,\"partTimeFill\":\"UP_TO_FTE\"}");
+    assertThat(capacity(upTo)).isEqualTo(new Capacity(9584, 10080, 496, 100, 51));
+    assertThat(commit(planner, upTo)).isEqualTo(5746);
+
+    reset(planner, "150");
+    // Full-time only plus other units: 529 gaps, 115 warnings, 4,894 shifts, 158 covered.
+    Map<String, Object> fullTimeCross =
+        generate(planner, "{\"seed\":20261001,\"staffTypes\":[\"FULL_TIME\"],\"crossUnitFill\":\"ON\"}");
+    assertThat(capacity(fullTimeCross)).isEqualTo(new Capacity(0, 10080, 10080, 529, 115));
+    assertThat(shifts(planner, fullTimeCross)).isEqualTo(4894);
+    Map<String, Object> card = crossUnit(fullTimeCross);
+    assertThat(card).containsEntry("gapsCovered", 158).containsEntry("shifts", 203)
+        .containsEntry("officers", 82);
+    assertThat((Map<String, Object>) card.get("stillShortReasons"))
+        .isEqualTo(Map.of("NOT_QUALIFIED", 268, "NO_HOURS_LEFT", 201, "RULE_BLOCK", 51, "NO_SHIFT_FITS", 9));
+
+    // Other units alone: 5,455 shifts, commits.
+    Map<String, Object> cross = generate(planner, "{\"seed\":20261001,\"crossUnitFill\":\"ON\"}");
+    assertThat(capacity(cross)).isEqualTo(new Capacity(6743, 10080, 3337, 72, 59));
+    assertThat(commit(planner, cross)).isEqualTo(5455);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void dataset120OtherUnitsCoversNothingAndSaysWhyAndTheInputsFollowTheForm() throws Exception {
+    String planner = loginToken("p.planner");
+    reset(planner, "120");
+    Map<String, Object> cross = generate(planner, "{\"seed\":20261001,\"crossUnitFill\":\"ON\"}");
+    assertThat(capacity(cross)).isEqualTo(new Capacity(1248, 6720, 5472, 38, 7));
+    assertThat(shifts(planner, cross)).isEqualTo(5103);
+    Map<String, Object> card = crossUnit(cross);
+    // All 38 gaps are Escort evenings, and no free officer in another unit holds Escort.
+    assertThat(card).containsEntry("gapsCovered", 0).containsEntry("shifts", 0);
+    assertThat((Map<String, Object>) card.get("stillShortReasons")).isEqualTo(Map.of("NOT_QUALIFIED", 38));
+    assertThat((Map<String, Object>) card.get("stillShortByUnitBlock")).isEqualTo(Map.of("ESC EVENING", 38));
+
+    Map<String, Object> fullTimeCross =
+        generate(planner, "{\"seed\":20261001,\"staffTypes\":[\"FULL_TIME\"],\"crossUnitFill\":\"ON\"}");
+    assertThat(capacity(fullTimeCross)).isEqualTo(new Capacity(0, 6720, 6720, 152, 6));
+    assertThat(shifts(planner, fullTimeCross)).isEqualTo(4958);
+    assertThat(crossUnit(fullTimeCross)).containsEntry("gapsCovered", 4);
+
+    // GET /planner/inputs follows the Generate form's options, and refuses a bad one.
+    Map<String, Object> inputs =
+        mapper.readValue(
+            send("GET", "/api/v1/planner/inputs?staffTypes=FULL_TIME&crossUnitFill=ON", null, planner)
+                .body(),
+            Map.class);
+    assertThat((Map<String, Object>) inputs.get("options"))
+        .containsEntry("staffTypes", List.of("FULL_TIME"))
+        .containsEntry("crossUnitFill", "ON");
+    List<String> fillOrder = (List<String>) ((Map<String, Object>) inputs.get("rules")).get("fillOrder");
+    assertThat(fillOrder).hasSize(6);
+    assertThat(fillOrder.get(2)).contains("left out of this draft");
+    assertThat(((Map<String, Object>) inputs.get("officers")).get("partTimeFte")).isEqualTo(12.0);
+    HttpResponse<String> bad = send("GET", "/api/v1/planner/inputs?partTimeFill=SOMETIMES", null, planner);
+    assertThat(bad.statusCode()).isEqualTo(400);
+    assertThat(bad.body()).contains("partTimeFill");
+  }
+
   // --- helpers ----------------------------------------------------------------------------------
+
+  /** Commit a draft through the normal path, accepting its warnings; returns the shifts written. */
+  @SuppressWarnings("unchecked")
+  private int commit(String token, Map<String, Object> draft) throws Exception {
+    String id = (String) draft.get("id");
+    Map<String, Object> preview =
+        mapper.readValue(
+            send("GET", "/api/v1/planner/drafts/" + id + "/commit-preview", null, token).body(),
+            Map.class);
+    // The commit's own recount agrees with the draft's warning count.
+    assertThat(preview.get("warningCount"))
+        .isEqualTo(((Map<String, Object>) ((Map<String, Object>) draft.get("scorecard")).get("warnings")).get("total"));
+    HttpResponse<String> committed =
+        send(
+            "POST",
+            "/api/v1/planner/drafts/" + id + "/commit",
+            "{\"acceptedWarningCount\":" + preview.get("warningCount") + "}",
+            token,
+            Map.of("If-Match", "\"" + preview.get("version") + "\""));
+    assertThat(committed.statusCode()).as(committed.body()).isEqualTo(200);
+    return ((Number) mapper.readValue(committed.body(), Map.class).get("shiftsWritten")).intValue();
+  }
+
+  @SuppressWarnings("unchecked")
+  private int shifts(String token, Map<String, Object> draft) throws Exception {
+    return ((Number)
+            mapper.readValue(
+                    send("GET", "/api/v1/planner/drafts/" + draft.get("id") + "/commit-preview", null, token)
+                        .body(),
+                    Map.class)
+                .get("shiftsToWrite"))
+        .intValue();
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Map<String, Object> crossUnit(Map<String, Object> draft) {
+    return (Map<String, Object>) ((Map<String, Object>) draft.get("scorecard")).get("crossUnit");
+  }
 
   private record Capacity(long planned, long target, long unused, int gaps, int warnings) {}
 

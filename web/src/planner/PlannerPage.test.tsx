@@ -423,6 +423,9 @@ describe('the quarter plan', () => {
     expect(await screen.findByRole('note', { name: 'Gaps covered from other units' })).toHaveTextContent(
       '3 gaps covered from other units. 3 shifts by 2 officers from another unit',
     );
+    expect(screen.getByTestId('still-short')).toHaveTextContent(
+      'Still short: 1 not qualified · 1 would break a rule. Most are Unit B nights (1), Control evenings (1).',
+    );
 
     // No previous draft yet, so no comparison.
     expect(screen.queryByRole('note', { name: 'Compared with the previous draft' })).not.toBeInTheDocument();

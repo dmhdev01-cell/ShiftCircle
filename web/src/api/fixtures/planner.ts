@@ -207,6 +207,8 @@ export function generatePlannerDraft(
               shifts: 3,
               officers: 2,
               fromUnits: { A: 2, B: 1 },
+              stillShortReasons: { NOT_QUALIFIED: 1, RULE_BLOCK: 1 },
+              stillShortByUnitBlock: { 'CTL EVENING': 1, 'B NIGHT': 1 },
               line: '3 gaps covered from other units (3 shifts by 2 officers); 2 still short.',
             },
           }

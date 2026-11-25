@@ -112,6 +112,10 @@ test.describe('plan options', () => {
     await expect(page.getByRole('note', { name: 'Compared with the previous draft' })).toContainText(
       `gaps covered from other units 0 → ${coveredCount}`,
     );
+    // Why the rest are still short (Dataset 150, seed 20261001).
+    await expect(page.getByTestId('still-short')).toContainText(
+      'Still short: 46 not qualified · 14 no hours left · 12 would break a rule.',
+    );
 
     // The roster marks an officer placed from another unit.
     const planner = await apiAs(request, 'p.planner');
@@ -134,6 +138,9 @@ test.describe('plan options', () => {
     }
     expect(found, 'a cross-unit officer on the draft roster').not.toBeNull();
     await page.goto(`/planner?tab=roster&unit=${found!.unit}&week=${found!.week}`);
-    await expect(page.getByTestId('from-unit').first()).toHaveText(`From ${found!.home}`, { timeout: 30_000 });
+    // Several officers may be away that week: find the marker for this home unit, not the first.
+    await expect(
+      page.getByTestId('from-unit').filter({ hasText: `From ${found!.home}` }).first(),
+    ).toBeVisible({ timeout: 30_000 });
   });
 });

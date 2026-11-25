@@ -47,12 +47,21 @@ export function neededWords(inputs: PlanInputs): string | null {
 export function inputsHeadline(inputs: PlanInputs): string {
   const { officers, window } = inputs;
   const needed = neededWords(inputs);
+  // PR-N: a full-time-only draft plans with the full-time officers alone; say who is left out.
+  const staffTypes = inputs.options.staffTypes;
+  const fullTimeOnly =
+    Array.isArray(staffTypes) && !staffTypes.includes('PART_TIME') && officers.partTime > 0;
+  const planned = fullTimeOnly ? officers.fullTime : officers.total;
+  const plannedFte =
+    fullTimeOnly && officers.partTimeFte !== undefined ? officers.fte - officers.partTimeFte : officers.fte;
   const parts = [
-    `Planning ${count(officers.total)} ${officers.total === 1 ? 'officer' : 'officers'} in ${officers.units} ${officers.units === 1 ? 'unit' : 'units'}`,
-    officers.partTime > 0
-      ? `${count(officers.fullTime)} full-time, ${count(officers.partTime)} part-time or casual`
-      : `all ${count(officers.fullTime)} full-time`,
-    needed ? `${fte(officers.fte)} FTE against ${needed}` : `${fte(officers.fte)} FTE`,
+    `Planning ${count(planned)} ${planned === 1 ? 'officer' : 'officers'} in ${officers.units} ${officers.units === 1 ? 'unit' : 'units'}`,
+    fullTimeOnly
+      ? `full-time only, ${count(officers.partTime)} part-time or casual left out`
+      : officers.partTime > 0
+        ? `${count(officers.fullTime)} full-time, ${count(officers.partTime)} part-time or casual`
+        : `all ${count(officers.fullTime)} full-time`,
+    needed ? `${fte(plannedFte)} FTE against ${needed}` : `${fte(plannedFte)} FTE`,
     inputWindowWords(window.from, window.to),
   ];
   return parts.join(' · ');

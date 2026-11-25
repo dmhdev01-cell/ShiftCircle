@@ -305,6 +305,107 @@ class PlanGeneratorOptionsTest {
     assertThat(both.gaps().size()).isLessThan(upToOnly.gaps().size());
   }
 
+  @Test
+  void crossUnitOrderIsLowestShareOfTargetThenNewestThenEmployeeNumber() {
+    UUID unit = UUID.randomUUID();
+    PlanGenerator.Employee lowShare = employee("S", unit, "A", 0.5, 0, 0); // most senior
+    PlanGenerator.Employee highShare = employee("S", unit, "B", 0.5, 0, 20); // newest
+    PlanGenerator.Employee tieSenior = employee("S", unit, "C", 1.0, 0, 1);
+    PlanGenerator.Employee tieNewer = employee("S", unit, "D", 1.0, 0, 5);
+    Map<UUID, double[]> hours = new HashMap<>();
+    hours.put(lowShare.id(), new double[] {8}); // 8 of 40 h = 20%
+    hours.put(highShare.id(), new double[] {32}); // 32 of 40 h = 80%
+    hours.put(tieSenior.id(), new double[] {40}); // 40 of 80 h = 50%
+    hours.put(tieNewer.id(), new double[] {40}); // 50%, newer
+    List<PlanGenerator.Employee> ordered =
+        new ArrayList<>(List.of(highShare, tieSenior, lowShare, tieNewer));
+    ordered.sort(PlanGenerator.crossUnitOrder(hours, 0));
+    // The lowest share first even though most senior; at equal share the newest first.
+    assertThat(ordered).containsExactly(lowShare, tieNewer, tieSenior, highShare);
+  }
+
+  @Test
+  void crossUnitFillKeepsA12HourOfficerOutOfAUnitWithout12HourShifts() {
+    Facility facility = shortAndSpare();
+    UUID spare = facility.units.get(0).id();
+    PlanGenerator.Employee twelve =
+        new PlanGenerator.Employee(
+            UUID.nameUUIDFromBytes("S-12".getBytes()), "S-12", "S 12", spare, "S",
+            LocalDate.of(2025, 1, 1), 0.6, new PlanGenerator.Pref(12, List.of(), List.of()), 12, 0);
+    List<PlanGenerator.Employee> employees = new ArrayList<>(facility.employees);
+    employees.add(twelve);
+    PlanGenerator.Result on = generate(new Facility(facility.units, employees), CROSS);
+    UUID shortUnit = facility.units.get(1).id();
+    assertThat(on.assignments()).anyMatch(a -> a.unitId().equals(shortUnit)
+        && !a.employeeId().equals(twelve.id())
+        && facility.employees.stream().anyMatch(e -> e.id().equals(a.employeeId()) && e.unitId().equals(spare)));
+    assertThat(on.assignments())
+        .noneMatch(a -> a.employeeId().equals(twelve.id()) && a.unitId().equals(shortUnit));
+  }
+
+  @Test
+  void aBorrowed12HourShiftNeedsTheQualificationOfEveryBlockItCovers() {
+    // Unit T allows 12 h; its days need Q1 and its evenings Q2. A P12 shift (12:00-24:00) for a
+    // day gap also covers the evening, so an officer with Q1 only is not borrowed; one with both is.
+    UUID spare = UUID.nameUUIDFromBytes("unit:S12".getBytes());
+    UUID shortUnit = UUID.nameUUIDFromBytes("unit:T12".getBytes());
+    List<PlanGenerator.Unit> units =
+        List.of(
+            new PlanGenerator.Unit(spare, "S", "S", true, false, Map.of()),
+            new PlanGenerator.Unit(shortUnit, "T", "T", true, false, Map.of("DAY", 1, "EVENING", 1)));
+    UUID q1 = UUID.nameUUIDFromBytes("q1".getBytes());
+    UUID q2 = UUID.nameUUIDFromBytes("q2".getBytes());
+    PlanGenerator.Employee onlyQ1 =
+        new PlanGenerator.Employee(
+            UUID.nameUUIDFromBytes("S-Q1".getBytes()), "S-Q1", "S Q1", spare, "S",
+            LocalDate.of(2020, 1, 1), 0.6, new PlanGenerator.Pref(12, List.of(), List.of()), 12, 0);
+    PlanGenerator.Employee both =
+        new PlanGenerator.Employee(
+            UUID.nameUUIDFromBytes("S-Q12".getBytes()), "S-Q12", "S Q12", spare, "S",
+            LocalDate.of(2010, 1, 1), 0.6, new PlanGenerator.Pref(12, List.of(), List.of()), 12, 0);
+    Map<UUID, Map<String, UUID>> required = Map.of(shortUnit, Map.of("DAY", q1, "EVENING", q2));
+    PlanGenerator.Result withOnlyQ1 =
+        new PlanGenerator()
+            .generate(List.of(onlyQ1), units, templates(), new HashMap<>(), null, 20261001, ALLOW,
+                Map.of(), PlanGenerator.ALWAYS, CROSS,
+                new PlanGenerator.Qualifications(required, Map.of(onlyQ1.id(), Set.of(q1))));
+    assertThat(withOnlyQ1.assignments()).noneMatch(a -> a.unitId().equals(shortUnit));
+    @SuppressWarnings("unchecked")
+    Map<String, Integer> reasons =
+        (Map<String, Integer>)
+            ((Map<String, Object>) withOnlyQ1.scorecard().get("crossUnit")).get("stillShortReasons");
+    assertThat(reasons).containsOnlyKeys("NOT_QUALIFIED");
+    PlanGenerator.Result withBoth =
+        new PlanGenerator()
+            .generate(List.of(both), units, templates(), new HashMap<>(), null, 20261001, ALLOW,
+                Map.of(), PlanGenerator.ALWAYS, CROSS,
+                new PlanGenerator.Qualifications(required, Map.of(both.id(), Set.of(q1, q2))));
+    assertThat(withBoth.assignments()).anyMatch(a -> a.unitId().equals(shortUnit));
+  }
+
+  @Test
+  void aGapNoBorrowedShiftCanCoverSaysSoNotNoHoursLeft() {
+    // Unit T needs nights only; the spare unit has 8 h officers with hours left, who never work
+    // nights, so no borrowed shift fits the block.
+    UUID spare = UUID.nameUUIDFromBytes("unit:SN".getBytes());
+    UUID shortUnit = UUID.nameUUIDFromBytes("unit:TN".getBytes());
+    List<PlanGenerator.Unit> units =
+        List.of(
+            new PlanGenerator.Unit(spare, "S", "S", false, false, Map.of("DAY", 1)),
+            new PlanGenerator.Unit(shortUnit, "T", "T", false, false, Map.of("NIGHT", 1)));
+    List<PlanGenerator.Employee> employees =
+        List.of(employee("S", spare, "P0", 0.5, 0, 20), employee("S", spare, "F0", 1.0, 0, 1));
+    PlanGenerator.Result on =
+        new PlanGenerator()
+            .generate(employees, units, templates(), new HashMap<>(), null, 20261001, ALLOW,
+                Map.of(), PlanGenerator.ALWAYS, CROSS);
+    @SuppressWarnings("unchecked")
+    Map<String, Integer> reasons =
+        (Map<String, Integer>)
+            ((Map<String, Object>) on.scorecard().get("crossUnit")).get("stillShortReasons");
+    assertThat(reasons).containsOnlyKeys("NO_SHIFT_FITS");
+  }
+
   /** Unit S (spare): 8 full-timers and 4 part-timers for a small need. Unit T (short): 3 full-timers. */
   private static Facility shortAndSpare() {
     UUID spare = UUID.nameUUIDFromBytes("unit:S".getBytes());

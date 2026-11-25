@@ -71,6 +71,7 @@ final class PlanInputs {
     int fullTime = 0;
     int partTime = 0;
     double fte = 0;
+    double partTimeFte = 0;
     LocalDate earliest = null;
     LocalDate latest = null;
     for (PlanGenerator.Employee employee : employees) {
@@ -78,6 +79,7 @@ final class PlanInputs {
         fullTime++;
       } else {
         partTime++;
+        partTimeFte += employee.fte();
       }
       fte += employee.fte();
       earliest =
@@ -89,6 +91,8 @@ final class PlanInputs {
     officers.put("fullTime", fullTime);
     officers.put("partTime", partTime);
     officers.put("fte", round1(fte));
+    // PR-N: so a full-time-only draft can say how many officers and FTE it actually plans with.
+    officers.put("partTimeFte", round1(partTimeFte));
     officers.put("neededFte", needed == null ? null : needed.fte());
     officers.put("neededFrom", needed == null ? null : needed.from().toString());
     officers.put("neededTo", needed == null ? null : needed.to().toString());

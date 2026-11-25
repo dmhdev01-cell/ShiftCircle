@@ -50,6 +50,7 @@ import type {
   PlannedAbsence,
   PlannedAbsenceInput,
   PlannerDraftCreation,
+  PlanOptions,
 } from '../types';
 
 import {
@@ -541,9 +542,10 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
       return plannerPlan();
     },
 
-    async getPlannerInputs() {
+    async getPlannerInputs(options?: PlanOptions) {
       await pause();
-      return plannerInputs();
+      const inputs = plannerInputs();
+      return options ? { ...inputs, options: { ...inputs.options, ...options } } : inputs;
     },
 
     async createPlannerDraft(body: PlannerDraftCreation) {

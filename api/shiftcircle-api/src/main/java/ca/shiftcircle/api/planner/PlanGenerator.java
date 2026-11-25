@@ -1012,28 +1012,31 @@ public final class PlanGenerator {
       LocalDate date = gap.date();
       int period = (int) (ChronoUnit.DAYS.between(FROM, date) / 14);
       int guard = 0;
+      // Each placement covers at least one hour of the gap, and a block needs at most its minimum
+      // (6 on the demo data) more officers, so 20 attempts is a safe ceiling, not a cap in practice.
       while (guard++ < 20 && short_(calculator, unit, date, gap.block(), intervals)) {
-        List<Employee> candidates = new ArrayList<>();
+        // The filters in order; the first one nobody passes is the reason the gap stays short.
         int free = 0;
+        int qualifiedForGap = 0;
+        int fits = 0;
+        int qualifiedForShift = 0;
+        int withRoom = 0;
+        List<Employee> candidates = new ArrayList<>();
         for (Employee candidate : employees) {
           if (candidate.unitId().equals(unit.id())
+              || candidate.fte() <= 0
               || working.contains(candidate.id() + "|" + date)
               || onLeave(candidate.id(), date, leave)
               || (effectiveLength(candidate) == 12 && !unit.allows12h())) {
             continue;
           }
           free++;
-          if (!qualifications.allows(candidate, unit.id(), gap.block())) {
-            continue;
+          if (qualifications.allows(candidate, unit.id(), gap.block())) {
+            qualifiedForGap++;
+            candidates.add(candidate);
           }
-          candidates.add(candidate);
         }
-        int withRoom = 0;
-        candidates.sort(
-            Comparator.comparingDouble(
-                    (Employee e) -> hours.get(e.id())[period] / (e.fte() * 80.0))
-                .thenComparing(Employee::seniority, Comparator.reverseOrder())
-                .thenComparing(Employee::employeeNo));
+        candidates.sort(crossUnitOrder(hours, period));
         Employee chosen = null;
         Template chosenTemplate = null;
         Check chosenCheck = null;
@@ -1042,6 +1045,19 @@ public final class PlanGenerator {
           if (template == null || !covers(template, gap.block())) {
             continue;
           }
+          fits++;
+          // A 12 h shift also covers part of a neighbouring block: the officer must hold that
+          // block's qualification too, not only the gap's.
+          boolean qualifiedEverywhere = true;
+          for (String block : BLOCKS) {
+            if (covers(template, block) && !qualifications.allows(candidate, unit.id(), block)) {
+              qualifiedEverywhere = false;
+            }
+          }
+          if (!qualifiedEverywhere) {
+            continue;
+          }
+          qualifiedForShift++;
           if (hours.get(candidate.id())[period] + template.minutes() / 60.0
               > candidate.fte() * 80.0 + 0.001) {
             continue;
@@ -1059,13 +1075,16 @@ public final class PlanGenerator {
           }
         }
         if (chosen == null) {
-          // Why this gap stays short, in the order the filters apply.
           String reason =
               free == 0
                   ? "NO_OFFICER_FREE"
-                  : candidates.isEmpty()
+                  : qualifiedForGap == 0
                       ? "NOT_QUALIFIED"
-                      : withRoom == 0 ? "NO_HOURS_LEFT" : "RULE_BLOCK";
+                      : fits == 0
+                          ? "NO_SHIFT_FITS"
+                          : qualifiedForShift == 0
+                              ? "NOT_QUALIFIED"
+                              : withRoom == 0 ? "NO_HOURS_LEFT" : "RULE_BLOCK";
           stillShort.merge(reason, 1, Integer::sum);
           stillShortBy.merge(unit.code() + " " + gap.block(), 1, Integer::sum);
           break;
@@ -1122,6 +1141,17 @@ public final class PlanGenerator {
             + after
             + " still short.");
     return card;
+  }
+
+  /**
+   * The cross-unit order: the lowest share of FTE x 80 h already planned in the pay period first,
+   * then the newest officer (the casual pool's order), then employee number so it is total.
+   */
+  static Comparator<Employee> crossUnitOrder(Map<UUID, double[]> hours, int period) {
+    return Comparator.comparingDouble(
+            (Employee e) -> hours.get(e.id())[period] / (e.fte() * 80.0))
+        .thenComparing(Employee::seniority, Comparator.reverseOrder())
+        .thenComparing(Employee::employeeNo);
   }
 
   private static boolean short_(

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_PLAN_OPTIONS, draftDeltaWords, draftOptions, optionsForRequest, planOptionsWords } from './planOptions';
+import {
+  DEFAULT_PLAN_OPTIONS,
+  draftDeltaWords,
+  draftOptions,
+  optionsForRequest,
+  planOptionsWords,
+  stillShortWords,
+} from './planOptions';
 
 describe('plan options', () => {
   it('reads an older draft with no options as made with the defaults', () => {
@@ -57,5 +64,49 @@ describe('plan options', () => {
     ).toBe(
       'Compared with the previous draft: gaps unchanged at 38 · rule warnings 7 → 17 · unused part-time hours 5,472 h → 260 h · shifts 5,103 → 5,667 · gaps covered from other units unchanged at 0.',
     );
+  });
+
+  const names: Record<string, string> = { ESC: 'Escort & transport', CTL: 'Control', B: 'Unit B' };
+  const unitName = (code: string) => names[code] ?? code;
+
+  it('says why the gaps left after the cross-unit fill are still short (Dataset 150)', () => {
+    const words = stillShortWords(
+      {
+        gapsCovered: 28,
+        shifts: 41,
+        officers: 26,
+        stillShortReasons: { NOT_QUALIFIED: 46, NO_HOURS_LEFT: 14, RULE_BLOCK: 12 },
+        stillShortByUnitBlock: { 'ESC EVENING': 16, 'CTL EVENING': 14, 'B EVENING': 11, 'CTL NIGHT': 8 },
+      },
+      unitName,
+    );
+    expect(words.zero).toBeNull();
+    expect(words.reasons).toBe('Still short: 46 not qualified · 14 no hours left · 12 would break a rule.');
+    expect(words.where).toBe('Most are Escort & transport evenings (16), Control evenings (14), Unit B evenings (11).');
+  });
+
+  it('says why nothing was covered instead of "0 shifts by 0 officers" (Dataset 120)', () => {
+    const words = stillShortWords(
+      {
+        gapsCovered: 0,
+        shifts: 0,
+        officers: 0,
+        stillShortReasons: { NOT_QUALIFIED: 38 },
+        stillShortByUnitBlock: { 'ESC EVENING': 38 },
+      },
+      unitName,
+    );
+    expect(words.zero).toBe(
+      'No gap could be covered from another unit: no free officer in another unit holds the post’s qualification.',
+    );
+    expect(words.reasons).toBe('Still short: 38 not qualified.');
+    expect(words.where).toBe('Most are Escort & transport evenings (38).');
+  });
+
+  it('words a reason it does not know rather than dropping it', () => {
+    expect(
+      stillShortWords({ gapsCovered: 1, shifts: 1, officers: 1, stillShortReasons: { NO_SHIFT_FITS: 2, NEW_REASON: 1 } }, unitName)
+        .reasons,
+    ).toBe('Still short: 2 no shift that fits · 1 new reason.');
   });
 });

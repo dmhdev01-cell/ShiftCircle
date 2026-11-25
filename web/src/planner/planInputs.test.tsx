@@ -94,6 +94,21 @@ describe('plan inputs words', () => {
     );
   });
 
+  it('counts only the staff a full-time-only draft plans with (PR-N)', () => {
+    const base = inputs();
+    const fullTimeOnly = {
+      ...base,
+      officers: { ...base.officers, partTimeFte: 12 },
+      options: { ...base.options, staffTypes: ['FULL_TIME'] },
+    };
+    expect(inputsHeadline(fullTimeOnly)).toMatch(
+      /^Planning 100 officers in 6 units · full-time only, 20 part-time or casual left out · 100 FTE/,
+    );
+    expect(inputsHeadline({ ...base, officers: { ...base.officers, partTimeFte: 12 } })).toMatch(
+      /^Planning 120 officers in 6 units · 100 full-time, 20 part-time or casual · 112 FTE/,
+    );
+  });
+
   it('reports what changed since a draft was generated, or nothing', () => {
     expect(changedSince(inputs(), inputs())).toBeNull();
     expect(changedSince(inputs(), inputs({ partTime: 21, fullTime: 99, fte: 111.5 }))).toBe(

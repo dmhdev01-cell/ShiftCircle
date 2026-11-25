@@ -47,6 +47,7 @@ import {
   draftOptions,
   optionsForRequest,
   planOptionsWords,
+  stillShortWords,
 } from './planOptions';
 import { useRole } from '../shell/nav';
 import { StatusPill } from '../components/StatusPill';
@@ -194,6 +195,8 @@ export function PlannerPage() {
   };
   const [seed, setSeed] = useState('');
   const [options, setOptions] = useState<PlanOptions>(DEFAULT_PLAN_OPTIONS);
+  // A stable key for the effect that refetches the inputs when an option changes.
+  const optionsKey = JSON.stringify(optionsForRequest(options));
   // After Generate again: the figures against the draft it replaced.
   const [delta, setDelta] = useState<string | null>(null);
   const [busy, setBusy] = useState<null | 'generate' | 'commit' | 'discard'>(null);
@@ -254,8 +257,9 @@ export function PlannerPage() {
   useEffect(() => {
     if (!isPlanner) return;
     let active = true;
+    // PR-N: with the form's options, so "what Generate will use" matches the form.
     void api
-      .getPlannerInputs()
+      .getPlannerInputs(optionsForRequest(JSON.parse(optionsKey) as PlanOptions))
       .then((next) => {
         if (active) setLiveInputs(next);
       })
@@ -265,7 +269,7 @@ export function PlannerPage() {
     return () => {
       active = false;
     };
-  }, [isPlanner, inputsVersion]);
+  }, [isPlanner, inputsVersion, optionsKey]);
 
   const refreshStaffing = useCallback(async () => {
     setInputsVersion((value) => value + 1);
@@ -937,30 +941,51 @@ export function PlannerPage() {
                 );
               })()}
 
-              {scorecard.crossUnit ? (
-                <Box
-                  role="note"
-                  aria-label="Gaps covered from other units"
-                  sx={{
-                    p: '10px 12px',
-                    borderRadius: '8px',
-                    backgroundColor: colour.status.info.bg,
-                    color: colour.status.info.text,
-                    fontSize: 13,
-                  }}
-                >
-                  <Box component="span" sx={{ fontWeight: 700 }}>
-                    {scorecard.crossUnit.gapsCovered.toLocaleString('en-CA')}{' '}
-                    {scorecard.crossUnit.gapsCovered === 1 ? 'gap' : 'gaps'} covered from other units.
-                  </Box>{' '}
-                  {scorecard.crossUnit.shifts.toLocaleString('en-CA')}{' '}
-                  {scorecard.crossUnit.shifts === 1 ? 'shift' : 'shifts'} by{' '}
-                  {scorecard.crossUnit.officers.toLocaleString('en-CA')}{' '}
-                  {scorecard.crossUnit.officers === 1 ? 'officer' : 'officers'} from another unit, each
-                  qualified for the post and within their FTE hours; the roster marks them &quot;From&quot;
-                  their unit. Measured when the draft was generated.
-                </Box>
-              ) : null}
+              {scorecard.crossUnit
+                ? (() => {
+                    const cross = scorecard.crossUnit;
+                    const short = stillShortWords(cross, (code) => unitWords(code).split(' · ')[0]);
+                    return (
+                      <Box
+                        role="note"
+                        aria-label="Gaps covered from other units"
+                        sx={{
+                          p: '10px 12px',
+                          borderRadius: '8px',
+                          backgroundColor: colour.status.info.bg,
+                          color: colour.status.info.text,
+                          fontSize: 13,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 0.5,
+                        }}
+                      >
+                        {short.zero ? (
+                          <Box component="span" sx={{ fontWeight: 700 }}>
+                            {short.zero}
+                          </Box>
+                        ) : (
+                          <span>
+                            <Box component="span" sx={{ fontWeight: 700 }}>
+                              {cross.gapsCovered.toLocaleString('en-CA')}{' '}
+                              {cross.gapsCovered === 1 ? 'gap' : 'gaps'} covered from other units.
+                            </Box>{' '}
+                            {cross.shifts.toLocaleString('en-CA')} {cross.shifts === 1 ? 'shift' : 'shifts'} by{' '}
+                            {cross.officers.toLocaleString('en-CA')}{' '}
+                            {cross.officers === 1 ? 'officer' : 'officers'} from another unit, each qualified for
+                            the post and within their FTE hours; the roster marks them &quot;From&quot; their unit.
+                          </span>
+                        )}
+                        {short.reasons ? (
+                          <span data-testid="still-short">
+                            {short.reasons} {short.where ?? ''}
+                          </span>
+                        ) : null}
+                        <span>Measured when the {draft ? 'draft' : 'plan'} was generated.</span>
+                      </Box>
+                    );
+                  })()
+                : null}
 
               {explain && (TILE_HELP[explain] || (explain === 'Needed (at least)' && staffing)) ? (
                 <Box
