@@ -108,9 +108,18 @@ public class RuleSetService {
 
   public record Columns(String after, String hours, String result, String override) {}
 
+  /**
+   * One row of a rules table. {@code must} is true for a rule the mock agreement requires (docs/05
+   * §3): its result, override and on/off cannot change, so the screen locks those controls and the
+   * build refuses a change to them (release v1.3). It is ignored when a row is saved.
+   */
   public record RowView(
       String ruleCode, boolean enabled, String after, double minHours, String result,
-      String override, String source, Double min, String sentence, Map<String, Object> params) {}
+      String override, String source, Double min, String sentence, Map<String, Object> params,
+      boolean must) {}
+
+  private static final java.util.Set<String> MUST_RULES =
+      ca.shiftcircle.rules.rows.RuleRowsV1.ruleSet().ruleCodes();
 
   public record TableView(
       String code, String name, Columns columns, List<RowView> rows, int changed,
@@ -603,9 +612,16 @@ public class RuleSetService {
 
     Map<String, List<ShiftFact>> shiftsByOfficer = new LinkedHashMap<>();
     Map<String, String> unitByOfficer = new LinkedHashMap<>();
+    // Who can work a post (R-01, R-02) needs the person's position, qualifications and the unit's
+    // kind per shift; without them a POSTS edit would always report "no change" (UI test D1).
+    ca.shiftcircle.api.rules.RuleCheckService.PostLookup posts =
+        ca.shiftcircle.api.rules.RuleCheckService.readPosts(jdbc);
+    Map<String, List<Object>> postFactsByOfficer = new LinkedHashMap<>();
+    ca.shiftcircle.rules.build.PostEligibilityFactBuilder postFacts =
+        new ca.shiftcircle.rules.build.PostEligibilityFactBuilder();
     jdbc.query(
-        "SELECT s.id, e.employee_no, u.code AS unit_code, u.allows_12h, u.allows_16h,"
-            + " t.code AS template_code, s.start_at, s.end_at, s.kind"
+        "SELECT s.id, s.employee_id, s.unit_id, e.employee_no, u.code AS unit_code,"
+            + " u.allows_12h, u.allows_16h, t.code AS template_code, s.start_at, s.end_at, s.kind"
             + " FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
             + " JOIN unit u ON u.id = s.unit_id JOIN shift_template t ON t.id = s.shift_template_id"
             + " WHERE s.status <> 'CANCELLED' ORDER BY e.employee_no, s.start_at",
@@ -613,9 +629,7 @@ public class RuleSetService {
             resultSet -> {
               String employee = resultSet.getString("employee_no");
               unitByOfficer.putIfAbsent(employee, resultSet.getString("unit_code"));
-              shiftsByOfficer
-                  .computeIfAbsent(employee, key -> new ArrayList<>())
-                  .add(
+              ShiftFact shift =
                       new ShiftFact(
                           resultSet.getObject("id").toString(),
                           employee,
@@ -628,7 +642,18 @@ public class RuleSetService {
                               : ShiftKind.ROSTERED,
                           0,
                           resultSet.getBoolean("allows_12h"),
-                          resultSet.getBoolean("allows_16h")));
+                          resultSet.getBoolean("allows_16h"));
+              shiftsByOfficer.computeIfAbsent(employee, key -> new ArrayList<>()).add(shift);
+              ca.shiftcircle.api.rules.RuleCheckService.Post post =
+                  posts.post(
+                      resultSet.getObject("employee_id", java.util.UUID.class),
+                      resultSet.getObject("unit_id", java.util.UUID.class),
+                      shift.start());
+              postFactsByOfficer
+                  .computeIfAbsent(employee, key -> new ArrayList<>())
+                  .add(
+                      postFacts.build(
+                          shift, post.position(), post.qualifications(), post.unitKind()));
             });
 
     Map<String, Long> counts = new LinkedHashMap<>();
@@ -637,6 +662,7 @@ public class RuleSetService {
     shiftsByOfficer.forEach(
         (employee, shifts) -> {
           List<Object> facts = factsFor(shifts);
+          facts.addAll(postFactsByOfficer.getOrDefault(employee, List.of()));
           Map<String, RuleOutcome> before = worstByRule(evaluator.evaluate(current, "live",
               facts.toArray()));
           Map<String, RuleOutcome> after = worstByRule(evaluator.evaluate(candidate,
@@ -963,7 +989,8 @@ public class RuleSetService {
         row.source(),
         min,
         sentence(row),
-        params);
+        params,
+        MUST_RULES.contains(row.code()));
   }
 
   private static String sentence(RuleRow row) {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -109,6 +109,47 @@ describe('Rules admin', () => {
     const r01 = saved.rows.find((row) => row.ruleCode === 'R-01');
     expect(r01?.params?.actingQualification).toBeNull();
     expect(r01?.params?.allowedPositions).toEqual(['CS']);
+  });
+
+  it('locks the result, override and on/off of a rule the agreement requires', async () => {
+    const user = userEvent.setup();
+    renderRules('/rules/8/posts');
+    await screen.findByRole('heading', { name: 'Who can work a post' });
+    await actAsRulesAdmin(user);
+
+    for (const code of ['R-01', 'R-02']) {
+      expect(screen.getByLabelText(`Result for ${code}`)).toBeDisabled();
+      expect(screen.getByLabelText(`Override for ${code}`)).toBeDisabled();
+      expect(screen.getByLabelText(`Rule ${code} on`)).toBeDisabled();
+    }
+    // The values the admin may change stay editable.
+    expect(screen.getByLabelText('Who can work the post for R-01')).toBeEnabled();
+    expect(screen.getByLabelText('Acting supervisor may work the post for R-01')).toBeEnabled();
+    expect(screen.getByText(/keeps its result, override and on\/off/)).toBeInTheDocument();
+  });
+
+  it('shows why a build did not pass', async () => {
+    const user = userEvent.setup();
+    const build = vi.spyOn(api, 'buildRuleSet').mockResolvedValueOnce({
+      steps: [
+        {
+          key: 'values',
+          title: 'Values the engine can produce',
+          detail: '1 row value(s) can never fire.',
+          done: false,
+        },
+      ],
+      scenarios: { total: 0, passed: 0 },
+      errors: ['R-02 · Who can work it: Every position may work this post, so the rule can never fire; choose one position.'],
+    });
+    renderRules('/rules/8/posts');
+    await screen.findByRole('heading', { name: 'Who can work a post' });
+    await actAsRulesAdmin(user);
+    await user.click(screen.getByRole('button', { name: 'Build and check' }));
+
+    const alert = await screen.findByRole('alert', { name: 'Why the build did not pass' });
+    expect(within(alert).getByText(/R-02 · Who can work it: Every position may work this post/)).toBeInTheDocument();
+    build.mockRestore();
   });
 
   it('shows the plain-language sentence the api sent', async () => {

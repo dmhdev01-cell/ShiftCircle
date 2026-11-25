@@ -384,6 +384,7 @@ export const demoRuleTables: RuleTable[] = [
         result: 'BLOCK',
         override: 'NOT_ALLOWED',
         source: 'Owner item 17',
+        must: true,
         params: { postKind: 'SUPERVISION', allowedPositions: ['CS'], actingQualification: 'ACTING_SUP' },
         sentence:
           'Only supervisors can work a supervisor post; anyone else is blocked. It cannot be overridden. Someone with the Acting supervisor qualification is warned instead, and a supervisor must acknowledge it.',
@@ -396,6 +397,7 @@ export const demoRuleTables: RuleTable[] = [
         result: 'WARN',
         override: 'ACKNOWLEDGE',
         source: 'Owner item 17',
+        must: true,
         params: { postKind: 'LINE', allowedPositions: ['CO'] },
         sentence:
           'Only officers can work an officer post; anyone else is warned. A supervisor must acknowledge it before the change is saved.',

@@ -54,6 +54,22 @@ public final class RuleRowValidator {
               java.util.stream.Collectors.toUnmodifiableMap(
                   RuleRow::code, RuleRow::overridePolicy));
 
+  /**
+   * The result each Must rule was published with. Like the override policy, it is part of what
+   * the mock agreement requires: a Block cannot be turned into a warning, and a Must rule cannot
+   * be switched off, through the rules screen (security review I2, release v1.3).
+   */
+  private static final Map<String, ca.shiftcircle.rules.facts.RuleOutcome> REQUIRED_SEVERITIES =
+      RuleRowsV1.ruleSet().rows().stream()
+          .collect(
+              java.util.stream.Collectors.toUnmodifiableMap(RuleRow::code, RuleRow::severity));
+
+  /**
+   * The qualifications that may soften R-01: only a supervisory one. A common qualification here
+   * would turn the Block into a warning for everyone who holds it (security review L1).
+   */
+  private static final Set<String> ACTING_QUALIFICATIONS = Set.of("ACTING_SUP");
+
   /** One plain-language problem with one row. */
   public record Violation(String code, String column, String message) {
     @Override
@@ -109,6 +125,24 @@ public final class RuleRowValidator {
               "The documented override policy for this rule is "
                   + policyLabel(documented)
                   + "; a Must rule cannot be changed."));
+    }
+    ca.shiftcircle.rules.facts.RuleOutcome documentedResult = REQUIRED_SEVERITIES.get(row.code());
+    if (documentedResult != null && row.severity() != documentedResult) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "Result",
+              "The documented result for this rule is "
+                  + resultLabel(documentedResult)
+                  + "; a Must rule cannot be changed."));
+    }
+    if (REQUIRED_SEVERITIES.containsKey(row.code()) && !row.enabled()) {
+      violations.add(
+          new Violation(
+              row.code(),
+              "On",
+              "This rule is required by the mock agreement (docs/05 §3); it cannot be switched"
+                  + " off."));
     }
     if (row.message() == null || row.message().isBlank()) {
       violations.add(new Violation(row.code(), "Message", "A rule needs a message to show."));
@@ -515,20 +549,30 @@ public final class RuleRowValidator {
             new Violation(
                 row.code(),
                 "Who can work it",
-                "Every position may work this post, so the rule can never fire; switch the row"
-                    + " off instead."));
+                "Every position may work this post, so the rule can never fire; choose one"
+                    + " position."));
       }
     }
     Object acting = row.params().get("actingQualification");
     if (acting != null
         && !acting.toString().isBlank()
-        && !QUALIFICATION.matcher(acting.toString()).matches()) {
+        && (!QUALIFICATION.matcher(acting.toString()).matches()
+            || !ACTING_QUALIFICATIONS.contains(acting.toString()))) {
       violations.add(
           new Violation(
               row.code(),
               "Acting qualification",
-              "Use a qualification code such as ACTING_SUP, or leave it empty."));
+              "Only the Acting supervisor qualification (ACTING_SUP) can turn this block into a"
+                  + " warning; choose it or leave it empty."));
     }
+  }
+
+  private static String resultLabel(ca.shiftcircle.rules.facts.RuleOutcome outcome) {
+    return switch (outcome) {
+      case BLOCK -> "Block";
+      case WARN -> "Warn";
+      case INFO -> "Info";
+    };
   }
 
   private static String policyLabel(OverridePolicy policy) {

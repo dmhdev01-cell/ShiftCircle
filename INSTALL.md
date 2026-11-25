@@ -130,7 +130,7 @@ baked into the image, the live rule-set version, the active profile, the demo da
 (`activeDataset`), for example:
 
 ```json
-{"name":"shiftcircle-api","version":"0.1.0-SNAPSHOT","buildTime":"<ISO instant>","gitCommit":"<commit>","ruleSetVersion":"v3","profiles":"demo","asOf":"2026-11-19","demoMode":true,"datasets":["100","120","150"],"activeDataset":"100"}
+{"name":"shiftcircle-api","version":"0.1.0-SNAPSHOT","buildTime":"<ISO instant>","gitCommit":"<commit>","ruleSetVersion":"v4","profiles":"demo","asOf":"2026-11-19","demoMode":true,"datasets":["100","120","150"],"activeDataset":"100"}
 ```
 
 On the `prod-like` profile `demoMode` is `false`, `datasets` is empty and `activeDataset`

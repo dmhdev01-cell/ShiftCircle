@@ -116,7 +116,8 @@ build validator refuses a stored one):
 | | `requireUnitFlagFor` | only 12, 16 |
 | Who can work a post | `postKind` | `SUPERVISION` or `LINE` |
 | | `allowedPositions` | at least one of `CO`, `CS`, and not both (a row every position may work can never fire) |
-| | `actingQualification` | a qualification code (`ACTING_SUP`) or empty |
+| | `actingQualification` | `ACTING_SUP` or empty: only the supervisory qualification may soften R-01, never a common one |
+| Every Must rule (docs/05 §3) | result, override policy, on/off | as published: a Block cannot become a warning and a Must rule cannot be switched off (the screen locks these controls) |
 
 ## 6. Safe change pipeline
 
@@ -150,7 +151,10 @@ qualifications they hold that day and the unit's kind (`SUPERVISION` is a superv
 other kind an officer post); it is not part of `ShiftFact`, so no other builder changed. The
 board's rule check, the planner's generator check, the draft edits and the commit check all pass
 it. There are no supervisors or supervisor posts in the datasets yet, so neither rule fires on the
-demo data and every plan fingerprint is unchanged. Version 3 stays as history.
+demo data and every plan fingerprint is unchanged. Version 3 stays as history. The build's dry run
+builds the same post fact for every shift on the published roster, so a POSTS edit reports what it
+changes before an approver sees it. The planner's one-time lookup fails closed: a person or unit it
+cannot resolve reads as an unknown position on a supervisor post, which R-01 blocks.
 
 ## 7. Runtime evaluation
 

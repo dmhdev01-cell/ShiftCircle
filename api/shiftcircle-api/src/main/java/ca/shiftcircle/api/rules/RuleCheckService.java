@@ -118,6 +118,12 @@ public class RuleCheckService {
   }
 
   /** The same seam when the caller already holds the proposed fact (the planner builds thousands). */
+  /**
+   * The seam without a post: R-01 and R-02 are left out. Only for a caller that replays warnings
+   * already known to come from the other rules (tests that compare with the planner's scorecard);
+   * once the datasets have supervisors (release v1.3 S4) such a replay will not see R-02 warnings,
+   * so a caller that checks a real proposal must pass the post.
+   */
   public OutcomeView evaluate(ShiftFact proposed, List<ShiftFact> employeeShifts) {
     return evaluate(proposed, employeeShifts, null);
   }
@@ -169,6 +175,11 @@ public class RuleCheckService {
    * {@link #post(UUID, UUID, Instant)} without a query per proposal.
    */
   public PostLookup posts() {
+    return readPosts(jdbc);
+  }
+
+  /** The same read for a caller that has only the database (the rule-set dry run). */
+  public static PostLookup readPosts(JdbcTemplate jdbc) {
     Map<UUID, String> positions = new HashMap<>();
     jdbc.query(
         "SELECT id, classification FROM employee",
@@ -201,6 +212,9 @@ public class RuleCheckService {
 
     record Held(String code, java.time.LocalDate from, java.time.LocalDate to) {}
 
+    /** A post that cannot be resolved: R-01 blocks it. */
+    static final Post UNKNOWN = new Post("", java.util.Set.of(), "SUPERVISION");
+
     private final Map<UUID, String> positions;
     private final Map<UUID, String> kinds;
     private final Map<UUID, List<Held>> held;
@@ -211,12 +225,17 @@ public class RuleCheckService {
       this.held = held;
     }
 
-    /** The post for one proposal; null when the person or the unit is not known. */
+    /**
+     * The post for one proposal. It fails closed: when the person or the unit is not in the
+     * snapshot, the post reads as a supervisor post worked by someone of no known position, so
+     * R-01 blocks it (no acting qualification, no override) instead of the post rules being left
+     * out (security review L2).
+     */
     public Post post(UUID employeeId, UUID unitId, Instant at) {
       String position = positions.get(employeeId);
       String kind = kinds.get(unitId);
       if (position == null || kind == null) {
-        return null;
+        return UNKNOWN;
       }
       java.time.LocalDate day = at.atZone(java.time.ZoneId.of("America/Regina")).toLocalDate();
       java.util.Set<String> codes = new java.util.HashSet<>();

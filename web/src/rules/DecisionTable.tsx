@@ -238,7 +238,7 @@ export function DecisionTable({
                 <td style={{ padding: '8px 10px', borderBottom: `1px solid ${colour.border.default}` }}>
                   <Checkbox
                     checked={row.enabled}
-                    disabled={readOnly}
+                    disabled={readOnly || row.must}
                     onChange={(event) => update(row.ruleCode, { enabled: event.target.checked })}
                     slotProps={{ input: { 'aria-label': `Rule ${row.ruleCode} on` } }}
                   />
@@ -316,7 +316,7 @@ export function DecisionTable({
                   <Box
                     component="select"
                     aria-label={`Result for ${row.ruleCode}`}
-                    disabled={readOnly}
+                    disabled={readOnly || row.must}
                     value={row.result}
                     onChange={(event) =>
                       update(row.ruleCode, { result: event.target.value as RuleTableRow['result'] })
@@ -343,7 +343,7 @@ export function DecisionTable({
                   <Box
                     component="select"
                     aria-label={`Override for ${row.ruleCode}`}
-                    disabled={readOnly}
+                    disabled={readOnly || row.must}
                     value={row.override}
                     onChange={(event) =>
                       update(row.ruleCode, {
@@ -408,6 +408,9 @@ export function DecisionTable({
         {posts
           ? 'Whether a unit is a supervisor post or an officer post comes from the unit itself. '
           : 'U-01 cannot be set below 8 hours (the legal floor). '}
+        {rows.some((row) => row.must)
+          ? 'A rule the mock agreement requires keeps its result, override and on/off; only its values change. '
+          : ''}
         The technical rule templates behind this table are maintained by the development team and
         cannot be edited here.
       </Typography>

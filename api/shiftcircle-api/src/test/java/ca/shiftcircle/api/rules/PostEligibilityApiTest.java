@@ -27,7 +27,9 @@ import tools.jackson.databind.ObjectMapper;
  * the real maker/checker pipeline (docs/07 §4.7).
  *
  * <p>The demo has no supervisor post and no supervisor yet (they arrive with the datasets in S4),
- * so this class adds one post, one supervisor and two officers to its own database.
+ * so this class adds one post, one supervisor and two officers to its own database. Nothing here
+ * changes the rule set; the maker/checker edit is in {@link PostsMakerCheckerApiTest}, which has
+ * its own database, so no test depends on the order the methods run in.
  */
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -144,71 +146,28 @@ class PostEligibilityApiTest {
   }
 
   @Test
-  @SuppressWarnings("unchecked")
-  void theRulesAdminChangesTheTableThroughMakerChecker() throws Exception {
-    Integer live =
-        jdbc.queryForObject(
-            "SELECT version FROM rule_set_version WHERE status = 'PUBLISHED'", Integer.class);
-    assertThat(live).isEqualTo(4);
-
-    // The screen's table: the posts slug resolves, with its own column headings and sentences.
-    Map<String, Object> table = json(send("GET", "/api/v1/rule-sets/4/tables/posts", null, "l.fraser"));
-    assertThat(table.get("code")).isEqualTo("POSTS");
-    assertThat(table.get("name")).isEqualTo("Who can work a post");
-    assertThat(((Map<String, Object>) table.get("columns")).get("after")).isEqualTo("Post");
-    assertThat(((Map<String, Object>) table.get("columns")).get("hours"))
-        .isEqualTo("Who can work it");
-    List<Map<String, Object>> rows = (List<Map<String, Object>>) table.get("rows");
-    assertThat(rows).extracting(row -> row.get("ruleCode")).containsExactly("R-01", "R-02");
-    assertThat(rows.get(0).get("sentence"))
-        .isEqualTo(
-            "Only supervisors can work a supervisor post; anyone else is blocked. It cannot be"
-                + " overridden. Someone with the Acting supervisor qualification is warned"
-                + " instead, and a supervisor must acknowledge it.");
-
-    // Maker: acting officers may no longer work a supervisor post.
-    HttpResponse<String> created =
-        send(
-            "POST",
-            "/api/v1/rule-sets/drafts",
-            "{\"basedOn\":4,\"reason\":\"No acting supervisors\"}",
-            "l.fraser");
-    assertThat(created.statusCode()).isEqualTo(201);
-    int draft = ((Number) json(created).get("version")).intValue();
-    Map<String, Object> editable =
-        json(send("GET", "/api/v1/rule-sets/" + draft + "/tables/posts", null, "l.fraser"));
-    Map<String, Object> r01 =
-        ((List<Map<String, Object>>) editable.get("rows"))
-            .stream().filter(row -> "R-01".equals(row.get("ruleCode"))).findFirst().orElseThrow();
-    ((Map<String, Object>) r01.get("params")).put("actingQualification", null);
-    String body = mapper.writeValueAsString(Map.of("rows", editable.get("rows")));
+  void anOverrideReasonCannotSaveAnOfficerOnASupervisorPost() throws Exception {
+    // Security review L3: R-01 has no override, so an emergency reason does not unlock the save.
+    String body =
+        "{\"change\":{\"employeeId\":\""
+            + OFFICER
+            + "\",\"unitId\":\""
+            + POST
+            + "\",\"shiftTemplate\":\"D8\",\"startAt\":\"2027-02-01T07:00:00-06:00\"},"
+            + "\"override\":{\"reason\":\"Lockdown, no supervisor available\"}}";
+    HttpResponse<String> response = send("POST", "/api/v1/assignments", body, "m.ellis");
+    assertThat(response.statusCode()).as(response.body()).isEqualTo(422);
+    Map<String, Object> problem = json(response);
+    assertThat((String) problem.get("type")).endsWith("/blocked-by-rules");
+    assertThat(problem.get("overridable")).isEqualTo(false);
+    assertThat(response.body()).contains("R-01");
     assertThat(
-            send("PUT", "/api/v1/rule-sets/" + draft + "/tables/posts/rows", body, "l.fraser")
-                .statusCode())
-        .isEqualTo(200);
-
-    Map<String, Object> report =
-        json(send("POST", "/api/v1/rule-sets/" + draft + "/build", null, "l.fraser"));
-    assertThat((List<Map<String, Object>>) report.get("steps"))
-        .allSatisfy(step -> assertThat((Boolean) step.get("done")).isTrue());
-    assertThat(send("POST", "/api/v1/rule-sets/" + draft + "/submit", null, "l.fraser").statusCode())
-        .isEqualTo(200);
-    // Checker: the author cannot approve their own change; another approver does.
-    assertThat(send("POST", "/api/v1/rule-sets/" + draft + "/approve", null, "p.singh").statusCode())
-        .isEqualTo(200);
-    assertThat(
-            send(
-                    "POST",
-                    "/api/v1/rule-sets/" + draft + "/publish",
-                    "{\"effectiveDate\":\"2026-11-25\"}",
-                    "p.singh")
-                .statusCode())
-        .isEqualTo(200);
-
-    Map<String, Object> after = check(ACTING, POST);
-    assertThat(after.get("outcome")).as("the published edit applies with no code change")
-        .isEqualTo("BLOCK");
-    assertThat(after.get("ruleSetVersion")).isEqualTo(draft);
+            jdbc.queryForObject(
+                "SELECT count(*) FROM shift_assignment WHERE employee_id = ?",
+                Integer.class,
+                OFFICER))
+        .as("nothing was saved")
+        .isZero();
   }
 
   // -------------------------------------------------------------------------------------------

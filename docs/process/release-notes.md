@@ -221,6 +221,39 @@ say v3 is history and use 5/6.
 the compose `api-test` stage, `BUILD SUCCESS`, 0 failures, errors or skipped); web unit tests **576**
 in 56 files, lint 0 errors, `tsc -b` clean, build clean. Playwright: see the pull request.
 
+**The review round (S2).** The code review asked for changes (1 must, 2 should, 4 nits), the
+security review passed (3 low, 3 info) and the UI test found 1 major and 2 minor defects. All of
+them are fixed in one push:
+- **The dry run sees the posts table (UI test D1, major).** The build's dry run now builds the post
+  fact (position, qualifications on the date, unit kind) for every shift on the published roster.
+  Before, it reported "No rule result changes" for any POSTS edit, so an approver could publish
+  "only supervisors on an officer post" and every officer then got an R-02 warning.
+  `PostsMakerCheckerApiTest` proves that a POSTS edit's dry run reports the change (R-01 Warn → Block
+  for an acting officer already on the post).
+- **The build says why it failed, and the Must rows are locked (D2).** The checklist lists the
+  build's `errors`. On every table, a Must rule's On, result and Override controls are locked (the
+  rows carry `must`), and the build refuses a change to a Must rule's result or on/off as it already
+  refused a change to its override policy (security info I2).
+- **R-01 can only be softened by Acting supervisor (security L1).** `actingQualification` must be
+  `ACTING_SUP` or empty: the validator and the column schema refuse any other code, so a maker and a
+  checker cannot hand the warning to everyone with a common qualification.
+- **The planner's post lookup fails closed (L2).** A person or unit it cannot resolve reads as an
+  unknown position on a supervisor post, which R-01 blocks; the no-post overload is documented as a
+  replay-only seam.
+- **V17 builds on whichever version is published** instead of naming v3, and stops if there is not
+  exactly one (info I1). A fresh database still gets v4 = v3 + R-01/R-02.
+- **Tests.** The maker/checker flow has its own class and database, so no test depends on method
+  order. `PlannerPostEligibilityApiTest` adds a test supervisor post and closes Unit C, so Unit C's
+  officers form the relief pool. Generate places only the acting officer on the post and leaves the
+  rest a gap; a draft-edit preview is R-01 Block for an officer and Warn for the acting one; the save
+  is refused; a commit with an officer on the post fails with R-01 and writes nothing. A board save
+  with an emergency reason is still refused for R-01 (L3).
+- **Docs.** The demo script follows a fresh stack: §4 goes **v4 → v5** ("Version 5 is live now.",
+  "Live v5 · no draft"), the rehearsal note says §4 publishes v5, and v4 joins the
+  migration-published baselines. The README and INSTALL `/version` samples read v4. The "v4 seed"
+  wording in docs/05 and the roadmap now says the next version after v4, and docs/ui lists 9 tables
+  and the posts columns.
+
 **Not in this release** (the rest of the plan):
 the rank-aware planner (S3), the supervisor posts and the demo supervisors in the datasets with the
 single re-pin (S4), the overtime pools and the self-edit guard (S5), and the board, My schedule,

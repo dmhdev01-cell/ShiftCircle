@@ -606,6 +606,11 @@ export interface RuleTableRow {
   sentence: string;
   /** The table's own columns, as the api stores them. */
   params?: Record<string, unknown>;
+  /**
+   * A rule the mock agreement requires: its result, override and on/off are
+   * locked (the api's build refuses a change to them).
+   */
+  must?: boolean;
 }
 
 export interface RuleTable {
@@ -639,6 +644,8 @@ export interface BuildStep {
 export interface BuildReport {
   steps: BuildStep[];
   scenarios: { total: number; passed: number };
+  /** Why the build did not pass, in words a rules admin can act on; empty when it passed. */
+  errors?: string[];
 }
 
 /** A unit from GET /units (docs/07 §4.1). */
