@@ -268,6 +268,19 @@ draft roster leaves `now` and the four flags out. "Already cancelled" cannot be 
 | POST | `/open-shifts/{id}/offers` | `{ "employeeIds": [...], "ordered": false }` → offers recorded in-app | SUPERVISOR |
 | POST | `/open-shifts/{id}/assign` | Assign directly (§3 rules and overrides apply) | SUPERVISOR |
 
+**Overtime pools by position (release v1.3, S5; owner answer Q4).** The candidate list and the
+offer path keep to the post's pool. For an open shift on a `SUPERVISION` unit the list holds the
+supervisors (`CS`), ranked by O-01/O-02, then the officers who hold `ACTING_SUP`, ranked by
+O-01/O-02 among themselves and placed after every supervisor (R-01 makes each a `WARN`); other
+officers are not listed. For an open shift on an officer unit the list holds officers (`CO`) only.
+O-02's tie-break and `seniorityDate` are **seniority inside the rank**,
+`coalesce(position_since, seniority_date)` (an officer's service date; a supervisor's promotion
+date). Overtime hours this quarter are each person's own. `POST /open-shifts/{id}/offers` with
+anyone outside the pool answers `422` (`.../problems/officer-unavailable`, detail "Not in this
+officer post's overtime pool …" or "Not in this supervisor post's overtime pool …") before any
+offer is written. A direct assign is not limited by the pool: the rule check (R-01/R-02) decides it,
+as on the board. The proposal's `openShift.otOrderPosition`/`otOrderSize` read the same pools.
+
 A direct assign and an offer confirm both lock the `open_shift` row before the officer, then fill
 it conditionally: of any number of concurrent attempts, even by different officers, exactly one
 succeeds and the rest answer `409` "This shift is already filled".

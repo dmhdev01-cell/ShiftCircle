@@ -26,7 +26,8 @@ import tools.jackson.databind.ObjectMapper;
  * Release v1.3 (S4): the supervisors in Datasets 100, 120 and 150. J. Chen and M. Ellis are linked
  * to supervisor records, so My schedule answers 200 with their own shifts on every dataset instead
  * of "No employee record for this user"; the posts and their scopes come from V19; and the
- * overtime list stays inside the post's rank.
+ * overtime list keeps to the post's pool (S5: supervisors for a supervisor post, officers for an
+ * officer post), with demo script §3's numbers unchanged.
  */
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -104,7 +105,26 @@ class SupervisorDatasetsApiTest {
                 + " WHERE u.code = 'B' AND t.code = 'D8' AND o.start_at::date = DATE '2026-11-21'"
                 + " AND o.status = 'OPEN' LIMIT 1",
             UUID.class);
-    assertThat(classificationsOf(candidates(lineShift, ellis))).containsOnly("CO");
+    List<Map<String, Object>> lineCandidates = candidates(lineShift, ellis);
+    assertThat(classificationsOf(lineCandidates)).containsOnly("CO");
+    // Demo script §3 (S5 keeps it): 36 candidates, 18 Skipped, 10 Not available, 8 eligible with
+    // a warning, and Tara Nakamura is one of the 8 with 32.0 h this quarter.
+    Map<String, Integer> byEligibility = new java.util.TreeMap<>();
+    for (Map<String, Object> candidate : lineCandidates) {
+      byEligibility.merge((String) candidate.get("eligibility"), 1, Integer::sum);
+    }
+    assertThat(lineCandidates).hasSize(36);
+    assertThat(byEligibility).containsExactlyEntriesOf(
+        new java.util.TreeMap<>(Map.of("SKIPPED", 18, "UNAVAILABLE", 10, "WARN", 8)));
+    assertThat(lineCandidates)
+        .filteredOn(c -> "Tara Nakamura".equals(c.get("name")))
+        .singleElement()
+        .satisfies(
+            tara -> {
+              assertThat(tara.get("eligibility")).isEqualTo("WARN");
+              assertThat(((Number) tara.get("overtimeHoursThisQuarter")).doubleValue())
+                  .isEqualTo(32.0);
+            });
 
     // A supervisor post's open shift lists supervisors only.
     UUID post = jdbc.queryForObject("SELECT id FROM unit WHERE code = 'SUP-L'", UUID.class);
@@ -117,8 +137,45 @@ class SupervisorDatasetsApiTest {
             ellis);
     assertThat(created.statusCode()).as(created.body()).isEqualTo(201);
     UUID postShift = UUID.fromString((String) mapper.readValue(created.body(), Map.class).get("id"));
+    // S5: supervisors only, because no officer in the datasets holds Acting supervisor (the
+    // acting tier is proven on a fixture in OvertimeSupervisorPoolApiTest): the 10 supervisors.
     List<String> postRanks = classificationsOf(candidates(postShift, ellis));
-    assertThat(postRanks).isNotEmpty().containsOnly("CS");
+    assertThat(postRanks).hasSize(10).containsOnly("CS");
+
+    // The seeded supervisor sick calls (Dataset 100) went to other supervisors only, and an open
+    // one is offered to another supervisor end to end through the API (plan §4 S5).
+    assertThat(
+            jdbc.queryForList(
+                "SELECT DISTINCT e.classification FROM overtime_offer f"
+                    + " JOIN open_shift o ON o.id = f.open_shift_id JOIN unit u ON u.id = o.unit_id"
+                    + " JOIN employee e ON e.id = f.employee_id WHERE u.kind = 'SUPERVISION'",
+                String.class))
+        .containsExactly("CS");
+    UUID seeded =
+        jdbc.queryForObject(
+            "SELECT o.id FROM open_shift o JOIN unit u ON u.id = o.unit_id"
+                + " WHERE u.kind = 'SUPERVISION' AND o.status = 'OPEN'"
+                + " AND o.start_at > TIMESTAMPTZ '2026-11-19 00:00:00-06' ORDER BY o.start_at LIMIT 1",
+            UUID.class);
+    List<Map<String, Object>> seededList = candidates(seeded, ellis);
+    assertThat(classificationsOf(seededList)).containsOnly("CS");
+    String ellisId =
+        jdbc.queryForObject(
+            "SELECT employee_id::text FROM app_user WHERE username = 'm.ellis'", String.class);
+    String other =
+        seededList.stream()
+            .filter(c -> !ellisId.equals(c.get("employeeId")))
+            .filter(c -> List.of("ELIGIBLE", "WARN").contains(c.get("eligibility")))
+            .map(c -> (String) c.get("employeeId"))
+            .findFirst()
+            .orElseThrow();
+    HttpResponse<String> offered =
+        send(
+            "POST",
+            "/api/v1/open-shifts/" + seeded + "/offers",
+            "{\"employeeIds\":[\"" + other + "\"],\"ordered\":false}",
+            ellis);
+    assertThat(offered.statusCode()).as(offered.body()).isEqualTo(200);
   }
 
   @SuppressWarnings("unchecked")
