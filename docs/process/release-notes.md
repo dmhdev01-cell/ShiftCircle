@@ -137,8 +137,8 @@ No api, migration, generator or rules change: dataset checksums, the payroll gol
 
 The owner approved the plan in `.factory/plans/v1.2-supervisors.md` (the plan file still says v1.2; the
 release was split afterwards, so it is v1.3 here). The work is eight small pull requests, **S1 to S8**;
-this entry covers **S1** only. The plan is not in the repository, so this section is the record of what
-the first pull request did.
+this entry covers **S1** to **S3**. The plan is not in the repository, so this section is the record of what
+these pull requests did.
 
 ### S1 — Positions and the SUPERVISION kind (API, schema only)
 
@@ -195,8 +195,165 @@ quarter-plan options migrations V14 and V15.
 in S7 with the rest of the samples — and this migration must merge **after** the quarter-plan
 options migration (PR #24), which owns the versions before it.
 
-**Not in this release** (the rest of the plan): the `POSTS` rule table and the R-01/R-02 rules (S2),
-the rank-aware planner (S3), the supervisor posts and the demo supervisors in the datasets with the
+### S2 — Who can work a post: the `POSTS` rule table, R-01/R-02 and rule set v4 (API + rules screen)
+
+Stacked on S1 (#27). The owner approved the plan's cross-cover answer, and S2 makes it a rule a rules
+admin can change, not a hard-coded check.
+
+**What it does.**
+- **R-01 — a supervisor post needs a supervisor.** An officer on a supervisor post is **blocked
+  with no override** (the panel offers no override). An officer who holds the **Acting supervisor**
+  qualification (`ACTING_SUP`) on the shift's date gets a **warning to acknowledge** instead.
+- **R-02 — a supervisor on an officer post** is a **warning to acknowledge**; the shift counts
+  toward the unit minimum.
+- A supervisor on a supervisor post and an officer on an officer post are unaffected. Every other
+  rule applies to supervisors as written.
+
+**The migration (`V18__rule_set_v4_posts.sql`, the next free number when it merged, after P1's V17 proposals).** A ninth rule table,
+`POSTS` "Who can work a post" (template `post-eligibility.drt`; columns `postKind` =
+`SUPERVISION`/`LINE`, `allowedPositions`, `actingQualification`), and **rule set v4** by the same
+baseline-seeding exception as v2 and v3: v3 becomes history, its 20 rows are copied unchanged, and
+R-01 (Block, override NONE) and R-02 (Warn, ACKNOWLEDGE) are added, both marked placeholder with the
+source "Owner item 17". The published v4 equals the code rows (`RuleRowsV1`, checked by
+`ReferenceDataMatchesRuleRowsTest`).
+
+**The engine.** `RuleTableCode.POSTS`, a `PostEligibilityFact` and its builder (built for the
+proposed shift only, from the person's position, the qualifications they hold that day and the
+unit's kind; `ShiftFact` and the other builders are untouched), the template columns (every value is
+a checked code before it reaches the DRL), the publish-time validator (a known post kind, known
+positions, not every position at once, a qualification code or nothing) and the plain-language
+`RuleSentence`. R-01 and R-02 are Must rows from v4 on, so a draft cannot drop them or change their
+override policy.
+
+**Where it runs.** `RuleCheckService` looks up the position, qualifications and unit kind for every
+board check (assign, move, overtime candidates) and passes them to the engine. The planner's
+generator check, its regenerate check and its commit check pass the same from a lookup read once per
+run; the planner's draft add/move check passes it too. There are no supervisors or supervisor posts
+in the datasets yet, so neither rule fires on the demo data.
+
+**The rules screen.** A ninth tab, **Who can work a post** (`/rules/{version}/posts`), with its own
+columns: the post (fixed by the unit's kind), who can work it (Supervisors or Officers), and for a
+supervisor post whether an acting supervisor may work it with a warning, then the result, override
+and source. The sentence under the grid updates as the admin edits, word for word the api's. It is
+edited through the existing draft → build → submit → approve → publish flow.
+
+**API.** No new endpoint or request field. `GET /rule-sets/{v}/tables/posts` (or `POSTS`) returns
+the table with the column headings `Post`, `Who can work it`, `If someone else`, `Override`, and a
+rule check can now return results with `ruleTable: "POSTS"` (docs/07 §3, §4.7).
+
+**No pin moves except the rule-set version.** The live rule set is now **v4** (v3 → SUPERSEDED);
+the dataset checksums (100, 120, 150), the three plan fingerprints, rows and warnings and the payroll
+golden are unchanged (`GeneratorCharacterizationTest` and the demo reset tests are green with no
+edits). Tests that pinned "v3 is the published version" or used version numbers 4/5 for fixtures now
+say v3 is history and use 5/6.
+
+**Counts at this gate:** API **512 = 138 rules + 36 infrastructure + 338 api** (`mvn verify` through
+the compose `api-test` stage, `BUILD SUCCESS`, 0 failures, errors or skipped); web unit tests **576**
+in 56 files, lint 0 errors, `tsc -b` clean, build clean. Playwright: see the pull request.
+
+**The review round (S2).** The code review asked for changes (1 must, 2 should, 4 nits), the
+security review passed (3 low, 3 info) and the UI test found 1 major and 2 minor defects. All of
+them are fixed in one push:
+- **The dry run sees the posts table (UI test D1, major).** The build's dry run now builds the post
+  fact (position, qualifications on the date, unit kind) for every shift on the published roster.
+  Before, it reported "No rule result changes" for any POSTS edit, so an approver could publish
+  "only supervisors on an officer post" and every officer then got an R-02 warning.
+  `PostsMakerCheckerApiTest` proves that a POSTS edit's dry run reports the change (R-01 Warn → Block
+  for an acting officer already on the post).
+- **The build says why it failed, and the Must rows are locked (D2).** The checklist lists the
+  build's `errors`. On every table, a Must rule's On, result and Override controls are locked (the
+  rows carry `must`), and the build refuses a change to a Must rule's result or on/off as it already
+  refused a change to its override policy (security info I2).
+- **R-01 can only be softened by Acting supervisor (security L1).** `actingQualification` must be
+  `ACTING_SUP` or empty: the validator and the column schema refuse any other code, so a maker and a
+  checker cannot hand the warning to everyone with a common qualification.
+- **The planner's post lookup fails closed (L2).** A person or unit it cannot resolve reads as an
+  unknown position on a supervisor post, which R-01 blocks; the no-post overload is documented as a
+  replay-only seam.
+- **V18 builds on whichever version is published** instead of naming v3, and stops if there is not
+  exactly one (info I1). A fresh database still gets v4 = v3 + R-01/R-02.
+- **Tests.** The maker/checker flow has its own class and database, so no test depends on method
+  order. `PlannerPostEligibilityApiTest` adds a test supervisor post and closes Unit C, so Unit C's
+  officers form the relief pool. Generate places only the acting officer on the post and leaves the
+  rest a gap; a draft-edit preview is R-01 Block for an officer and Warn for the acting one; the save
+  is refused; a commit with an officer on the post fails with R-01 and writes nothing. A board save
+  with an emergency reason is still refused for R-01 (L3).
+- **Docs.** The demo script follows a fresh stack: §4 goes **v4 → v5** ("Version 5 is live now.",
+  "Live v5 · no draft"), the rehearsal note says §4 publishes v5, and v4 joins the
+  migration-published baselines. The README and INSTALL `/version` samples read v4. The "v4 seed"
+  wording in docs/05 and the roadmap now says the next version after v4, and docs/ui lists 9 tables
+  and the posts columns.
+- **Counts after the round:** API **516 = 140 rules + 36 infrastructure + 340 api** (`mvn verify`
+  through the compose `api-test` stage, `BUILD SUCCESS`); web unit tests **578** in 56 files, lint 0
+  errors, `tsc -b` and build clean. Playwright: see the pull request.
+
+### S3 — The rank-aware planner (API)
+
+Stacked on S2 (#29), with main (the quarter-plan options, PR #24) merged in. The owner approved the
+plan's answers: the planner never cross-covers, supervisors get their own scorecard card, and
+seniority is counted inside the rank. There are still no supervisors or supervisor posts in the
+datasets (S4 adds them), so **no pin moves**.
+
+**What it does.**
+- **The planner never cross-covers.** Every placement pass offers a supervisor only a supervisor
+  post (a `SUPERVISION` unit) and an officer only an officer post: the home-unit fill, the casual
+  pool, closed-unit relief, the cross-unit fill (*Cover gaps from other units*, PR-N) and the
+  part-time top-up (*Fill up to FTE*). The guard sits before the rule check, so the engine is never
+  even asked about a cross-rank proposal, and R-01/R-02 never fire on a generated row. Cross-cover
+  stays a person's decision on the board or in a draft edit, where R-01/R-02 apply. S2's planner test
+  changes with it: the acting officer is no longer placed on the test post by relief, so the whole
+  post is a gap.
+- **Seniority inside the rank.** The planner's seniority sort, the night order (volunteers most
+  senior first, then the newest), the 8 h block choice, the casual, relief, cross-unit and top-up
+  orders and the night-fairness card read `rankSeniority` = `coalesce(position_since,
+  seniority_date)`. For an officer that is the service date, so every officer ordering is unchanged.
+- **The scorecard.** Every existing card counts the officers and the officer units only. A new
+  `supervisors` card (only when there is a supervisor or a supervisor post) gives the posts covered
+  *x* of *y* block-days, gaps, warnings, preferences, nights by rank seniority, overtime, hours by
+  FTE band and leave. `totals` counts everyone with the split ("5,103 officer + 1,170 supervisor
+  shifts"): shifts and people by rank, warnings by the post they were raised on.
+- **Generate, compare and commit views.** The commit preview adds `supervisors`, `officerShifts`
+  and `supervisorShifts` (`officers` is now officers only); the commit result adds the two shift
+  counts and the `commit_plan` audit adds `supervisors`; compare counts officers only and, once a
+  supervisor or a post exists, adds Officer shifts, Supervisor shifts and Supervisors scheduled.
+- **Plan inputs** gain the position dimension: `officers.byPosition` (CO and CS), `lineUnits`,
+  `posts` and a `headline` ("150 officers + 12 supervisors in 6 units + 2 supervisor posts"); unit
+  rows carry `kind`, groups carry `position`. The web card shows the split in S7.
+- **A supervisor post can't be closed.** `UnitsService` answers 409 "Supervisor posts can't be
+  closed; change the minimum instead" on the closure preview, add and change: closing one would
+  send its supervisors into the relief pool.
+
+**Tests.** `PlanGeneratorSupervisorTest` (6): a synthetic centre with two posts and ten supervisors
+beside two officer units, an officer unit and a post each closed for a week, every option on: no
+cross-rank placement or check in any pass; R-01/R-02 never fire; the officers' plan, gaps and every
+officer card are identical with and without the supervisors; the supervisor card and totals are
+exact (567 post block-days); a supervisor mis-homed on an officer unit is never placed there; and
+seniority inside the rank orders the pool. A mutation run (guard removed) fails 5 of the 6.
+`PlannerSupervisorApiTest` (3) adds a post and four supervisors to Dataset 100: plan inputs split,
+the draft keeps each rank on its own posts, and the scorecard, commit preview, compare and commit
+carry the split. `UnitApiTest` (+1): closing a supervisor post is a 409 and writes nothing.
+`GeneratorCharacterizationTest` is green with no edits.
+
+**The review round (S3).** The review approved (0 must, 2 should, 6 nits) and security passed (0
+findings); fixed in one push:
+- **The Audit log names the supervisors** a committed plan wrote ("6,273 shifts written · 107
+  officers · 10 supervisors · …"), only when there are any, so today's line is unchanged.
+- **The plan inputs fill order says each rank stays on its own posts**: officers fill officer
+  posts and supervisors fill supervisor posts in every step, and the last step no longer calls a
+  gap "a gap for a supervisor" but one left for a person to fill on the board.
+- **The supervisor card counts only the blocks a post has a minimum for**, so a post with no night
+  minimum is not "covered" on nights; the API test pins `coveredBlockDays`.
+- **Tests:** the mis-homed-supervisor test also asserts they are placed (on the posts); the fixture's
+  supervisors are promoted after they joined, as the schema requires; changing a closure that
+  reached a supervisor post another way is a 409 and writes nothing.
+
+**Counts at this gate** (GitHub CI on the pull request, with main's PR-Q merged in): API **549 = 140
+rules + 36 infrastructure + 373 api** (`mvn verify`, 0 failures, errors or skipped); web unit tests
+**602** in 58 files, lint, `tsc -b` and build clean; check scripts pass. No web change, so Playwright
+was not re-run.
+
+**Not in this release** (the rest of the plan):
+the supervisor posts and the demo supervisors in the datasets with the
 single re-pin (S4), the overtime pools and the self-edit guard (S5), and the board, My schedule,
 display and reports work (S6, S7).
 
@@ -224,11 +381,12 @@ The second proposal PR (stacked on P1, PR #26). **P2 is the API for the decider 
 - **`AssignmentWriter`** (`ca.shiftcircle.api.assignments`) is the one write path for a new shift: the rule decision (Warn acknowledgement, Block override where allowed), the insert and the `assign_shift` audit row. `AssignmentService.assign` (the board and, through it, the overtime confirm and direct assign) and the proposal decision call it; `move` uses its `decide`. Board and overtime behaviour is unchanged: their existing test classes pass unchanged. Proposals call it with the override refused and `source = 'PROPOSAL'`.
 - **`OvertimeService.orderPosition`** reuses the candidate ranking (extracted, not changed) for the officer's place in the order.
 - **Audit:** one new action code, `decide_proposal_item` (entity `proposal`, one row per item, with the comment, acknowledged codes, `outOfOvertimeOrder`, the outcome now and the assignment id); the web label and `check-audit-codes.sh` agree (**55** codes).
+- **Post rules (S2):** the decision re-check goes through `RuleCheckService.evaluateWithExtras`, which runs R-01/R-02 with the officer's post, so a proposal approval refuses an officer on a supervisor post (R-01 Block, no override) exactly as the board does.
 - **No migration:** V17 (P1) already holds every column P2 writes. **Pins:** no dataset checksum, payroll golden or plan fingerprint moved.
 
 - **Review fixes (round 1):** the decision is atomic against a concurrent expiry or withdraw: the item rows are locked (`FOR UPDATE`; the hourly sweep skips locked rows), every item update must change exactly one row, and the proposal's version update is conditional, so anything that changed underneath rolls the whole decision back (no orphan shift, fill or audit row). Filling an open shift withdraws only the offers still waiting (`OFFERED`), as the plan says; an `ACCEPTED` offer is left for the confirm to refuse with its "already filled" `409`. `AssignmentWriter.NewShift` can carry the rule result the caller already checked, so a proposal item is evaluated once and the stored/audited result is the enforced one; the overtime order uses the same rule snapshot. A shift type retired after the send is `409 shift-type-retired`, and a shift that starts while the decision runs is `409 shift-started` (the clock is read again at the write). `acknowledgeWarnings` lists at most 50 codes. docs/09 has the proposal rows and the planner exception.
 
-Tests: +21 API in `ProposalDecisionApiTest` (inbox scope, count, filters, a 403 per endpoint for EMPLOYEE and AUDITOR; approve → `EXTRA`/`PROPOSAL` shift and audit; Block now → `422` nothing saved; a new Warn needs acknowledgement; same-send rest interaction without double counting; decline needs a comment; self-approval `403` for a supervisor proposer; the planner decides a supervisor's proposal; out-of-scope `403`; expired `409`; version, decided and withdrawn; locked period `409`; closed unit and retired shift type `409`; pay-period overtime hours; open-shift fill with only `OFFERED` offers withdrawn and the accepted one refused at confirm; out-of-order acknowledgement and audit; an item expiring underneath the decision rolls everything back, deterministic through a test trigger; a withdraw that holds the officer lock first wins with `409`, deterministic through a held advisory lock; a proposal row that changes underneath is `412 stale-version` with everything rolled back, deterministic through a test trigger) and +2 in `ProposalOvertimeTest` (the P-01 threshold and the P-04 minimum at 80 h, 80.25 h and 80.5 h, and a 70 h threshold from the policy). Run together with `ProposalDecisionApiTest`, `ProposalOvertimeTest`, `ProposalApiTest`, `SelfActionGuardTest`, `AssignmentApiTest`, `AssignmentInputApiTest`, `AssignmentMoveCancelApiTest`, `OvertimeApiTest`, `OvertimePayrollConcurrencyApiTest`, `AuthorizationMatrixTest` and `AuditApiTest` (the two P2 classes are 23 of them): **125 passed**, 0 failed (the first version of this note said 139 for the same set; the measured number then was 119). Web: the audit label only. Counts for the whole release are measured once at the end of v1.3.
+Tests: +22 API in `ProposalDecisionApiTest` (inbox scope, count, filters, a 403 per endpoint for EMPLOYEE and AUDITOR; approve → `EXTRA`/`PROPOSAL` shift and audit; Block now → `422` nothing saved; a new Warn needs acknowledgement; same-send rest interaction without double counting; decline needs a comment; self-approval `403` for a supervisor proposer; the planner decides a supervisor's proposal; out-of-scope `403`; expired `409`; version, decided and withdrawn; locked period `409`; closed unit and retired shift type `409`; pay-period overtime hours; open-shift fill with only `OFFERED` offers withdrawn and the accepted one refused at confirm; out-of-order acknowledgement and audit; an item expiring underneath the decision rolls everything back, deterministic through a test trigger; a withdraw that holds the officer lock first wins with `409`, deterministic through a held advisory lock; a proposal row that changes underneath is `412 stale-version` with everything rolled back, deterministic through a test trigger; after S2, approving an officer for a supervisor post once the ACTING_SUP qualification is gone is `422` on R-01 with nothing saved) and +2 in `ProposalOvertimeTest` (the P-01 threshold and the P-04 minimum at 80 h, 80.25 h and 80.5 h, and a 70 h threshold from the policy). Run together with `ProposalDecisionApiTest`, `ProposalOvertimeTest`, `ProposalApiTest`, `SelfActionGuardTest`, `AssignmentApiTest`, `AssignmentInputApiTest`, `AssignmentMoveCancelApiTest`, `OvertimeApiTest`, `OvertimePayrollConcurrencyApiTest`, `AuthorizationMatrixTest` and `AuditApiTest` (the two P2 classes are 24 of them): **126 passed**, 0 failed (the first version of this note said 139 for the same set; the measured number then was 119). Web: the audit label only. Counts for the whole release are measured once at the end of v1.3.
 
 ### Shift proposals, P3: the officer screen
 

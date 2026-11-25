@@ -1,0 +1,46 @@
+template header
+code
+condition
+actingQualification
+severity
+overridePolicy
+actingSeverity
+actingOverridePolicy
+message
+
+package ca.shiftcircle.rules.tables.posts
+
+import ca.shiftcircle.rules.facts.PostEligibilityFact;
+import ca.shiftcircle.rules.facts.RuleOutcome;
+import ca.shiftcircle.rules.facts.RuleResult;
+import ca.shiftcircle.rules.model.OverridePolicy;
+
+global java.util.List ruleResults;
+global String ruleSetVersion;
+
+// One row = who can work one kind of post (release v1.3). R-01: a supervisor post needs a
+// supervisor, and an officer with the acting qualification is a warning instead of a block. R-02:
+// a supervisor on an officer post is a warning. The condition is built from the row's own columns.
+template "post_eligibility"
+
+rule "@{code} row @{row.rowNumber}"
+when
+    $f : PostEligibilityFact( @{condition} )
+then
+    boolean acting = $f.holds("@{actingQualification}");
+
+    ruleResults.add( new RuleResult(
+        "@{code}",
+        "POSTS",
+        acting ? RuleOutcome.@{actingSeverity} : RuleOutcome.@{severity},
+        "@{message}",
+        0,
+        0,
+        "post",
+        acting ? OverridePolicy.@{actingOverridePolicy} : OverridePolicy.@{overridePolicy},
+        ruleSetVersion,
+        $f.getEvidence(),
+        $f.getEvidenceAssignmentIds() ) );
+end
+
+end template

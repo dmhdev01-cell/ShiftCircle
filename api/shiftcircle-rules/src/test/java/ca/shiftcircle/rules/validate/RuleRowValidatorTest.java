@@ -267,12 +267,115 @@ class RuleRowValidatorTest {
   }
 
   @Test
+  void aPostRowNamesAKnownPostAndKnownPositions() {
+    assertThat(
+            validateWith(
+                "R-01",
+                params("postKind", "OFFICE", "allowedPositions", List.of("CS"))))
+        .anySatisfy(violation -> assertThat(violation.column()).isEqualTo("Post"));
+    assertThat(
+            validateWith(
+                "R-01",
+                params("postKind", "SUPERVISION", "allowedPositions", List.of("LT"))))
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.column()).isEqualTo("Who can work it");
+              assertThat(violation.message()).contains("Unknown position");
+            });
+    assertThat(
+            validateWith(
+                "R-02", params("postKind", "LINE", "allowedPositions", List.of())))
+        .anySatisfy(violation -> assertThat(violation.column()).isEqualTo("Who can work it"));
+  }
+
+  @Test
+  void aPostRowThatLetsEveryoneWorkThePostIsRefused() {
+    // Both positions allowed means the row can never fire: an admin believes it protects a post.
+    assertThat(
+            validateWith(
+                "R-02", params("postKind", "LINE", "allowedPositions", List.of("CO", "CS"))))
+        .anySatisfy(violation -> assertThat(violation.message()).contains("can never fire"));
+  }
+
+  @Test
+  void aHostileActingQualificationIsRefused() {
+    assertThat(
+            validateWith(
+                "R-01",
+                params(
+                    "postKind",
+                    "SUPERVISION",
+                    "allowedPositions",
+                    List.of("CS"),
+                    "actingQualification",
+                    "X\") || true || (\"")))
+        .anySatisfy(
+            violation -> assertThat(violation.column()).isEqualTo("Acting qualification"));
+  }
+
+  @Test
+  void aCommonQualificationCannotSoftenR01() {
+    // Security review L1: maker plus checker must not turn the Block into a warning for everyone
+    // who holds a common qualification.
+    assertThat(
+            validateWith(
+                "R-01",
+                params(
+                    "postKind", "SUPERVISION", "allowedPositions", List.of("CS"),
+                    "actingQualification", "FIRST_AID")))
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.column()).isEqualTo("Acting qualification");
+              assertThat(violation.message()).contains("Acting supervisor");
+            });
+    assertThat(
+            validateWith(
+                "R-01",
+                params(
+                    "postKind", "SUPERVISION", "allowedPositions", List.of("CS"),
+                    "actingQualification", "ACTING_SUP")))
+        .isEmpty();
+  }
+
+  @Test
+  void aMustRulesResultAndOnCannotBeChanged() {
+    List<RuleRow> rows = new ArrayList<>();
+    for (RuleRow row : RuleRowsV1.ruleSet().rows()) {
+      if (row.code().equals("R-01")) {
+        rows.add(new RuleRow(row.code(), row.table(), row.enabled(), row.params(),
+            ca.shiftcircle.rules.facts.RuleOutcome.WARN, row.overridePolicy(), row.message(),
+            row.source(), row.placeholder(), row.sortOrder()));
+      } else if (row.code().equals("U-01")) {
+        rows.add(new RuleRow(row.code(), row.table(), false, row.params(), row.severity(),
+            row.overridePolicy(), row.message(), row.source(), row.placeholder(),
+            row.sortOrder()));
+      } else {
+        rows.add(row);
+      }
+    }
+    List<RuleRowValidator.Violation> violations = validator.validate(new RuleSet("test", rows));
+    assertThat(violations)
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.code()).isEqualTo("R-01");
+              assertThat(violation.column()).isEqualTo("Result");
+              assertThat(violation.message()).contains("Block");
+            });
+    assertThat(violations)
+        .anySatisfy(
+            violation -> {
+              assertThat(violation.code()).isEqualTo("U-01");
+              assertThat(violation.column()).isEqualTo("On");
+            });
+  }
+
+  @Test
   void theTableCodesMatchTheValidatorBranches() {
     // A new table added without a validation branch would silently skip §5a.
     for (RuleTableCode code : RuleTableCode.values()) {
       assertThat(code.code()).isNotBlank();
     }
-    assertThat(RuleTableCode.values()).hasSize(8);
+    assertThat(RuleTableCode.values()).hasSize(9);
   }
 
   // ---------------------------------------------------------------------------------------------

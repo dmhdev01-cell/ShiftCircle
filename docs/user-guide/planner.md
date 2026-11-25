@@ -91,6 +91,8 @@ The line under it gives the Generate options (before a draft, the **default seed
 
 The generator does not tell part-time from casual: every officer under 1.0 FTE is filled the same way, so the card counts them together.
 
+**Supervisors (release v1.3).** Supervisors are planned like officers, on their own **supervisor posts** (units of the kind *Supervision*, with their own minimums), under the same rules. The planner never cross-covers: in every step above, a supervisor is only offered a supervisor post and an officer only an officer post, so the closed-unit relief, the part-time fill and *Cover gaps from other units* stay inside each rank. A supervisor on an officer post (or an acting officer on a supervisor post) is a person's decision, made on the board or in a draft edit, where the rules ask for it. Where the order says "seniority", it means **seniority inside the rank**: a newly promoted supervisor is the newest supervisor, whatever their years of service; for an officer it is their service date, as before. The API's plan inputs already split the count by position ("150 officers + 12 supervisors in 6 units + 2 supervisor posts"); the card shows the split in a later release. Until the datasets have supervisors (also a later release), nothing here changes.
+
 With a draft open, the card shows **what this draft was generated with**: the draft keeps its own copy, so it still reads true if staff, leave or preferences change later. If they have changed (officers, FTE, planned leave or preferences), a yellow note says what ("The plan's inputs have changed since this draft was generated: now 151 officers (was 150) …") and suggests generating again. A draft made before v1.2 kept no record, so with one open the card shows today's inputs and says so. The card shows counts only, never an officer's name.
 
 ![Quarter plan with no draft on Dataset 150: the Plan inputs card open, its headline Planning 150 officers in 6 units, and the Officers by unit table with each unit's crews and minimums](img/planner-inputs-open.png)
@@ -120,6 +122,8 @@ Below the tiles, these cards give the detail:
 - **Night shifts by seniority**
 - **Preferences by kind**
 - **Staffing by unit**
+
+With supervisors in the plan (release v1.3), every tile and card above counts the **officers and the officer units only**, so the officer figures read as they did before. The supervisors and their posts get a **supervisors** card of their own (posts covered *x* of *y* block-days, gaps, warnings, preferences, nights by seniority inside the rank, hours by FTE band, leave), and the totals give the split, for example "5,103 officer + 1,170 supervisor shifts". The API carries these now (`scorecard.supervisors`, `scorecard.totals`); the screen shows them in a later release.
 
 Two of them need a note:
 - **Qualified staff:** this is a warning only. The planner does not enforce qualifications. Qualification start dates are not checked: an officer with a qualification counts as qualified for the whole quarter.
@@ -202,6 +206,8 @@ If you see "The draft changed since you opened it" or "This draft was committed 
 
 **Compare** puts the committed plan next to the board as it is now, so you can see what changed since the last commit.
 
+With supervisors in the data (release v1.3), **Officers scheduled** counts officers only, and three rows are added: **Officer shifts**, **Supervisor shifts** and **Supervisors scheduled**. The commit preview and the commit result carry the same split.
+
 ## 7. Commit, generate again, or discard
 
 - **Commit plan…** asks "Commit the quarter plan?". Then **Commit plan** writes the whole draft to the planning board, where supervisors and officers see it.
@@ -242,6 +248,8 @@ To close a unit:
 3. Save.
 
 The dialog tells you how many officers are homed there and how many published shifts are affected.
+
+A **supervisor post** can't be closed: the planner would otherwise move its supervisors onto officer posts. Closing one is refused with "Supervisor posts can't be closed; change the minimum instead" (release v1.3).
 
 A closure that hasn't started offers **Change…** and **Remove…**. One that has started offers **Set reopening date…** or **Change reopening date…**.
 

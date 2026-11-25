@@ -89,7 +89,7 @@ public class UnitsService {
 
   public UnitsViews.Preview preview(
       UUID unitId, UnitsViews.ClosureInput input) {
-    requireUnit(unitId);
+    refuseSupervisionPost(requireUnit(unitId));
     if (input == null || input.closedFrom() == null) {
       throw badRequest("Enter the first day the unit is closed.");
     }
@@ -136,6 +136,7 @@ public class UnitsService {
   public UnitsViews.ClosureView add(
       UUID unitId, UnitsViews.ClosureInput input, AuthPrincipal principal) {
     Map<String, Object> unit = requireUnit(unitId);
+    refuseSupervisionPost(unit);
     validateWindow(input, null, true);
     checkOverlap(unitId, input.closedFrom(), input.reopensOn(), null, (String) unit.get("name"));
     UUID id = UUID.randomUUID();
@@ -165,6 +166,7 @@ public class UnitsService {
   public UnitsViews.ClosureView change(
       UUID unitId, UUID closureId, UnitsViews.ClosureInput input, AuthPrincipal principal) {
     Map<String, Object> unit = requireUnit(unitId);
+    refuseSupervisionPost(unit);
     ActiveUnits.Closure existing = requireClosure(unitId, closureId);
     LocalDate closedFrom = input.closedFrom() == null ? existing.closedFrom() : input.closedFrom();
     LocalDate reopensOn = input.reopensOn();
@@ -503,7 +505,7 @@ public class UnitsService {
   // ---------------------------------------------------------------------------------------------
 
   private Map<String, Object> requireUnit(UUID unitId) {
-    return jdbc.queryForList("SELECT id, name FROM unit WHERE id = ?", unitId).stream()
+    return jdbc.queryForList("SELECT id, name, kind FROM unit WHERE id = ?", unitId).stream()
         .findFirst()
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Unknown unit"));
   }
@@ -571,6 +573,18 @@ public class UnitsService {
               + " to "
               + existing.reopensOn().minusDays(1).format(DAY_MONTH)
               + ". Choose dates outside it.");
+    }
+  }
+
+  /**
+   * A supervisor post (a {@code SUPERVISION} unit, release v1.3) cannot be closed: the closed-unit
+   * relief would then move its supervisors onto officer posts, and the planner never cross-covers.
+   * Its minimums are edited instead, like any other unit's. 409, the plan's plain words.
+   */
+  private static void refuseSupervisionPost(Map<String, Object> unit) {
+    if ("SUPERVISION".equals(unit.get("kind"))) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Supervisor posts can't be closed; change the minimum instead");
     }
   }
 

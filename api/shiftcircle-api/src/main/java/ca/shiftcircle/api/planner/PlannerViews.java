@@ -58,6 +58,11 @@ public final class PlannerViews {
 
   public record WarningGroup(String ruleName, int count, List<WarningItem> items) {}
 
+  /**
+   * The commit preview. {@code shiftsToWrite} counts everyone; {@code officers} and
+   * {@code supervisors} are the people by rank, and the two shift counts split
+   * {@code shiftsToWrite} by the person's rank (release v1.3).
+   */
   public record CommitPreview(
       int version,
       int shiftsToWrite,
@@ -65,14 +70,18 @@ public final class PlannerViews {
       int shortBlockDays,
       int warningCount,
       LocalDate from,
-      LocalDate to) {}
+      LocalDate to,
+      int supervisors,
+      int officerShifts,
+      int supervisorShifts) {}
 
   public record CommitFailure(
       String unitCode, LocalDate date, String employeeName, String shift, List<String> ruleResults) {}
 
+  /** {@code shiftsWritten} counts everyone; the two shift counts split it by rank (v1.3). */
   public record CommitResult(
       int shiftsWritten, String committedAt, long auditEventId, List<String> units,
-      LocalDate firstWeek) {}
+      LocalDate firstWeek, int officerShifts, int supervisorShifts) {}
 
   public record CompareRow(
       String key, String label, double board, double draft, String unit, String direction) {}

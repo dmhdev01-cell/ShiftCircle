@@ -496,6 +496,51 @@ class ProposalDecisionApiTest {
   // ---------------------------------------------------------------------------------------------
 
   @Test
+  void approvingAnOfficerOnASupervisorPostIsRefusedByR01() throws Exception {
+    // A supervisor post (S1) and Tara, an officer (CO), who holds ACTING_SUP when she sends: R-01
+    // is a Warn then, so the proposal can be sent. By the decision she no longer holds it, and the
+    // fresh check at approval runs the post rules too (S2): R-01 is a Block, so 422, nothing saved.
+    UUID post = UUID.fromString("11111111-1111-1111-1111-0000000000f1");
+    jdbc.update(
+        "INSERT INTO unit (id, code, name, kind, allows_12h, allows_16h)"
+            + " VALUES (?, 'SUP-PD', 'Supervision · Decision test', 'SUPERVISION', true, false)"
+            + " ON CONFLICT (id) DO NOTHING",
+        post);
+    jdbc.update(
+        "INSERT INTO employee_qualification (employee_id, qualification_id, valid_from)"
+            + " SELECT ?, id, DATE '2020-01-01' FROM qualification WHERE code = 'ACTING_SUP'"
+            + " ON CONFLICT DO NOTHING",
+        TARA);
+    Map<String, Object> proposal;
+    try {
+      proposal = send("t.nakamura", item(post, "D8", "2026-11-25T07:00:00-06:00"));
+      assertThat(list(proposal, "items").get(0).get("outcomeAtSubmit")).isEqualTo("WARN");
+    } finally {
+      jdbc.update(
+          "DELETE FROM employee_qualification WHERE employee_id = ? AND qualification_id ="
+              + " (SELECT id FROM qualification WHERE code = 'ACTING_SUP')",
+          TARA);
+    }
+
+    // The planner decides: no demo supervisor scopes the test post.
+    HttpResponse<String> refused =
+        decideRaw("p.planner", proposal, "\"0\"", accept(itemId(proposal, 0), "R-01"));
+    assertThat(refused.statusCode()).as(refused.body()).isEqualTo(422);
+    Map<String, Object> problem = json(refused);
+    assertThat((String) problem.get("type")).endsWith("/blocked-by-rules");
+    assertThat(list(problem, "items").get(0).get("outcome")).isEqualTo("BLOCK");
+    assertThat(ruleCodes(list(problem, "items").get(0))).contains("R-01");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM shift_assignment WHERE employee_id = ?", Integer.class, TARA))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT decision FROM proposal_item WHERE proposal_id = ?", String.class, id(proposal)))
+        .isEqualTo("PENDING");
+  }
+
+  @Test
   void aShiftThatHasStartedCanNoLongerBeApproved() throws Exception {
     UUID proposal = UUID.randomUUID();
     jdbc.update(

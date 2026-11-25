@@ -161,6 +161,8 @@ public class PlannerService {
         (employeeId, shifts) ->
             baselineWarnings.put(employeeId, warningKeys(ruleCheck.evaluateFacts(shifts))));
 
+    // R-01/R-02 run in the planner as on the board: the post of each proposal, read once.
+    RuleCheckService.PostLookup posts = ruleCheck.posts();
     PlanGenerator.Verifier verifier =
         (employee, unit, template, start, current) -> {
           ShiftFact proposed =
@@ -175,7 +177,8 @@ public class PlannerService {
                   0,
                   unit.allows12h(),
                   unit.allows16h());
-          RuleCheckService.OutcomeView outcome = ruleCheck.evaluate(proposed, current);
+          RuleCheckService.OutcomeView outcome = ruleCheck.evaluate(
+                  proposed, current, posts.post(employee.id(), unit.id(), start));
           boolean blocked =
               outcome.ruleResults().stream().anyMatch(result -> "BLOCK".equals(result.outcome()));
 
@@ -434,6 +437,8 @@ public class PlannerService {
     history.forEach(
         (employeeId, shifts) ->
             baselineWarnings.put(employeeId, warningKeys(ruleCheck.evaluateFacts(shifts))));
+    // R-01/R-02 run in the planner as on the board: the post of each proposal, read once.
+    RuleCheckService.PostLookup posts = ruleCheck.posts();
     PlanGenerator.Verifier verifier =
         (employee, unit, template, start, current) -> {
           ShiftFact proposed =
@@ -448,7 +453,8 @@ public class PlannerService {
                   0,
                   unit.allows12h(),
                   unit.allows16h());
-          RuleCheckService.OutcomeView outcome = ruleCheck.evaluate(proposed, current);
+          RuleCheckService.OutcomeView outcome = ruleCheck.evaluate(
+                  proposed, current, posts.post(employee.id(), unit.id(), start));
           boolean blocked =
               outcome.ruleResults().stream().anyMatch(result -> "BLOCK".equals(result.outcome()));
           Set<String> baseline = baselineWarnings.getOrDefault(employee.id(), Set.of());
@@ -585,22 +591,61 @@ public class PlannerService {
 
   public PlannerViews.CommitPreview preview(UUID id) {
     Map<String, Object> draft = requireDraft(id);
-    Map<String, Object> counts =
-        jdbc.queryForMap(
-            "SELECT count(*) AS shifts, count(DISTINCT employee_id) AS officers"
-                + " FROM plan_draft_assignment WHERE draft_id = ?",
-            id);
+    RankSplit split = draftSplit(id);
     int gaps =
         jdbc.queryForObject(
             "SELECT count(*) FROM plan_draft_gap WHERE draft_id = ?", Integer.class, id);
     return new PlannerViews.CommitPreview(
         ((Number) draft.get("version")).intValue(),
-        ((Number) counts.get("shifts")).intValue(),
-        ((Number) counts.get("officers")).intValue(),
+        split.shifts(),
+        split.officers(),
         gaps,
         ((Number) draft.get("warning_count")).intValue(),
         ((java.sql.Date) draft.get("from_date")).toLocalDate(),
-        ((java.sql.Date) draft.get("to_date")).toLocalDate());
+        ((java.sql.Date) draft.get("to_date")).toLocalDate(),
+        split.supervisors(),
+        split.officerShifts(),
+        split.supervisorShifts());
+  }
+
+  /** A draft's shifts and people split by rank (release v1.3). */
+  record RankSplit(int officerShifts, int supervisorShifts, int officers, int supervisors) {
+    int shifts() {
+      return officerShifts + supervisorShifts;
+    }
+  }
+
+  /**
+   * The supervisors, by the same reading as the planner: a rank this build does not know is not a
+   * supervisor ({@link Position#fromCodeOrDefault}).
+   */
+  private Set<UUID> supervisorIds() {
+    Set<UUID> ids = new HashSet<>();
+    jdbc.query(
+        "SELECT id, classification FROM employee",
+        (RowCallbackHandler)
+            rs -> {
+              if (Position.fromCodeOrDefault(rs.getString("classification")).isSupervisory()) {
+                ids.add(rs.getObject("id", UUID.class));
+              }
+            });
+    return ids;
+  }
+
+  private RankSplit draftSplit(UUID draftId) {
+    Set<UUID> supervisors = supervisorIds();
+    int[] counts = new int[4];
+    jdbc.query(
+        "SELECT employee_id, count(*) AS shifts FROM plan_draft_assignment WHERE draft_id = ?"
+            + " GROUP BY employee_id",
+        (RowCallbackHandler)
+            rs -> {
+              boolean supervisor = supervisors.contains(rs.getObject("employee_id", UUID.class));
+              counts[supervisor ? 1 : 0] += rs.getInt("shifts");
+              counts[supervisor ? 3 : 2]++;
+            },
+        draftId);
+    return new RankSplit(counts[0], counts[1], counts[2], counts[3]);
   }
 
   @Transactional
@@ -1070,6 +1115,7 @@ public class PlannerService {
     facts.forEach(
         (employeeId, shifts) ->
             baselineWarnings.put(employeeId, warningKeys(ruleCheck.evaluateFacts(shifts))));
+    RuleCheckService.PostLookup posts = ruleCheck.posts();
     List<PlannerViews.CommitFailure> failures = new ArrayList<>();
     Set<String> warningKeys = new HashSet<>();
     int warnings = 0;
@@ -1118,7 +1164,10 @@ public class PlannerService {
               (Boolean) row.get("allows_12h"),
               (Boolean) row.get("allows_16h"));
       RuleCheckService.OutcomeView outcome =
-          ruleCheck.evaluate(proposed, facts.getOrDefault(employeeId, List.of()));
+          ruleCheck.evaluate(
+              proposed,
+              facts.getOrDefault(employeeId, List.of()),
+              posts.post(employeeId, unitId, start));
       List<String> blocks =
           outcome.ruleResults().stream()
               .filter(result -> "BLOCK".equals(result.outcome()))
@@ -1208,6 +1257,7 @@ public class PlannerService {
       throw new ResponseStatusException(
           HttpStatus.CONFLICT, "The draft was discarded or committed while this request ran");
     }
+    RankSplit split = draftSplit(id);
     long auditId =
         jdbc.queryForObject(
             "INSERT INTO audit_event (actor_user_id, action, entity_type, entity_id, after)"
@@ -1219,9 +1269,8 @@ public class PlannerService {
             mapper.writeValueAsString(
                 Map.of(
                     "assignments", rows.size(),
-                    "officers", jdbc.queryForObject(
-                        "SELECT count(DISTINCT employee_id) FROM plan_draft_assignment WHERE draft_id = ?",
-                        Integer.class, id),
+                    "officers", split.officers(),
+                    "supervisors", split.supervisors(),
                     "warnings", warnings,
                     "units", units)));
     return new CommitAttempt(
@@ -1231,7 +1280,9 @@ public class PlannerService {
             LocalDate.now(REGINA).toString(),
             auditId,
             units,
-            ((java.sql.Date) draft.get("from_date")).toLocalDate()));
+            ((java.sql.Date) draft.get("from_date")).toLocalDate(),
+            split.officerShifts(),
+            split.supervisorShifts()));
   }
 
   /**
@@ -1292,11 +1343,22 @@ public class PlannerService {
                 + " FROM plan_draft_assignment a"
                 + " JOIN shift_template t ON t.id = a.shift_template_id WHERE a.draft_id = ?",
             id);
+    // The weekend and preference rows are the scorecard's officer figures (release v1.3), so they
+    // read over the officers; shifts, people and hours count everyone, with the rank split below.
+    Set<UUID> supervisorIds = supervisorIds();
     List<UUID> employeeIds =
-        jdbc.queryForList("SELECT id FROM employee WHERE active ORDER BY employee_no", UUID.class);
+        jdbc.queryForList("SELECT id FROM employee WHERE active ORDER BY employee_no", UUID.class)
+            .stream()
+            .filter(employeeId -> !supervisorIds.contains(employeeId))
+            .toList();
     Map<UUID, PlanGenerator.Pref> prefs = preferencesById();
-    Stats board = stats(boardRows, employeeIds, prefs);
-    Stats draft = stats(draftRows, employeeIds, prefs);
+    Stats board = stats(boardRows, employeeIds, prefs, supervisorIds);
+    Stats draft = stats(draftRows, employeeIds, prefs, supervisorIds);
+    boolean ranks =
+        !supervisorIds.isEmpty()
+            || jdbc.queryForObject(
+                    "SELECT count(*) FROM unit WHERE kind = 'SUPERVISION'", Integer.class)
+                > 0;
     List<Map<String, Object>> committed =
         jdbc.queryForList(
             "SELECT warning_count FROM plan_draft WHERE status = 'COMMITTED'"
@@ -1314,6 +1376,15 @@ public class PlannerService {
     rows.add(row("shifts", "Shifts", board.shifts(), draft.shifts(), "count", "NEUTRAL"));
     rows.add(row("officers", "Officers scheduled", board.officers(), draft.officers(), "count",
         "NEUTRAL"));
+    if (ranks) {
+      // The split appears once there is a supervisor or a supervisor post (release v1.3).
+      rows.add(row("officerShifts", "Officer shifts", board.shifts() - board.supervisorShifts(),
+          draft.shifts() - draft.supervisorShifts(), "count", "NEUTRAL"));
+      rows.add(row("supervisorShifts", "Supervisor shifts", board.supervisorShifts(),
+          draft.supervisorShifts(), "count", "NEUTRAL"));
+      rows.add(row("supervisors", "Supervisors scheduled", board.supervisors(),
+          draft.supervisors(), "count", "NEUTRAL"));
+    }
     rows.add(row("plannedHours", "Planned hours", board.hours(), draft.hours(), "hours",
         "NEUTRAL"));
     rows.add(row("warnings", "Warnings added by the plan", boardWarnings, draftWarnings, "count",
@@ -1361,12 +1432,15 @@ public class PlannerService {
       int weekendsMin,
       double weekendsAvg,
       int weekendsMax,
-      int preferencesMet) {}
+      int preferencesMet,
+      int supervisors,
+      int supervisorShifts) {}
 
   private static Stats stats(
       List<Map<String, Object>> rows,
       List<UUID> employeeIds,
-      Map<UUID, PlanGenerator.Pref> prefs) {
+      Map<UUID, PlanGenerator.Pref> prefs,
+      Set<UUID> supervisorIds) {
     Map<UUID, List<Map<String, Object>>> byEmployee = new HashMap<>();
     for (Map<String, Object> row : rows) {
       byEmployee
@@ -1432,14 +1506,24 @@ public class PlannerService {
         }
       }
     }
+    int supervisors = 0;
+    int supervisorShifts = 0;
+    for (Map.Entry<UUID, List<Map<String, Object>>> entry : byEmployee.entrySet()) {
+      if (supervisorIds.contains(entry.getKey())) {
+        supervisors++;
+        supervisorShifts += entry.getValue().size();
+      }
+    }
     return new Stats(
         rows.size(),
-        byEmployee.size(),
+        byEmployee.size() - supervisors,
         round1(hours),
         weekends.stream().mapToInt(Integer::intValue).min().orElse(0),
         round1(weekends.stream().mapToInt(Integer::intValue).average().orElse(0)),
         weekends.stream().mapToInt(Integer::intValue).max().orElse(0),
-        preferencesMet);
+        preferencesMet,
+        supervisors,
+        supervisorShifts);
   }
 
   private static double round1(double value) {
