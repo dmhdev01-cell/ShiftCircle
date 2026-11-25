@@ -40,9 +40,58 @@ export function neededWords(inputs: PlanInputs): string | null {
   return base;
 }
 
+function plural(value: number, one: string, many: string): string {
+  return `${count(value)} ${value === 1 ? one : many}`;
+}
+
 /**
- * The one-line headline: "Planning 150 officers in 6 units · 120 full-time,
- * 30 part-time or casual · 138 FTE against about 127 needed · 4 Jan – 11 Apr 2027".
+ * "107 officers and 10 supervisors", or "107 officers" when there are no
+ * supervisors (release v1.3 S7).
+ */
+export function peopleWords(officers: number, supervisors?: number): string {
+  const line = plural(officers, 'officer', 'officers');
+  return supervisors ? `${line} and ${plural(supervisors, 'supervisor', 'supervisors')}` : line;
+}
+
+/**
+ * "5,595 shifts (5,103 officer + 492 supervisor)", or "5,595 shifts" when no
+ * supervisor shift is in it (release v1.3 S7).
+ */
+export function shiftsWords(total: number, officerShifts?: number, supervisorShifts?: number): string {
+  const line = plural(total, 'shift', 'shifts');
+  if (!supervisorShifts || officerShifts === undefined) return line;
+  return `${line} (${count(officerShifts)} officer + ${count(supervisorShifts)} supervisor)`;
+}
+
+/**
+ * Who the plan is for: "150 officers + 12 supervisors in 6 units + 2 supervisor
+ * posts" (release v1.3 S7), or "150 officers in 6 units" with no supervisors.
+ * A full-time-only draft counts the full-time people of each rank.
+ */
+function plannedWords(inputs: PlanInputs, fullTimeOnly: boolean): string {
+  const { officers } = inputs;
+  const officerRow = officers.byPosition?.find((row) => !row.supervisory);
+  const supervisorRows = officers.byPosition?.filter((row) => row.supervisory) ?? [];
+  const posts = officers.posts ?? 0;
+  const supervisors = supervisorRows.reduce((sum, row) => sum + (fullTimeOnly ? row.fullTime : row.total), 0);
+  if (!officerRow || (supervisors === 0 && posts === 0)) {
+    const planned = fullTimeOnly ? officers.fullTime : officers.total;
+    return `${plural(planned, 'officer', 'officers')} in ${plural(officers.units, 'unit', 'units')}`;
+  }
+  const lineUnits = officers.lineUnits ?? officers.units - posts;
+  const people = plural(fullTimeOnly ? officerRow.fullTime : officerRow.total, 'officer', 'officers');
+  const ranks = supervisors > 0 ? `${people} + ${plural(supervisors, 'supervisor', 'supervisors')}` : people;
+  const places = posts > 0
+    ? `${plural(lineUnits, 'unit', 'units')} + ${plural(posts, 'supervisor post', 'supervisor posts')}`
+    : plural(lineUnits, 'unit', 'units');
+  return `${ranks} in ${places}`;
+}
+
+/**
+ * The one-line headline: "Planning 150 officers + 12 supervisors in 6 units +
+ * 2 supervisor posts · 131 full-time, 31 part-time or casual · 149.6 FTE against
+ * about 137 needed · 4 Jan – 11 Apr 2027". The full-time, part-time and FTE
+ * figures count both ranks.
  */
 export function inputsHeadline(inputs: PlanInputs): string {
   const { officers, window } = inputs;
@@ -51,11 +100,10 @@ export function inputsHeadline(inputs: PlanInputs): string {
   const staffTypes = inputs.options.staffTypes;
   const fullTimeOnly =
     Array.isArray(staffTypes) && !staffTypes.includes('PART_TIME') && officers.partTime > 0;
-  const planned = fullTimeOnly ? officers.fullTime : officers.total;
   const plannedFte =
     fullTimeOnly && officers.partTimeFte !== undefined ? officers.fte - officers.partTimeFte : officers.fte;
   const parts = [
-    `Planning ${count(planned)} ${planned === 1 ? 'officer' : 'officers'} in ${officers.units} ${officers.units === 1 ? 'unit' : 'units'}`,
+    `Planning ${plannedWords(inputs, fullTimeOnly)}`,
     fullTimeOnly
       ? `full-time only, ${count(officers.partTime)} part-time or casual left out`
       : officers.partTime > 0
@@ -162,11 +210,21 @@ export const PATTERN_WORDS: Record<string, string> = {
 };
 
 /** What changed between the draft's snapshot and the staff now, in words; null when nothing did. */
+/** True when the inputs count supervisors or supervisor posts with the officers (release v1.3). */
+export function hasSupervisors(inputs: PlanInputs): boolean {
+  return (
+    (inputs.officers.posts ?? 0) > 0 ||
+    (inputs.officers.byPosition ?? []).some((row) => row.supervisory && row.total > 0)
+  );
+}
+
 export function changedSince(snapshot: PlanInputs, live: PlanInputs): string | null {
   const before = snapshot.officers;
   const now = live.officers;
+  // The totals count both ranks once there are supervisors: say "staff", as the card does (S7 review S2).
+  const people = hasSupervisors(snapshot) || hasSupervisors(live) ? 'staff' : 'officers';
   const changes: string[] = [];
-  if (before.total !== now.total) changes.push(`${count(now.total)} officers (was ${count(before.total)})`);
+  if (before.total !== now.total) changes.push(`${count(now.total)} ${people} (was ${count(before.total)})`);
   if (before.fullTime !== now.fullTime) changes.push(`${count(now.fullTime)} full-time (was ${count(before.fullTime)})`);
   if (before.partTime !== now.partTime)
     changes.push(`${count(now.partTime)} part-time or casual (was ${count(before.partTime)})`);
@@ -175,7 +233,7 @@ export function changedSince(snapshot: PlanInputs, live: PlanInputs): string | n
     changes.push(`${count(live.leave.days)} planned leave days (was ${count(snapshot.leave.days)})`);
   if (snapshot.preferences.officers !== live.preferences.officers)
     changes.push(
-      `${count(live.preferences.officers)} officers with preferences (was ${count(snapshot.preferences.officers)})`,
+      `${count(live.preferences.officers)} ${people} with preferences (was ${count(snapshot.preferences.officers)})`,
     );
   return changes.length === 0 ? null : changes.join(', ');
 }
@@ -191,3 +249,14 @@ export const TIME_WORDS: Record<string, string> = {
   EVENING: 'Evenings',
   NIGHT: 'Nights',
 };
+
+/**
+ * " (727 on officer units + 230 on supervisor posts)" when the supervisor posts
+ * add to a figure, so the commit dialog's totals and the officer-only scorecard
+ * tiles visibly agree (S7 UI test N3, Dataset 100); empty otherwise.
+ */
+export function splitWords(lineUnits: number | undefined, posts: number | undefined, total: number): string {
+  if (lineUnits === undefined || !posts || lineUnits + posts !== total) return '';
+  return ` (${lineUnits.toLocaleString('en-CA')} on officer units + ${posts.toLocaleString('en-CA')} on supervisor posts)`;
+}
+

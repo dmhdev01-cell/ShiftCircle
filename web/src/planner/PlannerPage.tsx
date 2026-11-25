@@ -54,6 +54,8 @@ import { StatusPill } from '../components/StatusPill';
 import { colour } from '../theme/tokens';
 import { plainDate, whenWords } from './plannerTime';
 import { unitWords, unitWordsIn } from './unitWords';
+import { peopleWords, shiftsWords, splitWords } from './planInputsWords';
+import { SupervisorPostsCard } from './SupervisorPostsCard';
 
 const BLOCK_WORDS: Record<string, string> = {
   DAY: 'Day 07–15',
@@ -147,6 +149,15 @@ function fillWords(options: PlanOptions, committed: boolean): string {
 /** "1.4 s" for a millisecond figure. */
 function seconds(ms: number): string {
   return `${(ms / 1000).toFixed(1)} s`;
+}
+
+/** "120 officers and 10 supervisors" from the plan inputs, or the total when the api sends no split. */
+function plannedPeople(inputs: PlanInputs): string {
+  const rows = inputs.officers.byPosition;
+  if (!rows) return peopleWords(inputs.officers.total);
+  const sum = (supervisory: boolean) =>
+    rows.filter((row) => row.supervisory === supervisory).reduce((total, row) => total + row.total, 0);
+  return peopleWords(sum(false), sum(true));
 }
 
 type Tab = 'scorecard' | 'gaps' | 'roster' | 'compare';
@@ -628,7 +639,7 @@ export function PlannerPage() {
       {busy === 'generate' ? (
         <Typography role="status" sx={{ fontSize: 14, color: colour.text.secondary }}>
           {liveInputs
-            ? `Building a plan for ${liveInputs.officers.total.toLocaleString('en-CA')} officers`
+            ? `Building a plan for ${plannedPeople(liveInputs)}`
             : 'Building a plan'}{' '}
           and checking every shift against the rules. This usually takes a few seconds.
         </Typography>
@@ -692,7 +703,7 @@ export function PlannerPage() {
             </Typography>
             <Typography sx={{ fontSize: 14 }}>
               Supervisors can now change shifts on the planning board. Committed{' '}
-              {committed.shiftsWritten.toLocaleString('en-CA')} shifts from{' '}
+              {shiftsWords(committed.shiftsWritten, committed.officerShifts, committed.supervisorShifts)} from{' '}
               {plainDate(committed.firstWeek)}.
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
@@ -890,6 +901,10 @@ export function PlannerPage() {
                 <Typography sx={{ fontSize: 13, color: colour.text.secondary }}>
                   {staffingFloorLine(Math.round(staffing.leaveAllowance * 100))}
                 </Typography>
+              ) : null}
+
+              {scorecard.supervisors ? (
+                <SupervisorPostsCard card={scorecard.supervisors} totals={scorecard.totals} />
               ) : null}
 
               {(() => {
@@ -1603,9 +1618,10 @@ export function PlannerPage() {
           {preview ? (
             <>
               <Typography sx={{ fontSize: 14 }}>
-                This writes <strong>{preview.shiftsToWrite.toLocaleString('en-CA')} shifts</strong> for{' '}
-                <strong>{preview.officers} officers</strong>, {windowWords(preview.from, preview.to)}, to
-                the planning board.
+                This writes{' '}
+                <strong>{shiftsWords(preview.shiftsToWrite, preview.officerShifts, preview.supervisorShifts)}</strong>{' '}
+                for <strong>{peopleWords(preview.officers, preview.supervisors)}</strong>,{' '}
+                {windowWords(preview.from, preview.to)}, to the planning board.
               </Typography>
               <Typography sx={{ fontSize: 14 }}>
                 Every shift is checked by the rules again as it is written. If any shift is blocked,{' '}
@@ -1618,12 +1634,23 @@ export function PlannerPage() {
                 </Typography>
               ) : null}
               <Typography sx={{ fontSize: 14 }}>
-                <strong>{preview.shortBlockDays} block-days stay short.</strong> Fill them from the
-                Overtime board after committing.
+                <strong>{preview.shortBlockDays} block-days stay short</strong>
+                {splitWords(
+                  scorecard?.coverage.shortBlockDays,
+                  scorecard?.supervisors?.coverage.shortBlockDays,
+                  preview.shortBlockDays,
+                )}
+                .{' '}Fill them from the Overtime board after committing.
               </Typography>
               <Typography component="h3" sx={{ m: 0, fontSize: 15, fontWeight: 700 }}>
                 Rule warnings in this plan ({preview.warningCount})
               </Typography>
+              {splitWords(scorecard?.totals?.lineUnitWarnings, scorecard?.totals?.postWarnings, preview.warningCount) ? (
+                <Typography sx={{ fontSize: 13, color: colour.text.secondary }}>
+                  {`Of these, ${splitWords(scorecard?.totals?.lineUnitWarnings, scorecard?.totals?.postWarnings, preview.warningCount).trim().slice(1, -1)}.`}{' '}
+                  The scorecard tiles count the officer units only.
+                </Typography>
+              ) : null}
               {preview.warningCount > 0 ? (
               <Box
                 tabIndex={0}

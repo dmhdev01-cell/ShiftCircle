@@ -42,6 +42,7 @@ import type {
   OpenShift,
   OpenShiftCandidates,
   OpenShiftQuery,
+  ReportQuery,
   RuleCheckChange,
   RuleCheckOutcome,
   RuleCheckRequest,
@@ -1161,14 +1162,20 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
       return demoCoverageReport;
     },
 
-    async getHoursReport(): Promise<HoursReport> {
+    async getHoursReport(query?: ReportQuery): Promise<HoursReport> {
       await pause();
-      return demoHoursReport;
+      if (!query?.position) return demoHoursReport;
+      // Release v1.3 S7: one rank, like the api's ?position=.
+      const rows = demoHoursReport.rows.filter((row) => (row.position ?? 'CO') === query.position);
+      return { ...demoHoursReport, rows, totalOfficers: rows.length };
     },
 
-    async getOvertimeReport(): Promise<OvertimeReport> {
+    async getOvertimeReport(query?: ReportQuery): Promise<OvertimeReport> {
       await pause();
-      return demoOvertimeReport;
+      if (!query?.position) return demoOvertimeReport;
+      // Like the api, the average is the chosen rank's pool: nobody in it, no average (review N2).
+      const rows = demoOvertimeReport.rows.filter((row) => (row.position ?? 'CO') === query.position);
+      return { ...demoOvertimeReport, rows, averageHours: rows.length === 0 ? 0 : demoOvertimeReport.averageHours };
     },
 
     async getOverrides(): Promise<OverrideRow[]> {

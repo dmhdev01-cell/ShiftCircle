@@ -1820,8 +1820,9 @@ public final class PlanGenerator {
     totals.put("officers", officersPlaced.size());
     totals.put("supervisors", supervisorsPlaced.size());
     totals.put("warnings", lineWarnings.size() + postWarnings.size());
-    totals.put("officerPostWarnings", lineWarnings.size());
-    totals.put("supervisorPostWarnings", postWarnings.size());
+    // By the post the warning was raised on, not the person's rank (S3 review N6).
+    totals.put("lineUnitWarnings", lineWarnings.size());
+    totals.put("postWarnings", postWarnings.size());
     totals.put("line", shiftsLine(officerShifts, supervisorShifts));
     return totals;
   }

@@ -3,31 +3,33 @@
     "id": "8722725c-75b1-3f6a-8f0d-0932b43695e2",
     "label": "26 Oct \u2013 8 Nov 2026",
     "status": "LOCKED",
-    "lockedBy": null,
-    "lockedAt": "20 Nov 04:49"
+    "lockedBy": "M. Ellis",
+    "lockedAt": "25 Nov 04:32"
   },
   "rows": [
     {
       "employeeId": "ed052782-3bec-303b-8742-cd13ce9b6b78",
       "name": "Aiden Bergeron",
       "scheduled": 96.0,
-      "worked": 96.0,
+      "worked": 97.68,
       "regular": 80.0,
-      "overtime15": 16.0,
+      "overtime15": 17.68,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "60fe89f3-d6e2-3df9-a03e-1e0e566c9b9d",
       "name": "Aiden Kowalczyk",
-      "scheduled": 96.0,
-      "worked": 94.56,
+      "scheduled": 100.0,
+      "worked": 100.0,
       "regular": 80.0,
-      "overtime15": 14.56,
+      "overtime15": 20.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "4dc99b8f-7d3c-3b41-8ba7-03e5b0df1609",
@@ -38,73 +40,128 @@
       "overtime15": 0.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "82c81902-6f5b-32a0-9f9a-206cb58082e1",
+      "name": "Amara Yilmaz",
+      "scheduled": 64.0,
+      "worked": 64.0,
+      "regular": 64.0,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CS"
     },
     {
       "employeeId": "87175846-d4b1-32f1-8cc9-3ef15c462417",
       "name": "Bram Nakamura",
-      "scheduled": 96.0,
-      "worked": 87.13,
+      "scheduled": 100.0,
+      "worked": 80.0,
       "regular": 80.0,
-      "overtime15": 7.13,
+      "overtime15": 0.0,
       "overtime20": 0.0,
-      "sick": 8.0,
-      "vacation": 0.0
+      "sick": 12.0,
+      "vacation": 8.0,
+      "position": "CO"
     },
     {
       "employeeId": "7b45792d-21f8-3c29-a8d8-6ca17a86c7d0",
       "name": "Carmen Zola",
-      "scheduled": 96.0,
-      "worked": 44.0,
-      "regular": 44.0,
+      "scheduled": 88.0,
+      "worked": 88.0,
+      "regular": 80.0,
+      "overtime15": 8.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "dc91c603-14bf-3c0e-a41a-44828ef49d58",
+      "name": "Cato Park",
+      "scheduled": 64.0,
+      "worked": 64.0,
+      "regular": 64.0,
       "overtime15": 0.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 52.0
+      "vacation": 0.0,
+      "position": "CS"
+    },
+    {
+      "employeeId": "cba34c76-13a4-3d8b-874b-e15553e4be09",
+      "name": "Dalen Jourdain",
+      "scheduled": 8.0,
+      "worked": 8.0,
+      "regular": 8.0,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "d07b68f5-3f21-3553-b23a-e270f7f611de",
+      "name": "Devon Clarke",
+      "scheduled": 8.0,
+      "worked": 8.0,
+      "regular": 8.0,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "fc029913-2588-3872-a8a8-1fcee7b8d930",
       "name": "Devon Voss",
-      "scheduled": 100.0,
-      "worked": 100.0,
+      "scheduled": 96.0,
+      "worked": 97.0,
       "regular": 80.0,
-      "overtime15": 20.0,
+      "overtime15": 17.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "1f5f4348-2d5a-33c8-9c22-9b9051cae145",
       "name": "Farah Girard",
       "scheduled": 96.0,
-      "worked": 96.0,
+      "worked": 89.02,
       "regular": 80.0,
-      "overtime15": 16.0,
+      "overtime15": 9.02,
       "overtime20": 0.0,
-      "sick": 0.0,
-      "vacation": 0.0
+      "sick": 8.0,
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "0714ea55-cb81-3eac-b3de-59ecc98ac61a",
       "name": "Gideon Dubois",
-      "scheduled": 104.0,
-      "worked": 96.0,
-      "regular": 80.0,
-      "overtime15": 16.0,
-      "overtime20": 0.0,
-      "sick": 8.0,
-      "vacation": 0.0
-    },
-    {
-      "employeeId": "07d4b1e6-d3ea-3a22-b584-2c3693f1581b",
-      "name": "Gideon Eriksen",
       "scheduled": 96.0,
       "worked": 96.0,
       "regular": 80.0,
       "overtime15": 16.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "07d4b1e6-d3ea-3a22-b584-2c3693f1581b",
+      "name": "Gideon Eriksen",
+      "scheduled": 96.0,
+      "worked": 95.38,
+      "regular": 80.0,
+      "overtime15": 15.38,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "1c13564b-57da-3ba6-9a19-39fc9d5f29c8",
@@ -115,62 +172,104 @@
       "overtime15": 16.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "591a76b3-03e8-351d-a96d-ef2a9b0ff380",
       "name": "Greta Iqbal",
-      "scheduled": 100.0,
-      "worked": 100.0,
+      "scheduled": 88.0,
+      "worked": 89.3,
       "regular": 80.0,
-      "overtime15": 20.0,
+      "overtime15": 9.3,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "2a97181d-6bbb-3371-8b5c-f51d9613c2ed",
       "name": "Hana Lindqvist",
       "scheduled": 92.0,
-      "worked": 92.0,
+      "worked": 90.55,
       "regular": 80.0,
-      "overtime15": 12.0,
+      "overtime15": 10.55,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "8478bba1-a3fb-39d0-ae48-ef4f47e8c822",
       "name": "Hana Varga",
       "scheduled": 96.0,
-      "worked": 88.0,
+      "worked": 96.0,
       "regular": 80.0,
-      "overtime15": 8.0,
+      "overtime15": 16.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "4a159cd2-988e-31ee-9ba7-91b23fb2873e",
+      "name": "Isaac Kaur",
+      "scheduled": 8.0,
+      "worked": 8.77,
+      "regular": 8.77,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "4fca1e76-f2a9-3304-9a1b-841d2c61d08b",
+      "name": "Isaac Uddin",
+      "scheduled": 72.0,
+      "worked": 65.65,
+      "regular": 65.65,
+      "overtime15": 0.0,
       "overtime20": 0.0,
       "sick": 8.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CS"
     },
     {
       "employeeId": "4ad5f431-ac27-3f50-9c5c-f9ca046c12ce",
       "name": "Isaac Young",
-      "scheduled": 100.0,
-      "worked": 100.0,
+      "scheduled": 96.0,
+      "worked": 96.0,
       "regular": 80.0,
-      "overtime15": 20.0,
+      "overtime15": 16.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "5f7e3a2a-ee60-3ef6-b179-495c6a59525c",
+      "name": "Jamie Chen",
+      "scheduled": 72.0,
+      "worked": 64.0,
+      "regular": 64.0,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 8.0,
+      "vacation": 0.0,
+      "position": "CS"
     },
     {
       "employeeId": "337c6989-ad7c-3d63-8bf7-3efe50b34adc",
       "name": "Jolene Bergeron",
       "scheduled": 8.0,
-      "worked": 8.0,
-      "regular": 8.0,
+      "worked": 7.0,
+      "regular": 7.0,
       "overtime15": 0.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "59cc8a99-2c38-30df-9720-ef52e7d6f55e",
@@ -181,18 +280,44 @@
       "overtime15": 20.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "bdb9e495-892e-3ac5-87ac-8fb7094adad0",
       "name": "Kari Abara",
-      "scheduled": 92.0,
-      "worked": 91.4,
+      "scheduled": 96.0,
+      "worked": 88.0,
       "regular": 80.0,
-      "overtime15": 11.4,
+      "overtime15": 8.0,
+      "overtime20": 0.0,
+      "sick": 8.0,
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "0619cb80-d8ae-3c71-8aeb-96ee2e237078",
+      "name": "Kellan Okafor",
+      "scheduled": 8.0,
+      "worked": 8.0,
+      "regular": 8.0,
+      "overtime15": 0.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "0f059008-8e9f-3f2a-807d-4c4b33f7d8e8",
+      "name": "Lars Lindqvist",
+      "scheduled": 80.0,
+      "worked": 72.0,
+      "regular": 72.0,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 8.0,
+      "vacation": 0.0,
+      "position": "CS"
     },
     {
       "employeeId": "380c6378-762a-3ec8-8c62-78dd0703c4d9",
@@ -203,106 +328,140 @@
       "overtime15": 0.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "76625bc7-4ee6-3353-9047-0132617c4637",
       "name": "Lars Yilmaz",
-      "scheduled": 104.0,
-      "worked": 104.0,
+      "scheduled": 96.0,
+      "worked": 88.0,
       "regular": 80.0,
-      "overtime15": 24.0,
+      "overtime15": 8.0,
       "overtime20": 0.0,
-      "sick": 0.0,
-      "vacation": 0.0
+      "sick": 8.0,
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "782f86c9-5f15-3a5b-991c-d130718c6029",
       "name": "Lars Young",
-      "scheduled": 108.0,
-      "worked": 107.47,
+      "scheduled": 100.0,
+      "worked": 101.22,
       "regular": 80.0,
-      "overtime15": 27.47,
+      "overtime15": 21.22,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "2828adb0-51bc-3ec7-8613-1dbd947e40d1",
       "name": "Leah Morin",
       "scheduled": 8.0,
-      "worked": 8.0,
-      "regular": 8.0,
+      "worked": 9.55,
+      "regular": 9.55,
       "overtime15": 0.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "1f61573e-5ba6-3d1e-a965-f5ec6ec6146c",
       "name": "Leah Pelletier",
-      "scheduled": 100.0,
-      "worked": 99.23,
+      "scheduled": 96.0,
+      "worked": 96.0,
       "regular": 80.0,
-      "overtime15": 19.23,
+      "overtime15": 16.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "3c48a69d-becc-379b-903d-6c48b0746ffc",
       "name": "Lena Rasmussen",
-      "scheduled": 92.0,
-      "worked": 75.4,
-      "regular": 75.4,
-      "overtime15": 0.0,
-      "overtime20": 0.0,
-      "sick": 16.0,
-      "vacation": 0.0
-    },
-    {
-      "employeeId": "d882d15e-2dc0-3408-9508-b7cba3fb8cfa",
-      "name": "Marc Desjardins",
-      "scheduled": 104.0,
-      "worked": 104.0,
-      "regular": 80.0,
-      "overtime15": 24.0,
-      "overtime20": 0.0,
-      "sick": 0.0,
-      "vacation": 0.0
-    },
-    {
-      "employeeId": "70b20a36-04f4-3ac2-bcdc-ebb9048460b6",
-      "name": "Marc Nakamura",
-      "scheduled": 104.0,
-      "worked": 95.12,
-      "regular": 80.0,
-      "overtime15": 15.12,
-      "overtime20": 0.0,
-      "sick": 8.0,
-      "vacation": 0.0
-    },
-    {
-      "employeeId": "bce300c4-baee-3831-ab19-b642c9a0554e",
-      "name": "Nia Singh",
       "scheduled": 92.0,
       "worked": 92.0,
       "regular": 80.0,
       "overtime15": 12.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "d882d15e-2dc0-3408-9508-b7cba3fb8cfa",
+      "name": "Marc Desjardins",
+      "scheduled": 88.0,
+      "worked": 39.38,
+      "regular": 39.38,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 48.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "70b20a36-04f4-3ac2-bcdc-ebb9048460b6",
+      "name": "Marc Nakamura",
+      "scheduled": 96.0,
+      "worked": 96.0,
+      "regular": 80.0,
+      "overtime15": 16.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "6c29ff2b-fb49-3786-8034-83cee98a25e8",
+      "name": "Morgan Ellis",
+      "scheduled": 72.0,
+      "worked": 73.15,
+      "regular": 73.15,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CS"
+    },
+    {
+      "employeeId": "bce300c4-baee-3831-ab19-b642c9a0554e",
+      "name": "Nia Singh",
+      "scheduled": 96.0,
+      "worked": 96.0,
+      "regular": 80.0,
+      "overtime15": 16.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "503fcc07-e4af-3f75-b00e-748334757b45",
       "name": "Nia Thompson",
-      "scheduled": 104.0,
+      "scheduled": 88.0,
       "worked": 80.48,
       "regular": 80.48,
       "overtime15": 0.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "ac8b03b0-75ec-398c-8d31-45fd3a7b32d8",
+      "name": "Noor Abara",
+      "scheduled": 8.0,
+      "worked": 8.0,
+      "regular": 8.0,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "f3df253a-b83e-394d-a4ed-06ff8aecb0a2",
@@ -313,106 +472,152 @@
       "overtime15": 0.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "16bf0cfa-21ec-3e5f-8b7c-90e4da144d7d",
       "name": "Owen Dubois",
-      "scheduled": 100.0,
-      "worked": 99.48,
-      "regular": 80.0,
-      "overtime15": 19.48,
-      "overtime20": 0.0,
-      "sick": 0.0,
-      "vacation": 0.0
-    },
-    {
-      "employeeId": "b7c440b1-8005-3db4-be8f-41d25f7c4d09",
-      "name": "Pia Rasmussen",
-      "scheduled": 92.0,
-      "worked": 92.0,
-      "regular": 80.0,
-      "overtime15": 12.0,
-      "overtime20": 0.0,
-      "sick": 0.0,
-      "vacation": 0.0
-    },
-    {
-      "employeeId": "f072eedd-c099-3a10-a03c-8dcb365e7e10",
-      "name": "Ruth Okafor",
-      "scheduled": 100.0,
-      "worked": 84.0,
-      "regular": 80.0,
-      "overtime15": 4.0,
-      "overtime20": 0.0,
-      "sick": 0.0,
-      "vacation": 0.0
-    },
-    {
-      "employeeId": "01093045-e31e-3449-bcad-dd1308c7caaa",
-      "name": "Sam Beaulieu",
-      "scheduled": 8.0,
-      "worked": 8.0,
-      "regular": 8.0,
-      "overtime15": 0.0,
-      "overtime20": 0.0,
-      "sick": 0.0,
-      "vacation": 0.0
-    },
-    {
-      "employeeId": "3c6888e4-0662-3e3d-a7d3-b8c019c34766",
-      "name": "Sana Adeyemi",
-      "scheduled": 84.0,
-      "worked": 83.47,
-      "regular": 80.0,
-      "overtime15": 3.47,
-      "overtime20": 0.0,
-      "sick": 0.0,
-      "vacation": 0.0
-    },
-    {
-      "employeeId": "cf867a3f-f21f-3144-b427-f7ffe0222bf6",
-      "name": "Tara Fontaine",
-      "scheduled": 92.0,
-      "worked": 92.0,
-      "regular": 80.0,
-      "overtime15": 12.0,
-      "overtime20": 0.0,
-      "sick": 0.0,
-      "vacation": 0.0
-    },
-    {
-      "employeeId": "4002f546-0740-3503-8d71-4ee9131dfb91",
-      "name": "Tara Nakamura",
-      "scheduled": 100.0,
-      "worked": 80.0,
-      "regular": 80.0,
-      "overtime15": 0.0,
-      "overtime20": 0.0,
-      "sick": 0.0,
-      "vacation": 0.0
-    },
-    {
-      "employeeId": "bbec8040-a5f3-3237-83b1-94778b240fee",
-      "name": "Tara Upton",
       "scheduled": 96.0,
       "worked": 96.0,
       "regular": 80.0,
       "overtime15": 16.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "7725568b-3f5c-3644-9a18-2a50562b6721",
+      "name": "Owen Mackenzie",
+      "scheduled": 8.0,
+      "worked": 8.0,
+      "regular": 8.0,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "b7c440b1-8005-3db4-be8f-41d25f7c4d09",
+      "name": "Pia Rasmussen",
+      "scheduled": 96.0,
+      "worked": 96.0,
+      "regular": 80.0,
+      "overtime15": 16.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "57637631-4f29-3904-bdf7-1a1dee6b7a58",
+      "name": "Rhea Nakamura",
+      "scheduled": 8.0,
+      "worked": 8.0,
+      "regular": 8.0,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "1bab8d5f-a9f6-3f9c-b5dd-9553de018994",
+      "name": "Rhea Quist",
+      "scheduled": 64.0,
+      "worked": 65.2,
+      "regular": 65.2,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CS"
+    },
+    {
+      "employeeId": "f072eedd-c099-3a10-a03c-8dcb365e7e10",
+      "name": "Ruth Okafor",
+      "scheduled": 88.0,
+      "worked": 84.0,
+      "regular": 80.0,
+      "overtime15": 4.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "3c6888e4-0662-3e3d-a7d3-b8c019c34766",
+      "name": "Sana Adeyemi",
+      "scheduled": 96.0,
+      "worked": 97.92,
+      "regular": 80.0,
+      "overtime15": 17.92,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "cf867a3f-f21f-3144-b427-f7ffe0222bf6",
+      "name": "Tara Fontaine",
+      "scheduled": 88.0,
+      "worked": 80.0,
+      "regular": 80.0,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 8.0,
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "4002f546-0740-3503-8d71-4ee9131dfb91",
+      "name": "Tara Nakamura",
+      "scheduled": 88.0,
+      "worked": 80.0,
+      "regular": 80.0,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "da84dab3-ecaa-3f12-be88-6694bec1903d",
+      "name": "Tara Osei",
+      "scheduled": 64.0,
+      "worked": 64.0,
+      "regular": 64.0,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CS"
+    },
+    {
+      "employeeId": "bbec8040-a5f3-3237-83b1-94778b240fee",
+      "name": "Tara Upton",
+      "scheduled": 88.0,
+      "worked": 48.0,
+      "regular": 48.0,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 40.0,
+      "position": "CO"
     },
     {
       "employeeId": "411e3973-0aef-3a41-8846-35eefaf2c78f",
       "name": "Tara Xu",
-      "scheduled": 96.0,
-      "worked": 95.07,
+      "scheduled": 88.0,
+      "worked": 81.57,
       "regular": 80.0,
-      "overtime15": 15.07,
+      "overtime15": 1.57,
       "overtime20": 0.0,
-      "sick": 0.0,
-      "vacation": 0.0
+      "sick": 8.0,
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "7aaa566c-87ee-3372-b240-75aead15a779",
@@ -423,63 +628,117 @@
       "overtime15": 0.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "1928aefc-648d-312e-9d64-05de9269441e",
+      "name": "Uma Singh",
+      "scheduled": 8.0,
+      "worked": 8.0,
+      "regular": 8.0,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "774e7fa8-ab5b-3f41-baa4-1f8bcf6eb7a0",
       "name": "Vera Fontaine",
-      "scheduled": 92.0,
-      "worked": 92.0,
+      "scheduled": 88.0,
+      "worked": 88.0,
       "regular": 80.0,
-      "overtime15": 12.0,
+      "overtime15": 8.0,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "ae0a5423-9542-33a5-9694-e3d1e9e860e2",
       "name": "Willa Keller",
-      "scheduled": 100.0,
-      "worked": 98.55,
+      "scheduled": 88.0,
+      "worked": 89.7,
       "regular": 80.0,
-      "overtime15": 18.55,
+      "overtime15": 9.7,
       "overtime20": 0.0,
       "sick": 0.0,
-      "vacation": 0.0
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "d116894c-1772-3f33-a923-53e4583faf45",
+      "name": "Yara Iqbal",
+      "scheduled": 72.0,
+      "worked": 72.0,
+      "regular": 72.0,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CS"
+    },
+    {
+      "employeeId": "4f5480ae-bba8-3fef-9bff-e636aeb90eba",
+      "name": "Yusuf Pelletier",
+      "scheduled": 64.0,
+      "worked": 64.0,
+      "regular": 64.0,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CS"
     },
     {
       "employeeId": "e581608b-f30d-38ee-a675-6a62c00f9f0e",
       "name": "Yusuf Singh",
-      "scheduled": 100.0,
-      "worked": 92.0,
+      "scheduled": 92.0,
+      "worked": 80.0,
       "regular": 80.0,
-      "overtime15": 12.0,
+      "overtime15": 0.0,
       "overtime20": 0.0,
-      "sick": 8.0,
-      "vacation": 0.0
+      "sick": 12.0,
+      "vacation": 0.0,
+      "position": "CO"
+    },
+    {
+      "employeeId": "03feccda-4ee9-3e99-997c-8319504faf23",
+      "name": "Zara Bergeron",
+      "scheduled": 8.0,
+      "worked": 8.0,
+      "regular": 8.0,
+      "overtime15": 0.0,
+      "overtime20": 0.0,
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "c3bc9455-1839-3bfc-b865-ebc1aa0c06d3",
       "name": "Zara Keller",
-      "scheduled": 96.0,
-      "worked": 84.0,
+      "scheduled": 88.0,
+      "worked": 88.0,
       "regular": 80.0,
-      "overtime15": 4.0,
+      "overtime15": 8.0,
       "overtime20": 0.0,
-      "sick": 12.0,
-      "vacation": 0.0
+      "sick": 0.0,
+      "vacation": 0.0,
+      "position": "CO"
     },
     {
       "employeeId": "c526b199-e906-33d8-91aa-40739b5a3388",
       "name": "Zeke Bouchard",
-      "scheduled": 108.0,
-      "worked": 108.0,
+      "scheduled": 92.0,
+      "worked": 80.0,
       "regular": 80.0,
-      "overtime15": 28.0,
+      "overtime15": 0.0,
       "overtime20": 0.0,
-      "sick": 0.0,
-      "vacation": 0.0
+      "sick": 12.0,
+      "vacation": 0.0,
+      "position": "CO"
     }
   ],
-  "totalOfficers": 43
+  "totalOfficers": 61
 }

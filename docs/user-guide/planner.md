@@ -72,9 +72,9 @@ A note on the draft reminds you that it isn't on the planning board yet. Officer
 
 The **Plan inputs** card sits above the scorecard (and on the empty quarter before a draft). Its headline says, in one line, who the plan is for, for example on Dataset 150:
 
-> Planning 162 officers in 8 units · 131 full-time, 31 part-time or casual · 149.6 FTE against about 137 needed · 4 Jan – 11 Apr 2027
+> Planning 150 officers + 12 supervisors in 6 units + 2 supervisor posts · 131 full-time, 31 part-time or casual · 149.6 FTE against about 137 needed · 4 Jan – 11 Apr 2027
 
-Since release v1.3 S4 the headline counts the 12 supervisors and the two supervisor posts with the officers and the six units (before S4 it read "Planning 150 officers in 6 units · 120 full-time, 30 part-time or casual · 138 FTE against about 127 needed"); a later release words the split ("150 officers + 12 supervisors in 6 units + 2 supervisor posts", already in the API's `officers.headline`). The screenshots below are from before S4.
+Since release v1.3 the plan includes the supervisors and their two supervisor posts. The headline names each rank (since S7; the API's `officers.headline` says the same), while the full-time, part-time and FTE figures and the staffing floor count both ranks. Dataset 120 reads "Planning 120 officers + 10 supervisors in 6 units + 2 supervisor posts · 110 full-time, 20 part-time or casual …". Before release v1.3 it read "Planning 150 officers in 6 units · 120 full-time, 30 part-time or casual · 138 FTE against about 127 needed". The screenshots below are from before release v1.3.
 
 The line under it gives the Generate options (before a draft, the **default seed**; with a draft, the seed it used), the 8 h pattern ("8 h officers on their own pattern" unless one pattern was forced for everyone, in which case the table groups the 8 h officers under that pattern too), any other option the draft was made with, the rule set version, the planned leave days and how many officers have preferences on file.
 
@@ -82,7 +82,8 @@ The line under it gives the Generate options (before a draft, the **default seed
 
 **Show plan inputs** opens the detail:
 - **Officers by unit:** full-time and part-time or casual officers, their FTE and their shift patterns (12 h day or night crew, 8 h day or evening crew, an 8 h rotation, or the relief pool with no fixed rotation), and each unit's minimum for night, day and evening. A closed-days column appears when a unit is closed for part of the quarter.
-- **Planned leave in the quarter:** leave days by type (Vacation, Sick, Other) and how many officers have leave. An officer is never rostered on a leave day.
+- **Supervisors by post** (release v1.3 S7, when there are supervisor posts): the same columns for **Supervision · Living units** and **Supervision · Operations**, with the supervisors' crews and each post's minimum (one supervisor through each block).
+- **Planned leave in the quarter:** leave days by type (Vacation, Sick, Other) and how many people have leave ("Staff with leave" once there are supervisors). Nobody is rostered on a leave day.
 - **Preferences on file:** how many officers asked for each shift length, time of day and days off. 16 h wishes are counted but never rostered.
 - **Seniority and rules:** the oldest and newest seniority dates, the rule set, the pay periods and the staffing floor.
 - **Generate options:** every option the draft was made with (or Generate's defaults before a draft), one line each, in words.
@@ -95,7 +96,7 @@ The line under it gives the Generate options (before a draft, the **default seed
 
 The generator does not tell part-time from casual: every officer under 1.0 FTE is filled the same way, so the card counts them together.
 
-**Supervisors (release v1.3).** Supervisors are planned like officers, on their own **supervisor posts** (units of the kind *Supervision*, with their own minimums), under the same rules. The planner never cross-covers: in every step above, a supervisor is only offered a supervisor post and an officer only an officer post, so the closed-unit relief, the part-time fill and *Cover gaps from other units* stay inside each rank. A supervisor on an officer post (or an acting officer on a supervisor post) is a person's decision, made on the board or in a draft edit, where the rules ask for it. Where the order says "seniority", it means **seniority inside the rank**: a newly promoted supervisor is the newest supervisor, whatever their years of service; for an officer it is their service date, as before. The API's plan inputs already split the count by position ("150 officers + 12 supervisors in 6 units + 2 supervisor posts"); the card shows the split in a later release. Until the datasets have supervisors (also a later release), nothing here changes.
+**Supervisors (release v1.3).** Supervisors are planned like officers, on their own **supervisor posts** (units of the kind *Supervision*, with their own minimums), under the same rules. The planner never cross-covers: in every step above, a supervisor is only offered a supervisor post and an officer only an officer post, so the closed-unit relief, the part-time fill and *Cover gaps from other units* stay inside each rank. A supervisor on an officer post (or an acting officer on a supervisor post) is a person's decision, made on the board or in a draft edit, where the rules ask for it. Where the order says "seniority", it means **seniority inside the rank**: a newly promoted supervisor is the newest supervisor, whatever their years of service; for an officer it is their service date, as before. The card's headline and its **Supervisors by post** table show the split (release v1.3 S7).
 
 With a draft open, the card shows **what this draft was generated with**: the draft keeps its own copy, so it still reads true if staff, leave or preferences change later. If they have changed (officers, FTE, planned leave or preferences), a yellow note says what ("The plan's inputs have changed since this draft was generated: now 151 officers (was 150) …") and suggests generating again. A draft made before v1.2 kept no record, so with one open the card shows today's inputs and says so. The card shows counts only, never an officer's name.
 
@@ -127,7 +128,9 @@ Below the tiles, these cards give the detail:
 - **Preferences by kind**
 - **Staffing by unit**
 
-With supervisors in the plan (release v1.3), every tile and card above counts the **officers and the officer units only**, so the officer figures read as they did before. The supervisors and their posts get a **supervisors** card of their own (posts covered *x* of *y* block-days, gaps, warnings, preferences, nights by seniority inside the rank, hours by FTE band, leave), and the totals give the split, for example "5,103 officer + 492 supervisor shifts" on Dataset 120. The API carries these now (`scorecard.supervisors`, `scorecard.totals`); the screen shows them in a later release.
+With supervisors in the plan (release v1.3), every tile and card above counts the **officers and the officer units only**, so the officer figures read as they did before. The supervisors and their posts get a **supervisors** card of their own (posts covered *x* of *y* block-days, gaps, warnings, preferences, nights by seniority inside the rank, hours by FTE band, leave), and the totals give the split, for example "5,103 officer + 492 supervisor shifts" on Dataset 120. Since release v1.3 S7 the screen shows them as a **Supervisor posts** card under the tiles: the API's line ("Supervisor posts covered 495 of 588 block-days; 93 short." on Dataset 150), then *Posts covered*, *Supervisors* (with the shifts on the posts), *Warnings on the posts*, *Supervisor wishes met*, *Supervisor overtime* and, when there is any, *Supervisor leave*; the last line gives everyone in the draft ("Everyone in this draft: 5,103 officer + 492 supervisor shifts, 107 officers and 10 supervisors." on Dataset 120).
+
+![Dataset 150 draft: the Supervisor posts card under the scorecard tiles, Supervisor posts covered 495 of 588 block-days; 93 short](img/planner-supervisor-card.png)
 
 Two of them need a note:
 - **Qualified staff:** this is a warning only. The planner does not enforce qualifications. Qualification start dates are not checked: an officer with a qualification counts as qualified for the whole quarter.
@@ -214,7 +217,7 @@ With supervisors in the data (release v1.3), **Officers scheduled** counts offic
 
 ## 7. Commit, generate again, or discard
 
-- **Commit plan…** asks "Commit the quarter plan?". Then **Commit plan** writes the whole draft to the planning board, where supervisors and officers see it.
+- **Commit plan…** asks "Commit the quarter plan?" and says what it writes, split by rank since release v1.3 S7: "This writes 5,595 shifts (5,103 officer + 492 supervisor) for 107 officers and 10 supervisors, …" on Dataset 120. Then **Commit plan** writes the whole draft to the planning board, where supervisors and officers see it. The *Plan committed* box repeats the split ("Committed 5,595 shifts (5,103 officer + 492 supervisor) from 4 Jan 2027.").
   - Commit checks every shift again, hand edits included.
   - If something changed since the draft was made, commit refuses with a reason ("Not committed: …"), and nothing is written.
 - **Generate again** replaces the draft. The dialog shows the **Plan options** filled in from the current draft; change any, then press **Replace draft**. **Your hand edits are lost**; the confirm text says how many.

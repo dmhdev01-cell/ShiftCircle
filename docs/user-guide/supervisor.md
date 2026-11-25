@@ -10,7 +10,7 @@ You run your unit's roster week to week. Your menu has these screens:
 - **Rules**
 - **Audit log**
 - **Wall display**
-- **Employee view** (your own schedule, when your account is linked to an employee record; since release v1.3 both demo supervisors are)
+- **My schedule** (your own schedule, when your account is linked to an employee record; since release v1.3 both demo supervisors are. Before release v1.3 S7 this item was called **Employee view**)
 - **Time & attendance**
 
 ## Planning board
@@ -201,11 +201,13 @@ Record what actually happened on past shifts, then lock the pay period for payro
 
 Reports has four tabs:
 - **Coverage:** gaps by unit and block.
-- **Hours:** scheduled against worked.
-- **Overtime:** overtime hours per officer.
+- **Hours:** scheduled against worked, per person, with their **Position** (Officer or Supervisor).
+- **Overtime:** overtime hours per person, with their **Position**.
 - **Overrides:** every emergency override, with its reason.
 
 Each tab opens on its own default range, shown in **From** and **To**. To read another range or one of your units, set **From**, **To** and **Unit**, then **Apply**: every tab and every export use that choice until you press **Reset**. To must be on or after From, and at most 366 days after it.
+
+**Position** (release v1.3 S7) reads the **Hours** and **Overtime** tabs for one rank: **Everyone** (the default), **Officers** or **Supervisors**. Supervisors and officers are separate overtime pools, so overtime is fairest compared within one rank: with a position chosen, the overtime list and its average count that rank only. The line under the form says so ("· Supervisors only in hours and overtime"), and the hours count reads "Showing *n* of *m* supervisors" (or "people" for everyone). Coverage and Overrides are not split by position.
 
 **Export CSV** downloads the table. **Payroll export (CSV)** makes the simulated payroll file.
 
@@ -226,14 +228,20 @@ The unit office TV shows today at a glance:
 - on overtime this pay period;
 - gaps tonight.
 
-It is a shared screen, so it shows counts only, no names. **Leave the wall display** returns to your menu.
+Under those figures, one line per supervisor post in your scope (release v1.3 S7): **Supervisor on duty · Living units 1 of 1** and **Supervisor on duty · Operations 1 of 1**, for the current block, with "short 1" and a warning icon when a post has no supervisor. The posts are not unit tiles, and the four figures above still count the six units only.
+
+It is a shared screen, so it shows counts only, no names: no supervisor is named either. **Leave the wall display** returns to your menu.
+
+![The wall display at 1440×900, the six unit tiles and, in the Facility today panel, Supervisor on duty · Living units 1 of 1 and Supervisor on duty · Operations 1 of 1](img/wall-display-supervisor-posts.png)
 
 <!-- No screenshot yet: desktop__supervisor__wall-display (no clean capture from the gated build) -->
 <!-- No screenshot yet: tablet__display__wall-display (no clean capture from the gated build) -->
 
-## Employee view
+## My schedule
 
-Employee view opens **My schedule** for the employee record linked to your account, exactly as an officer sees it. It appears in your menu only when your account is linked to a record. Since release v1.3 the demo supervisors are rostered on their own supervisor posts, so both have one: **M. Ellis** is Morgan Ellis, a supervisor on **Supervision · Living units** (SUP-L, covers Units A, B and C), and **J. Chen** is Jamie Chen, a supervisor on **Supervision · Operations** (SUP-O, covers Admissions, Control and Escort). The header reads "Correctional supervisor". On Dataset 100 their 8 h shifts run through the Oct–Dec window; on Datasets 120 and 150 their D12 crew history runs to Sun 3 Jan 2027, and the quarter plan adds the rest once committed. On Dataset 100 the supervisors rotate through 8 h days, evenings and nights; on Datasets 120 and 150 Ellis and Chen are on the D12 day crew. Both supervisors also have both posts in scope on the planning board and the Overtime board; their officer-unit scope is unchanged. Sign in as T. Nakamura to see an officer's view.
+**My schedule** opens your own schedule, for the employee record linked to your account, exactly as an officer sees it. It appears in your menu only when your account is linked to a record (before release v1.3 S7 the item was called **Employee view**). Since release v1.3 the demo supervisors are rostered on their own supervisor posts, so both have one: **M. Ellis** is Morgan Ellis, a supervisor on **Supervision · Living units** (SUP-L, covers Units A, B and C), and **J. Chen** is Jamie Chen, a supervisor on **Supervision · Operations** (SUP-O, covers Admissions, Control and Escort). The header names your position and your post with the units it covers: "Jamie Chen · Correctional supervisor · Supervision · Operations (ADM, CTL, ESC)" (an officer's names their unit: "Tara Nakamura · Correctional officer · Unit B · Living unit · …"). On Dataset 100 their 8 h shifts run through the Oct–Dec window; on Datasets 120 and 150 their D12 crew history runs to Sun 3 Jan 2027, and the quarter plan adds the rest once committed. On Dataset 100 the supervisors rotate through 8 h days, evenings and nights; on Datasets 120 and 150 Ellis and Chen are on the D12 day crew. Both supervisors also have both posts in scope on the planning board and the Overtime board; their officer-unit scope is unchanged. Sign in as T. Nakamura to see an officer's view.
+
+![J. Chen's My schedule at 1440×900: the header Jamie Chen · Correctional supervisor · Supervision · Operations (ADM, CTL, ESC), the hours and the month calendar](img/supervisor-my-schedule.png)
 
 **You can't change your own schedule.** Your own shifts are on the board like anyone's, but you can't assign, move, cancel or override them, record your own actuals or absence, or offer, give or confirm overtime to yourself: the screen shows "You can't change your own schedule; ask another supervisor." Another supervisor with the post in scope does it. Accepting or declining an offer to you on My schedule is still yours.
 

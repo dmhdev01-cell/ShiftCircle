@@ -7,13 +7,15 @@ import { colour } from '../theme/tokens';
 interface OvertimeBarsProps {
   report: OvertimeReport;
   title?: string;
+  /** Who the average is per: "person", or the rank chosen in the Position filter (v1.3 S7). */
+  per?: string;
 }
 
 /**
- * Overtime by officer (docs/ui/README.md §5.5). The ranking basis is the
+ * Overtime by person (docs/ui/README.md §5.5). The ranking basis is the
  * overtime hours this quarter (ADR-016), so that is what the bars show.
  */
-export function OvertimeBars({ report, title = 'Overtime this quarter · top 8' }: OvertimeBarsProps) {
+export function OvertimeBars({ report, title = 'Overtime this quarter · top 8', per = 'person' }: OvertimeBarsProps) {
   const top = report.rows[0]?.hours ?? 1;
 
   return (
@@ -69,7 +71,7 @@ export function OvertimeBars({ report, title = 'Overtime this quarter · top 8' 
       ))}
 
       <Typography component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
-        Facility average: {report.averageHours.toFixed(1)} h per officer · fair-distribution order uses
+        Facility average: {report.averageHours.toFixed(1)} h per {per} · fair-distribution order uses
         these totals
       </Typography>
     </Box>

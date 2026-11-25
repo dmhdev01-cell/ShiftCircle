@@ -93,7 +93,7 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 ## 4. Shared layout
 
 - **Top bar** (green `#046A38`, 4px Canola bottom border): ShiftCircle mark (Canola ring with a white dot; our own mark, not a government symbol) and name; facility line "Prairie Provincial Correctional Centre · prototype, fictional data"; the current date/time; a role chip, e.g. "Supervisor · M. Ellis (mock sign-in)".
-- **Side navigation** (white, 220px): role-specific items; active item green with white text. The **supervisor** sees Planning board, Overtime, Reports, Rules, Audit log, Wall display, Employee view (only when the account is linked to an employee record, an officer's or, since release v1.3, a supervisor's; docs/09), and Time & attendance (not yet designed). The **employee** sees My schedule, Propose shifts, My hours, and (demo only) Supervisor view.
+- **Side navigation** (white, 220px): role-specific items; active item green with white text. The **supervisor** sees Planning board, Overtime, Reports, Rules, Audit log, Wall display, My schedule (only when the account is linked to an employee record, an officer's or, since release v1.3, a supervisor's; docs/09; called Employee view before release v1.3 S7), and Time & attendance (not yet designed). The **employee** sees My schedule, Propose shifts, My hours, and (demo only) Supervisor view.
 - **Content:** fluid, page padding 24px, sections as white cards.
 - **Footer** (`#2C3136`, text `#CCCCCC`): "ShiftCircle prototype · AI Solutions Architect assessment" and "Not an official Government of Saskatchewan service · fictional, synthetic data only".
 - **Responsive:** side nav + content is a wrapping flex row (content `flex: 999 1 560px`), so on tablets and phones the nav stacks above the content. Wide tables sit in horizontally scrolling boxes. KPI tiles wrap (min ~170px). The wall display is a fixed 1920×1080 layout.
@@ -145,8 +145,8 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 - **Tabs:** Coverage / Hours / Overtime (the build adds Overrides). **Filters as built (S1):** a date range (From, To, with Apply and Reset) and a unit picker limited to the caller's scope, shared by every tab; the API refuses a reversed range or one over 366 days in plain words. The officer filter exists on the API (`employeeId`, hours report only) and is not on the screen. "Export CSV" respects the chosen range and unit.
 - **KPI tiles:** scheduled hours, worked hours, overtime hours, blocks fully covered, emergency overrides.
 - **Coverage chart:** weekly grouped bars (scheduled = Flax, actual = Midnight Sky) as % of required, with a dashed 100% line; **the axis starts at 94% and says so**; future week marked planned. Needs an accessible text alternative (the mock has an `aria-label` summary; the build should also offer the data table).
-- **Overtime by officer:** top 8 horizontal bars with hours; facility average.
-- **Hours by officer** for a locked pay period: scheduled, worked, regular, OT 1.5×, OT 2×, sick, vacation, worked − scheduled; "Locked" pill; "Payroll export (CSV)" (yellow).
+- **Overtime by person:** top 8 horizontal bars with hours; facility average (per person, or per officer or supervisor when the Position filter picks one rank; release v1.3 S7).
+- **Hours by person** (named so since release v1.3 S7, when supervisors joined the rows; a Position column says Officer or Supervisor) for a locked pay period: scheduled, worked, regular, OT 1.5×, OT 2×, sick, vacation, worked − scheduled; "Locked" pill; "Payroll export (CSV)" (yellow).
 - **Employee version:** same screen, own data only, no officer filter.
 
 ### 5.6 Wall display (TV) — `screens/WallDisplay.dc.html`

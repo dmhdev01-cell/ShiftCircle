@@ -1,4 +1,4 @@
-import type { DemoUser, DisplayBlock, DisplayToday, DisplayUnit } from '../types';
+import type { DemoUser, DisplayBlock, DisplayPost, DisplayToday, DisplayUnit } from '../types';
 import { demoSchedule } from './schedule';
 
 /**
@@ -88,6 +88,26 @@ const FIXTURE_UNITS: FixtureUnit[] = [
   },
 ];
 
+/** The two supervisor posts (release v1.3 S7): one supervisor per block, 24/7. */
+const FIXTURE_POSTS: { code: string; display: DisplayPost }[] = [
+  {
+    code: 'SUP-L',
+    display: {
+      post: { id: 'u-fixture-sup-l', name: 'Supervision · Living units' },
+      area: 'Living units',
+      coverage: [block('DAY', 1, 1), block('EVENING', 1, 1), block('NIGHT', 1, 1)],
+    },
+  },
+  {
+    code: 'SUP-O',
+    display: {
+      post: { id: 'u-fixture-sup-o', name: 'Supervision · Operations' },
+      area: 'Operations',
+      coverage: [block('DAY', 1, 1), block('EVENING', 1, 1), block('NIGHT', 1, 1)],
+    },
+  },
+];
+
 /** Like the api: the display device and the auditor see every unit; a supervisor sees their own. */
 export function demoDisplayToday(user: DemoUser | null): DisplayToday {
   const facilityWide =
@@ -101,5 +121,8 @@ export function demoDisplayToday(user: DemoUser | null): DisplayToday {
     units,
     totalOpenShifts: units.reduce((sum, entry) => sum + entry.openShifts, 0),
     totalOfficersInOvertime: units.reduce((sum, entry) => sum + entry.officersInOvertime, 0),
+    posts: FIXTURE_POSTS.filter((entry) => facilityWide || user.units.includes(entry.code)).map(
+      (entry) => entry.display,
+    ),
   };
 }

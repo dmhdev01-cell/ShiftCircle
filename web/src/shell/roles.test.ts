@@ -48,10 +48,16 @@ describe('navFor', () => {
     expect(labels('AUDITOR', user(['AUDITOR']))).toContain('Reports');
   });
 
-  it('hides Employee view from a user with no linked officer', () => {
-    expect(labels('SUPERVISOR', user(['SUPERVISOR', 'EMPLOYEE']))).not.toContain('Employee view');
-    expect(labels('SUPERVISOR', { ...user(['SUPERVISOR']), employeeId: 'emp-1' })).toContain('Employee view');
-    expect(labels('SUPERVISOR', null)).toContain('Employee view');
+  it('hides My schedule from a supervisor with no linked employee record', () => {
+    expect(labels('SUPERVISOR', user(['SUPERVISOR', 'EMPLOYEE']))).not.toContain('My schedule');
+    expect(labels('SUPERVISOR', { ...user(['SUPERVISOR']), employeeId: 'emp-1' })).toContain('My schedule');
+    expect(labels('SUPERVISOR', null)).toContain('My schedule');
+  });
+
+  it('calls the supervisor\'s own schedule My schedule, not Employee view (release v1.3 S7)', () => {
+    const linked = labels('SUPERVISOR', { ...user(['SUPERVISOR', 'EMPLOYEE']), employeeId: 'emp-1' });
+    expect(linked).not.toContain('Employee view');
+    expect(linked.filter((label) => label === 'My schedule')).toHaveLength(1);
   });
 
   it('every nav item behind the reports check points at a reports screen, and back', () => {

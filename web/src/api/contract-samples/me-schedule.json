@@ -4,6 +4,7 @@
     "id": "4002f546-0740-3503-8d71-4ee9131dfb91",
     "name": "Tara Nakamura",
     "role": "CO",
+    "position": "Correctional officer",
     "unit": {
       "id": "11111111-1111-1111-1111-000000000002",
       "name": "Unit B \u00b7 Living unit"
@@ -11,13 +12,14 @@
     "rotation": "",
     "qualifications": [
       "FIRST_AID"
-    ]
+    ],
+    "post": null
   },
   "nextShift": {
-    "date": "2026-11-19",
-    "startAt": "2026-11-20T02:00:00Z",
-    "endAt": "2026-11-20T18:00:00Z",
-    "shiftTemplate": "L16",
+    "date": "2026-11-20",
+    "startAt": "2026-11-20T13:00:00Z",
+    "endAt": "2026-11-20T21:00:00Z",
+    "shiftTemplate": "D8",
     "unit": {
       "id": "11111111-1111-1111-1111-000000000002",
       "name": "Unit B \u00b7 Living unit"
@@ -25,14 +27,14 @@
   },
   "payPeriod": {
     "label": "Nov 9 \u2013 22, Nov 2026",
-    "workedHours": 71.08,
-    "scheduledHours": 32.0,
-    "totalHours": 103.08,
+    "workedHours": 72.0,
+    "scheduledHours": 8.0,
+    "totalHours": 80.0,
     "thresholdHours": 80.0
   },
   "overtimeThisQuarter": {
-    "hours": 16.0,
-    "rank": 50,
+    "hours": 32.0,
+    "rank": 78,
     "of": 100
   },
   "days": [
@@ -70,13 +72,17 @@
   "shifts": [
     {
       "date": "2026-11-01",
+      "items": []
+    },
+    {
+      "date": "2026-11-02",
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "2453d6ad-2747-3f16-9c6f-330ed38b762b",
-          "shiftTemplate": "L16",
-          "startAt": "2026-11-02T02:00:00Z",
-          "endAt": "2026-11-02T18:00:00Z",
+          "assignmentId": "9d4f900d-7875-3747-9601-9626039b264b",
+          "shiftTemplate": "D8",
+          "startAt": "2026-11-02T13:00:00Z",
+          "endAt": "2026-11-02T21:00:00Z",
           "kind": "ROSTERED",
           "worked": true,
           "version": 0
@@ -84,19 +90,15 @@
       ]
     },
     {
-      "date": "2026-11-02",
-      "items": []
-    },
-    {
       "date": "2026-11-03",
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "9f996505-bf2e-37a5-92a5-7b9e0d229376",
-          "shiftTemplate": "D8",
-          "startAt": "2026-11-03T13:00:00Z",
-          "endAt": "2026-11-03T21:00:00Z",
-          "kind": "EXTRA",
+          "assignmentId": "2b2b77ef-a285-323e-baf5-1f6cfb311d68",
+          "shiftTemplate": "P12",
+          "startAt": "2026-11-03T18:00:00Z",
+          "endAt": "2026-11-04T06:00:00Z",
+          "kind": "ROSTERED",
           "worked": true,
           "version": 0
         }
@@ -104,28 +106,17 @@
     },
     {
       "date": "2026-11-04",
-      "items": [
-        {
-          "type": "SHIFT",
-          "assignmentId": "dad37a5f-e8a6-3712-b77e-99bc3787336f",
-          "shiftTemplate": "D8",
-          "startAt": "2026-11-04T13:00:00Z",
-          "endAt": "2026-11-04T21:00:00Z",
-          "kind": "ROSTERED",
-          "worked": true,
-          "version": 0
-        }
-      ]
+      "items": []
     },
     {
       "date": "2026-11-05",
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "029f8a05-2f91-349b-998f-6a00d40a4b9b",
-          "shiftTemplate": "P12",
-          "startAt": "2026-11-05T18:00:00Z",
-          "endAt": "2026-11-06T06:00:00Z",
+          "assignmentId": "d8e46928-459b-3386-a144-0c2fe72a25f8",
+          "shiftTemplate": "D8",
+          "startAt": "2026-11-05T13:00:00Z",
+          "endAt": "2026-11-05T21:00:00Z",
           "kind": "ROSTERED",
           "worked": true,
           "version": 0
@@ -137,10 +128,10 @@
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "cb2edcdb-18fe-3406-81a5-e08bdd53a0ee",
-          "shiftTemplate": "N8",
-          "startAt": "2026-11-07T05:00:00Z",
-          "endAt": "2026-11-07T13:00:00Z",
+          "assignmentId": "d1fe384a-b557-3837-b626-539e23be196f",
+          "shiftTemplate": "P12",
+          "startAt": "2026-11-06T18:00:00Z",
+          "endAt": "2026-11-07T06:00:00Z",
           "kind": "ROSTERED",
           "worked": true,
           "version": 0
@@ -156,7 +147,7 @@
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "0c74ae38-f845-3f03-a36e-4e5e14b2b8fc",
+          "assignmentId": "ac37dbea-bdb5-392c-9a1f-48aea05ca5d1",
           "shiftTemplate": "D8",
           "startAt": "2026-11-08T13:00:00Z",
           "endAt": "2026-11-08T21:00:00Z",
@@ -171,10 +162,10 @@
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "4520b201-14de-3523-8a4b-10ac4cde845a",
-          "shiftTemplate": "E8",
-          "startAt": "2026-11-09T21:00:00Z",
-          "endAt": "2026-11-10T05:00:00Z",
+          "assignmentId": "d9c9c4b5-375b-3954-8cda-df5888180740",
+          "shiftTemplate": "P12",
+          "startAt": "2026-11-09T18:00:00Z",
+          "endAt": "2026-11-10T06:00:00Z",
           "kind": "ROSTERED",
           "worked": true,
           "version": 0
@@ -183,28 +174,17 @@
     },
     {
       "date": "2026-11-10",
-      "items": [
-        {
-          "type": "SHIFT",
-          "assignmentId": "7dc4f10e-0e84-3f3c-83ea-94f89bc5baa3",
-          "shiftTemplate": "E8",
-          "startAt": "2026-11-10T21:00:00Z",
-          "endAt": "2026-11-11T05:00:00Z",
-          "kind": "ROSTERED",
-          "worked": true,
-          "version": 0
-        }
-      ]
+      "items": []
     },
     {
       "date": "2026-11-11",
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "c93e3aad-86c9-30f9-a58d-d04c1a500a64",
-          "shiftTemplate": "E8",
-          "startAt": "2026-11-11T21:00:00Z",
-          "endAt": "2026-11-12T05:00:00Z",
+          "assignmentId": "907ab41d-9e0e-3619-9f6b-18e3225cd812",
+          "shiftTemplate": "D8",
+          "startAt": "2026-11-11T13:00:00Z",
+          "endAt": "2026-11-11T21:00:00Z",
           "kind": "ROSTERED",
           "worked": true,
           "version": 0
@@ -216,10 +196,10 @@
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "468dda9f-9ca1-3fca-9549-1cd409ce337d",
-          "shiftTemplate": "N8",
-          "startAt": "2026-11-13T05:00:00Z",
-          "endAt": "2026-11-13T13:00:00Z",
+          "assignmentId": "2eac27f5-eb3a-3d4c-95c3-a97e4a19c150",
+          "shiftTemplate": "P12",
+          "startAt": "2026-11-12T18:00:00Z",
+          "endAt": "2026-11-13T06:00:00Z",
           "kind": "ROSTERED",
           "worked": true,
           "version": 0
@@ -228,13 +208,17 @@
     },
     {
       "date": "2026-11-13",
+      "items": []
+    },
+    {
+      "date": "2026-11-14",
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "0d04372c-1a72-3374-9a68-12c391c1f908",
-          "shiftTemplate": "N8",
-          "startAt": "2026-11-14T05:00:00Z",
-          "endAt": "2026-11-14T13:00:00Z",
+          "assignmentId": "ef50a0dc-bb3c-30d6-9781-ec8c148b29e8",
+          "shiftTemplate": "D8",
+          "startAt": "2026-11-14T13:00:00Z",
+          "endAt": "2026-11-14T21:00:00Z",
           "kind": "ROSTERED",
           "worked": true,
           "version": 0
@@ -242,18 +226,14 @@
       ]
     },
     {
-      "date": "2026-11-14",
-      "items": []
-    },
-    {
       "date": "2026-11-15",
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "84702dec-0a14-31f4-a839-233f2df703ac",
-          "shiftTemplate": "D8",
-          "startAt": "2026-11-15T13:00:00Z",
-          "endAt": "2026-11-15T21:00:00Z",
+          "assignmentId": "ead4e312-93eb-320f-bb08-58d33dfefdc6",
+          "shiftTemplate": "P12",
+          "startAt": "2026-11-15T18:00:00Z",
+          "endAt": "2026-11-16T06:00:00Z",
           "kind": "ROSTERED",
           "worked": true,
           "version": 0
@@ -262,13 +242,17 @@
     },
     {
       "date": "2026-11-16",
+      "items": []
+    },
+    {
+      "date": "2026-11-17",
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "84d4ff44-5beb-3704-98f9-a4643e8694f7",
-          "shiftTemplate": "P12",
-          "startAt": "2026-11-16T18:00:00Z",
-          "endAt": "2026-11-17T06:00:00Z",
+          "assignmentId": "8edec6e9-a135-31c4-881a-d0a57434ec53",
+          "shiftTemplate": "D8",
+          "startAt": "2026-11-17T13:00:00Z",
+          "endAt": "2026-11-17T21:00:00Z",
           "kind": "ROSTERED",
           "worked": true,
           "version": 0
@@ -276,18 +260,14 @@
       ]
     },
     {
-      "date": "2026-11-17",
-      "items": []
-    },
-    {
       "date": "2026-11-18",
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "3b9b40de-655c-3491-95bc-807b498f8822",
-          "shiftTemplate": "A12",
-          "startAt": "2026-11-18T06:00:00Z",
-          "endAt": "2026-11-18T18:00:00Z",
+          "assignmentId": "85f222c5-a889-3e3e-a75f-5c5b334d4212",
+          "shiftTemplate": "P12",
+          "startAt": "2026-11-18T18:00:00Z",
+          "endAt": "2026-11-19T06:00:00Z",
           "kind": "ROSTERED",
           "worked": true,
           "version": 0
@@ -296,62 +276,40 @@
     },
     {
       "date": "2026-11-19",
-      "items": [
-        {
-          "type": "SHIFT",
-          "assignmentId": "31986af7-7d46-3097-87d9-0e147d3ac98c",
-          "shiftTemplate": "L16",
-          "startAt": "2026-11-20T02:00:00Z",
-          "endAt": "2026-11-20T18:00:00Z",
-          "kind": "ROSTERED",
-          "worked": false,
-          "version": 0
-        }
-      ]
-    },
-    {
-      "date": "2026-11-20",
       "items": []
     },
     {
-      "date": "2026-11-21",
+      "date": "2026-11-20",
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "1b7521b4-19a1-4e9b-8ba0-86be01103d29",
+          "assignmentId": "7996a642-4ffc-373d-bcb9-0da8b4e5aea1",
           "shiftTemplate": "D8",
-          "startAt": "2026-11-21T13:00:00Z",
-          "endAt": "2026-11-21T21:00:00Z",
-          "kind": "EXTRA",
+          "startAt": "2026-11-20T13:00:00Z",
+          "endAt": "2026-11-20T21:00:00Z",
+          "kind": "ROSTERED",
           "worked": false,
           "version": 0
         }
       ]
     },
     {
+      "date": "2026-11-21",
+      "items": []
+    },
+    {
       "date": "2026-11-22",
-      "items": [
-        {
-          "type": "SHIFT",
-          "assignmentId": "9d86c7b5-5574-3556-bf19-a07bb1b842ad",
-          "shiftTemplate": "D8",
-          "startAt": "2026-11-22T13:00:00Z",
-          "endAt": "2026-11-22T21:00:00Z",
-          "kind": "ROSTERED",
-          "worked": false,
-          "version": 0
-        }
-      ]
+      "items": []
     },
     {
       "date": "2026-11-23",
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "93eba3e4-8387-3a53-b193-27fecfc3c770",
-          "shiftTemplate": "P12",
-          "startAt": "2026-11-23T18:00:00Z",
-          "endAt": "2026-11-24T06:00:00Z",
+          "assignmentId": "f7044445-f08b-31e2-9c6c-5e7221da9215",
+          "shiftTemplate": "D8",
+          "startAt": "2026-11-23T13:00:00Z",
+          "endAt": "2026-11-23T21:00:00Z",
           "kind": "ROSTERED",
           "worked": false,
           "version": 0
@@ -363,10 +321,10 @@
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "6fb3d250-e335-35b1-a087-f0eab147753e",
-          "shiftTemplate": "N8",
-          "startAt": "2026-11-25T05:00:00Z",
-          "endAt": "2026-11-25T13:00:00Z",
+          "assignmentId": "d8aa22a5-2cb7-32af-8fa0-fd2b0958834e",
+          "shiftTemplate": "P12",
+          "startAt": "2026-11-24T18:00:00Z",
+          "endAt": "2026-11-25T06:00:00Z",
           "kind": "ROSTERED",
           "worked": false,
           "version": 0
@@ -375,14 +333,25 @@
     },
     {
       "date": "2026-11-25",
-      "items": []
+      "items": [
+        {
+          "type": "SHIFT",
+          "assignmentId": "785ba9b0-4449-3b1f-9a73-a92e754998eb",
+          "shiftTemplate": "E8",
+          "startAt": "2026-11-25T21:00:00Z",
+          "endAt": "2026-11-26T05:00:00Z",
+          "kind": "EXTRA",
+          "worked": false,
+          "version": 0
+        }
+      ]
     },
     {
       "date": "2026-11-26",
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "33a6de03-32ab-3433-94a6-5d4011671cd7",
+          "assignmentId": "d1d6a2ef-b773-36f3-946a-2a8f2217b43f",
           "shiftTemplate": "D8",
           "startAt": "2026-11-26T13:00:00Z",
           "endAt": "2026-11-26T21:00:00Z",
@@ -397,10 +366,10 @@
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "9f0492a8-0a20-3062-a61e-5c7a8b730f86",
-          "shiftTemplate": "E8",
-          "startAt": "2026-11-27T21:00:00Z",
-          "endAt": "2026-11-28T05:00:00Z",
+          "assignmentId": "f14d2ac3-0a7b-3c4e-9632-e0f92ac5b3f6",
+          "shiftTemplate": "P12",
+          "startAt": "2026-11-27T18:00:00Z",
+          "endAt": "2026-11-28T06:00:00Z",
           "kind": "ROSTERED",
           "worked": false,
           "version": 0
@@ -409,43 +378,21 @@
     },
     {
       "date": "2026-11-28",
-      "items": [
-        {
-          "type": "SHIFT",
-          "assignmentId": "9b9c7406-0a15-3bb6-9555-0852ec89661c",
-          "shiftTemplate": "E8",
-          "startAt": "2026-11-28T21:00:00Z",
-          "endAt": "2026-11-29T05:00:00Z",
-          "kind": "ROSTERED",
-          "worked": false,
-          "version": 0
-        }
-      ]
+      "items": []
     },
     {
       "date": "2026-11-29",
-      "items": [
-        {
-          "type": "SHIFT",
-          "assignmentId": "8d9b0850-6282-3dab-8ddc-3ac55da49654",
-          "shiftTemplate": "E8",
-          "startAt": "2026-11-29T21:00:00Z",
-          "endAt": "2026-11-30T05:00:00Z",
-          "kind": "ROSTERED",
-          "worked": false,
-          "version": 0
-        }
-      ]
+      "items": []
     },
     {
       "date": "2026-11-30",
       "items": [
         {
           "type": "SHIFT",
-          "assignmentId": "fafb6e61-276d-3233-98b6-1efebe20093e",
-          "shiftTemplate": "N8",
-          "startAt": "2026-12-01T05:00:00Z",
-          "endAt": "2026-12-01T13:00:00Z",
+          "assignmentId": "1f1dec4f-58b1-3a75-8f69-80e99f2121fd",
+          "shiftTemplate": "P12",
+          "startAt": "2026-11-30T18:00:00Z",
+          "endAt": "2026-12-01T06:00:00Z",
           "kind": "ROSTERED",
           "worked": false,
           "version": 0

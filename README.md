@@ -111,8 +111,8 @@ Sign-in is **simulated**. The sign-in screen lists fictional demo users (`GET /a
 
 | User | Roles | Scope | Use it for |
 |---|---|---|---|
-| M. Ellis | Supervisor, Employee | Units A, B and both supervisor posts | Planning board, overtime, time and payroll; her own schedule (Employee view) as Morgan Ellis, a SUP-L supervisor (D12 day crew on 120/150; rotating 8 h on 100) |
-| J. Chen | Supervisor, Employee | Admissions, Control, Escort and both supervisor posts | Scope checks (can't see Unit B); their own schedule (Employee view) as Jamie Chen, a SUP-O supervisor (D12 day crew on 120/150; rotating 8 h on 100) |
+| M. Ellis | Supervisor, Employee | Units A, B and both supervisor posts | Planning board, overtime, time and payroll; her own schedule (My schedule) as Morgan Ellis, a SUP-L supervisor (D12 day crew on 120/150; rotating 8 h on 100) |
+| J. Chen | Supervisor, Employee | Admissions, Control, Escort and both supervisor posts | Scope checks (can't see Unit B); their own schedule (My schedule) as Jamie Chen, a SUP-O supervisor (D12 day crew on 120/150; rotating 8 h on 100) |
 | T. Nakamura | Employee | own records | My schedule, offers (accept/decline) |
 | L. Fraser | Rules admin | none | Edit, build and submit rule changes |
 | P. Singh | Rules approver | none | Approve and publish (not their own drafts) |
@@ -127,7 +127,7 @@ A reset rebuilds a known state from a fixed seed. **About & version → Reset th
 - **Dataset 120**: 100 full-time D12/N12/E8 crew officers plus 20 casual relief officers, plus 10 supervisors on D12/N12 crews; checksum `ca73467d…a64a`.
 - **Dataset 150**: 120 full-time officers plus 30 part-time officers, with a deterministic 20% leave placement, plus 12 supervisors (the 120 ten, a D8 day supervisor and a 0.6 FTE part-timer, with their own 20% leave); checksum `353e2e62…91a5`.
 
-Since release v1.3 every dataset has **supervisors on their own posts**: two supervisor posts, **Supervision · Living units** (SUP-L, covers A, B and C) and **Supervision · Operations** (SUP-O, covers Admissions, Control and Escort), each needing one supervisor per block, 24/7. M. Ellis and J. Chen are linked to supervisor records, so their **Employee view** shows their own schedule. The supervisors were added after every officer row from their own seeded streams, so the officers' roster, plan and payroll rows are unchanged: the officers alone still give the earlier checksums (`4156077d…da6b`, `82b19cf8…32ca`, `2e6cd938…d7f8`), and a test asserts it.
+Since release v1.3 every dataset has **supervisors on their own posts**: two supervisor posts, **Supervision · Living units** (SUP-L, covers A, B and C) and **Supervision · Operations** (SUP-O, covers Admissions, Control and Escort), each needing one supervisor per block, 24/7. M. Ellis and J. Chen are linked to supervisor records, so their **My schedule** shows their own schedule, headed with their position and post. The supervisors were added after every officer row from their own seeded streams, so the officers' roster, plan and payroll rows are unchanged: the officers alone still give the earlier checksums (`4156077d…da6b`, `82b19cf8…32ca`, `2e6cd938…d7f8`), and a test asserts it.
 
 Every reset (and a fresh stack) also **plants four shift proposals** (v1.3 P5, ADR-032), so the Proposals inbox is not empty: Tara Nakamura's Waiting proposal with a Unit B shift for M. Ellis and an Admissions shift for J. Chen, one Declined by J. Chen with a comment, one Expired, and M. Ellis's own Waiting supervisor-post shift for J. Chen. A fresh reset shows **Proposals (1)** for M. Ellis and **Proposals (2)** for J. Chen. They create no shift, so every checksum above is unchanged; [`docs/demo-script.md`](docs/demo-script.md) §8 walks them.
 

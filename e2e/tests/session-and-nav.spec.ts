@@ -20,22 +20,22 @@ interface Landing {
 // docs/ui/build-notes.md §2.1 destinations and shell/roles.ts nav, as the
 // person sees them (About & version is on every role's nav). Since release
 // v1.3 (S4) the demo supervisors are linked to their own supervisor records,
-// so Employee view (their own schedule) is offered; before it they had no
-// record and it was hidden (PR-G).
+// so their own schedule is offered; before it they had no record and it was
+// hidden (PR-G). S7 names the item My schedule (it was Employee view).
 const LANDINGS: Landing[] = [
   {
     user: 'M. Ellis',
     topBar: 'Supervisor · M. Ellis',
     heading: 'Planning board',
     // v1.3 P4: "Proposals (n)", the count in text, under Overtime.
-    nav: ['Planning board', 'Overtime', /^Proposals( \(\d+\))?$/, 'Reports', 'Rules', 'Audit log', 'Wall display', 'Employee view', 'Time & attendance', 'About & version'],
+    nav: ['Planning board', 'Overtime', /^Proposals( \(\d+\))?$/, 'Reports', 'Rules', 'Audit log', 'Wall display', 'My schedule', 'Time & attendance', 'About & version'],
   },
   {
     user: 'J. Chen',
     topBar: 'Supervisor · J. Chen',
     heading: 'Planning board',
     // v1.3 P4: "Proposals (n)", the count in text, under Overtime.
-    nav: ['Planning board', 'Overtime', /^Proposals( \(\d+\))?$/, 'Reports', 'Rules', 'Audit log', 'Wall display', 'Employee view', 'Time & attendance', 'About & version'],
+    nav: ['Planning board', 'Overtime', /^Proposals( \(\d+\))?$/, 'Reports', 'Rules', 'Audit log', 'Wall display', 'My schedule', 'Time & attendance', 'About & version'],
   },
   {
     user: 'T. Nakamura',

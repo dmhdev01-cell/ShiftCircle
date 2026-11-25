@@ -10,6 +10,7 @@ import { colour } from '../theme/tokens';
 import { plainDate } from './plannerTime';
 import {
   changedSince,
+  hasSupervisors,
   inputsHeadline,
   LEAVE_WORDS,
   neededWords,
@@ -50,6 +51,65 @@ function Figure({ label, value }: { label: string; value: string }) {
   );
 }
 
+type UnitRow = PlanInputs['units'][number];
+
+/** One row per unit or post: people, FTE, the shift patterns and the minimums. */
+function UnitsTable({ rows, anyClosed, nobody }: { rows: UnitRow[]; anyClosed: boolean; nobody: string }) {
+  return (
+    <Box sx={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <thead>
+          <tr>
+            <th scope="col" style={head}>{rows.some((row) => row.supervision) ? 'Post' : 'Unit'}</th>
+            <th scope="col" style={{ ...head, textAlign: 'right' }}>Full-time</th>
+            <th scope="col" style={{ ...head, textAlign: 'right' }}>Part-time or casual</th>
+            <th scope="col" style={{ ...head, textAlign: 'right' }}>FTE</th>
+            <th scope="col" style={head}>Shift patterns</th>
+            <th scope="col" style={head}>Minimum night · day · evening</th>
+            {anyClosed ? <th scope="col" style={{ ...head, textAlign: 'right' }}>Closed days</th> : null}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((unit) => (
+            <tr key={unit.code} style={{ borderBottom: `1px solid ${colour.border.default}` }}>
+              <th scope="row" style={{ ...cell, textAlign: 'left', fontWeight: 600 }}>
+                {unit.name}
+              </th>
+              <td className="num" style={{ ...cell, textAlign: 'right' }}>{unit.fullTime}</td>
+              <td className="num" style={{ ...cell, textAlign: 'right' }}>{unit.partTime}</td>
+              <td className="num" style={{ ...cell, textAlign: 'right' }}>{unit.fte}</td>
+              <td style={cell}>
+                {unit.groups.length === 0 ? (
+                  <span style={{ color: colour.text.secondary }}>{nobody}</span>
+                ) : (
+                  <ul style={{ margin: 0, paddingLeft: 16 }}>
+                    {unit.groups.map((group) => (
+                      <li key={`${group.position ?? ''}-${group.employment}-${group.pattern}`}>
+                        {group.officers}{' '}
+                        {group.position === 'CS' && !unit.supervision
+                          ? `${group.officers === 1 ? 'supervisor' : 'supervisors'}, `
+                          : ''}
+                        {group.employment === 'FULL_TIME' ? 'full-time' : 'part-time or casual'},{' '}
+                        {group.patternWords}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </td>
+              <td className="num" style={cell}>
+                {unit.minimums.NIGHT} · {unit.minimums.DAY} · {unit.minimums.EVENING}
+              </td>
+              {anyClosed ? (
+                <td className="num" style={{ ...cell, textAlign: 'right' }}>{unit.closedDays}</td>
+              ) : null}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Box>
+  );
+}
+
 /**
  * Plan inputs (PR-M): what the quarter generator works from, so the plan is
  * not a black box. The headline is always visible; the detail opens on
@@ -76,6 +136,10 @@ export function PlanInputsCard({
     ([a], [b]) => Number(a) - Number(b),
   );
   const anyClosed = inputs.units.some((unit) => unit.closedDays > 0);
+  // Release v1.3 S7: the supervisor posts get their own table below the officer units.
+  const lineRows = inputs.units.filter((unit) => !unit.supervision);
+  const postRows = inputs.units.filter((unit) => unit.supervision);
+  const staff = postRows.length > 0 || hasSupervisors(inputs);
   const needed = neededWords(inputs);
 
   return (
@@ -98,7 +162,7 @@ export function PlanInputsCard({
         <Typography sx={{ fontSize: 13, color: colour.text.secondary }}>
           {optionsLine(inputs, fromDraft)} · {inputs.leave.days.toLocaleString('en-CA')} planned leave{' '}
           {inputs.leave.days === 1 ? 'day' : 'days'} · {inputs.preferences.officers.toLocaleString('en-CA')}{' '}
-          {inputs.preferences.officers === 1 ? 'officer has' : 'officers have'} preferences on file
+          {staff ? 'staff have' : inputs.preferences.officers === 1 ? 'officer has' : 'officers have'} preferences on file
         </Typography>
 
         {changed ? (
@@ -139,58 +203,23 @@ export function PlanInputsCard({
             sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}
           >
             <Section title="Officers by unit">
-              <Box sx={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                  <thead>
-                    <tr>
-                      <th scope="col" style={head}>Unit</th>
-                      <th scope="col" style={{ ...head, textAlign: 'right' }}>Full-time</th>
-                      <th scope="col" style={{ ...head, textAlign: 'right' }}>Part-time or casual</th>
-                      <th scope="col" style={{ ...head, textAlign: 'right' }}>FTE</th>
-                      <th scope="col" style={head}>Shift patterns</th>
-                      <th scope="col" style={head}>Minimum night · day · evening</th>
-                      {anyClosed ? <th scope="col" style={{ ...head, textAlign: 'right' }}>Closed days</th> : null}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {inputs.units.map((unit) => (
-                      <tr key={unit.code} style={{ borderBottom: `1px solid ${colour.border.default}` }}>
-                        <th scope="row" style={{ ...cell, textAlign: 'left', fontWeight: 600 }}>
-                          {unit.name}
-                        </th>
-                        <td className="num" style={{ ...cell, textAlign: 'right' }}>{unit.fullTime}</td>
-                        <td className="num" style={{ ...cell, textAlign: 'right' }}>{unit.partTime}</td>
-                        <td className="num" style={{ ...cell, textAlign: 'right' }}>{unit.fte}</td>
-                        <td style={cell}>
-                          {unit.groups.length === 0 ? (
-                            <span style={{ color: colour.text.secondary }}>No officers</span>
-                          ) : (
-                            <ul style={{ margin: 0, paddingLeft: 16 }}>
-                              {unit.groups.map((group) => (
-                                <li key={`${group.employment}-${group.pattern}`}>
-                                  {group.officers} {group.employment === 'FULL_TIME' ? 'full-time' : 'part-time or casual'},{' '}
-                                  {group.patternWords}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </td>
-                        <td className="num" style={cell}>
-                          {unit.minimums.NIGHT} · {unit.minimums.DAY} · {unit.minimums.EVENING}
-                        </td>
-                        {anyClosed ? (
-                          <td className="num" style={{ ...cell, textAlign: 'right' }}>{unit.closedDays}</td>
-                        ) : null}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Box>
+              <UnitsTable rows={lineRows} anyClosed={anyClosed} nobody="No officers" />
               <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
                 Full-time is 1.0 FTE. The generator treats every officer under 1.0 FTE the same way,
                 part-time or casual. Minimums are officers on duty through each block, every day.
               </Typography>
             </Section>
+
+            {postRows.length > 0 ? (
+              <Section title="Supervisors by post">
+                <UnitsTable rows={postRows} anyClosed={anyClosed} nobody="No supervisors" />
+                <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
+                  A supervisor post is planned like a unit, with its own minimum (one supervisor
+                  through each block). Supervisors fill only supervisor posts, and officers only
+                  officer posts.
+                </Typography>
+              </Section>
+            ) : null}
 
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 3 }}>
               <Section title="Planned leave in the quarter">
@@ -198,14 +227,14 @@ export function PlanInputsCard({
                 {leaveTypes.map(([type, days]) => (
                   <Figure key={type} label={`· ${LEAVE_WORDS[type] ?? type}`} value={days.toLocaleString('en-CA')} />
                 ))}
-                <Figure label="Officers with leave" value={inputs.leave.officers.toLocaleString('en-CA')} />
+                <Figure label={staff ? 'Staff with leave' : 'Officers with leave'} value={inputs.leave.officers.toLocaleString('en-CA')} />
                 <Typography sx={{ fontSize: 12, color: colour.text.secondary }}>
-                  An officer is never rostered on a leave day.
+                  {staff ? 'Nobody is rostered on a leave day.' : 'An officer is never rostered on a leave day.'}
                 </Typography>
               </Section>
 
               <Section title="Preferences on file">
-                <Figure label="Officers with any preference" value={String(inputs.preferences.officers)} />
+                <Figure label={staff ? 'Staff with any preference' : 'Officers with any preference'} value={String(inputs.preferences.officers)} />
                 {lengths.map(([length, officers]) => (
                   <Figure
                     key={length}

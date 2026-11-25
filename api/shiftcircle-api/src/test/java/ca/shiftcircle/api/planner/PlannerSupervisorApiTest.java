@@ -129,7 +129,10 @@ class PlannerSupervisorApiTest {
     assertThat(post)
         .containsEntry("kind", "SUPERVISION")
         .containsEntry("supervision", true)
-        .containsEntry("officers", 4);
+        // Release v1.3 S7: the row splits its people by rank (S3 review N4).
+        .containsEntry("officers", 0)
+        .containsEntry("supervisors", 4)
+        .containsEntry("fullTime", 4);
     assertThat((List<Map<String, Object>>) post.get("groups"))
         .isNotEmpty()
         .allSatisfy(group -> assertThat(group.get("position")).isEqualTo("CS"));
@@ -209,7 +212,14 @@ class PlannerSupervisorApiTest {
         .containsEntry("shifts", allShifts)
         .containsEntry("supervisorShifts", postShifts)
         .containsEntry("officerShifts", allShifts - postShifts)
-        .containsEntry("supervisors", seededSupervisors + 4);
+        .containsEntry("supervisors", seededSupervisors + 4)
+        // By the post the warning was raised on (S3 review N6, release v1.3 S7).
+        .containsKeys("lineUnitWarnings", "postWarnings")
+        .doesNotContainKeys("officerPostWarnings", "supervisorPostWarnings");
+    assertThat(
+            ((Number) totals.get("lineUnitWarnings")).intValue()
+                + ((Number) totals.get("postWarnings")).intValue())
+        .isEqualTo(((Number) totals.get("warnings")).intValue());
 
     Map<String, Object> preview =
         json(send("GET", "/api/v1/planner/drafts/" + draft + "/commit-preview", null, null));

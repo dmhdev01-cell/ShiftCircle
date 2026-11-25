@@ -10,6 +10,7 @@ import { api } from '../api/client';
 import { AbsenceChip, ShiftChip } from '../components/ShiftChip';
 import { Legend, LegendItem } from '../components/Legend';
 import { qualificationLabel } from '../api/qualifications';
+import { rotationWords } from './rotationWords';
 import { shiftTemplates } from '../api/shiftTemplates';
 import type { MyOffer } from '../api/types';
 import { StatusPill } from '../components/StatusPill';
@@ -267,9 +268,11 @@ export function MySchedulePage() {
         <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
           {[
             payload.employee.name,
-            payload.employee.role,
-            payload.employee.unit.name,
-            payload.employee.rotation,
+            // The position in words ("Correctional supervisor"); the code only if the api sent none.
+            payload.employee.position || payload.employee.role,
+            // A supervisor's post names the units it covers (release v1.3 S7).
+            payload.employee.post || payload.employee.unit?.name,
+            rotationWords(payload.employee.rotation),
             ...payload.employee.qualifications.map(qualificationLabel),
           ]
             // An empty clause (no rotation, no qualification) must not leave a
@@ -368,7 +371,8 @@ export function MySchedulePage() {
           }}
         >
           <Box component="span" sx={{ fontSize: 12, fontWeight: 600, color: colour.text.secondary }}>
-            This pay period ({payPeriod.label})
+            {/* 120/150 have no pay period on the demo day: no empty "()" (UI test P1). */}
+            {payPeriod.label ? `This pay period (${payPeriod.label})` : 'This pay period'}
           </Box>
           <Box className="num" sx={{ fontSize: 24, fontWeight: 700 }}>
             {payPeriod.totalHours}{' '}
