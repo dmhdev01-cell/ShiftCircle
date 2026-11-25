@@ -74,7 +74,7 @@ After sending, the card says "Sent to your supervisor. You'll see the answer und
 
 Only a supervisor with that unit, or the planner, can approve an extra shift, and an approved shift counts toward your pay-period hours like an accepted overtime offer. *In this release the supervisors' proposals inbox screen is still being built (the API behind it is ready), so in the demo a sent proposal normally stays Waiting until you withdraw it or the shift starts.*
 
-![My proposals with a waiting proposal and its note, and a withdrawn one](img/officer-my-proposals.png)
+![After sending: the Propose shifts card says the proposal was sent, and My proposals lists two waiting proposals, one with its note, each with Withdraw](img/officer-my-proposals.png)
 
 The old **/me/propose** link opens My schedule at the Propose shifts card. On a phone the cards stack, and the calendar scrolls sideways.
 
