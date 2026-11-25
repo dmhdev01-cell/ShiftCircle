@@ -53,6 +53,8 @@ public class OvertimeService {
   private static final DateTimeFormatter OFFER_TIME = DateTimeFormatter.ofPattern("HH:mm");
   private static final Set<String> REASONS =
       Set.of("SICK_CALL", "VACATION", "EXTRA_COVERAGE", "OTHER");
+  /** The qualification that lets an officer into a supervisor post's pool (R-01, plan §2.6). */
+  private static final String ACTING = "ACTING_SUP";
 
   public record UnitRef(UUID id, String name) {}
 
@@ -278,19 +280,22 @@ public class OvertimeService {
                 java.sql.Timestamp.from(endAt),
                 java.sql.Timestamp.from(startAt)));
 
-    // Release v1.3 (S4): the datasets now hold supervisors, and both demo supervisors have the
-    // supervisor posts in scope. The ranked list stays within the post's rank, so a supervisor
-    // post lists supervisors and an officer post lists officers, exactly as before (owner answer
-    // Q4). S5 builds the full pools on this (acting officers, rank seniority).
-    boolean supervisorPost = "SUPERVISION".equals(shift.get("unit_kind"));
+    // Release v1.3 S5: separate overtime pools by position (plan §2.6, owner answer Q4). A
+    // supervisor post is offered to supervisors first, then to officers who hold ACTING_SUP
+    // (ranked after every supervisor; R-01 makes them a Warn). An officer post is offered to
+    // officers only. Each pool is ranked on its own by O-02 with rank seniority.
+    String unitKind = (String) shift.get("unit_kind");
     List<OvertimeRanker.Candidate> pool = new ArrayList<>();
+    List<OvertimeRanker.Candidate> actingPool = new ArrayList<>();
     for (Map<String, Object> officer : officers) {
-      if (Position.fromCodeOrDefault((String) officer.get("classification")).isSupervisory()
-          != supervisorPost) {
+      List<String> qualifications = strings(officer.get("qualifications"));
+      Pool tier =
+          poolFor(
+              unitKind, (String) officer.get("classification"), qualifications.contains(ACTING));
+      if (tier == Pool.NONE) {
         continue;
       }
       UUID employeeId = (UUID) officer.get("id");
-      List<String> qualifications = strings(officer.get("qualifications"));
 
       String unavailable = null;
       RuleCheckService.OutcomeView outcome = null;
@@ -306,19 +311,81 @@ public class OvertimeService {
         outcomes.put(employeeId, outcome);
       }
 
-      pool.add(
+      (tier == Pool.ACTING ? actingPool : pool).add(
           new OvertimeRanker.Candidate(
               employeeId.toString(),
               (String) officer.get("name"),
               qualifications,
               ((Number) officer.get("overtime_hours")).doubleValue(),
-              ((java.sql.Date) officer.get("seniority_date")).toLocalDate(),
+              // O-02 ties break on seniority inside the rank: coalesce(position_since,
+              // seniority_date). An officer has no position_since, so it is their service date.
+              ((java.sql.Date) officer.get("rank_seniority")).toLocalDate(),
               unavailable,
               worstOutcome(outcome),
               reason(outcome),
               flaggedCodes(outcome)));
     }
-    return ranker.rank(pool, RankingPolicy.from(live.ruleSet()));
+    RankingPolicy policy = RankingPolicy.from(live.ruleSet());
+    List<OvertimeRanker.Ranked> ranked = new ArrayList<>(ranker.rank(pool, policy));
+    for (OvertimeRanker.Ranked acting : ranker.rank(actingPool, policy)) {
+      ranked.add(
+          new OvertimeRanker.Ranked(
+              ranked.size() + 1, acting.candidate(), acting.eligibility(), acting.reason()));
+    }
+    return ranked;
+  }
+
+  /** Which overtime pool a person is in for a post (plan §2.6). */
+  private enum Pool {
+    /** The post's own rank: supervisors for a supervisor post, officers for an officer post. */
+    RANK,
+    /** An officer holding ACTING_SUP, for a supervisor post: ranked after every supervisor. */
+    ACTING,
+    /** Not offered this post through the offer list. */
+    NONE
+  }
+
+  private static Pool poolFor(String unitKind, String classification, boolean holdsActing) {
+    boolean supervisor = Position.fromCodeOrDefault(classification).isSupervisory();
+    if (!"SUPERVISION".equals(unitKind)) {
+      // An officer post is never offered to a supervisor through the offer list (R-02: a
+      // supervisor on an officer post is assigned from the board, with an acknowledgement).
+      return supervisor ? Pool.NONE : Pool.RANK;
+    }
+    if (supervisor) {
+      return Pool.RANK;
+    }
+    return holdsActing ? Pool.ACTING : Pool.NONE;
+  }
+
+  /**
+   * The offer list's own gate: a person outside the post's overtime pool is refused before any
+   * offer is written, so the pool is not display-only (as {@link #requireAvailable} is for the
+   * qualification and overlap gates).
+   */
+  private void requireInPool(UUID employeeId, Map<String, Object> shift) {
+    List<Map<String, Object>> rows =
+        jdbc.queryForList(
+            "SELECT e.classification, EXISTS (SELECT 1 FROM employee_qualification eq"
+                + " JOIN qualification q ON q.id = eq.qualification_id"
+                + " WHERE eq.employee_id = e.id AND q.code = ?) AS acting"
+                + " FROM employee e WHERE e.id = ?",
+            ACTING,
+            employeeId);
+    if (rows.isEmpty()) {
+      return; // an unknown id fails later with the existing not-found path
+    }
+    Map<String, Object> row = rows.get(0);
+    String unitKind = (String) shift.get("unit_kind");
+    boolean acting = Boolean.TRUE.equals(row.get("acting"));
+    if (poolFor(unitKind, (String) row.get("classification"), acting) == Pool.NONE) {
+      throw new CandidateUnavailableException(
+          "SUPERVISION".equals(unitKind)
+              ? "Not in this supervisor post's overtime pool: only supervisors, then officers who"
+                  + " hold the Acting supervisor qualification"
+              : "Not in this officer post's overtime pool: a supervisor is not offered an officer"
+                  + " post; assign from the planning board (R-02)");
+    }
   }
 
   /**
@@ -401,8 +468,12 @@ public class OvertimeService {
     }
     // Release v1.3 S4: a supervisor does not offer overtime to themselves (owner answer Q3). Every
     // name is checked before any offer is written, so a list with yourself in it writes nothing.
+    // S5: the same for the post's overtime pool, so a list with one name outside it writes nothing.
     for (UUID employeeId : request.employeeIds()) {
       SelfActionGuard.requireNotOwnSchedule(principal, employeeId);
+    }
+    for (UUID employeeId : request.employeeIds()) {
+      requireInPool(employeeId, shift);
     }
 
     UUID unitId = (UUID) shift.get("unit_id");
@@ -589,6 +660,9 @@ public class OvertimeService {
     UUID unitId = (UUID) shift.get("unit_id");
     String templateCode = (String) shift.get("template_code");
     Instant startAt = ((java.sql.Timestamp) shift.get("start_at")).toInstant();
+    // S5: an offer made before the pools (S4 had none on the offer path) can't be confirmed
+    // outside the post's pool either.
+    requireInPool(employeeId, shift);
     requireAvailable(employeeId, shift);
 
     PublishedRuleSet.Snapshot live = publishedRuleSet.snapshot();
@@ -712,6 +786,7 @@ public class OvertimeService {
     List<Map<String, Object>> officers =
         jdbc.queryForList(
             "SELECT e.id, e.first_name || ' ' || e.last_name AS name, e.seniority_date,"
+                + " coalesce(e.position_since, e.seniority_date) AS rank_seniority,"
                 + " e.classification, u.code AS home_unit,"
                 + " coalesce((SELECT sum(te.hours) FROM time_entry te"
                 + "   WHERE te.employee_id = e.id AND te.pay_code = 'OT15'"

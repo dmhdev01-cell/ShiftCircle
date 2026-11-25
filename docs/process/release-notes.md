@@ -137,7 +137,7 @@ No api, migration, generator or rules change: dataset checksums, the payroll gol
 
 The owner approved the plan in `.factory/plans/v1.2-supervisors.md` (the plan file still says v1.2; the
 release was split afterwards, so it is v1.3 here). The work is eight small pull requests, **S1 to S8**;
-this entry covers **S1** to **S4**. The plan is not in the repository, so this section is the record of what
+this entry covers **S1** to **S5**. The plan is not in the repository, so this section is the record of what
 these pull requests did.
 
 ### S1 — Positions and the SUPERVISION kind (API, schema only)
@@ -455,6 +455,60 @@ infrastructure + 433 api** (GitHub CI `mvn verify` on the pull request's merge w
 failures, errors or skipped; `SelfEditGuardApiTest` +3); web unit tests **632** in 61 files, lint 0
 errors (4 warnings), `tsc -b` and build clean; Playwright against the real API, a fresh stack per
 viewport: desktop-datasets **134 passed**, tablet-datasets **133 passed and 1 skipped**.
+
+### S5 — Overtime pools by position (API)
+
+Stacked on S4 (#35). Owner answer Q4 (separate overtime pools). The self-edit guard the plan put in
+S5 shipped in S4, on every supervisor write path (`SelfEditGuardApiTest`), so S5 is the pools only.
+
+**What it does.** S4's stopgap ("the overtime list stays inside the post's rank") is replaced by the
+pools themselves, in `OvertimeService`:
+- **A supervisor post** (`SUPERVISION` unit) is offered to the supervisors, ranked by O-01/O-02
+  (fewest overtime hours this quarter, then seniority **as a supervisor**), then to the officers who
+  hold **Acting supervisor** (`ACTING_SUP`), ranked the same way among themselves and placed after
+  every supervisor; R-01 makes each of them a Warn. Other officers are not listed.
+- **An officer post** is offered to officers only. A supervisor is not listed and cannot be offered
+  it (R-02 cross-cover stays a board decision with an acknowledgement).
+- **Rank seniority in O-02**: the ranker's seniority is `coalesce(position_since, seniority_date)`,
+  so a supervisor promoted in 2022 ranks after one promoted in 2018 whatever their service. An
+  officer has no `position_since`, so every officer order is unchanged. The candidate's
+  `seniorityDate` shows the same date.
+- **The offer path checks the pool**: `POST /open-shifts/{id}/offers` naming someone outside it
+  answers `422` `officer-unavailable` with the pool's reason, before any offer is written. A direct
+  assign is left to the rule check, as on the board.
+- **Proposals (P2)** read the same pools: an acting officer proposing a supervisor-post shift is
+  placed after the supervisors, so approving them needs the out-of-order acknowledgement.
+
+**Pins.** None move. The demo §3 list is unchanged and now pinned in `SupervisorDatasetsApiTest`:
+**36 candidates, 18 Skipped, 10 Not available, 8 eligible with a warning**, Tara Nakamura one of the
+8 with 32.0 h. No officer in the datasets holds Acting supervisor, so a supervisor post lists the 10
+supervisors on Dataset 100.
+
+**Tests.** New `OvertimeSupervisorPoolApiTest` (+5, a fixture of four supervisors, an acting and a
+plain officer): the supervisor post's order by rank seniority then the acting officer last as a
+Warn; an officer post lists officers only; offers outside the pool are `422` and write nothing, the
+acting officer's offer is made; a supervisor sick call offered to J. Chen, accepted on My schedule
+and confirmed by M. Ellis; an acting officer's proposal is 5th of 5 and out of order.
+`SupervisorDatasetsApiTest` (Dataset 100): the §3 counts, 10 supervisors on a post's list, the
+seeded supervisor sick calls offered to supervisors only, and an open one offered to another
+supervisor through the API.
+
+**Counts at this gate** (author run, `0f60cad`: S5 on S4 with main merged in, which brings P4 #36;
+own compose project `sc-sc-s5`, port 18495): API **616 = 140 rules + 38 infrastructure + 438 api**
+(`mvn -B verify` in the `maven:3.9-eclipse-temurin-21` image with the Docker socket, BUILD SUCCESS,
+0 failures, errors or skipped); web unit tests **656** in 63 files, lint 0 errors (4 warnings),
+`tsc -b` clean (no web code changes); Playwright against the real API, a fresh stack per viewport:
+desktop-datasets **136 passed**, tablet-datasets **135 passed and 1 skipped**.
+
+**Review round** (gates on #37: review CHANGES, security PASS with 2 lows). `origin/sc-s4` at
+`36fcff7` (S4's re-check) and main merged in, keeping S4's versions. The pool check now runs for
+every name before any offer is written (next to the self-edit check), and **confirm checks the pool
+again**, so an offer accepted before the pools (S4's offer path had no pool check) to a supervisor on
+an officer post is a plain `422 officer-unavailable` and writes nothing. docs/07's candidate-list,
+offer and proposal-order prose name the pools; docs/05's O-02 says seniority inside the rank.
+`OvertimeSupervisorPoolApiTest` +1 (the pre-S5 accepted offer) and a mixed-name list that writes
+nothing; the dataset test is renamed `theOvertimeListKeepsToThePostsPool`. API **617 = 140 rules +
+38 infrastructure + 439 api** (GitHub CI `mvn verify`).
 
 ### Shift proposals, P1: the officer API
 

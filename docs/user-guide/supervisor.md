@@ -133,6 +133,8 @@ The **Overtime board** lists open shifts, current needs first. Filled and past s
 
 Ordered (mandatory) overtime is only offered once the voluntary list is used up. It goes in reverse order, at most once per officer every 14 days.
 
+**Supervisor posts have their own overtime list** (release v1.3). An open shift on **Supervision · Living units** or **Supervision · Operations** lists the supervisors first, by overtime this quarter and then seniority *as a supervisor* (the date they became one, not their years of service). Officers who hold the **Acting supervisor** qualification come after every supervisor, marked **Eligible · warning · R-01**; other officers are not listed. An open shift on an officer unit lists officers only: a supervisor is never offered an officer post from this list (put a supervisor on an officer post from the planning board, where R-02 asks you to acknowledge it). Offering someone outside the list is refused with the reason. The same list decides the overtime order on a proposal ("3rd of 12").
+
 <!-- No screenshot yet: desktop__supervisor__overtime (no clean capture from the gated build) -->
 
 ## Proposals
