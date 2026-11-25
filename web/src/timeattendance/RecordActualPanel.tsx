@@ -10,6 +10,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
 import { chipTextFor } from '../api/shiftTemplates';
+import { dayWords } from '../planning/gapFill';
 import type { AbsenceType, PayCode, RecordActualInput, TimeEntry } from '../api/types';
 import { colour } from '../theme/tokens';
 
@@ -30,6 +31,11 @@ interface RecordActualPanelProps {
 
 function clock(instant: string): string {
   return instant.slice(11, 16);
+}
+
+/** "Tue 17 Nov 2026" for the subtitle, not "2026-11-17" (v1.2 walk D6). */
+function dateWords(date: string): string {
+  return `${dayWords(date)} ${date.slice(0, 4)}`;
 }
 
 /** The day after an ISO date: a night shift's end belongs to it. */
@@ -100,7 +106,7 @@ export function RecordActualPanel({
             Record actual · {entry.employeeName}
           </Typography>
           <Box component="span" sx={{ fontSize: 13, color: colour.text.secondary }}>
-            {entry.date} · {chipTextFor(entry.shiftTemplate)} · scheduled{' '}
+            {dateWords(entry.date)} · {chipTextFor(entry.shiftTemplate)} · scheduled{' '}
             {clock(entry.startAt)} – {clock(entry.endAt)}
           </Box>
         </Box>

@@ -130,7 +130,18 @@ test.describe('the shift dialog on a started shift', () => {
     await expect(
       page.getByRole('dialog', { name: `Record actual · ${officer.name}` }),
     ).toBeVisible();
-    await expect(page.getByRole('dialog').getByText(new RegExp(`^${date} · `))).toBeVisible();
+    // v1.2 walk D6: the panel names the day in words, not as an ISO date.
+    const dayWords = new Intl.DateTimeFormat('en-GB', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    })
+      .format(new Date(`${date}T00:00:00Z`))
+      .replace(',', '');
+    await expect(page.getByRole('dialog').getByText(new RegExp(`^${dayWords} · `))).toBeVisible();
+    await expect(page.getByRole('dialog').getByText(new RegExp(`^${date} · `))).toHaveCount(0);
     await expect(page.getByLabel('Unit')).toHaveValue(unit.id);
   });
 

@@ -28,9 +28,13 @@ import timeEntries from './contract-samples/time-entries.json';
 import units from './contract-samples/units.json';
 import version from './contract-samples/version.json';
 import plannerInputs from './contract-samples/planner-inputs.json';
+import plannerStaffing from './contract-samples/planner-staffing.json';
 import { PlanInputsCard } from '../planner/PlanInputsCard';
+import { StaffingPanel } from '../planner/StaffingPanel';
+import { staffingTile } from '../planner/staffingWords';
+import { fixtureStaffing } from './fixtures/plannerUnits';
 import { PLAN_INPUTS_120 } from './fixtures/planInputs';
-import type { PlanInputs } from './types';
+import type { PlanInputs, StaffingReport } from './types';
 
 /**
  * The screens against the api's own answers.
@@ -220,5 +224,48 @@ describe('plan inputs against the api (PR-M)', () => {
         expect(Object.keys(fixture[key] as object).sort(), key).toEqual(Object.keys(value).sort());
       }
     }
+  });
+});
+
+describe('staffing against the api (v1.2 walk D1)', () => {
+  // GET /planner/staffing on Dataset 120, captured by the v1.2 release walk
+  // (24 Nov 2026) during demo script §7 step 10, with Unit C closed from
+  // 15 Feb 2027 (reopening 29 Mar 2027 set later), so it has three periods;
+  // a fresh Dataset 120 without the closure answers one period with the same
+  // first-period figures. The capture script's planner-staffing line saves the
+  // current dataset's answer instead. Four units are short by 7 in all
+  // (Admissions 1, Unit B 1, Unit C 2, Escort & transport 3). The api names
+  // the figure "shortfall"; the screen read "short" and showed 0 everywhere.
+  const sample = plannerStaffing as unknown as StaffingReport;
+
+  it('says the tile is short when the api says a unit is short', () => {
+    const tile = staffingTile(sample);
+    expect(tile.value).toBe('127');
+    expect(tile.note).toBe('120 on staff · short 7 · from 29 Mar 2027: at least 127');
+    expect(tile.pill).toEqual({ tone: 'warn', text: 'Short' });
+  });
+
+  it('shows each short unit and the total in the panel', () => {
+    render(
+      <ThemeProvider theme={theme}>
+        <StaffingPanel report={sample} draftGaps={null} onChanged={() => undefined} />
+      </ThemeProvider>,
+    );
+    expect(
+      screen.getByText(
+        'Do we need more staff? Yes, at least 7 more: Admissions (1), Unit B (1), Unit C (2), Escort & transport (3).',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Every unit meets the floor/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the fixture rows and totals in the api shape', () => {
+    const fixture = fixtureStaffing();
+    const apiPeriod = sample.periods[0] as unknown as Record<string, Record<string, unknown>>;
+    const fixturePeriod = fixture.periods[0] as unknown as Record<string, Record<string, unknown>>;
+    expect(Object.keys(fixturePeriod.totals).sort()).toEqual(Object.keys(apiPeriod.totals).sort());
+    const apiRow = (apiPeriod.units as unknown as Record<string, unknown>[])[0];
+    const fixtureRow = (fixturePeriod.units as unknown as Record<string, unknown>[])[0];
+    expect(Object.keys(fixtureRow).sort()).toEqual(Object.keys(apiRow).sort());
   });
 });

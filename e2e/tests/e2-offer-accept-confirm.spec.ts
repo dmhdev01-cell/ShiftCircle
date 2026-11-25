@@ -99,6 +99,13 @@ test.describe('E2 overtime offer, accept, confirm', () => {
     await accepted.getByRole('button', { name: 'Confirm' }).click();
     await expect(page.getByText('The accepted offer is confirmed and the shift is assigned.')).toBeVisible();
     await expect(page.getByRole('group', { name: 'Tara Nakamura · Confirmed' })).toBeVisible();
+    if (!fixtures) {
+      // v1.2 walk D5: the card is fetched again and says Filled, not "Offers sent".
+      const selected = page.getByRole('region', { name: 'Open shifts' }).locator('button[aria-pressed="true"]');
+      await expect(selected).toContainText('Extra coverage');
+      await expect(selected).toContainText('Filled');
+      await expect(selected).not.toContainText('Offers sent');
+    }
   });
 
   test('an employee sees no colleague hours or overtime totals', async ({ page }) => {

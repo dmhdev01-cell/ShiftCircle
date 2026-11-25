@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
@@ -14,6 +15,14 @@ import { ROLE_WORDS } from '../shell/roles';
 import { colour } from '../theme/tokens';
 
 const MOCK_SIGN_IN_OFF = 'Mock sign-in is turned off in this environment.';
+
+/** Tries after a 409 (a demo reset in progress) before offering Retry. */
+const DEMO_USERS_RETRIES = 20;
+
+/** 1 s, 2 s, 4 s, then every 5 s: about 1.5 minutes in all. */
+function retryDelay(attempt: number): number {
+  return Math.min(1000 * 2 ** attempt, 5000);
+}
 
 /** The scope line the picker shows, in plain words from the unit codes. */
 function scopeLine(user: DemoUser): string {
@@ -33,6 +42,8 @@ export function LoginPage() {
   const [users, setUsers] = useState<DemoUser[] | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadRound, setLoadRound] = useState(0);
 
   // A protected route sent the visitor here; go back to it after signing in.
   // The value is router state, so it is validated before it is navigated to.
@@ -40,29 +51,47 @@ export function LoginPage() {
 
   useEffect(() => {
     let active = true;
-    void api
-      .getDemoUsers()
-      .then((loaded) => {
-        if (active) setUsers(loaded);
-      })
-      .catch((error: unknown) => {
-        if (!active) return;
-        // The prod-like profile removes the mock endpoints: say so plainly
-        // instead of showing "404 Not Found".
-        if (error instanceof ApiError && error.status === 404) {
-          setMessage(MOCK_SIGN_IN_OFF);
-          return;
-        }
-        setMessage(
-          error instanceof Error
-            ? error.message
-            : 'The demo users could not be loaded.',
-        );
-      });
+    let timer: number | undefined;
+    // A demo reset started from another session answers 409 while it reloads
+    // the seeded data (v1.2 walk D4): try again on its own, with a short
+    // backoff, and offer Retry once it gives up.
+    const load = (attempt: number) => {
+      void api
+        .getDemoUsers()
+        .then((loaded) => {
+          if (!active) return;
+          setUsers(loaded);
+          setMessage(null);
+          setLoadFailed(false);
+        })
+        .catch((error: unknown) => {
+          if (!active) return;
+          // The prod-like profile removes the mock endpoints: say so plainly
+          // instead of showing "404 Not Found".
+          if (error instanceof ApiError && error.status === 404) {
+            setMessage(MOCK_SIGN_IN_OFF);
+            // Not "Loading the demo users…" forever: say it, and offer Retry.
+            setLoadFailed(true);
+            return;
+          }
+          setMessage(
+            error instanceof Error
+              ? error.message
+              : 'The demo users could not be loaded.',
+          );
+          if (error instanceof ApiError && error.status === 409 && attempt < DEMO_USERS_RETRIES) {
+            timer = window.setTimeout(() => load(attempt + 1), retryDelay(attempt));
+            return;
+          }
+          setLoadFailed(true);
+        });
+    };
+    load(0);
     return () => {
       active = false;
+      window.clearTimeout(timer);
     };
-  }, []);
+  }, [loadRound]);
 
   // Three reasons to say something above the picker: an expired session, a
   // route that needs a sign-in first, and anything the api said.
@@ -135,7 +164,23 @@ export function LoginPage() {
 
         <Card>
           <CardContent sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {users === null ? (
+            {users === null && loadFailed ? (
+              <Box sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                <Typography sx={{ fontSize: 14, color: colour.text.secondary }}>
+                  The demo users could not be loaded.
+                </Typography>
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    setLoadFailed(false);
+                    setLoadRound((round) => round + 1);
+                  }}
+                  sx={{ minHeight: 44 }}
+                >
+                  Retry
+                </Button>
+              </Box>
+            ) : users === null ? (
               <Typography sx={{ p: 3, fontSize: 14, color: colour.text.secondary }} role="status">
                 Loading the demo users…
               </Typography>

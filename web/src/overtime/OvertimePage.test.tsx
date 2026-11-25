@@ -315,9 +315,13 @@ describe('the overtime board', () => {
       within(supervisorList).getByRole('button', { name: /Sat 21 Nov · Days 07:00 – 15:00/ }),
     );
     const accepted = await screen.findByRole('group', { name: 'Sam Abara · Accepted' }, { timeout: 5000 });
+    const shiftsLoaded = vi.spyOn(api, 'getOpenShifts');
     await user.click(within(accepted).getByRole('button', { name: 'Confirm' }));
     expect(
       await screen.findByRole('group', { name: 'Sam Abara · Confirmed' }),
     ).toBeInTheDocument();
+    // v1.2 walk D5: the cards are fetched again, so the confirmed shift's card
+    // stops saying "Offers sent" without a reload.
+    expect(shiftsLoaded).toHaveBeenCalled();
   });
 });

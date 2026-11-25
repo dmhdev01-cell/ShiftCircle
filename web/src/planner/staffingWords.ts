@@ -16,11 +16,11 @@ export interface StaffingTileWords {
  */
 export function staffingTile(report: StaffingReport): StaffingTileWords {
   const worst = report.periods.reduce(
-    (best, period) => (period.totals.short > best.totals.short ? period : best),
+    (best, period) => (period.totals.shortfall > best.totals.shortfall ? period : best),
     report.periods[0],
   );
   const later = report.periods.length > 1 ? report.periods[report.periods.length - 1] : null;
-  const short = worst.totals.short;
+  const short = worst.totals.shortfall;
   return {
     label: 'Needed (at least)',
     value: String(worst.totals.needed),

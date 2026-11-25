@@ -425,6 +425,23 @@ export function RosterGrid({
                       <Box component="span" sx={{ fontWeight: 600, whiteSpace: compact ? 'nowrap' : undefined }}>
                         {officer.name}
                       </Box>
+                      {officer.homeUnit ? (
+                        <Box
+                          component="span"
+                          data-testid="from-unit"
+                          sx={{
+                            fontSize: compact ? 11 : 12,
+                            fontWeight: 600,
+                            px: 0.75,
+                            borderRadius: '4px',
+                            backgroundColor: colour.status.info.bg,
+                            color: colour.status.info.text,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          From {officer.homeUnit.split(' · ')[0]}
+                        </Box>
+                      ) : null}
                       {officer.rotation ? (
                         <Box
                           component="span"
