@@ -10,7 +10,6 @@ A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervis
 
 **[Watch the 3-minute walkthrough](docs/demo/ShiftCircle-walkthrough.mp4)** (MP4, 16 MB) recorded on release `v1.3`. It follows [docs/demo-script.md](docs/demo-script.md) §1–6: the safeguards and rules story.
 
-
 ## Architecture at a glance
 
 Three containers: **web** (nginx + React) · **api** (Java 21 + Spring Boot 4.x, JdbcTemplate + Flyway, Drools rules engine) · **db** (PostgreSQL). See [docs/03-architecture.md](docs/03-architecture.md).
