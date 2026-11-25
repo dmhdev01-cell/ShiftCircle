@@ -9,7 +9,7 @@ Browser -> nginx + React web -> Spring Boot api (Drools rules engine) -> Postgre
            (only port published)   one engine for every write            audit by trigger
 ```
 
-A change, draft edit or proposal approval is previewed, then saved, refused with plain reasons, or acknowledged (shift changes may also be overridden), and audited (ADR-014, 026, 032); a proposal approval has no override.
+A change, draft edit or proposal approval is previewed, then saved, refused with plain reasons, or acknowledged (shift changes may also be overridden), and audited (ADR-014, 026, 032).
 
 ## 2. Key decisions
 
@@ -19,7 +19,7 @@ A change, draft edit or proposal approval is previewed, then saved, refused with
 
 ## 3. AI-assisted development
 
-**Who.** Claude Opus 5.5 designed it. From 20 Nov an OpenRig team built and verified it (DeepSeek V4.1 Flash builders, GLM 5.3 verifiers, Claude Sonnet 5.5 security and lead; different families except R32 to R34 and releases 3 to 7). For v1.2 and v1.3, Claude agents built one gated pull request per change (4 for v1.2, 13 for v1.3).
+**Who.** Claude Opus 5.5 designed it. From 20 Nov an OpenRig team built and verified it (DeepSeek V4.1 Flash builders, GLM 5.3 verifiers, Claude Sonnet 5.5 security and lead; different families except R32 to R34 and releases 3 to 7). For v1.2 and v1.3, Claude agents built one gated pull request per change.
 
 **Caught by verification** after the authors' tests passed:
 
@@ -47,7 +47,7 @@ A change, draft edit or proposal approval is previewed, then saved, refused with
 - **Synthetic data;** weak secrets refused; role and unit scope on every endpoint (`404` outside); the wall display shows counts only. **Safeguards:** written, audited overrides; other Blocks can't be overridden; maker/checker; no one approves their own shift.
 - **Honest limits:**
   - **Guardrail 4 exception: no human reviewed the rule boundary tests.** Waived by the lead on 2026-11-20; AI verifiers reviewed them (R4 to R7).
-  - **Locks and tokens:** locked-period shifts are guarded by the api only (R38; time entries also by a database trigger); a legal but wrong rule value is caught only by maker/checker (R40); 8 h tokens, no revocation (ADR-025). **Not built:** Excel round-trip, offer withdrawal, payroll-clerk role, OpenAPI (docs/10 §8).
+  - **Locks and tokens:** locked-period shifts are guarded by the api only (R38; time entries also by a trigger); a legal but wrong rule value is caught only by maker/checker (R40); 8 h tokens, no revocation (ADR-025). **Not built:** Excel round-trip, offer withdrawal, payroll-clerk role, OpenAPI (docs/10).
   - **Rules:** U-03, U-11 dormant (retired L16 key); L-01 lists 16 h; P-01 makes 4-on/4-off crews built-in overtime, supervisors included.
   - **Planner:** qualifications warn-only; no part-time floor; leave on the draft only; Dataset 100's 8 h supervisors leave post nights short (`docs/roadmap.md`).
 
