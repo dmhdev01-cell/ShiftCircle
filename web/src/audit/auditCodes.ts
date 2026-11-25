@@ -50,6 +50,7 @@ export const API_AUDIT_ACTIONS = [
   'demo_reset',
   'submit_proposal',
   'withdraw_proposal',
+  'decide_proposal_item',
   'expire_proposal_item',
 ] as const;
 
@@ -112,6 +113,7 @@ export const ACTION_LABELS: Record<string, string> = {
   generate_demo_dataset: 'Demo data generated',
   submit_proposal: 'Shifts proposed',
   withdraw_proposal: 'Proposal withdrawn',
+  decide_proposal_item: 'Proposed shift decided',
   expire_proposal_item: 'Proposed shift expired',
 };
 

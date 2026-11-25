@@ -12,7 +12,7 @@
 | IDs | UUID strings |
 | Time | Instants as ISO-8601 with offset (`2026-11-21T07:00:00-06:00`); dates as `YYYY-MM-DD`; all in `America/Regina` |
 | Lists | Plain JSON arrays; the prototype has no `page`/`size` paging. The one long list, `GET /audit-events`, is keyset-paged: `?limit=` (default 50, at most 200) and `?beforeId=`, answering `{ "items": [...], "nextBeforeId": <id or null> }` |
-| Concurrency | Editable resources return `ETag: "<version>"`; updates require `If-Match`. A stale version gets `412 Precondition Failed`. **In the prototype this is built for assignment move and cancel (§4.2), the planner's draft edits and commit (§4.9) and proposal withdraw (§4.4) only.** Rule-table drafts are protected by the build fingerprint and the maker/checker states instead. |
+| Concurrency | Editable resources return `ETag: "<version>"`; updates require `If-Match`. A stale version gets `412 Precondition Failed`. **In the prototype this is built for assignment move and cancel (§4.2), the planner's draft edits and commit (§4.9) and proposal withdraw and decision (§4.4) only.** Rule-table drafts are protected by the build fingerprint and the maker/checker states instead. |
 | Errors | RFC 9457 Problem Details (`application/problem+json`), with a `ruleResults` extension when rules decide (see §3) |
 | CSV | Report and export endpoints also answer `Accept: text/csv` |
 | Correlation | `X-Correlation-Id` is accepted or generated, echoed back, and written to logs and audit |
@@ -21,13 +21,13 @@
 
 | Code | When |
 |---|---|
-| `200` / `201` | Success; `201` with `Location` for creates (`POST /proposals` sends none: there is no GET-by-id to point at yet) |
+| `200` / `201` | Success; `201` with `Location` for creates (`POST /proposals` sends none: its `GET /proposals/{id}` is the decider's view, not the officer's) |
 | `400` | Malformed request or invalid values (field errors listed) |
 | `401` / `403` | Not signed in / role or unit scope doesn't allow it |
 | `404` | Not found, or outside the caller's scope (we don't reveal what exists) |
 | `409` | State conflict (e.g. pay period locked, offer already answered, lock refused because past shifts lack actuals) |
 | `412` | Stale `If-Match` version |
-| `428` | `If-Match` missing where it is required (assignment move and cancel, §4.2; planner draft edits and commit, §4.9; proposal withdraw, §4.4) |
+| `428` | `If-Match` missing where it is required (assignment move and cancel, §4.2; planner draft edits and commit, §4.9; proposal withdraw and decision, §4.4) |
 | `422` | **A rule blocked the change** (body includes `ruleResults`), or Warn results need acknowledgement |
 
 ### 2.1 Database conflicts (problem types)
@@ -286,9 +286,9 @@ offer-time snapshot does not need a second answer, but a **new** warning is refu
 `422 warnings-need-acknowledgement`. The assignment is created through the normal rules/override
 path (`POST /assignments`), so S-04 and the audit event still hold.
 
-### 4.4 Proposals (employee shift planner) — officer side built (v1.3 P1); inbox and decision not built
+### 4.4 Proposals (employee shift planner) — API built (v1.3 P1 officer side, P2 decider side); screens not built
 
-An officer proposes **extra shifts to add**; a supervisor in scope will approve or decline each one (P2). Only the officer side exists so far: preview, send, list, withdraw and expiry. **The inbox and the decision endpoints are not built** (`GET /proposals` answers `405` because the path exists for `POST`; `GET /proposals/{id}` and `POST /proposals/{id}/decision` answer `404`), so a sent proposal stays *Waiting* until its shift starts and then expires. The web's *Propose shifts* card is unchanged until P3. Design: owner answers Q1 to Q5 (overtime-order acknowledgement, add-only, no sending Blocked drafts, any active unit with supervisors in scope deciding and the planner as fallback, paid like an accepted overtime offer).
+An officer proposes **extra shifts to add**; a supervisor in scope approves or declines each one, and an approved shift becomes an `EXTRA` / `PROPOSAL` assignment. The API for both sides is built: preview, send, list, withdraw and expiry (P1), and the inbox, detail and decision (P2). **The screens are not:** the web's *Propose shifts* card is unchanged until P3, and `/proposals` in the web is still a placeholder until P4. Design: owner answers Q1 to Q5 (overtime-order acknowledgement, add-only, no sending Blocked drafts, any active unit with supervisors in scope deciding and the planner as fallback, paid like an accepted overtime offer).
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
@@ -314,13 +314,46 @@ An officer proposes **extra shifts to add**; a supervisor in scope will approve 
 
 **Limits.** At most 10 items per proposal and 20 waiting items per officer; dates from now to the end of the planned quarter. An officer may propose in any active unit (not only the home unit); the rules and qualifications decide eligibility. The per-officer advisory lock is taken on send and withdraw, the same lock the board uses. Per officer and minute: 60 previews, 10 sends and 10 withdraws, then `429` (`.../problems/rate-limited`, with `retryAfterSeconds`). Reading `/me/proposals` expires only the caller's own items; the hourly sweep expires everyone's.
 
-**Not yet (P2):**
+#### The decider's side (v1.3 P2)
 
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
-| GET | `/proposals?status=WAITING\|ALL&unitId=` | Supervisor inbox, items whose unit is in scope (the planner sees all) | SUPERVISOR, PLANNER |
-| GET | `/proposals/{id}` | Detail with the rule result as submitted and now | SUPERVISOR, PLANNER |
-| POST | `/proposals/{id}/decision` | Accept or decline each item; an accepted item becomes an `EXTRA` / `PROPOSAL` assignment after a fresh rule check (a Block refuses, no override); no self-approval | SUPERVISOR, PLANNER |
+| GET | `/proposals?status=WAITING\|ALL&unitId=&from=&to=` | The inbox: proposals with at least one item on a unit in the caller's scope (the planner: every unit), newest first, at most 200. `WAITING` (default) keeps those with a waiting item in scope. `unitId` outside the scope is `404`; `from`/`to` filter on the items' work dates. Card: `{ id, employeeId, officerName, homeUnit, units (in scope), itemCount, itemsInScope, waitingInScope, submittedAt, status, displayState, version, own }` | SUPERVISOR, PLANNER |
+| GET | `/proposals/count?status=WAITING` | The nav count: waiting proposals in scope that the caller may decide (their own are left out). `{ status, count }` | SUPERVISOR, PLANNER |
+| GET | `/proposals/{id}` | The detail (below). Expiry is applied first | SUPERVISOR (≥ 1 item in scope), PLANNER |
+| POST | `/proposals/{id}/decision` | `If-Match: "<version>"`, `{ "items": [ { "id", "accept", "comment"?, "acknowledgeWarnings"?: [codes], "acknowledgeOutOfOrder"?: bool } ] }`. `200` with the detail. Audit `decide_proposal_item` per item | SUPERVISOR (item's unit in scope), PLANNER |
+
+**Who decides.** A supervisor decides the items on units in their scope; the planner sees and decides every item, so Unit C (no supervisor scope in the demo) and a supervisor's own proposal always have a decider. **Nobody decides their own proposal:** `403` "You can't approve your own proposal; another supervisor or the planner will" when the caller's employee is the proposer (`SelfActionGuard`, the predicate the supervisors' self-edit guard shares). A proposal with no item in the caller's scope is `404` on detail and decision (it is not revealed); naming an item on a unit outside your scope in a decision you can otherwise see is `403`. EMPLOYEE, AUDITOR, RULES_* and DISPLAY get `403` on all four.
+
+**Detail:** `{ id, status, displayState, version, note, submittedAt, withdrawnAt, employeeId, officerName, homeUnit, own, canDecide, items: [ … ] }`. Each item carries `id, unitId, unit, unitName, shiftTemplate, startAt, endAt, workDate, hours, decision, inScope, canDecide` and the outcome fields `decidedBy, decidedAt, comment, acknowledgedCodes, outOfOvertimeOrder, assignmentId`. An item in scope also carries:
+- `outcomeAtSubmit` / `ruleAtSubmit`: the result stored when the officer sent it.
+- `outcomeNow` / `ruleNow` (waiting items): a fresh evaluation, made the way the send was (each waiting item with the waiting items that start before it as extra facts), and `ruleChanged` when the outcome or the Warn/Block codes differ ("was Passes, now Warning U-14").
+- `wouldBeOvertimeHours` and `payPeriod { start, end, hoursBefore, hoursAfter, thresholdHours, wouldBeOvertimeHours, overtimeStatus }` (waiting items, when a pay period covers the date): the officer's hours as the board's U-15 pill counts them (actuals before the business "today", scheduled hours from it), and the overtime the item adds under P-01/P-04 (owner Q5: paid like any extra shift). Each item is computed on its own.
+- `openShift { id, status, otOrderPosition, otOrderSize, eligibility, outOfOrder, liveOffers }` (waiting items) when an `OPEN` or `OFFERED` open shift has the same unit, shift type and start: the officer's place among the eligible candidates (ELIGIBLE or WARN) of the O-01/O-02 ranking the decider's Overtime board shows (a supervisor's units; every active officer for the planner), with the proposer always in the pool.
+
+An item outside the caller's scope is listed with its unit, time and decision only, with no rule detail and no action. The note is the officer's plain text: clients show it as text, never as HTML, and it is never in an audit row, a report or the wall display.
+
+**The decision**, in one transaction, items in start order:
+1. Checks: visibility (`404`) → self-approval (`403`) → body (`400`) → item scope (`403`) → `If-Match` (`428` / `400`) → the open-shift rows, then the officer's advisory lock (the overtime confirm's order), expiry, and the item rows (`FOR UPDATE`, so the hourly sweep skips them) → state (`409`) → version (`412`) → locked pay period / closed unit / retired shift type (`409`) → rules and the overtime order (`422`).
+2. Every accepted item is checked **again now**, with the items accepted earlier in the same send as extra facts and **before any of them is saved** (so nothing is counted twice). A **Block** refuses the whole send with `422 blocked-by-rules` and nothing is saved: there is no override from a proposal (owner Q3; decline and use the board's emergency override instead). A **Warn** needs every current code in that item's `acknowledgeWarnings` (`422 warnings-need-acknowledgement`); the codes are stored in `acknowledged_codes`. An approval of someone who is not first in the overtime order needs `acknowledgeOutOfOrder: true` (`422 out-of-overtime-order`, owner Q1). Every `422` carries `items[]` with each accepted item's `outcome`, `warnCodes`, `ruleResults` and, for a matched open shift, `otOrderPosition`, `otOrderSize`, `outOfOrder`.
+3. Then each accepted item is written through `AssignmentWriter`, the planning board's own write path (rules, insert, `assign_shift` audit with `source: PROPOSAL`, `proposalId`, `proposalItemId`), as a `shift_assignment` with kind `EXTRA`, source `PROPOSAL` and no override. A matched open shift becomes `FILLED` with that assignment, and its offers still waiting for an answer (`OFFERED`) become `WITHDRAWN` (plan §4). An offer the officer already `ACCEPTED` is left as it is; confirming it is then refused with `409` "This shift is already filled", as for any filled shift. The rule result the writer enforces is the one checked in step 2 (it is passed in, not evaluated twice), so what is stored and audited is what was enforced. The item stores the decider, time, comment, the assignment, `decision_snapshot`, the acknowledged codes, `out_of_ot_order` and the open shift.
+4. A declined item needs a comment of at least 3 characters (`400`); the officer sees it in `/me/proposals`. Comments are at most 500 characters.
+5. The proposal's version goes up by one, conditionally on the version the decision checked; it is `DECIDED` once no item waits. Every item update must change exactly one row. Either check failing rolls back the whole decision.
+
+**`ruleNow` and the decision gate differ on purpose.** The detail's `ruleNow` assumes every earlier waiting item is approved (as the send did); the decision checks each accepted item only with the items accepted earlier in the same send. An item can therefore show a Warn in the detail that the decision does not ask about when the earlier item is declined. The inbox screen (P4) should present `ruleNow` as "if all are approved".
+
+| Status | When |
+|---|---|
+| `400` | No items; an item id that is not in the proposal or is listed twice; `accept` missing; a decline without a comment of 3+ characters; a comment over 500; more than 50 codes in an item's `acknowledgeWarnings`; an unknown field |
+| `403` | Your own proposal; an item on a unit outside your scope; a role that may not decide |
+| `404` | No such proposal, or none of its items is on your units |
+| `409` | `proposal-withdrawn`; `shift-started` (the item expired: its shift started before anyone answered); `already-decided`; `pay-period-locked`; `unit-closed`; `shift-type-retired` (retired after the send); `open-shift-filled` (filled between the check and the write); an overlap with a shift saved meanwhile (`shift-conflict`, the database exclusion). An item that changes underneath the decision (expired by the sweep, withdrawn) is `409` too, and the whole decision rolls back: no shift, no fill, no audit row |
+| `412` / `428` | Stale `If-Match` / missing `If-Match` |
+| `422` | `blocked-by-rules`, `warnings-need-acknowledgement`, `out-of-overtime-order` (body above) |
+
+**Audit `decide_proposal_item`** (entity `proposal`, one row per item): `itemId, employeeId, unit, template, startAt, decision, comment`, and for an approval `outcomeNow, acknowledgedCodes, assignmentId, openShiftId, offersWithdrawn, outOfOvertimeOrder` (plus `otOrderPosition` / `otOrderSize` when an open shift matched). The created shift has its own `assign_shift` row.
+
+**The planner writes shifts here.** This is the first place `PLANNER` creates a `shift_assignment` outside a plan commit; it is the fallback decider for units no supervisor scopes (owner Q4). A later plan commit treats `source = 'PROPOSAL'` rows like supervisor edits (ADR-030: refuse rather than overwrite). ADR-032 records this in P5; docs/09 has the matrix row.
 
 ### 4.5 Time and payroll
 
@@ -564,6 +597,7 @@ ids are stable, so a signed-in planner stays signed in.
 |---|---|
 | Planning board | `GET /schedule`, `POST /rule-checks`, `POST/PATCH/DELETE /assignments`, `POST /schedule-periods/{id}/publish` |
 | My schedule | `GET /me/schedule`, `GET /me/offers`, `POST /offers/{id}/accept`, `POST /rule-checks`, `POST /proposals/preview`, `POST /proposals`, `GET /me/proposals`, `POST /proposals/{id}/withdraw` (the API is built in v1.3 P1; the screen still only rule-checks and does not send until P3) |
+| Proposals inbox | `GET /proposals`, `GET /proposals/count`, `GET /proposals/{id}`, `POST /proposals/{id}/decision` (the API is built in v1.3 P2; the screen is a placeholder until P4) |
 | Overtime board | `GET /open-shifts`, `GET /open-shifts/{id}/candidates`, `POST /open-shifts/{id}/offers`, `POST /open-shifts/{id}/assign` |
 | Rules | `GET /rule-sets…`, `PUT …/rows`, `POST …/build`, `…/submit`, `…/approve`, `…/publish` (Excel export/import: not built) |
 | Reports | `GET /reports/*`, `GET /pay-periods/{id}/payroll-export` |

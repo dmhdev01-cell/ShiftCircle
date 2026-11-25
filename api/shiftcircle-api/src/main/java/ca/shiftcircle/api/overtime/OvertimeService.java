@@ -212,66 +212,11 @@ public class OvertimeService {
     Map<String, Object> shift = shiftRow(openShiftId);
     scopeGuard.requireUnit(principal, (String) shift.get("unit_code"));
 
-    UUID unitId = (UUID) shift.get("unit_id");
-    String templateCode = (String) shift.get("template_code");
-    Instant startAt = ((java.sql.Timestamp) shift.get("start_at")).toInstant();
-    Instant endAt = ((java.sql.Timestamp) shift.get("end_at")).toInstant();
-    String requiredQualification = requiredQualification((String) shift.get("unit_kind"));
     PublishedRuleSet.Snapshot live = publishedRuleSet.snapshot();
     int ruleSetVersion = live.version();
-
-    Set<UUID> overlapping =
-        Set.copyOf(
-            jdbc.queryForList(
-                "SELECT DISTINCT employee_id FROM shift_assignment"
-                    + " WHERE status <> 'CANCELLED' AND start_at < ? AND end_at > ?",
-                UUID.class,
-                java.sql.Timestamp.from(endAt),
-                java.sql.Timestamp.from(startAt)));
-
-    List<OvertimeRanker.Candidate> pool = new ArrayList<>();
     Map<UUID, RuleCheckService.OutcomeView> outcomes = new LinkedHashMap<>();
-    // Release v1.3 (S4): the datasets now hold supervisors, and both demo supervisors have the
-    // supervisor posts in scope. The ranked list stays within the post's rank, so a supervisor
-    // post lists supervisors and an officer post lists officers, exactly as before (owner answer
-    // Q4). S5 builds the full pools on this (acting officers, rank seniority, self-offer guard).
-    boolean supervisorPost = "SUPERVISION".equals(shift.get("unit_kind"));
-    for (Map<String, Object> officer : officers(principal)) {
-      if (Position.fromCodeOrDefault((String) officer.get("classification")).isSupervisory()
-          != supervisorPost) {
-        continue;
-      }
-      UUID employeeId = (UUID) officer.get("id");
-      List<String> qualifications = strings(officer.get("qualifications"));
-
-      String unavailable = null;
-      RuleCheckService.OutcomeView outcome = null;
-      if (requiredQualification != null && !qualifications.contains(requiredQualification)) {
-        unavailable = "Does not hold the " + requiredQualification + " qualification";
-      } else if (overlapping.contains(employeeId)) {
-        unavailable = "Already scheduled for an overlapping shift";
-      } else {
-        outcome =
-            ruleChecks.evaluate(
-                new RuleCheckService.Change("EXTRA", employeeId, unitId, templateCode, startAt),
-                live);
-        outcomes.put(employeeId, outcome);
-      }
-
-      pool.add(
-          new OvertimeRanker.Candidate(
-              employeeId.toString(),
-              (String) officer.get("name"),
-              qualifications,
-              ((Number) officer.get("overtime_hours")).doubleValue(),
-              ((java.sql.Date) officer.get("seniority_date")).toLocalDate(),
-              unavailable,
-              worstOutcome(outcome),
-              reason(outcome),
-              flaggedCodes(outcome)));
-    }
-
-    List<OvertimeRanker.Ranked> ranked = ranker.rank(pool, RankingPolicy.from(live.ruleSet()));    List<CandidateView> candidates = new ArrayList<>();
+    List<OvertimeRanker.Ranked> ranked = rank(shift, officers(principal), live, outcomes);
+    List<CandidateView> candidates = new ArrayList<>();
     long skipped = 0;
     for (OvertimeRanker.Ranked entry : ranked) {
       OvertimeRanker.Candidate candidate = entry.candidate();
@@ -306,6 +251,132 @@ public class OvertimeService {
 
     return new CandidatesPayload(
         openShiftView(shift), candidates, ruleSetVersion, rankingNote, history(openShiftId));
+  }
+
+  /**
+   * The O-01/O-02 ranking for one open shift over the given officers, with each eligible officer's
+   * rule result put in {@code outcomes}. The candidate list and the proposal decision share it.
+   */
+  private List<OvertimeRanker.Ranked> rank(
+      Map<String, Object> shift,
+      List<Map<String, Object>> officers,
+      PublishedRuleSet.Snapshot live,
+      Map<UUID, RuleCheckService.OutcomeView> outcomes) {
+    UUID unitId = (UUID) shift.get("unit_id");
+    String templateCode = (String) shift.get("template_code");
+    Instant startAt = ((java.sql.Timestamp) shift.get("start_at")).toInstant();
+    Instant endAt = ((java.sql.Timestamp) shift.get("end_at")).toInstant();
+    String requiredQualification = requiredQualification((String) shift.get("unit_kind"));
+
+    Set<UUID> overlapping =
+        Set.copyOf(
+            jdbc.queryForList(
+                "SELECT DISTINCT employee_id FROM shift_assignment"
+                    + " WHERE status <> 'CANCELLED' AND start_at < ? AND end_at > ?",
+                UUID.class,
+                java.sql.Timestamp.from(endAt),
+                java.sql.Timestamp.from(startAt)));
+
+    // Release v1.3 (S4): the datasets now hold supervisors, and both demo supervisors have the
+    // supervisor posts in scope. The ranked list stays within the post's rank, so a supervisor
+    // post lists supervisors and an officer post lists officers, exactly as before (owner answer
+    // Q4). S5 builds the full pools on this (acting officers, rank seniority).
+    boolean supervisorPost = "SUPERVISION".equals(shift.get("unit_kind"));
+    List<OvertimeRanker.Candidate> pool = new ArrayList<>();
+    for (Map<String, Object> officer : officers) {
+      if (Position.fromCodeOrDefault((String) officer.get("classification")).isSupervisory()
+          != supervisorPost) {
+        continue;
+      }
+      UUID employeeId = (UUID) officer.get("id");
+      List<String> qualifications = strings(officer.get("qualifications"));
+
+      String unavailable = null;
+      RuleCheckService.OutcomeView outcome = null;
+      if (requiredQualification != null && !qualifications.contains(requiredQualification)) {
+        unavailable = "Does not hold the " + requiredQualification + " qualification";
+      } else if (overlapping.contains(employeeId)) {
+        unavailable = "Already scheduled for an overlapping shift";
+      } else {
+        outcome =
+            ruleChecks.evaluate(
+                new RuleCheckService.Change("EXTRA", employeeId, unitId, templateCode, startAt),
+                live);
+        outcomes.put(employeeId, outcome);
+      }
+
+      pool.add(
+          new OvertimeRanker.Candidate(
+              employeeId.toString(),
+              (String) officer.get("name"),
+              qualifications,
+              ((Number) officer.get("overtime_hours")).doubleValue(),
+              ((java.sql.Date) officer.get("seniority_date")).toLocalDate(),
+              unavailable,
+              worstOutcome(outcome),
+              reason(outcome),
+              flaggedCodes(outcome)));
+    }
+    return ranker.rank(pool, RankingPolicy.from(live.ruleSet()));
+  }
+
+  /**
+   * Where an officer stands in the overtime order for an open shift (v1.3 P2, plan §4, owner Q1).
+   *
+   * @param position the officer's 1-based place among the eligible candidates (ELIGIBLE or WARN),
+   *     or null when the officer is not eligible for it
+   * @param size how many candidates are eligible
+   * @param eligibility the officer's own eligibility (ELIGIBLE, WARN, SKIPPED, UNAVAILABLE)
+   * @param outOfOrder true when an eligible candidate ranks ahead of the officer
+   */
+  public record OrderPosition(Integer position, int size, String eligibility, boolean outOfOrder) {}
+
+  /**
+   * The officer's place in the ranked list a decider sees for this open shift. The pool is the one
+   * the Overtime board shows the decider (a supervisor's units; every active officer for the
+   * planner, who has no unit scope), plus the officer, so their place is always known. The caller
+   * passes the rule snapshot it already evaluates with, so both read the same rule set.
+   */
+  public OrderPosition orderPosition(
+      UUID openShiftId,
+      UUID employeeId,
+      AuthPrincipal principal,
+      PublishedRuleSet.Snapshot live) {
+    Map<String, Object> shift = shiftRow(openShiftId);
+    List<Map<String, Object>> pool = new ArrayList<>();
+    boolean present = false;
+    for (Map<String, Object> officer : activeOfficers()) {
+      boolean self = employeeId.equals(officer.get("id"));
+      if (self
+          || principal.hasRole("PLANNER")
+          || inScope(principal, (String) officer.get("home_unit"))) {
+        pool.add(officer);
+        present |= self;
+      }
+    }
+    if (!present) {
+      return new OrderPosition(null, 0, "UNAVAILABLE", false);
+    }
+    List<OvertimeRanker.Ranked> ranked =
+        rank(shift, pool, live, new LinkedHashMap<>());
+    int eligible = 0;
+    Integer position = null;
+    String eligibility = "UNAVAILABLE";
+    for (OvertimeRanker.Ranked entry : ranked) {
+      boolean counts =
+          entry.eligibility() == Eligibility.ELIGIBLE || entry.eligibility() == Eligibility.WARN;
+      if (counts) {
+        eligible++;
+      }
+      if (employeeId.toString().equals(entry.candidate().employeeId())) {
+        eligibility = entry.eligibility().name();
+        if (counts) {
+          position = eligible;
+        }
+      }
+    }
+    boolean outOfOrder = position == null ? eligible > 0 : position > 1;
+    return new OrderPosition(position, eligible, eligibility, outOfOrder);
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -615,6 +686,14 @@ public class OvertimeService {
   // ---------------------------------------------------------------------------------------------
 
   private List<Map<String, Object>> officers(AuthPrincipal principal) {
+    // Candidates come from the caller's units only: the list shows overtime totals, which the
+    // permission matrix limits to scope (docs/09 §2).
+    return activeOfficers().stream()
+        .filter(officer -> inScope(principal, (String) officer.get("home_unit")))
+        .toList();
+  }
+
+  private List<Map<String, Object>> activeOfficers() {
     // The demo clock decides the quarter, not the host clock (review-r1 F7).
     LocalDate quarterStart =
         asOf.withMonth(((asOf.getMonthValue() - 1) / 3) * 3 + 1).withDayOfMonth(1);
@@ -631,11 +710,7 @@ public class OvertimeService {
                 + " FROM employee e LEFT JOIN unit u ON u.id = e.home_unit_id"
                 + " WHERE e.active ORDER BY e.last_name, e.first_name",
             java.sql.Timestamp.from(quarterStart.atStartOfDay(REGINA).toInstant()));
-    // Candidates come from the caller's units only: the list shows overtime totals, which the
-    // permission matrix limits to scope (docs/09 §2).
-    return officers.stream()
-        .filter(officer -> inScope(principal, (String) officer.get("home_unit")))
-        .toList();
+    return officers;
   }
 
   private Map<String, Object> shiftRow(UUID id) {
