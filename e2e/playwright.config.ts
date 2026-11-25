@@ -42,6 +42,9 @@ const STACK_SPECS = [
   /\/planner-draft-edit\.spec\.ts$/,
   /\/planner-options\.spec\.ts$/,
   /\/planner-preferences-committed\.spec\.ts$/,
+  // v1.3 P4: approves a proposal into a shift for Tara, whom parallel specs
+  // use; it cleans up after itself, but must not run beside them.
+  /\/proposals-inbox\.spec\.ts$/,
   /\/reset-datasets\.spec\.ts$/,
   /\/reset\.spec\.ts$/,
   /\/unit-closure\.spec\.ts$/,

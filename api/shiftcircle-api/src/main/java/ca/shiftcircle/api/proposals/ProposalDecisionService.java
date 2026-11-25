@@ -81,7 +81,15 @@ public class ProposalDecisionService {
       String status,
       String displayState,
       int version,
-      boolean own) {}
+      boolean own,
+      List<CardShift> shifts) {}
+
+  /**
+   * One shift on an inbox card (v1.3 P4 gate): what and when, so several proposals from one
+   * officer can be told apart without opening each. Only the items on the caller's units.
+   */
+  public record CardShift(
+      String unit, String shiftTemplate, Instant startAt, LocalDate workDate, String decision) {}
 
   public record CountView(String status, int count) {}
 
@@ -288,8 +296,10 @@ public class ProposalDecisionService {
     Map<UUID, List<Map<String, Object>>> items = new LinkedHashMap<>();
     for (Map<String, Object> row :
         jdbc.queryForList(
-            "SELECT i.proposal_id, i.decision, u.code FROM proposal_item i"
-                + " JOIN unit u ON u.id = i.unit_id WHERE i.proposal_id IN (" + marks + ")"
+            "SELECT i.proposal_id, i.decision, u.code, t.code AS template_code, i.start_at,"
+                + " i.work_date FROM proposal_item i JOIN unit u ON u.id = i.unit_id"
+                + " JOIN shift_template t ON t.id = i.shift_template_id"
+                + " WHERE i.proposal_id IN (" + marks + ")"
                 + " ORDER BY i.start_at, i.sort_order",
             ids.toArray())) {
       items.computeIfAbsent((UUID) row.get("proposal_id"), key -> new ArrayList<>()).add(row);
@@ -312,11 +322,19 @@ public class ProposalDecisionService {
       Set<String> units = new TreeSet<>();
       int inScope = 0;
       int waiting = 0;
+      List<CardShift> shifts = new ArrayList<>();
       for (Map<String, Object> row : rows) {
         String code = (String) row.get("code");
         if (inScope(principal, code)) {
           inScope++;
           units.add(code);
+          shifts.add(
+              new CardShift(
+                  code,
+                  (String) row.get("template_code"),
+                  ((Timestamp) row.get("start_at")).toInstant(),
+                  localDate(row.get("work_date")),
+                  (String) row.get("decision")));
           if ("PENDING".equals(row.get("decision"))) {
             waiting++;
           }
@@ -339,7 +357,8 @@ public class ProposalDecisionService {
               ProposalService.displayStateOf(
                   rowStatus, rows.stream().map(r -> (String) r.get("decision")).toList()),
               ((Number) head.get("version")).intValue(),
-              SelfActionGuard.isSelf(principal, employeeId)));
+              SelfActionGuard.isSelf(principal, employeeId),
+              List.copyOf(shifts)));
     }
     return cards;
   }
@@ -815,6 +834,10 @@ public class ProposalDecisionService {
               + " (acknowledgeOutOfOrder).",
           accepted);
     }
+  }
+
+  private static LocalDate localDate(Object value) {
+    return value instanceof java.sql.Date date ? date.toLocalDate() : (LocalDate) value;
   }
 
   private ProposalProblemException refusal(

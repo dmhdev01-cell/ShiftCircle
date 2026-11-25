@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import Box from '@mui/material/Box';
 
+import { useProposalCount } from '../proposals/useProposalCount';
 import { colour } from '../theme/tokens';
 import { useRole } from './nav';
 
@@ -14,6 +15,8 @@ import { useRole } from './nav';
  */
 export function SideNav() {
   const { nav } = useRole();
+  // "Proposals (2)": the count is text, never a colour-only badge (build-notes §2.3).
+  const proposalCount = useProposalCount(nav.some((item) => item.count === 'proposals'));
 
   return (
     <Box
@@ -68,7 +71,9 @@ export function SideNav() {
             },
           }}
         >
-          {item.label}
+          {item.count === 'proposals' && proposalCount !== null
+            ? `${item.label} (${proposalCount})`
+            : item.label}
         </Box>
       ))}
     </Box>

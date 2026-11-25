@@ -119,7 +119,9 @@ All of these use the shared layout (README §4), the tokens (§3), **one yellow 
 
 ### 2.3 Proposals inbox: `/proposals`
 
-- **Who:** Supervisor, own units. **API:** `GET /proposals?unitId=&status=SUBMITTED`, `POST /proposals/{id}/decision`.
+> **Status: built in v1.3 P4; this design note is superseded where it differs.** As built (`docs/ui/README.md` §6, `docs/07` §4.4): the planner decides too (every unit, the fallback); the filter is `status=WAITING|ALL`; each shift shows its rules when sent and now; **there is no override flow**: the owner refused Blocks from a proposal (plan Q3), so a Blocked shift can only be declined, and an emergency goes through the planning board's own override. Warnings and approving outside the overtime order have separate acknowledgements.
+
+- **Who:** Supervisor, own units. **API:** `GET /proposals?unitId=&status=WAITING|ALL`, `POST /proposals/{id}/decision`.
 - **Nav:** add "Proposals" under Overtime, with a count in text ("Proposals (2)").
 - **Layout:** the same two-pane pattern as the Overtime board.
   - **Left:** proposal cards with officer, unit, "3 shifts", submitted time, and a status pill (`Waiting` warn · `Partly accepted` info · `Decided` pass). Filter: Waiting / All.
@@ -127,7 +129,7 @@ All of these use the shared layout (README §4), the tokens (§3), **one yellow 
     - Header: officer name, pay-period hours with the overtime pill, and the employee's note quoted.
     - Item table: what ("Sat 28 Nov · add E8 15:00–23:00 · extra"), rule result (`RuleResultList` in compact form, "Checked when submitted · rules v7"), and a per-item **Accept / Decline** radio pair (not a checkbox, so "not yet decided" stays visible).
 - **Action:** "Send decision (2 accepted, 1 declined)" is the yellow button, disabled until every item has a choice.
-  - Rules re-run when the decision is saved. If an accepted item now gets a `422`, show its fresh `RuleResultList` inline under that row, with the same acknowledge and override flow as the board (`useRuleCheckedMutation`). Nothing auto-approves.
+  - Rules re-run when the decision is saved. If an accepted item now gets a `422`, show its fresh result inline under that row: a new Warn needs acknowledging, a Block can only be declined (**no override**, superseded as above). Nothing auto-approves.
   - Then: "Sent. Accepted shifts are on the planning board."
 - **Empty:** "No proposals waiting. When officers propose shifts, they appear here."
 

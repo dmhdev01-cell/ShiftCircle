@@ -124,7 +124,6 @@ test.describe('screenshots', () => {
     await signIn(page, 'M. Ellis');
     await settled(page, 'Planning board');
     for (const [path, heading, name] of [
-      ['/proposals', 'Proposals inbox', 'proposals'],
       ['/me/hours', 'My hours', 'my-hours'],
       ['/rules/1/review', 'Rule version review', 'rule-review'],
       ['/no-such-page', 'Page not found', 'not-found'],

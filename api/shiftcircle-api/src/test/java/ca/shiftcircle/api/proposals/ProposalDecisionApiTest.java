@@ -105,6 +105,16 @@ class ProposalDecisionApiTest {
     assertThat(card.get("waitingInScope")).isEqualTo(1);
     assertThat(card.get("displayState")).isEqualTo("WAITING");
     assertThat(card.get("own")).isEqualTo(false);
+    // v1.3 P4 gate: the card names its shifts, so two proposals from one officer differ.
+    assertThat(list(card, "shifts"))
+        .singleElement()
+        .satisfies(
+            shift -> {
+              assertThat(shift.get("unit")).isEqualTo("B");
+              assertThat(shift.get("shiftTemplate")).isEqualTo("D8");
+              assertThat(shift.get("workDate")).isEqualTo("2026-11-25");
+              assertThat(shift.get("decision")).isEqualTo("PENDING");
+            });
 
     // Unit C has no supervisor in the demo: only the planner sees it (owner Q4).
     assertThat(listOf(get("/api/v1/proposals", "j.chen"))).isEmpty();
@@ -241,6 +251,27 @@ class ProposalDecisionApiTest {
     assertThat(assignAudit)
         .contains("\"source\": \"PROPOSAL\"")
         .contains("\"proposalId\": \"" + id(proposal) + "\"");
+
+    // The board marks the shift as coming from a proposal (v1.3 P4: the chip's tooltip); the
+    // flag is left out of every other shift, so existing board payloads are unchanged.
+    Map<String, Object> board =
+        json(
+            get(
+                "/api/v1/schedule?unitId=" + UNIT_B + "&from=2026-11-25&to=2026-11-25",
+                "m.ellis"));
+    List<Map<String, Object>> shifts = new java.util.ArrayList<>();
+    for (Map<String, Object> officer : list(board, "officers")) {
+      for (Map<String, Object> cell : list(officer, "cells")) {
+        shifts.addAll(list(cell, "items"));
+      }
+    }
+    assertThat(shifts)
+        .filteredOn(s -> assignmentId.toString().equals(s.get("assignmentId")))
+        .singleElement()
+        .satisfies(s -> assertThat(s.get("fromProposal")).isEqualTo(true));
+    assertThat(shifts)
+        .filteredOn(s -> !assignmentId.toString().equals(s.get("assignmentId")))
+        .allSatisfy(s -> assertThat(s).doesNotContainKey("fromProposal"));
 
     // The officer sees the outcome and who decided.
     Map<String, Object> mine = listOf(get("/api/v1/me/proposals", "t.nakamura")).get(0);

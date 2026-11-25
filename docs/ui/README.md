@@ -158,14 +158,14 @@ Colours, font and button conventions follow the Government of Saskatchewan's pub
 
 ## 6. Screens not yet designed (build from the patterns above)
 
-**Build status (23 Nov 2026):** Sign-in, Time & attendance and the tablet layouts are built. Shift types is built as the rule table SHIFT_LENGTHS (allowed lengths), not as a shift-template editor. **Proposals inbox, Rule version review and My hours are placeholder pages** that say they are not built yet (`docs/10-testing.md` §8).
+**Build status (23 Nov 2026):** Sign-in, Time & attendance and the tablet layouts are built. Shift types is built as the rule table SHIFT_LENGTHS (allowed lengths), not as a shift-template editor. **Rule version review and My hours are placeholder pages** (the Proposals inbox is built in v1.3 P4) that say they are not built yet (`docs/10-testing.md` §8).
 
 | Screen | Route | Notes |
 |---|---|---|
 | Shift types (setup) | `/rules/{version}/shift-types` | Grid of shift templates (code, label, start, length, regular/overtime-only, chip style, active, effective date). Edited in a rule-set draft and published through the same build → approve flow (ADR-015). Shows a warning if a change would alter rest outcomes on the published roster (dry run). |
 | Sign-in (mock) | `/login` | List of demo users with roles; clear "mock sign-in, demo only" banner |
 | Time & attendance | `/time?period=` | Pay-period picker; table of scheduled vs actual per officer per day; mark worked / adjust times / absence type; "Lock pay period" (yellow) with confirmation; unlock needs a reason |
-| Proposals inbox | `/proposals` | Supervisor list of employee proposals; per-item accept/decline with rule results |
+| Proposals inbox | `/proposals` | Supervisor list of employee proposals; per-item accept/decline with rule results. *As built (v1.3 P4): the Overtime board's two-pane pattern; Waiting / All and Unit filters; each shift with rules when sent and now (changed results highlighted, "Was …, now …"), "Would be overtime: N h", the open-shift match and overtime-order place; Approve / Decline radios, a comment (required to decline), the warning acknowledgement and a separate "outside the overtime order" acknowledgement; a 422 shows the fresh results inline; no Emergency override (owner Q3); own proposals read-only. "Proposals (n)" in the nav for SUPERVISOR (under Overtime) and PLANNER (under Quarter plan).* |
 | Rule version review | `/rules/{version}/review` | Approver's before/after diff, build and dry-run report, Approve / Reject with comment |
 | Tablet layouts | — | Same screens; nav stacks; verify roster scroll and 44px targets at 768px |
 

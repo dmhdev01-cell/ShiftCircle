@@ -57,6 +57,10 @@ const LazyUnitsPage = lazy(() =>
   import('./planner/UnitsPage').then((module) => ({ default: module.UnitsPage })),
 );
 
+const ProposalsPage = lazy(() =>
+  import('./proposals/ProposalsPage').then((module) => ({ default: module.ProposalsPage })),
+);
+
 const WallDisplayPage = lazy(() =>
   import('./display/WallDisplayPage').then((module) => ({ default: module.WallDisplayPage })),
 );
@@ -124,16 +128,7 @@ export function AppRoutes() {
         <Route path="/me/hours" element={<PlaceholderPage title="My hours" subtitle="Employee · Hours and overtime" />} />
         <Route path="/time" element={<TimeAttendancePage />} />
         <Route path="/audit" element={<AuditPage />} />
-        <Route
-          path="/proposals"
-          element={
-            <PlaceholderPage
-              title="Proposals inbox"
-              subtitle="Supervisor · Employee proposals"
-              planned="A list of employee proposals with per-item accept or decline and the rule results."
-            />
-          }
-        />
+        <Route path="/proposals" element={<ProposalsPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route
