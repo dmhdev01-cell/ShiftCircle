@@ -64,3 +64,22 @@ describe('session persistence (ADR-025 amendment)', () => {
     expect(window.sessionStorage.getItem(KEY)).toBeNull();
   });
 });
+
+describe('sign-out clears the officer\'s draft proposals (PR #33 security info 1)', () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
+  it('removes every sc.propose.drafts.* key and nothing else', () => {
+    window.sessionStorage.setItem('sc.propose.drafts.emp-1', '[]');
+    window.sessionStorage.setItem('sc.propose.drafts.emp-2', '[]');
+    window.sessionStorage.setItem('other.key', 'kept');
+    setSession('token-1', user);
+
+    signOut();
+
+    expect(window.sessionStorage.getItem('sc.propose.drafts.emp-1')).toBeNull();
+    expect(window.sessionStorage.getItem('sc.propose.drafts.emp-2')).toBeNull();
+    expect(window.sessionStorage.getItem('other.key')).toBe('kept');
+  });
+});

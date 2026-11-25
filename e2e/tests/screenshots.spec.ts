@@ -126,7 +126,6 @@ test.describe('screenshots', () => {
     for (const [path, heading, name] of [
       ['/proposals', 'Proposals inbox', 'proposals'],
       ['/me/hours', 'My hours', 'my-hours'],
-      ['/me/propose', 'Propose shifts', 'propose'],
       ['/rules/1/review', 'Rule version review', 'rule-review'],
       ['/no-such-page', 'Page not found', 'not-found'],
     ] as const) {

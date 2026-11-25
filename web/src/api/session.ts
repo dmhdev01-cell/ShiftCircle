@@ -111,10 +111,28 @@ export function setActingUser(user: DemoUser | null): void {
   emit();
 }
 
+/** The officer's draft proposals (ProposeShiftsCard) are kept per tab under this prefix. */
+export const PROPOSE_DRAFTS_PREFIX = 'sc.propose.drafts.';
+
+/** Signing out leaves no draft shifts behind in the tab (security review, PR #33). */
+function clearProposeDrafts(): void {
+  try {
+    const keys: string[] = [];
+    for (let index = 0; index < window.sessionStorage.length; index += 1) {
+      const key = window.sessionStorage.key(index);
+      if (key?.startsWith(PROPOSE_DRAFTS_PREFIX)) keys.push(key);
+    }
+    keys.forEach((key) => window.sessionStorage.removeItem(key));
+  } catch {
+    // Storage blocked: there is nothing stored to clear.
+  }
+}
+
 /** A deliberate sign out. It is not an expired session, so no warning. */
 export function signOut(): void {
   state = { ...EMPTY, signedOut: true };
   store(null);
+  clearProposeDrafts();
   emit();
 }
 
@@ -122,6 +140,7 @@ export function signOut(): void {
 export function sessionExpired(): void {
   state = { token: null, user: null, ended: true, signedOut: false };
   store(null);
+  clearProposeDrafts();
   emit();
 }
 

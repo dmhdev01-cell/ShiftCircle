@@ -119,7 +119,15 @@ describe('AppShell', () => {
     }
   });
 
-  it.each(['/me/propose', '/me/hours', '/proposals', '/rules/7/review'])(
+  it('sends the old /me/propose link to the Propose card on My schedule (v1.3 P3)', async () => {
+    renderShell('/me/propose');
+
+    expect(await screen.findByRole('region', { name: 'Propose shifts' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'My schedule', level: 1 })).toBeInTheDocument();
+    expect(screen.queryByText('Not built yet')).not.toBeInTheDocument();
+  });
+
+  it.each(['/me/hours', '/proposals', '/rules/7/review'])(
     'keeps the planned screen at %s reachable, with the not-built page',
     async (path) => {
       renderShell(path);

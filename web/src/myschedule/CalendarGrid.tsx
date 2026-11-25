@@ -67,7 +67,10 @@ export function CalendarGrid({
         </Box>
       </Box>
 
-      <Box sx={{ overflowX: 'auto' }}>
+      {/* Narrower than 640 px (a phone) the month scrolls sideways; a keyboard
+          user needs to reach it, so the scroll region takes focus and says
+          what it holds (axe scrollable-region-focusable, as CandidateTable). */}
+      <Box role="region" aria-label={`Calendar, ${monthLabel}`} tabIndex={0} sx={{ overflowX: 'auto' }}>
         <Box sx={{ minWidth: 640, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           <Box
             sx={{
