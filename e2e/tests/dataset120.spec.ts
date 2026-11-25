@@ -281,7 +281,7 @@ test.describe('dataset 120', () => {
     expect(worst.totals.shortfall, 'dataset 120 has units short of the floor').toBeGreaterThan(0);
     await expect(page.getByText(`${worst.totals.filled} on staff · short ${worst.totals.shortfall}`).first()).toBeVisible();
     await expect(
-      page.getByText(`Do we need more staff? Yes, at least ${staffing.periods[0].totals.shortfall} more:`, { exact: false }),
+      page.getByText(`Do we need more staff? Yes, at least ${worst.totals.shortfall} more:`, { exact: false }),
     ).toBeVisible();
     await expect(page.getByText(/meets the floor/i)).toHaveCount(0);
     await checkQuarterPlanReadability(page, request, testInfo);

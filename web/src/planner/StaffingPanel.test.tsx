@@ -151,7 +151,9 @@ describe('the staffing floor wording', () => {
  * D1 (v1.1.2-submission): the api's StaffingUnit/StaffingTotals records send
  * `shortfall` (UnitsViews.java). The web read `short`, so a short unit showed
  * Short 0 and "Meets the floor". This payload is the wire shape, parsed from
- * JSON the way the http client does, so the test pins the contract.
+ * JSON the way the http client does, so the test pins the contract. The
+ * breakdown follows the api formula (UnitsService): rawNeeded = 2 x (12 h day
+ * + 12 h night posts) + 1.4 x 8 h posts, needed = ceil(rawNeeded / (1 - leave)).
  */
 describe('the staffing report as the api sends it', () => {
   const wire = JSON.stringify({
@@ -172,7 +174,7 @@ describe('the staffing report as the api sends it', () => {
             filled: 14,
             needed: 15,
             shortfall: 1,
-            breakdown: { posts12Day: 0, posts12Night: 0, posts8: 3, rawNeeded: 12.3, leaveAllowance: 0.2, needed: 15 },
+            breakdown: { posts12Day: 3, posts12Night: 2, posts8: 1, rawNeeded: 11.4, leaveAllowance: 0.2, needed: 15 },
           },
           {
             unitId: 'unit-esc',
@@ -183,7 +185,7 @@ describe('the staffing report as the api sends it', () => {
             filled: 21,
             needed: 24,
             shortfall: 3,
-            breakdown: { posts12Day: 2, posts12Night: 1, posts8: 1, rawNeeded: 19.9, leaveAllowance: 0.2, needed: 24 },
+            breakdown: { posts12Day: 4, posts12Night: 4, posts8: 2, rawNeeded: 18.8, leaveAllowance: 0.2, needed: 24 },
           },
         ],
         totals: { allocated: 35, filled: 35, needed: 39, shortfall: 4 },

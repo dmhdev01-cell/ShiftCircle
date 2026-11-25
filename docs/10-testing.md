@@ -44,7 +44,7 @@ the NFR limits, so a regression fails the build rather than being noticed in the
 
 **Definition of done for any feature:** its rule and use-case tests pass, its endpoints have authorization tests, and the demo flow touching it passes in Playwright.
 
-### Current counts (API and Playwright at `5a38580`, web unit tests at `8ae4bbd`, 24 Nov 2026)
+### Current counts (API and Playwright at `5a38580`, web unit tests at `v1.1.2-submission`, 24 Nov 2026)
 
 The sections after this one are the **history** of how the counts grew, release by release; read this block for today's numbers. Counting method: `@Test` methods on their own line (no parameterised tests), and each suite's own runner. Every number below was run on `5a38580` (release 11 `5a3be22` plus the docs PRs and the PR-H rules-wording fix), on a fresh stack per viewport; the API suite ran in GitHub CI (`mvn verify` on PR #19, the same command).
 

@@ -52,9 +52,9 @@ Two of them need a note:
 
 Under the tiles, a yellow **Unused part-time capacity** line says how many part-time hours the plan leaves unused, for example "Unused part-time capacity: 5,472 h. Part-time officers are planned 1,248 h of their 6,720 h target this quarter, while 38 block-days stay short." Part-time hours are not guaranteed: a part-time officer is planned only into shifts still open in their home unit, up to their FTE target.
 
-![Quarter plan scorecard on Dataset 120 with the yellow Unused part-time capacity line under the tiles](img/planner-scorecard-part-time.png)
+![Quarter plan scorecard on Dataset 120 with the yellow Unused part-time capacity line under the tiles, and Needed (at least) 127 with the Short pill, "120 on staff · short 7"](img/planner-scorecard-part-time.png)
 
-![Quarter plan scorecard for a 120-officer draft: eight tiles, including Coverage gaps 39, Rule warnings 7 and Qualified staff 0 (All met)](img/planner-scorecard.png)
+![Quarter plan scorecard for a 120-officer draft: eight tiles, including Coverage gaps 38, Rule warnings 7, Qualified staff 0 (All met) and Needed (at least) 127, Short, "120 on staff · short 7", with the hours by FTE band below](img/planner-scorecard.png)
 
 <!-- No screenshot yet: tablet__planner__scorecard (no clean capture from the gated build) -->
 
@@ -130,7 +130,7 @@ If you see "The draft changed since you opened it" or "This draft was committed 
 - **Generate again** replaces the draft. Press **Replace draft** to confirm. **Your hand edits are lost**; the confirm text says how many.
 - **Discard draft…** then **Discard draft** removes the draft and its hand edits. Nothing on the planning board changes.
 
-![Quarter plan after commit: the Committed badge and a Plan committed box with a button to open each unit on the planning board](img/planner-committed.png)
+![Quarter plan after commit: the Plan committed box with a button to open each unit on the planning board, above the scorecard with Needed (at least) 127, Short, "120 on staff · short 7"](img/planner-committed.png)
 
 <!-- No screenshot yet: desktop__planner__regenerate-confirm__edits (no clean capture from the gated build) -->
 
