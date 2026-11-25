@@ -130,14 +130,15 @@ function MissingSlot({ unitId, startAt }: { unitId: string | null; startAt: stri
  * this is the supervisor's screen.
  */
 export function OvertimePage() {
-  const { state: shiftsState } = useOpenShifts();
+  const { state: shiftsState, reload: reloadShifts } = useOpenShifts();
   const [searchParams] = useSearchParams();
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [showOthers, setShowOthers] = useState(false);
+  const [confirmedId, setConfirmedId] = useState<string | null>(null);
   const { state: version } = useVersion();
   const asOf = version.status === 'ready' ? version.info.asOf : undefined;
   const shifts = shiftsState.kind === 'ready' ? shiftsState.shifts : [];
-  const { current, others } = orderOpenShifts(shifts, asOf);
+  const { current, others } = orderOpenShifts(shifts, asOf, confirmedId);
   // "Find eligible officer" names the shift it came from, so the board opens
   // on that shift rather than whatever happens to be first.
   const requestedId = searchParams.get('shift');
@@ -214,6 +215,14 @@ export function OvertimePage() {
       await api.confirmOffer(offerId);
       setMessage('The accepted offer is confirmed and the shift is assigned.');
       reloadCandidates();
+      // The open shift is FILLED now: refetch the cards so this one stops
+      // saying "Offers sent" (v1.2 walk D5). It stays selected and in its
+      // place among the current needs, now reading "Filled".
+      if (activeId) {
+        setPickedId(activeId);
+        setConfirmedId(activeId);
+      }
+      reloadShifts();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'The offer could not be confirmed.');
     }
@@ -282,6 +291,9 @@ export function OvertimePage() {
         aria-pressed={isActive}
         onClick={() => {
           setPickedId(openShift.id);
+          // Only the card just confirmed keeps its place among the current needs,
+          // until the supervisor picks another.
+          if (openShift.id !== confirmedId) setConfirmedId(null);
           setSelected([]);
           setMessage(null);
           mutation.reset();
