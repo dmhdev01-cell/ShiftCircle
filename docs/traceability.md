@@ -11,7 +11,7 @@ demo session (S11), CI, and release 11: the board views, filters and export, the
 quarter plan, planned leave and the menu fixes. Two requirements stay **PARTIAL**: **FR-06** (publishing is
 recorded and shown on the board, but My schedule is not filtered by period status) and **FR-07** (a real
 changed-since-publish count, no notice rule). The older paragraphs below keep the counts of their day.
-On the v1.2 branch (PR-O, PR-M and PR-N, not the submission tag) the counts are API **503 = 127 + 28 + 348**, web **583** in 57 files, Playwright desktop **129**, tablet **128 + 1 skipped**; see `docs/10-testing.md` ("Current counts"). PR-M's plan inputs are proven by `PlanInputsApiTest` (counts on 120 and 150, roles, snapshot through a hand edit and a staff change, a closure, a forced pattern), `PlanInputsNeededTest` (the floor's stretch and tie-break), `planInputs.test.tsx` and `planner-inputs.spec.ts`.
+At v1.2 (PR-O, PR-M, PR-N and PR-Q, not the submission tag) the counts are API **503 = 127 + 28 + 348**, web **591** in 58 files, Playwright desktop **132**, tablet **131 + 1 skipped**; see `docs/10-testing.md` ("Current counts"). PR-M's plan inputs are proven by `PlanInputsApiTest` (counts on 120 and 150, roles, snapshot through a hand edit and a staff change, a closure, a forced pattern), `PlanInputsNeededTest` (the floor's stretch and tie-break), `planInputs.test.tsx` and `planner-inputs.spec.ts`.
 
 **First derived from the test sources, not from the prose.** Checked on 2026-11-21 against `main` at
 `5d0f810` by grepping `@Test`, Playwright `test(...)` titles and the Flyway migrations. The

@@ -14,12 +14,15 @@ export function isCurrentNeed(openShift: OpenShift, asOf: string | undefined): b
 export function orderOpenShifts(
   shifts: OpenShift[],
   asOf: string | undefined,
+  /** A shift just confirmed on this screen: it keeps its place, now Filled. */
+  keepId: string | null = null,
 ): { current: OpenShift[]; others: OpenShift[] } {
+  const inCurrent = (openShift: OpenShift) => isCurrentNeed(openShift, asOf) || openShift.id === keepId;
   const current = shifts
-    .filter((openShift) => isCurrentNeed(openShift, asOf))
+    .filter(inCurrent)
     .sort((left, right) => left.date.localeCompare(right.date));
   const others = shifts
-    .filter((openShift) => !isCurrentNeed(openShift, asOf))
+    .filter((openShift) => !inCurrent(openShift))
     .sort((left, right) => right.date.localeCompare(left.date));
   return { current, others };
 }

@@ -1163,7 +1163,7 @@ export interface StaffingUnitRow {
   allocated: number;
   filled: number;
   needed: number;
-  short: number;
+  shortfall: number;
   breakdown: StaffingBreakdown;
 }
 
@@ -1171,15 +1171,15 @@ export interface StaffingPeriod {
   from: string;
   to: string;
   units: StaffingUnitRow[];
-  totals: { allocated: number; filled: number; needed: number; short: number };
+  totals: { allocated: number; filled: number; needed: number; shortfall: number };
 }
 
 export interface StaffingReport {
   leaveAllowance: number;
   periods: StaffingPeriod[];
   note: string;
-  /** Present when more than three periods were collapsed. */
-  truncatedNote?: string;
+  /** True when more than three periods were collapsed; `note` then says so. */
+  truncated: boolean;
 }
 
 export interface PlannerCompareRow {

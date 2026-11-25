@@ -128,9 +128,9 @@ Under the tiles, a yellow **Unused part-time capacity** line says how many part-
 
 ![Dataset 150 scorecard made with Fill up to FTE: Made with line under the status, 100 gaps, 51 warnings, unused part-time capacity 496 h](img/planner-scorecard-up-to-fte.png)
 
-![Quarter plan scorecard on Dataset 120 with the yellow Unused part-time capacity line under the tiles](img/planner-scorecard-part-time.png)
+![Quarter plan scorecard on Dataset 120: the Needed (at least) tile reads 127, Short, 120 on staff · short 7, with the yellow Unused part-time capacity line (5,472 h) under the tiles and the FTE bands below](img/planner-scorecard-part-time.png)
 
-![Quarter plan scorecard for a 120-officer draft: eight tiles, including Coverage gaps 39, Rule warnings 7 and Qualified staff 0 (All met)](img/planner-scorecard.png)
+![Quarter plan scorecard for a 120-officer draft: eight tiles, including Coverage gaps 38, Rule warnings 7, Qualified staff 0 (All met) and Needed (at least) 127, Short, 120 on staff · short 7, with the yellow Unused part-time capacity line and the FTE bands below](img/planner-scorecard.png)
 
 <!-- No screenshot yet: tablet__planner__scorecard (no clean capture from the gated build) -->
 
@@ -211,7 +211,7 @@ If you see "The draft changed since you opened it" or "This draft was committed 
 ![Replace this draft? dialog with the plan options filled in from the draft, Fill up to each officer's FTE chosen](img/planner-generate-again-options.png)
 - **Discard draft…** then **Discard draft** removes the draft and its hand edits. Nothing on the planning board changes.
 
-![Quarter plan after commit: the Committed badge and a Plan committed box with a button to open each unit on the planning board](img/planner-committed.png)
+![Quarter plan after commit on Dataset 120: the Committed badge, a Plan committed box with a button to open each unit on the planning board, and the scorecard with Needed (at least) 127, Short, 120 on staff · short 7](img/planner-committed.png)
 
 <!-- No screenshot yet: desktop__planner__regenerate-confirm__edits (no clean capture from the gated build) -->
 
