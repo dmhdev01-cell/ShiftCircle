@@ -1,12 +1,15 @@
 # ShiftCircle build record
 
-**What it is:** a working prototype (submitted as release `v1.3`) that schedules 8- and 12-hour shifts (a 16 h day is 12 h plus an extension) at a fictional 24/7 correctional centre. Supervisors plan against editable Drools tables and work their own posts; officers propose extra shifts; a quarter planner builds 14 weeks with the same engine; worked time feeds a simulated payroll export. All data is synthetic, not an official Government of Saskatchewan service.
+**What it is:** a working prototype (submitted as release `v1.3`) that schedules 8- and 12-hour shifts at a fictional 24/7 correctional centre. Supervisors plan against editable Drools tables and work their own posts; officers propose extra shifts; a quarter planner builds 14 weeks with the same engine; worked time feeds a simulated payroll export. All data is synthetic, not an official Government of Saskatchewan service.
 
 ## 1. Architecture
 
 ```
-Browser -> nginx + React web -> Spring Boot api (Drools rules engine) -> PostgreSQL
-           (only port published)   one engine for every write            audit by trigger
+Browser -> nginx + React web  -> Spring Boot api           -> PostgreSQL
+           (only port published)  (Drools rules engine:       (audit by
+                                   one engine for every write)  trigger)
+Simulated external services: sign-in (mock tokens; government SSO in a pilot)
+                             payroll (CSV export, no live feed)
 ```
 
 A change, draft edit or proposal approval is previewed, then saved, refused with plain reasons, or acknowledged (shift changes may also be overridden), and audited (ADR-014, 026, 032).
@@ -40,7 +43,7 @@ A change, draft edit or proposal approval is previewed, then saved, refused with
 | T8 | Payroll export, locked period | equals the golden file | byte-identical |
 | T9 | 17 h cover in a lockdown | Block; with a written reason it saves, audited | pinned |
 
-**Gate for `v1.3` (`main` `d3d1d28`, 25 Nov 2026):** API 624 tests, web 695, Playwright desktop 144 passed, tablet 143 passed and 1 skipped, 0 failed; the golden moved once for the supervisors (officers' rows unchanged). The demo walk was scripted, not by a person.
+**Gate for `v1.3` (`main` `d3d1d28`, 25 Nov 2026):** API 624 tests, web 695, Playwright desktop 144 passed, tablet 143 passed and 1 skipped, 0 failed. The demo walk was scripted, not by a person.
 
 ## 5. Governance and ministry suitability
 
@@ -55,5 +58,6 @@ A change, draft edit or proposal approval is previewed, then saved, refused with
 
 1. **Restore human review:** a practitioner reviews the rule tests and the MOCK values.
 2. Government SSO; a payroll-clerk role; insert-only audit roles (ADR-018); TLS, CI scanning (`docs/08` §9).
+3. **Ownership and support:** the facility's scheduling office owns the service; a rules administrator owns the rule tables, with labour relations approving changes (maker/checker); ministry IT application support runs it, with the build team on call for fixes during the pilot.
 
-<!-- Page check (keep): fit 2 pages. Recipe: Chromium print to PDF, 11 pt, line-height 1.38, content width = page minus margins; measured content height must be <= ~1.95 pages. Cases: Letter 1 in margins (6.5 x 9 in), A4 2 cm margins (17 x 25.7 cm). Measured at PR-I (756 words): Letter 1.95 pages of content, 2 PDF pages; A4 1.71, 2 PDF pages. Re-measured for v1.3 (S8, 25 Nov 2026, 724 words, Source Sans 3 loaded; the PR-I text measured 1.95 on the same harness): Letter 1.92 pages of content, 2 PDF pages. -->
+<!-- Page check (keep): fit 2 pages. Recipe: Chromium print to PDF, 11 pt, line-height 1.38, content width = page minus margins; measured content height must be <= ~1.95 pages. Cases: Letter 1 in margins (6.5 x 9 in), A4 2 cm margins (17 x 25.7 cm). Measured at PR-I (756 words): Letter 1.95 pages of content, 2 PDF pages; A4 1.71, 2 PDF pages. Re-measured for v1.3 (S8, 25 Nov 2026, 724 words, Source Sans 3 loaded; the PR-I text measured 1.95 on the same harness): Letter 1.92 pages of content, 2 PDF pages. Submission PDF (25 Nov 2026, after adding external services and ownership/support): Chrome print, Letter, 1 in, 11 pt Source Sans 3 = 2 pages. -->
