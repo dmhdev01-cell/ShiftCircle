@@ -1,6 +1,6 @@
 {
   "asOf": "2026-11-19",
-  "generatedAt": "2026-11-20T10:57:54.416237847Z",
+  "generatedAt": "2026-11-25T10:32:27.528558305Z",
   "units": [
     {
       "unit": {
@@ -25,7 +25,7 @@
                 "count": 0
               }
             ],
-            "maxHourly": 2
+            "maxHourly": 1
           },
           "covered": true
         },
@@ -35,7 +35,7 @@
           "scheduled": {
             "lowestHourly": 5,
             "shortHours": [],
-            "maxHourly": 6
+            "maxHourly": 5
           },
           "actual": {
             "lowestHourly": 0,
@@ -56,7 +56,7 @@
           "scheduled": {
             "lowestHourly": 5,
             "shortHours": [],
-            "maxHourly": 6
+            "maxHourly": 5
           },
           "actual": {
             "lowestHourly": 0,
@@ -73,7 +73,9 @@
         }
       ],
       "openShifts": 0,
-      "officersInOvertime": 1
+      "officersInOvertime": 0,
+      "closedToday": false,
+      "closedNote": null
     },
     {
       "unit": {
@@ -98,7 +100,7 @@
                 "count": 0
               }
             ],
-            "maxHourly": 2
+            "maxHourly": 1
           },
           "covered": true
         },
@@ -106,7 +108,7 @@
           "block": "EVENING",
           "required": 5,
           "scheduled": {
-            "lowestHourly": 5,
+            "lowestHourly": 6,
             "shortHours": [],
             "maxHourly": 6
           },
@@ -127,7 +129,7 @@
           "block": "NIGHT",
           "required": 4,
           "scheduled": {
-            "lowestHourly": 4,
+            "lowestHourly": 5,
             "shortHours": [],
             "maxHourly": 5
           },
@@ -146,9 +148,159 @@
         }
       ],
       "openShifts": 0,
-      "officersInOvertime": 2
+      "officersInOvertime": 0,
+      "closedToday": false,
+      "closedNote": null
     }
   ],
   "totalOpenShifts": 0,
-  "totalOfficersInOvertime": 3
+  "totalOfficersInOvertime": 0,
+  "posts": [
+    {
+      "post": {
+        "id": "11111111-1111-1111-1111-000000000007",
+        "name": "Supervision \u00b7 Living units"
+      },
+      "area": "Living units",
+      "coverage": [
+        {
+          "block": "DAY",
+          "required": 1,
+          "scheduled": {
+            "lowestHourly": 1,
+            "shortHours": [],
+            "maxHourly": 1
+          },
+          "actual": {
+            "lowestHourly": 0,
+            "shortHours": [
+              {
+                "from": "07:00",
+                "to": "15:00",
+                "count": 0
+              }
+            ],
+            "maxHourly": 0
+          },
+          "covered": true
+        },
+        {
+          "block": "EVENING",
+          "required": 1,
+          "scheduled": {
+            "lowestHourly": 1,
+            "shortHours": [],
+            "maxHourly": 1
+          },
+          "actual": {
+            "lowestHourly": 0,
+            "shortHours": [
+              {
+                "from": "15:00",
+                "to": "23:00",
+                "count": 0
+              }
+            ],
+            "maxHourly": 0
+          },
+          "covered": true
+        },
+        {
+          "block": "NIGHT",
+          "required": 1,
+          "scheduled": {
+            "lowestHourly": 1,
+            "shortHours": [],
+            "maxHourly": 1
+          },
+          "actual": {
+            "lowestHourly": 0,
+            "shortHours": [
+              {
+                "from": "23:00",
+                "to": "07:00",
+                "count": 0
+              }
+            ],
+            "maxHourly": 0
+          },
+          "covered": true
+        }
+      ],
+      "openShifts": 0
+    },
+    {
+      "post": {
+        "id": "11111111-1111-1111-1111-000000000008",
+        "name": "Supervision \u00b7 Operations"
+      },
+      "area": "Operations",
+      "coverage": [
+        {
+          "block": "DAY",
+          "required": 1,
+          "scheduled": {
+            "lowestHourly": 1,
+            "shortHours": [],
+            "maxHourly": 1
+          },
+          "actual": {
+            "lowestHourly": 0,
+            "shortHours": [
+              {
+                "from": "07:00",
+                "to": "15:00",
+                "count": 0
+              }
+            ],
+            "maxHourly": 0
+          },
+          "covered": true
+        },
+        {
+          "block": "EVENING",
+          "required": 1,
+          "scheduled": {
+            "lowestHourly": 1,
+            "shortHours": [],
+            "maxHourly": 1
+          },
+          "actual": {
+            "lowestHourly": 0,
+            "shortHours": [
+              {
+                "from": "15:00",
+                "to": "23:00",
+                "count": 0
+              }
+            ],
+            "maxHourly": 0
+          },
+          "covered": true
+        },
+        {
+          "block": "NIGHT",
+          "required": 1,
+          "scheduled": {
+            "lowestHourly": 1,
+            "shortHours": [],
+            "maxHourly": 1
+          },
+          "actual": {
+            "lowestHourly": 0,
+            "shortHours": [
+              {
+                "from": "23:00",
+                "to": "07:00",
+                "count": 0
+              }
+            ],
+            "maxHourly": 0
+          },
+          "covered": true
+        }
+      ],
+      "openShifts": 0
+    }
+  ]
 }

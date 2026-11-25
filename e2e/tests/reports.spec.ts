@@ -44,7 +44,9 @@ test.describe('reports', () => {
     await openTab(page, 'Hours');
     await expect(page.getByRole('heading', { name: /Hours by officer · pay period/ })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: 'Officer' })).toBeVisible();
-    await expect(page.getByText(/Showing \d+ of \d+ officers/)).toBeVisible();
+    // Release v1.3 S7: the hours list both ranks (with a Position column) unless one is chosen.
+    await expect(page.getByRole('columnheader', { name: 'Position' }).first()).toBeVisible();
+    await expect(page.getByText(/Showing \d+ of \d+ people/)).toBeVisible();
     lines = await downloadCsv(page, 'Export CSV');
     expect(lines.length, 'hours CSV has a header and rows').toBeGreaterThan(1);
 

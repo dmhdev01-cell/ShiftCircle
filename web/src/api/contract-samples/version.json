@@ -1,9 +1,16 @@
 {
   "name": "shiftcircle-api",
   "version": "0.1.0-SNAPSHOT",
-  "buildTime": "2026-11-20T10:31:25.284Z",
-  "gitCommit": "unknown",
-  "ruleSetVersion": "v2",
+  "buildTime": "2026-11-25T10:31:46.802Z",
+  "gitCommit": "4f79f72",
+  "ruleSetVersion": "v4",
   "profiles": "demo",
-  "asOf": "2026-11-19"
+  "asOf": "2026-11-19",
+  "demoMode": true,
+  "datasets": [
+    "100",
+    "120",
+    "150"
+  ],
+  "activeDataset": "100"
 }

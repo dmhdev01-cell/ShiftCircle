@@ -27,7 +27,14 @@ export const PLAN_INPUTS_120: PlanInputs = {
     "neededFrom": "2027-01-04",
     "neededTo": "2027-04-11",
     "neededPeriods": 1,
-    "units": 6
+    "units": 6,
+    "byPosition": [
+      { "position": "CO", "supervisory": false, "total": 120, "fullTime": 100, "partTime": 20, "fte": 112.0 },
+      { "position": "CS", "supervisory": true, "total": 0, "fullTime": 0, "partTime": 0, "fte": 0.0 }
+    ],
+    "lineUnits": 6,
+    "posts": 0,
+    "headline": "120 officers in 6 units"
   },
   "units": [
     {

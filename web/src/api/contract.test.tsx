@@ -206,11 +206,14 @@ describe('plan inputs against the api (PR-M)', () => {
         <PlanInputsCard inputs={sample} fromDraft={false} />
       </ThemeProvider>,
     );
+    // Release v1.3 S7: the screen's headline says what the api's does, rank split included.
+    expect(sample.officers.headline).toMatch(/supervisors in \d+ units \+ 2 supervisor posts$/);
     expect(screen.getByTestId('plan-inputs-headline').textContent).toContain(
-      `Planning ${sample.officers.total} officers`,
+      `Planning ${sample.officers.headline}`,
     );
     act(() => screen.getByRole('button', { name: 'Show plan inputs' }).click());
     expect(await screen.findByRole('region', { name: 'Plan inputs detail' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Supervisors by post' })).toBeInTheDocument();
     expect(screen.queryByText('This screen could not be shown')).not.toBeInTheDocument();
   });
 

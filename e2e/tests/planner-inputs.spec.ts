@@ -60,7 +60,8 @@ test.describe('plan inputs on the quarter plan', () => {
     const api = await apiAs(request, 'p.planner');
     const inputs = await api.get<Inputs>('/planner/inputs');
     // Release v1.3 (S4): the 150 officers plus 12 supervisors (11 full-time, one 0.6 FTE) on
-    // 6 units and 2 supervisor posts. The headline counts everyone until S7 words the split.
+    // 6 units and 2 supervisor posts. Since S7 the headline words the split; the full-time,
+    // part-time and FTE figures count both ranks.
     expect(inputs.officers).toMatchObject({ total: 162, fullTime: 131, partTime: 31, fte: 149.6, units: 8 });
     expect(inputs.leave.days).toBeGreaterThan(0);
 
@@ -70,7 +71,7 @@ test.describe('plan inputs on the quarter plan', () => {
     await expect(page.getByText('Plan inputs · what Generate will use')).toBeVisible();
     const headline = page.getByTestId('plan-inputs-headline');
     await expect(headline).toHaveText(
-      `Planning 162 officers in 8 units · 131 full-time, 31 part-time or casual · 149.6 FTE against about ${inputs.officers.neededFte} needed · 4 Jan – 11 Apr 2027`,
+      `Planning 150 officers + 12 supervisors in 6 units + 2 supervisor posts · 131 full-time, 31 part-time or casual · 149.6 FTE against about ${inputs.officers.neededFte} needed · 4 Jan – 11 Apr 2027`,
     );
     await expect(
       page.getByText(
@@ -82,6 +83,9 @@ test.describe('plan inputs on the quarter plan', () => {
     await page.getByRole('button', { name: 'Show plan inputs' }).click();
     const detail = page.getByRole('region', { name: 'Plan inputs detail' });
     await expect(detail.getByRole('heading', { name: 'Officers by unit' })).toBeVisible();
+    // Release v1.3 S7: the posts have their own table; the part-time supervisor is on SUP-O.
+    await expect(detail.getByRole('heading', { name: 'Supervisors by post' })).toBeVisible();
+    await expect(detail.getByRole('row', { name: /Supervision · Operations/ })).toContainText('part-time or casual');
     await expect(detail.getByRole('row', { name: /Unit A · Living unit/ })).toContainText('12 h day crew, 4 on, 4 off');
     await expect(detail.getByRole('row', { name: /Unit A · Living unit/ })).toContainText('part-time or casual');
     await expect(detail.getByText('· Vacation')).toBeVisible();
@@ -95,13 +99,39 @@ test.describe('plan inputs on the quarter plan', () => {
     await page.getByRole('button', { name: 'Generate draft' }).click();
     await expect(page.getByText('Coverage gaps')).toBeVisible({ timeout: 120_000 });
     await expect(page.getByText('Plan inputs · what this draft was generated with')).toBeVisible();
-    await expect(headline).toContainText('Planning 162 officers in 8 units · 131 full-time, 31 part-time or casual');
+    await expect(headline).toContainText(
+      'Planning 150 officers + 12 supervisors in 6 units + 2 supervisor posts · 131 full-time, 31 part-time or casual',
+    );
     await expect(page.getByText(/^Seed 20261001 · 8 h officers on their own pattern/)).toBeVisible();
     await expect(page.getByText('have changed since this draft was generated', { exact: false })).toHaveCount(0);
     const tablist = page.getByRole('tablist', { name: 'Quarter plan' });
     const [headBox, tabBox] = [await headline.boundingBox(), await tablist.boundingBox()];
     expect(headBox && tabBox && headBox.y < tabBox.y, 'the inputs sit above the scorecard').toBeTruthy();
     await shot(page, testInfo, 'planner', 'quarter-plan', 'inputs-draft-150');
+
+    // Release v1.3 S7: the scorecard's supervisor card, and the commit dialog's rank split.
+    const card = page.getByRole('region', { name: 'Supervisor posts' });
+    await expect(card).toContainText('Supervisor posts covered 495 of 588 block-days; 93 short.');
+    await expect(card).toContainText('The cards above count the officers and the officer units only.');
+    await card.scrollIntoViewIfNeeded();
+    await shot(page, testInfo, 'planner', 'quarter-plan', 'supervisor-card-150');
+    const draftId = (await api.get<{ draft: { id: string } }>('/planner/plan')).draft.id;
+    const preview = await api.get<{
+      shiftsToWrite: number;
+      officers: number;
+      supervisors: number;
+      officerShifts: number;
+      supervisorShifts: number;
+    }>(`/planner/drafts/${draftId}/commit-preview`);
+    expect(preview.supervisors).toBe(12);
+    const n = (value: number) => value.toLocaleString('en-CA');
+    await page.getByRole('button', { name: 'Commit plan…' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText(
+      `This writes ${n(preview.shiftsToWrite)} shifts (${n(preview.officerShifts)} officer + ${n(preview.supervisorShifts)} supervisor) for ${n(preview.officers)} officers and 12 supervisors,`,
+    );
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
 
     // GET /planner/plan carries the same snapshot on the draft.
     const plan = await api.get<{ draft: { scorecard: { inputs: Inputs } } }>('/planner/plan');
@@ -112,14 +142,15 @@ test.describe('plan inputs on the quarter plan', () => {
     await resetTo(request, '120');
     const api = await apiAs(request, 'p.planner');
     const inputs = await api.get<Inputs>('/planner/inputs');
-    // Release v1.3 (S4): the 120 officers plus 10 full-time supervisors on the 2 posts.
+    // Release v1.3 (S4): the 120 officers plus 10 full-time supervisors on the 2 posts; S7 words
+    // the split in the headline.
     expect(inputs.officers).toMatchObject({ total: 130, fullTime: 110, partTime: 20, units: 8 });
     expect(inputs.leave.days).toBe(0);
 
     await signIn(page, 'P. Planner');
     await navTo(page, 'Quarter plan');
     await expect(page.getByTestId('plan-inputs-headline')).toHaveText(
-      `Planning 130 officers in 8 units · 110 full-time, 20 part-time or casual · ${inputs.officers.fte} FTE against about ${inputs.officers.neededFte} needed · 4 Jan – 11 Apr 2027`,
+      `Planning 120 officers + 10 supervisors in 6 units + 2 supervisor posts · 110 full-time, 20 part-time or casual · ${inputs.officers.fte} FTE against about ${inputs.officers.neededFte} needed · 4 Jan – 11 Apr 2027`,
     );
     await page.getByRole('button', { name: 'Show plan inputs' }).click();
     const detail = page.getByRole('region', { name: 'Plan inputs detail' });

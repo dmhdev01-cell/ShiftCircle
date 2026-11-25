@@ -288,6 +288,7 @@ function FacilityPanel({ data, now, live }: { data: DisplayToday; now: Block; li
           </Box>
         ))}
       </Box>
+      {data.posts.length > 0 ? <PostsRows posts={data.posts} now={now} live={live} /> : null}
       <Box sx={{ fontSize: s(20), color: C.muted, pt: s(12), borderTop: `1px solid ${C.rule}` }}>
         Counts are the lowest scheduled headcount in any hour of the block. To pick up an open shift, check ShiftCircle or see your supervisor.
       </Box>
@@ -296,15 +297,14 @@ function FacilityPanel({ data, now, live }: { data: DisplayToday; now: Block; li
 }
 
 /**
- * The supervisor posts (release v1.3 S7): one line per post, "Operations 1 of 1",
- * for the current block. Counts only, like the tiles: no supervisor is named.
+ * The supervisor posts (release v1.3 S7): one line per post, "Supervisor on duty ·
+ * Operations   1 of 1", for the current block, inside the facility panel so a
+ * 1366×768 screen still fits with the stale banner. Counts only, like the
+ * tiles: no supervisor is named.
  */
-function PostsPanel({ posts, now, live }: { posts: DisplayPost[]; now: Block; live: boolean }) {
+function PostsRows({ posts, now, live }: { posts: DisplayPost[]; now: Block; live: boolean }) {
   return (
-    <Box component="section" aria-label="Supervisor on duty" sx={{ display: 'flex', flexDirection: 'column', gap: s(12), p: `${s(24)} ${s(32)}`, backgroundColor: C.card, borderRadius: s(20) }}>
-      <Box component="h2" sx={{ m: 0, fontSize: s(28), fontWeight: 700 }}>
-        {live ? 'Supervisor on duty' : 'Supervisor on duty · last known'}
-      </Box>
+    <Box component="section" aria-label="Supervisor on duty" sx={{ pt: s(12), borderTop: `1px solid ${C.rule}` }}>
       <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: s(10) }}>
         {posts.map((entry) => {
           const current = entry.coverage.find((item) => item.block === now);
@@ -325,8 +325,8 @@ function PostsPanel({ posts, now, live }: { posts: DisplayPost[]; now: Block; li
               aria-label={`Supervisor on duty · ${entry.area}${figure ? ` ${figure}` : ''} · ${live ? words : `last known: ${words}`}`}
               sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: s(12), fontSize: s(24) }}
             >
-              <Box component="span" sx={{ color: C.muted }}>{entry.area}</Box>
-              <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: s(10), whiteSpace: 'nowrap', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: !live ? C.stale : status?.kind === 'short' ? C.canola : C.text }}>
+              <Box component="span" sx={{ color: C.muted }}>Supervisor on duty · {entry.area}</Box>
+              <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: s(8), whiteSpace: 'nowrap', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: !live ? C.stale : status?.kind === 'short' ? C.canola : C.text }}>
                 {figure ?? '—'}
                 {status?.kind === 'short' ? (
                   <>
@@ -507,9 +507,8 @@ export function WallDisplayPage() {
                 <UnitCard key={entry.unit.id} entry={entry} now={block} live={live} />
               ))}
             </Box>
-            <Box sx={{ width: { xs: '100%', md: s(440) }, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: s(20) }}>
+            <Box sx={{ width: { xs: '100%', md: s(440) }, flexShrink: 0 }}>
               <FacilityPanel data={data} now={block} live={live} />
-              {data.posts.length > 0 ? <PostsPanel posts={data.posts} now={block} live={live} /> : null}
             </Box>
           </>
         ) : error === null ? (
