@@ -444,6 +444,13 @@ stack per viewport: desktop-datasets **132 passed**, tablet-datasets **131 passe
 `docs/demo-script.md`); M. Ellis and J. Chen open Employee view → My schedule with their own shifts
 in a browser.
 
+**Counts after the review round** (`c4d3963`: the self-edit guard, the posts named in Compare, the
+docs fixes, with main merged in, which brings S3 #32 and P3 #33): API **611 = 140 rules + 38
+infrastructure + 433 api** (GitHub CI `mvn verify` on the pull request's merge with main, 0
+failures, errors or skipped; `SelfEditGuardApiTest` +3); web unit tests **632** in 61 files, lint 0
+errors (4 warnings), `tsc -b` and build clean; Playwright against the real API, a fresh stack per
+viewport: desktop-datasets **134 passed**, tablet-datasets **133 passed and 1 skipped**.
+
 ### Shift proposals, P1: the officer API
 
 The first of five proposal PRs (P1 to P5; plan `v1.2-proposals`, owner answers Q1 to Q5 approved). **P1 is the API for the officer side only; there is no screen yet.** An officer can preview a multi-item proposal (each item rule-checked with the earlier items as extra facts, so rest between two drafts shows), send it (a Block can't be sent, a Warn can), list their own proposals, and withdraw one while every item still waits. A waiting item expires when its shift starts, on every read and withdraw and by an hourly sweep. Nothing creates a shift: the inbox and the decision are P2, so until then a sent proposal stays Waiting and then Expires.
