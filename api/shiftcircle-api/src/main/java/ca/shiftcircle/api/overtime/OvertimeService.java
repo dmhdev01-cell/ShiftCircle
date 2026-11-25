@@ -569,9 +569,6 @@ public class OvertimeService {
     // assignment (review-r1 F3).
     Map<String, Object> offer = offerRowForUpdate(offerId);
     scopeGuard.requireUnit(principal, (String) shift.get("unit_code"));
-    // Release v1.3 S4: a supervisor does not confirm their own overtime; accepting it on My
-    // schedule stays the employee's own consent.
-    SelfActionGuard.requireNotOwnSchedule(principal, (UUID) offer.get("employee_id"));
 
     if (!"ACCEPTED".equals(offer.get("status"))) {
       throw new ResponseStatusException(
@@ -583,6 +580,10 @@ public class OvertimeService {
     if ("CANCELLED".equals(shift.get("status"))) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "This shift was cancelled");
     }
+    // Release v1.3 S4: a supervisor does not confirm their own overtime; accepting it on My
+    // schedule stays the employee's own consent. Checked after the offer's and the shift's state
+    // (a filled shift is still a 409 for everyone) and before anything is written.
+    SelfActionGuard.requireNotOwnSchedule(principal, (UUID) offer.get("employee_id"));
 
     UUID employeeId = (UUID) offer.get("employee_id");
     UUID unitId = (UUID) shift.get("unit_id");
