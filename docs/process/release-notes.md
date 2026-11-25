@@ -575,7 +575,7 @@ and 120, Supervisors by post, the supervisor card ("Supervisor posts covered 495
 93 short.") and the commit dialog's split; `session-and-nav` and `reports` follow the new wording.
 
 **Counts at this gate** (author run; own compose project `sc-sc-s7`, port 18747): API **620 = 140
-rules + 38 infrastructure + 442 api** by `@Test` count (S7_API_RUN); web unit tests **669** in 64
+rules + 38 infrastructure + 442 api** (GitHub CI `mvn verify` on #38 at `07c2cc6`, BUILD SUCCESS, 0 failures, errors or skipped; author runs on a loaded host hit flakes in untouched classes); web unit tests **669** in 64
 files, lint 0 errors (4 warnings), `tsc -b` and build clean; `check-ignored-sources.sh` OK,
 `check-audit-codes.sh` agrees (55 codes, none added). Playwright against the real API at `bada893`,
 a fresh stack per viewport, 2 workers: desktop-datasets **139 passed**, tablet-datasets **138 passed
