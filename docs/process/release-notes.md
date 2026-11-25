@@ -132,3 +132,67 @@ No api, migration, generator or rules change: dataset checksums, the payroll gol
 **Release step:** after merge, tag the merge commit `v1.2` and push the tag, then run `scripts/check-install-pin.sh --remote` and the README one-liner once from an empty directory (free port, own `SHIFTCIRCLE_PROJECT`).
 
 **Counts at v1.2** (PR-Q's head, 24 Nov 2026): API **503 = 127 rules + 28 infrastructure + 348 api** (unchanged; PR-Q changes no api code; `UnitApiTest` and `PlanInputsApiTest` re-run green); web unit tests **591** in 58 files (+8: the staffing contract sample ×3, the top-bar clock, the sign-in retry ×2, the open-shift order ×2; the T&A subtitle and Overtime confirm assertions extend existing tests), lint 4 warnings and 0 errors, `tsc -b` clean; Playwright against the real API, a fresh stack per viewport (`E2E_WORKERS=1`): `desktop-datasets` **132 passed**, `tablet-datasets` **131 passed and 1 skipped**, 0 failed (+3 each: headline, panel and tile on Datasets 100, 120 and 150). The demo script §1–7 was walked again with the release walk's harness on PR-Q's stack: same results, apart from the harness's known misses (its expected commit hash, the §3 "no refresh" check Playwright cannot perform, and two §7 wording checks).
+
+## Release v1.3: supervisors get their own rostered shifts
+
+The owner approved the plan in `.factory/plans/v1.2-supervisors.md` (the plan file still says v1.2; the
+release was split afterwards, so it is v1.3 here). The work is eight small pull requests, **S1 to S8**;
+this entry covers **S1** only. The plan is not in the repository, so this section is the record of what
+the first pull request did.
+
+### S1 — Positions and the SUPERVISION kind (API, schema only)
+
+**What it does.** An officer's **position** (rank) becomes a reference row instead of a free-text
+column, and a **supervisor post** becomes a unit of its own kind. Nothing about the demo changes yet:
+there are still no supervisor posts and no supervisors in the datasets, so the demo behaves exactly as
+it did.
+
+**The migration (`positions`).** The file is `__positions.sql`; its version number is the order it
+merges in, so it takes the next free number when it merges.
+- The `position` table (`code` PK, `name`, `rank_order`, `is_supervisory`) with two rows: `CO`
+  Correctional officer (1, not supervisory) and `CS` Correctional supervisor (2, supervisory). A new
+  rank is a **row**, and a code change with it: the api knows two ranks, and a rank it does not
+  know is treated as the lowest, non-supervisory one.
+- `employee.classification` keeps its name and becomes a foreign key to `position(code)`, so an
+  unknown code is refused by the database (`23503`). Every existing officer is a `CO`, so no data
+  moved.
+- `employee.position_since` (date, null): **seniority within the rank**. It is null for an officer
+  who is already in their rank, so seniority inside a rank is `coalesce(position_since,
+  seniority_date)` and every officer ordering is unchanged. It cannot be earlier than
+  `seniority_date`; "not in the future" is the writing service's job, because a check constraint
+  cannot read the clock.
+- `unit.kind` accepts `SUPERVISION`: a supervisor post is a unit with its own `unit_requirement`
+  rows, so the board, coverage, gaps, publishing and payroll need no new code.
+- `unit_supervision(supervision_unit_id, unit_id)`: which line units a post covers. A trigger
+  refuses a row whose parent is not a `SUPERVISION` unit, and a row whose child is one, so a post
+  cannot cover another post (`23514`). A second trigger refuses a change to a unit's `kind` while
+  a link points at it, so a post cannot quietly stop being a post.
+- The `ACTING_SUP` qualification row, on the existing `employee_qualification` table.
+
+**The API.** The `Position` enum (`CO`/`CS`, with `isSupervisory()`) joins `shiftcircle-domain`.
+`PlanGenerator.Employee` gains `position` and `rankSeniority`, `PlanGenerator.Unit` gains `kind` and
+an `isSupervision()` helper; the older constructors are kept, so every existing call site still
+compiles. `loadEmployees` reads the classification and `position_since`, `loadUnits` reads the kind,
+`MyScheduleQuery` and `GET /me` name the position in words (`Correctional officer`, `Correctional
+supervisor`). A rank the api does not know is looked up as nothing and falls back to the lowest,
+non-supervisory rank, so a new rank in the table can never stop the planner or make it treat
+someone as a supervisor by accident.
+
+**No pin moves.** No unit and no employee row changes, so the dataset checksums (100, 120, 150), the
+three plan fingerprints and the payroll golden are unchanged: `GeneratorCharacterizationTest` is
+green with no edits, and the demo reset tests still read the same checksums.
+
+**Counts at this gate:** API **494 = 127 rules + 36 infrastructure + 331 api** (`mvn verify` on the
+pull request, `BUILD SUCCESS`, 0 failures, errors or skipped); web unit tests **567** in 56 files,
+lint 0 errors, `tsc -b` clean, build clean; `check-ignored-sources.sh` OK and
+`check-audit-codes.sh` still 50 codes. Playwright: see the pull request.
+
+**Two things later releases still owe:** the captured contract samples
+(`web/src/api/contract-samples/`) do not carry the new `position` field yet — they are re-captured
+in S7 with the rest of the samples — and this migration must merge **after** the quarter-plan
+options migration (PR #24), which owns the versions before it.
+
+**Not in this release** (the rest of the plan): the `POSTS` rule table and the R-01/R-02 rules (S2),
+the rank-aware planner (S3), the supervisor posts and the demo supervisors in the datasets with the
+single re-pin (S4), the overtime pools and the self-edit guard (S5), and the board, My schedule,
+display and reports work (S6, S7).

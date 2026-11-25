@@ -145,7 +145,7 @@ Content-Type: application/problem+json
 |---|---|---|---|
 | GET | `/auth/demo-users` | List users for the mock sign-in picker | public (demo profile only) |
 | POST | `/auth/mock-login` | `{ "userId" }` → `{ "token", "expiresAt", "user" }` | public (demo profile only) |
-| GET | `/me` | Current user, roles, unit scope, linked employee (`employeeId` is an empty string when the account has no officer) | any |
+| GET | `/me` | Current user, roles, unit scope, linked employee (`employeeId` is an empty string when the account has no officer) and their **position** in words, e.g. `Correctional officer` (empty string without a linked officer) | any |
 | GET | `/units` | Active units (`id, code, name, kind, allows_12h, allows_16h, active`); a supervisor sees only the units in scope | any |
 | GET | `/units/{id}/requirements` | **Not built.** The unit requirements are used by the board, coverage and planner payloads; there is no endpoint of their own (answers `404`) | — |
 | GET | `/shift-templates` | The **active** templates only: A12, D12, D8, P12, E8, N12, N8 (`code, label, start, duration_minutes, regular_allowed, chip_style`). L16 is retired and not listed (ADR-029) | any |
@@ -158,7 +158,7 @@ Content-Type: application/problem+json
 | Method | Path | Purpose | Roles |
 |---|---|---|---|
 | GET | `/schedule?unitId=&from=&to=` | **Planning board payload:** days, coverage per block (required / scheduled / actual, each with the lowest hourly count and the short hour ranges, see below), officer rows with assignments, overtime status per officer, warnings, `overridesThisPeriod`, `asOf` and `publishedState` (see below) | SUPERVISOR (own units), AUDITOR, PLANNER (read-only, all units) |
-| GET | `/me/schedule?from=&to=` | My shifts, hours this pay period, overtime this quarter, next shift, `asOf` (the server's "today", as on `GET /schedule`) | any account linked to an officer (404 otherwise) |
+| GET | `/me/schedule?from=&to=` | My shifts, hours this pay period, overtime this quarter, next shift, my position in words, `asOf` (the server's "today", as on `GET /schedule`) | any account linked to an officer (404 otherwise) |
 | POST | `/rule-checks` | Preview any change (§3) | SUPERVISOR; EMPLOYEE for their own shifts (the *Propose shifts* check) |
 | POST | `/assignments` | Assign a shift (§3 rules apply) | SUPERVISOR |
 | PATCH | `/assignments/{id}` | Move or change a shift (`If-Match`) | SUPERVISOR |
