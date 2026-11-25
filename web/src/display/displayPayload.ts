@@ -1,6 +1,7 @@
 import type {
   Block,
   DisplayBlock,
+  DisplayPost,
   DisplayToday,
   DisplayUnit,
   HourlyCoverage,
@@ -119,6 +120,17 @@ function unit(value: unknown): DisplayUnit {
   };
 }
 
+/** A supervisor post (release v1.3 S7): the same counts as a unit, and nothing else. */
+function post(value: unknown): DisplayPost {
+  const raw = record(value, 'post');
+  const ref = record(raw.post, 'post reference');
+  return {
+    post: { id: text(ref.id, 'post id'), name: text(ref.name, 'post name') },
+    area: text(raw.area, 'post area'),
+    coverage: list(raw.coverage, 'post coverage').map(block),
+  };
+}
+
 export function toDisplayToday(value: unknown): DisplayToday {
   const raw = record(value, 'payload');
   const asOf = text(raw.asOf, 'asOf');
@@ -131,5 +143,7 @@ export function toDisplayToday(value: unknown): DisplayToday {
     units: list(raw.units, 'units').map(unit),
     totalOpenShifts: count(raw.totalOpenShifts, 'total open shifts'),
     totalOfficersInOvertime: count(raw.totalOfficersInOvertime, 'total officers in overtime'),
+    // An api from before release v1.3 S7 sends no posts: the strip is simply not shown.
+    posts: raw.posts === undefined || raw.posts === null ? [] : list(raw.posts, 'posts').map(post),
   };
 }

@@ -96,7 +96,16 @@ function hostilePayload() {
     })),
     ...(index === 0 ? { officers: [{ name: 'Nia Thompson' }] } : {}),
   }));
-  return { ...base, units, officersInOvertime: [{ name: 'Nia Thompson', employeeNo: 'E-0042' }] };
+  // Release v1.3 S7: the posts strip passes the same whitelist.
+  const posts = (base.posts as Record<string, unknown>[]).map((post) => ({
+    ...post,
+    supervisor: { displayName: 'Ruth Okafor', employeeNo: 'E-0042', employeeId: 'emp-7f3a' },
+    coverage: (post.coverage as Record<string, unknown>[]).map((block) => ({
+      ...block,
+      onDuty: [{ displayName: 'Tara Nakamura' }],
+    })),
+  }));
+  return { ...base, units, posts, officersInOvertime: [{ name: 'Nia Thompson', employeeNo: 'E-0042' }] };
 }
 
 describe('displayPayload whitelist', () => {
@@ -107,6 +116,7 @@ describe('displayPayload whitelist', () => {
       expect(json, value).not.toContain(value);
     }
     expect(cleaned.units).toHaveLength(6);
+    expect(cleaned.posts.map((post) => post.area)).toEqual(['Living units', 'Operations']);
     expect(cleaned.units[2].coverage[1]).toEqual({
       block: 'EVENING',
       required: 4,
@@ -208,6 +218,58 @@ describe('Wall display', () => {
       screen.getByText('Not an official Government of Saskatchewan service · fictional, synthetic data only'),
     ).toBeInTheDocument();
     expect(screen.getByText('Demo fixtures')).toBeInTheDocument();
+  });
+
+  it('shows the supervisor posts as counts only, beside the facility totals (release v1.3 S7)', async () => {
+    startAt(DAY_TIME);
+    renderDisplay();
+    await firstLoad();
+
+    const posts = screen.getByRole('region', { name: 'Supervisor on duty' });
+    expect(within(posts).getByRole('listitem', { name: 'Supervisor on duty · Living units 1 of 1 · covered' })).toBeInTheDocument();
+    expect(within(posts).getByRole('listitem', { name: 'Supervisor on duty · Operations 1 of 1 · covered' })).toBeInTheDocument();
+    // The posts are not unit tiles, and the facility totals stay the units'.
+    expect(screen.queryByRole('region', { name: 'Supervision · Operations' })).not.toBeInTheDocument();
+    const facility = screen.getByRole('region', { name: 'Facility today' });
+    expect(within(facility).getByText('Open shifts today').nextSibling).toHaveTextContent('2');
+  });
+
+  it('says a short supervisor post in words and an icon', async () => {
+    startAt(DAY_TIME);
+    const today = demoDisplayToday(null);
+    vi.spyOn(api, 'getDisplayToday').mockResolvedValue({
+      ...today,
+      posts: today.posts.map((entry) =>
+        entry.area === 'Operations'
+          ? {
+              ...entry,
+              coverage: entry.coverage.map((item) =>
+                item.block === 'DAY'
+                  ? { ...item, scheduled: { lowestHourly: 0, shortHours: [{ from: '07:00', to: '15:00', count: 0 }] }, covered: false }
+                  : item,
+              ),
+            }
+          : entry,
+      ),
+    });
+    renderDisplay();
+    await firstLoad();
+
+    const operations = screen.getByRole('listitem', { name: 'Supervisor on duty · Operations 0 of 1 · short 1' });
+    expect(operations).toHaveTextContent(/0 of 1\s*short 1/);
+    expect(operations.querySelector('svg')).not.toBeNull();
+  });
+
+  it('shows no posts strip for an api from before the posts', async () => {
+    startAt(DAY_TIME);
+    const { posts: _posts, ...older } = demoDisplayToday(null);
+    void _posts;
+    vi.spyOn(api, 'getDisplayToday').mockImplementation(async () => toDisplayToday(older));
+    renderDisplay();
+    await firstLoad();
+
+    expect(screen.getByRole('region', { name: 'Unit A · Living unit' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Supervisor on duty' })).not.toBeInTheDocument();
   });
 
   it('says a shortfall in words and an icon, not colour alone', async () => {
@@ -317,6 +379,7 @@ describe('Wall display', () => {
       generatedAt: '2026-11-19T20:32:00Z',
       totalOpenShifts: 0,
       totalOfficersInOvertime: 0,
+      posts: [],
       units: [
         {
           unit: { id: 'unit-c', name: 'Unit C · Living unit' },

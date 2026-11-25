@@ -40,6 +40,7 @@ public final class ReportsViews {
       double extraHours,
       List<ClosureNote> closureNotes) {}
 
+  /** {@code position} is the person's rank code, CO or CS (release v1.3 S7). */
   public record HoursByOfficer(
       UUID employeeId,
       String name,
@@ -49,14 +50,16 @@ public final class ReportsViews {
       double overtime15,
       double overtime20,
       double sick,
-      double vacation) {}
+      double vacation,
+      String position) {}
 
   public record HoursPeriod(
       UUID id, String label, String status, String lockedBy, String lockedAt) {}
 
   public record HoursReport(HoursPeriod period, List<HoursByOfficer> rows, int totalOfficers) {}
 
-  public record OvertimeByOfficer(UUID employeeId, String name, double hours) {}
+  /** {@code position} is the person's rank code, CO or CS (release v1.3 S7). */
+  public record OvertimeByOfficer(UUID employeeId, String name, double hours, String position) {}
 
   public record OvertimeReport(List<OvertimeByOfficer> rows, double averageHours) {}
 

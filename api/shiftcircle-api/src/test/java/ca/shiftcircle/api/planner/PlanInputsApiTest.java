@@ -69,7 +69,15 @@ class PlanInputsApiTest {
 
     List<Map<String, Object>> units = (List<Map<String, Object>>) inputs.get("units");
     assertThat(units).hasSize(jdbc.queryForObject("SELECT count(*) FROM unit", Integer.class));
-    assertThat(units.stream().mapToInt(unit -> (int) unit.get("officers")).sum()).isEqualTo(130);
+    // Release v1.3 S7: each row splits its people by rank (S3 review N4).
+    assertThat(units.stream().mapToInt(unit -> (int) unit.get("officers")).sum()).isEqualTo(120);
+    assertThat(units.stream().mapToInt(unit -> (int) unit.get("supervisors")).sum()).isEqualTo(10);
+    assertThat(units)
+        .filteredOn(unit -> Boolean.TRUE.equals(unit.get("supervision")))
+        .extracting(unit -> unit.get("code") + ":" + unit.get("officers") + "+" + unit.get("supervisors"))
+        .containsExactly("SUP-L:0+5", "SUP-O:0+5");
+    assertThat((String) officers.get("headline"))
+        .isEqualTo("120 officers + 10 supervisors in 6 units + 2 supervisor posts");
     int grouped =
         units.stream()
             .flatMap(unit -> ((List<Map<String, Object>>) unit.get("groups")).stream())

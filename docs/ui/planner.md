@@ -16,7 +16,7 @@ Everything here uses the shared layout (README §4), the Saskatchewan tokens (RE
 |---|---|
 | Role | New `PLANNER`: facility-wide, all six units. Supervisors stay unit-scoped. The planner's nav is Quarter plan, Preferences, Units, Planning board (no Reports: the reports api is supervisor/auditor only, docs/09 §2). |
 | Nav (PLANNER) | **Quarter plan** (`/planner`) · **Preferences** (`/planner/preferences`) · **Units** (`/planner/units`) · **Planning board** (`/planning`, read-only, §11 Q1) · About & version |
-| Nav (EMPLOYEE, and supervisors' Employee view) | no new item: preferences are a card on **My schedule** (§8) |
+| Nav (EMPLOYEE, and supervisors' My schedule; called Employee view before release v1.3 S7) | no new item: preferences are a card on **My schedule** (§8) |
 | Sign-in landing | PLANNER → `/planner` (add to the build-notes §2.1 list) |
 | Role chip | "Planner · <name> (mock sign-in)" |
 | Routes | `/planner?tab=scorecard\|gaps\|roster\|compare&unit=<id>&week=<YYYY-MM-DD Monday>` · `/planner/preferences?unit=<id>` |
@@ -285,7 +285,7 @@ A new card on `/me/schedule`, below the calendar and above Propose shifts. H2 **
 - Buttons: **Save preferences** (white; the screen's yellow stays the offer Accept) · **Clear preferences** (white, only when something is saved).
   - Save: disabled until something changed; success `role="status"` **"Saved. The next plan will use these."**; error: `role="alert"` with the api's message, values kept.
   - Clear: dialog **"Clear your preferences?"** · "The planner will treat you as having no preference." · Cancel · **Clear** (yellow inside the dialog). Success: **"Cleared."**; the form resets.
-- A supervisor in **Employee view** edits only their own. Nobody sees a colleague's preferences here (README §5.2).
+- A supervisor in **My schedule** (Employee view before release v1.3 S7) edits only their own. Nobody sees a colleague's preferences here (README §5.2).
 - Fixtures mode works like the rest of My schedule.
 
 ---

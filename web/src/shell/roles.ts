@@ -81,7 +81,9 @@ export const roles: RoleDescriptor[] = [
       { label: 'Rules', to: '/rules/7/rest-between-shifts' },
       { label: 'Audit log', to: '/audit' },
       { label: 'Wall display', to: '/display' },
-      { label: 'Employee view', to: '/me/schedule', requires: 'employeeRecord' },
+      // Release v1.3 S7: a supervisor with a record has their own schedule, so the item reads
+      // "My schedule", as it does for an employee (it was "Employee view").
+      { label: 'My schedule', to: '/me/schedule', requires: 'employeeRecord' },
       { label: 'Time & attendance', to: '/time' },
     ],
   },
@@ -147,7 +149,7 @@ export const roles: RoleDescriptor[] = [
 /**
  * The role's nav items this user can use. The planner holds no reports role,
  * so the api answers 403 and the Reports item only led to an error; an account
- * with no linked officer gets 404 from My schedule, so Employee view led to
+ * with no linked employee record gets 404 from My schedule, so the item led to
  * "No employee record for this user". `user` is null in the fixtures demo,
  * which acts as the role alone and keeps the employee view.
  */

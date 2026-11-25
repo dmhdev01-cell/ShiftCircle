@@ -174,7 +174,11 @@ final class PlanInputs {
       row.put("allows12h", unit.allows12h());
       row.put("kind", unit.kind());
       row.put("supervision", unit.isSupervision());
-      row.put("officers", members.size());
+      // Release v1.3 S7: the people on a row by rank (a post's row reads 0 officers + 5
+      // supervisors); fullTime, partTime and fte count everyone on the row.
+      int rowSupervisors = (int) members.stream().filter(PlanGenerator.Employee::isSupervisor).count();
+      row.put("officers", members.size() - rowSupervisors);
+      row.put("supervisors", rowSupervisors);
       row.put("fullTime", (int) members.stream().filter(e -> e.fte() >= 1.0).count());
       row.put("partTime", (int) members.stream().filter(e -> e.fte() < 1.0).count());
       row.put("fte", round1(members.stream().mapToDouble(PlanGenerator.Employee::fte).sum()));

@@ -37,10 +37,10 @@ async function reportLoaded(page: Page, tab: 'Coverage' | 'Hours' | 'Overtime' |
     await expect(main.getByRole('row').nth(1)).toBeVisible();
     await expect(main.getByText('Extra shifts (overtime)').first()).toBeVisible();
   } else if (tab === 'Hours') {
-    await expect(main.getByRole('heading', { name: /Hours by officer · pay period \d/ })).toBeVisible();
+    await expect(main.getByRole('heading', { name: /Hours by person · pay period \d/ })).toBeVisible();
     await expect(main.getByRole('row').nth(1)).toBeVisible();
   } else if (tab === 'Overtime') {
-    await expect(main.getByRole('heading', { name: 'Overtime by officer' })).toBeVisible();
+    await expect(main.getByRole('heading', { name: 'Overtime by person' })).toBeVisible();
     await expect(main.getByRole('row').nth(1)).toBeVisible();
   } else {
     await expect(main.getByRole('heading', { name: 'Emergency overrides' })).toBeVisible();

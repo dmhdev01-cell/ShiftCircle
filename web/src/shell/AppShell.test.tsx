@@ -43,7 +43,7 @@ describe('AppShell', () => {
       'Reports',
       'Rules',
       'Wall display',
-      'Employee view',
+      'My schedule',
       'Time & attendance',
       'Audit log',
       'About & version',

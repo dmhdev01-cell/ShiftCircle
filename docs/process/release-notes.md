@@ -137,7 +137,7 @@ No api, migration, generator or rules change: dataset checksums, the payroll gol
 
 The owner approved the plan in `.factory/plans/v1.2-supervisors.md` (the plan file still says v1.2; the
 release was split afterwards, so it is v1.3 here). The work is eight small pull requests, **S1 to S8**;
-this entry covers **S1** to **S6**. The plan is not in the repository, so this section is the record of what
+this entry covers **S1** to **S7**. The plan is not in the repository, so this section is the record of what
 these pull requests did.
 
 ### S1 — Positions and the SUPERVISION kind (API, schema only)
@@ -580,6 +580,112 @@ expired acting, valid acting, out-of-scope post), `PlannerLeaveRosterApiTest` pi
 supervisory flag, the disabled own row); the spec pins Tue 17 Nov nights and the post's words. Counts:
 API **619** (441 api), web **674** in 64 files; `supervisor-posts`, `gap-fill`, `board-filters` and
 `layout` 26 of 26 on desktop and tablet at `54f12db`.
+
+### S7 — My schedule, the wall display, reports and plan inputs (web + small API)
+
+Stacked on S5 (#37). Owner item 17: a supervisor sees their own schedule in **My schedule**; the
+rest of the screens say how many officers and how many supervisors they count. Built alongside S6
+(the board and the shift dialog), which it does not touch.
+
+**What it does.**
+- **My schedule.** The supervisor's menu item is **My schedule** (it was *Employee view*), shown
+  only to an account linked to an employee record, as before. The header names the position in
+  words and, for a supervisor, the post and the units it covers: "Jamie Chen · Correctional
+  supervisor · Supervision · Operations (ADM, CTL, ESC)". An officer's header now reads
+  "Tara Nakamura · Correctional officer · Unit B · Living unit · …" (it showed the code `CO`).
+  API: `GET /me/schedule` adds `employee.post` (null on a line unit).
+- **Wall display.** The Facility today panel gets one line per supervisor post in scope:
+  "Supervisor on duty · Living units 1 of 1", "Supervisor on duty · Operations 1 of 1", for the
+  current block, with "short n" and the warning icon when a post is short. Counts only: no name,
+  number or id (the API test and the web whitelist cover the posts too). The six unit tiles and the
+  four facility figures are unchanged (line units only). The posts sit inside the panel, not in a
+  card of their own, so a 1366×768 screen still fits with the stale banner. API: `GET
+  /display/today` adds `posts: [{post, area, coverage}]`.
+- **Reports.** Hours and Overtime have a **Position** column, and a **Position** filter
+  (Everyone, Officers, Supervisors) next to Unit narrows those two tabs (and their CSV) to one
+  rank; with a rank chosen, the overtime average is that pool's. Coverage and Overrides are not
+  split. The hours count reads "Showing *n* of *m* people" (or "… supervisors"). API: `position`
+  on each row of `/reports/hours` and `/reports/overtime`, and `?position=CO|CS` on both (`400` for
+  an unknown code).
+- **Plan inputs.** The headline words the split: "Planning 120 officers + 10 supervisors in 6
+  units + 2 supervisor posts · 110 full-time, 20 part-time or casual · …" on Dataset 120 (it read
+  "Planning 130 officers in 8 units"); full-time, part-time, FTE and the staffing floor still count
+  both ranks. The detail lists the posts in their own **Supervisors by post** table under
+  **Officers by unit**, and says "staff" where the leave and preference counts include supervisors.
+  The fill order is the API's and unchanged (S3 already words each rank staying on its own posts).
+- **Scorecard and commit.** A **Supervisor posts** card under the tiles shows the API's supervisor
+  card: posts covered *x* of *y* block-days, supervisors and the shifts on the posts, warnings on
+  the posts, preferences, overtime built in and planned leave, then "Everyone in this draft: 5,103
+  officer + 492 supervisor shifts, 107 officers and 10 supervisors." The other cards keep counting
+  the officers only. The commit dialog reads "This writes 5,595 shifts (5,103 officer + 492
+  supervisor) for 107 officers and 10 supervisors, …" (it said "for 107 officers"), and the
+  committed box "Committed 5,595 shifts (5,103 officer + 492 supervisor) from 4 Jan 2027."; the
+  "Building a plan for …" line names both ranks.
+- **S3 review follow-ups.** A plan-inputs unit row counts `officers` and `supervisors` apart (a
+  post row read "5 officers"; N4). The scorecard `totals` warning keys are renamed to what they
+  count, `lineUnitWarnings` and `postWarnings` (they were `officerPostWarnings` and
+  `supervisorPostWarnings`; nothing read them; N6), and docs/07 says the supervisor card's `shifts`
+  are the shifts on the posts while `totals.supervisorShifts` are the supervisors' shifts.
+- **Contract samples** re-captured from a Dataset 100 stack (the S1 owe-list), with `position`,
+  `post` and `posts`; `planner-staffing.json` keeps the v1.2 walk's capture its test documents.
+
+**Pins.** None move: no dataset, plan row or payroll line changes (`GeneratorCharacterizationTest`
+fingerprints hash the draft rows only).
+
+**Tests.** API +3: `DisplayApiTest#theSupervisorPostsHaveTheirOwnCountsOnlyStrip` (and the privacy
+test now has a supervisor's name, number and id in the database), `ReportsApiTest` +2 (the position
+column and filter on hours and overtime, the CSV, `400`; the overtime pool's average), and the
+`post` assertions in `SupervisorDatasetsApiTest`, `PlanInputsApiTest` (rows 120 + 10, headline) and
+`PlannerSupervisorApiTest` (post row 0 + 4, the renamed keys). Web +13: nav and
+roles (My schedule), My schedule header (supervisor and officer), the posts strip (covered, short,
+an older API with no posts, the whitelist), reports by position, the split headline and words, the
+posts table, the supervisor card. Playwright: new `supervisor-my-schedule.spec.ts` (J. Chen's My
+schedule, the posts strip with no names, the reports by position; read-only, figures read from the
+API first, so it holds on a reused stack); `planner-inputs.spec.ts` checks the split headline on 150
+and 120, Supervisors by post, the supervisor card ("Supervisor posts covered 495 of 588 block-days;
+93 short.") and the commit dialog's split; `session-and-nav` and `reports` follow the new wording.
+
+**Counts at this gate** (author run; own compose project `sc-sc-s7`, port 18747): API **620 = 140
+rules + 38 infrastructure + 442 api** (GitHub CI `mvn verify` on #38 at `07c2cc6`, BUILD SUCCESS, 0 failures, errors or skipped; author runs on a loaded host hit flakes in untouched classes); web unit tests **669** in 64
+files, lint 0 errors (4 warnings), `tsc -b` and build clean; `check-ignored-sources.sh` OK,
+`check-audit-codes.sh` agrees (55 codes, none added). Playwright against the real API at `bada893`,
+a fresh stack per viewport, 2 workers: desktop-datasets **139 passed**, tablet-datasets **138 passed
+and 1 skipped** (the TV-size check runs on desktop only). The merges of S5's review round and main
+after that change only the overtime pools and docs. Screenshots at 1440×900 and tablet (768×1024):
+`supervisor/my-schedule/j-chen`, `display/wall-display/supervisor-posts`,
+`auditor/reports/hours-supervisors`, `planner/quarter-plan/supervisor-card-150`; three are in the
+user guide.
+
+**The review round (S7).** Review APPROVE (0 must, 3 should, 6 nits), security PASS (3 info), UI
+test PASS (1 minor, 3 nits); fixed in one push:
+- **My schedule's rotation in words (UI M1).** On 120/150 the header ended with the pattern's code
+  ("… · D12_DAY_4ON4OFF"); it now reads "12 h day crew, 4 on, 4 off" (the plan inputs' words; relief
+  and casual codes too, and an unknown code never shows its underscores). A day with no pay period
+  (120/150 on 19 Nov) reads "This pay period", not "This pay period ()".
+- **The reports say "person" (review S1).** With supervisors in the rows the tabs read **Hours by
+  person** and **Overtime by person**, the first column **Name**, "Share of the top person", and the
+  overtime average is "per person", or "per supervisor"/"per officer" when Position picks one rank
+  (UI N2). The Hours and Overtime CSVs end with a `position` column (UI/review N1), added last so the
+  earlier columns keep their places; docs/07 names it and the unknown-`position` `400` (N6).
+- **The changed-since note says "staff"** when the totals include supervisors (review S2).
+- **The commit dialog names the split on Dataset 100 (UI N3).** The scorecard tiles count the
+  officer units only (727 short, 135 warnings); the dialog's totals count the posts too (957, 155).
+  It now reads "957 block-days stay short (727 on officer units + 230 on supervisor posts)" and
+  "Of these, 135 on officer units + 20 on supervisor posts. The scorecard tiles count the officer
+  units only."; on Dataset 120 (no post gaps or post warnings) it reads as before.
+- **The display's post `openShifts` is dropped (N3)**: it was sent and never shown; a post's open
+  shift already shows as "0 of 1 short 1".
+- **Nits:** `e2e/COVERAGE.md` and `docs/ui/planner.md` say My schedule (N4, N5); the fixtures'
+  overtime average is 0 for an empty rank (N2). The release notes keep S6's and S7's entries when
+  #39 merges (S3).
+
+**Counts after the review round** (author run at `4117cc4`, own compose project `sc-sc-s7`): web unit
+tests **673** in 65 files (+4: the rotation words, the changed-since note, the split words), lint 0
+errors, `tsc -b` clean; API `DisplayApiTest` and `ReportsApiTest` **16/16** (the API `@Test` count
+stays 620); Playwright on the same stack: `supervisor-my-schedule`, `reports`, `screenshots`,
+`e5-wall-display` and `session-and-nav` on desktop and tablet **91 passed, 1 skipped**, and
+`planner-inputs`, `planner` and `planner-a11y` (desktop-datasets) **7 passed**. On Dataset 100 the
+API's figures add up as the dialog says (727 + 230 = 957 short, 135 + 20 = 155 warnings).
 
 ### Shift proposals, P1: the officer API
 

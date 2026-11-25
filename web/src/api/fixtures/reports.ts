@@ -73,6 +73,7 @@ export const demoOvertimeReport: OvertimeReport = {
       employeeId: officer.employeeId,
       name: officer.name,
       hours: QUARTER_OVERTIME[officer.employeeId] ?? 0,
+      position: 'CO',
     }))
     .sort((a, b) => b.hours - a.hours)
     .slice(0, 8),
@@ -104,6 +105,7 @@ export const demoHoursReport: HoursReport = {
       overtime20: 0,
       sick,
       vacation,
+      position: 'CO',
     };
   }),
   totalOfficers: 100,

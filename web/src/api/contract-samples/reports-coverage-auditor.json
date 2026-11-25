@@ -2,71 +2,122 @@
   "weeks": [
     {
       "label": "12 \u2013 18 Oct",
-      "scheduledPercent": 109.26,
-      "actualPercent": 107.22,
+      "scheduledPercent": 107.17,
+      "extraPercent": 1.9,
+      "actualPercent": 105.92,
       "planned": false,
-      "requiredHours": 3920.0,
-      "scheduledHours": 4283.0,
-      "actualHours": 4203.0
+      "requiredHours": 4256.0,
+      "scheduledHours": 4561.0,
+      "actualHours": 4508.0,
+      "extraHours": 81.0,
+      "extraHoursByBlock": {
+        "DAY": 56.0,
+        "EVENING": 16.0,
+        "NIGHT": 9.0
+      }
     },
     {
       "label": "19 \u2013 25 Oct",
-      "scheduledPercent": 109.69,
-      "actualPercent": 107.27,
+      "scheduledPercent": 107.12,
+      "extraPercent": 1.86,
+      "actualPercent": 105.24,
       "planned": false,
-      "requiredHours": 3920.0,
-      "scheduledHours": 4300.0,
-      "actualHours": 4205.0
+      "requiredHours": 4256.0,
+      "scheduledHours": 4559.0,
+      "actualHours": 4479.0,
+      "extraHours": 79.0,
+      "extraHoursByBlock": {
+        "DAY": 56.0,
+        "EVENING": 16.0,
+        "NIGHT": 7.0
+      }
     },
     {
       "label": "26 Oct \u2013 1 Nov 2026",
-      "scheduledPercent": 111.12,
-      "actualPercent": 107.14,
+      "scheduledPercent": 108.29,
+      "extraPercent": 3.03,
+      "actualPercent": 104.49,
       "planned": false,
-      "requiredHours": 3920.0,
-      "scheduledHours": 4356.0,
-      "actualHours": 4200.0
+      "requiredHours": 4256.0,
+      "scheduledHours": 4609.0,
+      "actualHours": 4447.0,
+      "extraHours": 129.0,
+      "extraHoursByBlock": {
+        "DAY": 64.0,
+        "EVENING": 56.0,
+        "NIGHT": 9.0
+      }
     },
     {
       "label": "2 \u2013 8 Nov",
-      "scheduledPercent": 111.76,
-      "actualPercent": 106.86,
+      "scheduledPercent": 107.89,
+      "extraPercent": 2.63,
+      "actualPercent": 104.3,
       "planned": false,
-      "requiredHours": 3920.0,
-      "scheduledHours": 4381.0,
-      "actualHours": 4189.0
+      "requiredHours": 4256.0,
+      "scheduledHours": 4592.0,
+      "actualHours": 4439.0,
+      "extraHours": 112.0,
+      "extraHoursByBlock": {
+        "DAY": 72.0,
+        "EVENING": 32.0,
+        "NIGHT": 8.0
+      }
     },
     {
       "label": "9 \u2013 15 Nov",
-      "scheduledPercent": 108.67,
-      "actualPercent": 107.35,
+      "scheduledPercent": 105.99,
+      "extraPercent": 1.29,
+      "actualPercent": 105.03,
       "planned": false,
-      "requiredHours": 3920.0,
-      "scheduledHours": 4260.0,
-      "actualHours": 4208.0
+      "requiredHours": 4256.0,
+      "scheduledHours": 4511.0,
+      "actualHours": 4470.0,
+      "extraHours": 55.0,
+      "extraHoursByBlock": {
+        "DAY": 24.0,
+        "EVENING": 24.0,
+        "NIGHT": 7.0
+      }
     },
     {
       "label": "16 \u2013 22 Nov",
-      "scheduledPercent": 108.85,
-      "actualPercent": 102.16,
+      "scheduledPercent": 107.14,
+      "extraPercent": 2.09,
+      "actualPercent": 99.24,
       "planned": false,
-      "requiredHours": 3920.0,
-      "scheduledHours": 4267.0,
-      "actualHours": 1990.0
+      "requiredHours": 4256.0,
+      "scheduledHours": 4560.0,
+      "actualHours": 2100.0,
+      "extraHours": 89.0,
+      "extraHoursByBlock": {
+        "DAY": 48.0,
+        "EVENING": 32.0,
+        "NIGHT": 9.0
+      }
     },
     {
       "label": "23 \u2013 29 Nov",
-      "scheduledPercent": 110.54,
+      "scheduledPercent": 107.73,
+      "extraPercent": 3.57,
       "actualPercent": null,
       "planned": true,
-      "requiredHours": 3920.0,
-      "scheduledHours": 4333.0,
-      "actualHours": null
+      "requiredHours": 4256.0,
+      "scheduledHours": 4585.0,
+      "actualHours": null,
+      "extraHours": 152.0,
+      "extraHoursByBlock": {
+        "DAY": 48.0,
+        "EVENING": 56.0,
+        "NIGHT": 48.0
+      }
     }
   ],
-  "axisFrom": 98,
-  "axisTo": 112,
-  "requiredHours": 27440.0,
-  "scheduledHours": 30180.0,
-  "actualHours": 22995.0
+  "axisFrom": 96,
+  "axisTo": 110,
+  "requiredHours": 29792.0,
+  "scheduledHours": 31977.0,
+  "actualHours": 24443.0,
+  "extraHours": 697.0,
+  "closureNotes": []
 }

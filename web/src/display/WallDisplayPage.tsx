@@ -4,7 +4,7 @@ import Box from '@mui/material/Box';
 
 import { api, usingFixtures } from '../api/client';
 import { getSession, subscribeSession } from '../api/session';
-import type { Block, DisplayBlock, DisplayToday, DisplayUnit } from '../api/types';
+import type { Block, DisplayBlock, DisplayPost, DisplayToday, DisplayUnit } from '../api/types';
 import { destinationFor } from '../shell/destinations';
 import { useRole } from '../shell/nav';
 import { BLOCK_WORDS, clockTime, currentBlock, dayWords, REFRESH_MS, STALE_AFTER_MS } from './displayTime';
@@ -288,8 +288,56 @@ function FacilityPanel({ data, now, live }: { data: DisplayToday; now: Block; li
           </Box>
         ))}
       </Box>
+      {data.posts.length > 0 ? <PostsRows posts={data.posts} now={now} live={live} /> : null}
       <Box sx={{ fontSize: s(20), color: C.muted, pt: s(12), borderTop: `1px solid ${C.rule}` }}>
         Counts are the lowest scheduled headcount in any hour of the block. To pick up an open shift, check ShiftCircle or see your supervisor.
+      </Box>
+    </Box>
+  );
+}
+
+/**
+ * The supervisor posts (release v1.3 S7): one line per post, "Supervisor on duty ·
+ * Operations   1 of 1", for the current block, inside the facility panel so a
+ * 1366×768 screen still fits with the stale banner. Counts only, like the
+ * tiles: no supervisor is named.
+ */
+function PostsRows({ posts, now, live }: { posts: DisplayPost[]; now: Block; live: boolean }) {
+  return (
+    <Box component="section" aria-label="Supervisor on duty" sx={{ pt: s(12), borderTop: `1px solid ${C.rule}` }}>
+      <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: s(10) }}>
+        {posts.map((entry) => {
+          const current = entry.coverage.find((item) => item.block === now);
+          const status = current ? statusOf(current) : null;
+          const figure = current ? `${current.scheduled.lowestHourly} of ${current.required}` : null;
+          const words =
+            status === null
+              ? 'no minimum this block'
+              : status.kind === 'short'
+                ? `short ${status.by}`
+                : status.kind === 'extra'
+                  ? `+${status.by} extra`
+                  : 'covered';
+          return (
+            <Box
+              component="li"
+              key={entry.post.id}
+              aria-label={`Supervisor on duty · ${entry.area}${figure ? ` ${figure}` : ''} · ${live ? words : `last known: ${words}`}`}
+              sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: s(12), fontSize: s(24) }}
+            >
+              <Box component="span" sx={{ color: C.muted }}>Supervisor on duty · {entry.area}</Box>
+              <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: s(8), whiteSpace: 'nowrap', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: !live ? C.stale : status?.kind === 'short' ? C.canola : C.text }}>
+                {figure ?? '—'}
+                {status?.kind === 'short' ? (
+                  <>
+                    <Icon kind="short" size={22} />
+                    {`short ${status.by}`}
+                  </>
+                ) : null}
+              </Box>
+            </Box>
+          );
+        })}
       </Box>
     </Box>
   );

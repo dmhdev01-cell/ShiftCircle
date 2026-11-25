@@ -50,7 +50,7 @@ describe('the role navigation', () => {
     );
   });
 
-  it('offers a supervisor with no linked officer no Employee view', () => {
+  it('offers a supervisor with no linked employee record no My schedule', () => {
     signedInAs('M. Ellis');
     render(
       <RoleProvider>
@@ -59,10 +59,10 @@ describe('the role navigation', () => {
     );
 
     expect(screen.getByTestId('nav')).toHaveTextContent('Reports');
-    expect(screen.getByTestId('nav')).not.toHaveTextContent('Employee view');
+    expect(screen.getByTestId('nav')).not.toHaveTextContent('My schedule');
   });
 
-  it('offers Employee view to a supervisor with a linked officer', () => {
+  it('offers My schedule to a supervisor with a linked employee record', () => {
     signedInAs('M. Ellis', 'emp-1');
     render(
       <RoleProvider>
@@ -70,6 +70,7 @@ describe('the role navigation', () => {
       </RoleProvider>,
     );
 
-    expect(screen.getByTestId('nav')).toHaveTextContent('Employee view');
+    expect(screen.getByTestId('nav')).toHaveTextContent('My schedule');
+    expect(screen.getByTestId('nav')).not.toHaveTextContent('Employee view');
   });
 });

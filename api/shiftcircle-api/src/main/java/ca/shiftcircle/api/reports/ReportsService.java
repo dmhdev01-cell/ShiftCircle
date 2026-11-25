@@ -329,11 +329,13 @@ public class ReportsService {
       LocalDate fromInput,
       LocalDate toInput,
       String unitId,
-      UUID employeeId) {
+      UUID employeeId,
+      String positionInput) {
     PayPeriodRecord period = defaultHoursPeriod();
     LocalDate from = fromInput != null ? fromInput : period.from();
     LocalDate to = toInput != null ? toInput : period.to();
     validate(from, to);
+    String position = position(positionInput);
 
     boolean employeeRole = principal.hasRole("EMPLOYEE") && !principal.hasRole("SUPERVISOR")
         && !principal.hasRole("AUDITOR");
@@ -370,17 +372,25 @@ public class ReportsService {
     if (employeeFilter != null) {
       hoursArgs.add(employeeFilter);
     }
+    if (position != null) {
+      hoursArgs.add(position);
+    }
     List<Map<String, Object>> scheduledRows =
         jdbc.queryForList(
-            scheduledSql(facility, scope.unitIds().size(), employeeFilter != null),
+            scheduledSql(facility, scope.unitIds().size(), employeeFilter != null, position != null),
             hoursArgs.toArray());
 
     List<Map<String, Object>> entryRows =
         jdbc.queryForList(
-            entriesSql(facility, scope.unitIds().size(), employeeFilter != null),
+            entriesSql(facility, scope.unitIds().size(), employeeFilter != null, position != null),
             hoursArgs.toArray());
 
-    record Officer(String name, String employeeNo, double scheduled, List<Map<String, Object>> entries) {}
+    record Officer(
+        String name,
+        String employeeNo,
+        double scheduled,
+        List<Map<String, Object>> entries,
+        String position) {}
     Map<UUID, Officer> officers = new LinkedHashMap<>();
     for (Map<String, Object> row : scheduledRows) {
       UUID id = (UUID) row.get("employee_id");
@@ -390,7 +400,8 @@ public class ReportsService {
               (String) row.get("name"),
               (String) row.get("employee_no"),
               ((Number) row.get("scheduled")).doubleValue(),
-              new ArrayList<>()));
+              new ArrayList<>(),
+              (String) row.get("classification")));
     }
     for (Map<String, Object> entry : entryRows) {
       UUID id = (UUID) entry.get("employee_id");
@@ -399,7 +410,11 @@ public class ReportsService {
               id,
               key ->
                   new Officer(
-                      (String) entry.get("name"), (String) entry.get("employee_no"), 0, new ArrayList<>()))
+                      (String) entry.get("name"),
+                      (String) entry.get("employee_no"),
+                      0,
+                      new ArrayList<>(),
+                      (String) entry.get("classification")))
           .entries()
           .add(entry);
     }
@@ -443,7 +458,8 @@ public class ReportsService {
                   round2(overtime),
                   0,
                   round2(sick),
-                  round2(vacation)));
+                  round2(vacation),
+                  officer.position()));
         });
     rows.sort(Comparator.comparing(ReportsViews.HoursByOfficer::name));
 
@@ -451,19 +467,23 @@ public class ReportsService {
     return new ReportsViews.HoursReport(hoursPeriod(header), rows, rows.size());
   }
 
-  private String scheduledSql(boolean facility, int unitCount, boolean employeeFilter) {
+  private String scheduledSql(
+      boolean facility, int unitCount, boolean employeeFilter, boolean positionFilter) {
     return "SELECT s.employee_id, e.first_name || ' ' || e.last_name AS name, e.employee_no,"
+        + " e.classification,"
         + " sum(EXTRACT(EPOCH FROM (s.end_at - s.start_at)) / 3600) AS scheduled"
         + " FROM shift_assignment s JOIN employee e ON e.id = s.employee_id"
         + " WHERE s.status <> 'CANCELLED' AND s.work_date BETWEEN ? AND ?"
         + (facility ? "" : " AND s.unit_id IN (" + placeholders(unitCount) + ")")
         + (employeeFilter ? " AND s.employee_id = ?" : "")
-        + " GROUP BY s.employee_id, e.first_name, e.last_name, e.employee_no";
+        + (positionFilter ? " AND e.classification = ?" : "")
+        + " GROUP BY s.employee_id, e.first_name, e.last_name, e.employee_no, e.classification";
   }
 
-  private String entriesSql(boolean facility, int unitCount, boolean employeeFilter) {
+  private String entriesSql(
+      boolean facility, int unitCount, boolean employeeFilter, boolean positionFilter) {
     return "SELECT te.employee_id, e.first_name || ' ' || e.last_name AS name, e.employee_no,"
-        + " te.pay_period_id, te.hours, te.absence_type, te.start_at"
+        + " e.classification, te.pay_period_id, te.hours, te.absence_type, te.start_at"
         + " FROM time_entry te JOIN employee e ON e.id = te.employee_id"
         + " LEFT JOIN shift_assignment s ON s.id = te.shift_assignment_id"
         + " WHERE te.work_date BETWEEN ? AND ?"
@@ -471,7 +491,26 @@ public class ReportsService {
             ? ""
             : " AND coalesce(s.unit_id, e.home_unit_id) IN (" + placeholders(unitCount) + ")")
         + (employeeFilter ? " AND te.employee_id = ?" : "")
+        + (positionFilter ? " AND e.classification = ?" : "")
         + " ORDER BY te.employee_id, te.pay_period_id, te.start_at";
+  }
+
+  /**
+   * The optional rank filter (release v1.3 S7): a position code from the {@code position} table
+   * (CO, CS), or null for everyone. Overtime equity is measured inside a pool, so the reports can
+   * be read for one rank at a time.
+   */
+  private String position(String code) {
+    if (code == null || code.isBlank()) {
+      return null;
+    }
+    Integer known =
+        jdbc.queryForObject("SELECT count(*) FROM position WHERE code = ?", Integer.class, code);
+    if (known == null || known == 0) {
+      throw new ResponseStatusException(
+          HttpStatus.BAD_REQUEST, "position must be a position code, such as CO or CS");
+    }
+    return code;
   }
 
   private boolean employeeInScope(UUID employeeId, LocalDate from, LocalDate to, List<UUID> unitIds) {
@@ -550,10 +589,16 @@ public class ReportsService {
   // ---------------------------------------------------------------------------------------------
 
   public ReportsViews.OvertimeReport overtime(
-      AuthPrincipal principal, LocalDate fromInput, LocalDate toInput, String unitId, Integer top) {
+      AuthPrincipal principal,
+      LocalDate fromInput,
+      LocalDate toInput,
+      String unitId,
+      Integer top,
+      String positionInput) {
     LocalDate from = fromInput != null ? fromInput : firstOfQuarter(asOf);
     LocalDate to = toInput != null ? toInput : asOf;
     validate(from, to);
+    String position = position(positionInput);
     // The screen's chart is "top 8" (docs/ui/README.md §5.5); ?top= can ask for more.
     int limit = top == null || top < 1 ? 8 : Math.min(top, 100);
 
@@ -562,12 +607,18 @@ public class ReportsService {
       return new ReportsViews.OvertimeReport(List.of(), 0);
     }
 
+    List<Object> entryArgs = new ArrayList<>(List.of(from, to));
+    entryArgs.addAll(scope.unitIds());
+    if (position != null) {
+      entryArgs.add(position);
+    }
     List<Map<String, Object>> entries =
         jdbc.queryForList(
-            entriesSql(false, scope.unitIds().size(), false),
-            args(List.of(from, to), scope.unitIds()));
+            entriesSql(false, scope.unitIds().size(), false, position != null),
+            entryArgs.toArray());
 
-    record Officer(String name, String employeeNo, Map<UUID, List<Double>> byPeriod) {}
+    record Officer(
+        String name, String employeeNo, Map<UUID, List<Double>> byPeriod, String position) {}
     Map<UUID, Officer> officers = new LinkedHashMap<>();
     for (Map<String, Object> entry : entries) {
       if (entry.get("absence_type") != null) {
@@ -579,7 +630,10 @@ public class ReportsService {
               id,
               key ->
                   new Officer(
-                      (String) entry.get("name"), (String) entry.get("employee_no"), new LinkedHashMap<>()))
+                      (String) entry.get("name"),
+                      (String) entry.get("employee_no"),
+                      new LinkedHashMap<>(),
+                      (String) entry.get("classification")))
           .byPeriod()
           .computeIfAbsent((UUID) entry.get("pay_period_id"), key -> new ArrayList<>())
           .add(((Number) entry.get("hours")).doubleValue());
@@ -598,7 +652,8 @@ public class ReportsService {
       }
       if (hours > 0) {
         all.add(
-            new ReportsViews.OvertimeByOfficer(entry.getKey(), entry.getValue().name(), round2(hours)));
+            new ReportsViews.OvertimeByOfficer(
+                entry.getKey(), entry.getValue().name(), round2(hours), entry.getValue().position()));
         total += hours;
       }
     }
@@ -607,14 +662,18 @@ public class ReportsService {
             .reversed()
             .thenComparing(ReportsViews.OvertimeByOfficer::name));
 
-    int officersInScope = officers.isEmpty() ? 0 : countOfficers(scope.unitIds(), from, to);
+    int officersInScope =
+        officers.isEmpty() ? 0 : countOfficers(scope.unitIds(), from, to, position);
     double average = officersInScope == 0 ? 0 : total / officersInScope;
     return new ReportsViews.OvertimeReport(
         all.stream().limit(limit).toList(), round2(average));
   }
 
-  private int countOfficers(List<UUID> unitIds, LocalDate from, LocalDate to) {
-    Object[] args = args(List.of(from, to), unitIds, List.of(from, to), unitIds);
+  private int countOfficers(List<UUID> unitIds, LocalDate from, LocalDate to, String position) {
+    Object[] args =
+        position == null
+            ? args(List.of(from, to), unitIds, List.of(from, to), unitIds)
+            : args(List.of(from, to), unitIds, List.of(from, to), unitIds, List.of(position));
     Integer count =
         jdbc.queryForObject(
             "SELECT count(*) FROM ("
@@ -627,7 +686,11 @@ public class ReportsService {
                 + " JOIN employee e2 ON e2.id = te.employee_id"
                 + " WHERE te.work_date BETWEEN ? AND ?"
                 + " AND coalesce(s2.unit_id, e2.home_unit_id) IN (" + placeholders(unitIds.size()) + ")"
-                + ") officers",
+                + ") officers"
+                + (position == null
+                    ? ""
+                    : " JOIN employee pe ON pe.id = officers.employee_id"
+                        + " WHERE pe.classification = ?"),
             Integer.class,
             args);
     return count == null ? 0 : count;
@@ -750,11 +813,13 @@ public class ReportsService {
       LocalDate from,
       LocalDate to,
       String unitId,
-      UUID employeeId) {
-    ReportsViews.HoursReport report = hours(principal, from, to, unitId, employeeId);
+      UUID employeeId,
+      String position) {
+    ReportsViews.HoursReport report = hours(principal, from, to, unitId, employeeId, position);
     StringBuilder csv =
         new StringBuilder(
-            "employee_no,name,scheduled,worked,regular,overtime_15,overtime_20,sick,vacation\n");
+            // position last (release v1.3 S7), so the earlier columns keep their places.
+            "employee_no,name,scheduled,worked,regular,overtime_15,overtime_20,sick,vacation,position\n");
     Map<UUID, String> numbers =
         employeeNumbers(
             report.rows().stream().map(ReportsViews.HoursByOfficer::employeeId).toList());
@@ -776,23 +841,32 @@ public class ReportsService {
           .append(money(row.sick()))
           .append(',')
           .append(money(row.vacation()))
+          .append(',')
+          .append(Csv.cell(row.position()))
           .append('\n');
     }
     return csv.toString();
   }
 
   public String overtimeCsv(
-      AuthPrincipal principal, LocalDate from, LocalDate to, String unitId, Integer top) {
-    ReportsViews.OvertimeReport report = overtime(principal, from, to, unitId, top);
+      AuthPrincipal principal,
+      LocalDate from,
+      LocalDate to,
+      String unitId,
+      Integer top,
+      String position) {
+    ReportsViews.OvertimeReport report = overtime(principal, from, to, unitId, top, position);
     Map<UUID, String> numbers =
         employeeNumbers(report.rows().stream().map(ReportsViews.OvertimeByOfficer::employeeId).toList());
-    StringBuilder csv = new StringBuilder("employee_no,name,overtime_hours\n");
+    StringBuilder csv = new StringBuilder("employee_no,name,overtime_hours,position\n");
     for (ReportsViews.OvertimeByOfficer row : report.rows()) {
       csv.append(Csv.cell(numbers.getOrDefault(row.employeeId(), row.employeeId().toString())))
           .append(',')
           .append(Csv.cell(row.name()))
           .append(',')
           .append(money(row.hours()))
+          .append(',')
+          .append(Csv.cell(row.position()))
           .append('\n');
     }
     return csv.toString();

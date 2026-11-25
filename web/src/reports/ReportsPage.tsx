@@ -33,8 +33,25 @@ type Tab = ReportTab;
 interface ReportFilter {
   range?: DateRange;
   unitId: string;
+  /** A position code (CO, CS) for the hours and overtime reports, or '' for everyone (v1.3 S7). */
+  position?: string;
   /** The chosen unit's name, kept so the summary never falls back while units load. */
   unitName?: string;
+}
+
+/** The ranks the hours and overtime reports can be read for (release v1.3 S7). */
+const POSITIONS: { code: string; label: string; plural: string }[] = [
+  { code: 'CO', label: 'Officer', plural: 'Officers' },
+  { code: 'CS', label: 'Supervisor', plural: 'Supervisors' },
+];
+
+/** Who a figure is per: the chosen rank, or "person" for everyone (S7 review S1, UI test N2). */
+function perWord(code: string | undefined): string {
+  return POSITIONS.find((entry) => entry.code === code)?.label.toLowerCase() ?? 'person';
+}
+
+function positionWord(code: string | undefined): string {
+  return POSITIONS.find((entry) => entry.code === code)?.label ?? code ?? '—';
 }
 
 const TABS: { id: Tab; label: string }[] = [
@@ -106,8 +123,8 @@ function tabFromPath(tab: string | undefined): Tab {
 }
 
 /**
- * Reports (docs/ui/README.md §5.5): coverage, hours by officer, overtime by
- * officer and the emergency overrides, each exportable as CSV.
+ * Reports (docs/ui/README.md §5.5): coverage, hours by person, overtime by
+ * person and the emergency overrides, each exportable as CSV.
  */
 export function ReportsPage() {
   const navigate = useNavigate();
@@ -137,6 +154,7 @@ export function ReportsPage() {
   const [draftFrom, setDraftFrom] = useState<string | null>(null);
   const [draftTo, setDraftTo] = useState<string | null>(null);
   const [draftUnit, setDraftUnit] = useState('');
+  const [draftPosition, setDraftPosition] = useState('');
   const [rangeError, setRangeError] = useState<string | null>(null);
   const shownRange = filter.range ?? defaultRange(tab, asOf, payPeriods);
   const fromValue = draftFrom ?? shownRange?.from ?? '';
@@ -145,7 +163,10 @@ export function ReportsPage() {
     from: filter.range?.from,
     to: filter.range?.to,
     unitId: filter.unitId || undefined,
+    // The position narrows the hours and overtime reports only (release v1.3 S7).
+    ...((tab === 'hours' || tab === 'overtime') && filter.position ? { position: filter.position } : {}),
   };
+  const positionPlural = POSITIONS.find((entry) => entry.code === filter.position)?.plural;
   const unitName = filter.unitId
     ? (scopedUnits.find((unit) => unit.id === filter.unitId)?.name ?? filter.unitName ?? 'The chosen unit')
     : allUnitsLabel;
@@ -191,6 +212,7 @@ export function ReportsPage() {
       range: touched ? { from: fromValue, to: toValue } : undefined,
       unitId: draftUnit,
       unitName: scopedUnits.find((unit) => unit.id === draftUnit)?.name,
+      position: draftPosition,
     });
   };
 
@@ -198,6 +220,7 @@ export function ReportsPage() {
     setDraftFrom(null);
     setDraftTo(null);
     setDraftUnit('');
+    setDraftPosition('');
     setRangeError(null);
     setMessage(null);
     setFailed(false);
@@ -230,10 +253,12 @@ export function ReportsPage() {
     void api.getCoverageReport(request).then((report) => {
       if (active) setCoverage(report);
     }, fail);
-    void api.getHoursReport(request).then((report) => {
+    // Equity is measured inside a pool, so the hours and overtime can be read for one rank.
+    const byPosition: ReportQuery = filter.position ? { ...request, position: filter.position } : request;
+    void api.getHoursReport(byPosition).then((report) => {
       if (active) setHours(report);
     }, fail);
-    void api.getOvertimeReport(request).then((report) => {
+    void api.getOvertimeReport(byPosition).then((report) => {
       if (active) setOvertime(report);
     }, fail);
     void api.getOverrides(request).then((rows) => {
@@ -254,8 +279,10 @@ export function ReportsPage() {
     }
   };
 
+  // Since release v1.3 S7 the rows can be supervisors: the reports say "person" (review S1).
   const hoursHeadings = [
-    'Officer',
+    'Name',
+    'Position',
     'Scheduled',
     'Worked',
     'Regular',
@@ -386,6 +413,26 @@ export function ReportsPage() {
               ))}
             </TextField>
           ) : null}
+          <TextField
+            select
+            label="Position"
+            size="small"
+            value={draftPosition}
+            onChange={(event) => setDraftPosition(event.target.value)}
+            slotProps={{
+              select: { native: true },
+              inputLabel: { shrink: true },
+              htmlInput: { 'aria-describedby': 'report-position-help' },
+            }}
+            sx={{ minWidth: 160 }}
+          >
+            <option value="">Everyone</option>
+            {POSITIONS.map((entry) => (
+              <option key={entry.code} value={entry.code}>
+                {entry.plural}
+              </option>
+            ))}
+          </TextField>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Button type="submit" variant="contained" color="primary">
               Apply
@@ -409,6 +456,11 @@ export function ReportsPage() {
                 ? `Every report covers ${rangeWords(filter.range)}`
                 : "Each report covers its own default range"}
               {` · ${unitName}`}
+              {positionPlural ? ` · ${positionPlural} only in hours and overtime` : ''}
+            </Typography>
+            <Typography id="report-position-help" sx={{ fontSize: 12, color: colour.text.secondary }}>
+              Position narrows the hours and overtime reports; overtime is fairest compared within one
+              rank.
             </Typography>
           </Box>
         </CardContent>
@@ -478,8 +530,8 @@ export function ReportsPage() {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
                 {filter.range
-                  ? `Hours by officer · ${rangeWords(filter.range)}`
-                  : `Hours by officer · pay period ${hours?.period.label ?? ''}`}
+                  ? `Hours by person · ${rangeWords(filter.range)}`
+                  : `Hours by person · pay period ${hours?.period.label ?? ''}`}
               </Typography>
               <Box
                 component="span"
@@ -509,11 +561,14 @@ export function ReportsPage() {
           </Box>
 
           {hours ? (
-            <Table headings={hoursHeadings} label="Hours by officer">
+            <Table headings={hoursHeadings} label="Hours by person">
               {hours.rows.map((row) => (
                 <tr key={row.employeeId}>
                   <td style={{ padding: '8px 10px', fontWeight: 600, borderBottom: `1px solid ${colour.border.default}` }}>
                     {row.name}
+                  </td>
+                  <td style={{ padding: '8px 10px', borderBottom: `1px solid ${colour.border.default}` }}>
+                    {positionWord(row.position)}
                   </td>
                   <td className="num" style={{ padding: '8px 10px', borderBottom: `1px solid ${colour.border.default}` }}>
                     {row.scheduled}
@@ -547,7 +602,8 @@ export function ReportsPage() {
           ) : null}
 
           <Typography component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
-            Showing {hours?.rows.length ?? 0} of {hours?.totalOfficers ?? 0} officers · Pay codes follow
+            Showing {hours?.rows.length ?? 0} of {hours?.totalOfficers ?? 0}{' '}
+            {positionPlural ? positionPlural.toLowerCase() : 'people'} · Pay codes follow
             the pay classification rule table (P-01, P-02) · The payroll system itself is simulated
           </Typography>
         </Box>
@@ -560,6 +616,7 @@ export function ReportsPage() {
               <OvertimeBars
                 report={overtime}
                 title={filter.range ? `Overtime ${rangeWords(filter.range)}` : 'Overtime this quarter'}
+                per={perWord(filter.position)}
               />
             ) : null}
           </Box>
@@ -576,15 +633,18 @@ export function ReportsPage() {
               }}
             >
               <Typography component="h2" sx={{ m: 0, fontSize: 16, fontWeight: 700 }}>
-                Overtime by officer
+                Overtime by person
               </Typography>
-              <Table headings={['Officer', 'Overtime h', 'Share of the top officer']} label="Overtime by officer">
+              <Table headings={['Name', 'Position', 'Overtime h', 'Share of the top person']} label="Overtime by person">
                 {overtime?.rows.map((row) => {
                   const top = overtime.rows[0]?.hours ?? 1;
                   return (
                     <tr key={row.employeeId}>
                       <td style={{ padding: '8px 10px', fontWeight: 600, borderBottom: `1px solid ${colour.border.default}` }}>
                         {row.name}
+                      </td>
+                      <td style={{ padding: '8px 10px', borderBottom: `1px solid ${colour.border.default}` }}>
+                        {positionWord(row.position)}
                       </td>
                       <td className="num" style={{ padding: '8px 10px', borderBottom: `1px solid ${colour.border.default}` }}>
                         {row.hours.toFixed(1)}

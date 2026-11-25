@@ -34,9 +34,13 @@ public class MyScheduleQuery {
 
   public record UnitView(UUID id, String name) {}
 
+  /**
+   * {@code post} (release v1.3 S7) names a supervisor's post and the units it covers, "Supervision
+   * · Living units (A, B, C)"; it is null for anyone homed on a line unit.
+   */
   public record EmployeeView(
       UUID id, String name, String role, String position, UnitView unit, String rotation,
-      List<String> qualifications) {}
+      List<String> qualifications, String post) {}
 
   public record NextShiftView(
       LocalDate date, String startAt, String endAt, String shiftTemplate, UnitView unit) {}
@@ -84,7 +88,8 @@ public class MyScheduleQuery {
         jdbc.queryForMap(
             "SELECT e.id, e.first_name || ' ' || e.last_name AS name, e.classification,"
                 + " p.name AS position_name, e.seniority_date,"
-                + " u.id AS unit_id, u.name AS unit_name, rp.name AS rotation"
+                + " u.id AS unit_id, u.name AS unit_name, u.kind AS unit_kind,"
+                + " rp.name AS rotation"
                 + " FROM employee e"
                 + " LEFT JOIN position p ON p.code = e.classification"
                 + " LEFT JOIN unit u ON u.id = e.home_unit_id"
@@ -164,12 +169,28 @@ public class MyScheduleQuery {
                 ? null
                 : new UnitView((UUID) employee.get("unit_id"), (String) employee.get("unit_name")),
             employee.get("rotation") == null ? "" : (String) employee.get("rotation"),
-            qualifications(employeeId)),
+            qualifications(employeeId),
+            post(employee)),
         nextShift(employeeId),
         payPeriod(employeeId),
         overtime(employeeId),
         days,
         cells);
+  }
+
+  /** "Supervision · Living units (A, B, C)" for a supervisor post; null for a line unit. */
+  private String post(Map<String, Object> employee) {
+    if (!"SUPERVISION".equals(employee.get("unit_kind"))) {
+      return null;
+    }
+    List<String> covered =
+        jdbc.queryForList(
+            "SELECT u.code FROM unit_supervision us JOIN unit u ON u.id = us.unit_id"
+                + " WHERE us.supervision_unit_id = ? ORDER BY u.code",
+            String.class,
+            employee.get("unit_id"));
+    String name = (String) employee.get("unit_name");
+    return covered.isEmpty() ? name : name + " (" + String.join(", ", covered) + ")";
   }
 
   private NextShiftView nextShift(UUID employeeId) {
