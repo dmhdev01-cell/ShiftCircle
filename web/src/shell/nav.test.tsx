@@ -46,7 +46,7 @@ describe('the role navigation', () => {
     );
 
     expect(screen.getByTestId('nav')).toHaveTextContent(
-      /^Quarter plan \| Preferences \| Units \| Planning board \| About & version$/,
+      /^Quarter plan \| Proposals \| Preferences \| Units \| Planning board \| About & version$/,
     );
   });
 

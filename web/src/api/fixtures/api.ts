@@ -23,6 +23,10 @@ import type {
   MyOffer,
   MyProposal,
   MySchedulePayload,
+  ProposalDecisionInput,
+  ProposalDetail,
+  ProposalInboxCard,
+  ProposalInboxQuery,
   ProposalItemInput,
   ProposalPreview,
   OvertimeReport,
@@ -69,6 +73,13 @@ import {
   submitProposalFixture,
   withdrawProposalFixture,
 } from './proposals';
+import {
+  decideProposalFixture,
+  proposalCountFixture,
+  proposalDetailFixture,
+  proposalInboxFixture,
+  resetProposalInbox,
+} from './proposalInbox';
 import {
   demoCandidates,
   demoOfferHistory,
@@ -381,6 +392,7 @@ export function resetFixtures(): void {
   resetOfferHistory();
   resetMyOffers();
   resetMyProposals();
+  resetProposalInbox();
   resetPlannerFixtures();
   demoRuleSets.forEach((entry) => {
     entry.status =
@@ -953,6 +965,30 @@ export function createFixtureApi(latencyMs: number = fixtureLatencyMs()): ShiftC
     async withdrawProposal(proposalId: string, version: number): Promise<MyProposal> {
       await pause();
       return withdrawProposalFixture(proposalId, version);
+    },
+
+    async getProposalInbox(query: ProposalInboxQuery): Promise<ProposalInboxCard[]> {
+      await pause();
+      return proposalInboxFixture(query);
+    },
+
+    async getProposalCount(): Promise<number> {
+      await pause();
+      return proposalCountFixture();
+    },
+
+    async getProposal(proposalId: string): Promise<ProposalDetail> {
+      await pause();
+      return proposalDetailFixture(proposalId);
+    },
+
+    async decideProposal(
+      proposalId: string,
+      version: number,
+      items: ProposalDecisionInput[],
+    ): Promise<ProposalDetail> {
+      await pause();
+      return decideProposalFixture(proposalId, version, items);
     },
 
     async getAuditEvents(query: AuditQuery): Promise<AuditPage> {
