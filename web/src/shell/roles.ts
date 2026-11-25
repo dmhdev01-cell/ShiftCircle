@@ -27,6 +27,8 @@ export interface NavItem {
    * 'reports' needs one of REPORTS_ROLES, 'employeeRecord' a linked officer.
    */
   requires?: 'reports' | 'employeeRecord';
+  /** The label carries a live count in text, e.g. "Proposals (2)" (v1.3 P4). */
+  count?: 'proposals';
 }
 
 /**
@@ -74,6 +76,7 @@ export const roles: RoleDescriptor[] = [
     nav: [
       { label: 'Planning board', to: '/planning' },
       { label: 'Overtime', to: '/overtime' },
+      { label: 'Proposals', to: '/proposals', count: 'proposals' },
       { label: 'Reports', to: '/reports/coverage', requires: 'reports' },
       { label: 'Rules', to: '/rules/7/rest-between-shifts' },
       { label: 'Audit log', to: '/audit' },
@@ -132,6 +135,7 @@ export const roles: RoleDescriptor[] = [
     user: 'P. Planner',
     nav: [
       { label: 'Quarter plan', to: '/planner' },
+      { label: 'Proposals', to: '/proposals', count: 'proposals' },
       { label: 'Preferences', to: '/planner/preferences' },
       { label: 'Units', to: '/planner/units' },
       { label: 'Planning board', to: '/planning' },

@@ -60,6 +60,8 @@ export interface ProblemDetails {
   errors?: { field: string; message: string }[];
   /** The shifts with no actual, when the api refuses to lock (ADR-017). */
   missing?: MissingActual[];
+  /** A refused proposal decision: each accepted shift's fresh result (v1.3 P4). */
+  items?: ProposalRefusalItem[];
 }
 
 export const BLOCKED_BY_RULES = 'https://shiftcircle.local/problems/blocked-by-rules';
@@ -152,6 +154,8 @@ export interface ShiftItem {
   absenceRecorded?: boolean;
   /** Live board only: the shift fills an open shift (move refused). */
   fillsOpenShift?: boolean;
+  /** Live board only (v1.3 P4): an approved shift proposal created the shift. */
+  fromProposal?: boolean;
   /**
    * Live board only: the shift's work date is in a locked pay period. The api
    * refuses a move or cancel then, before any other state check.
@@ -1304,6 +1308,142 @@ export interface MyProposal {
   items: MyProposalItem[];
 }
 
+// --- Shift proposals, the decider's side (docs/07 §4.4, v1.3 P4) ---
+
+/** One card of GET /proposals. */
+export interface ProposalInboxCard {
+  id: string;
+  employeeId: string;
+  officerName: string;
+  homeUnit: string | null;
+  /** The unit codes of the proposal's shifts. */
+  units: string[];
+  itemCount: number;
+  itemsInScope: number;
+  waitingInScope: number;
+  submittedAt: string;
+  status: 'WAITING' | 'DECIDED' | 'WITHDRAWN' | 'EXPIRED';
+  displayState: ProposalDisplayState;
+  version: number;
+  /** The caller's own proposal: read-only, another supervisor or the planner decides it. */
+  own: boolean;
+  /** The shifts on the caller's units, in start order (v1.3 P4 gate). */
+  shifts: ProposalCardShift[];
+}
+
+export interface ProposalCardShift {
+  unit: string;
+  shiftTemplate: string;
+  startAt: string;
+  workDate: string;
+  decision: ProposalItemDecision;
+}
+
+export interface ProposalInboxQuery {
+  status?: 'WAITING' | 'ALL';
+  unitId?: string;
+}
+
+/** The officer's pay period around one shift (P-01, owner Q5). */
+export interface ProposalPayPeriod {
+  start: string;
+  end: string;
+  hoursBefore: number;
+  hoursAfter: number;
+  thresholdHours: number;
+  wouldBeOvertimeHours: number;
+  overtimeStatus: OvertimeStatus;
+}
+
+/** The open shift a proposed shift matches, and the officer's place in its overtime order. */
+export interface ProposalOpenShiftMatch {
+  id: string;
+  status: string;
+  /** 1-based among the eligible officers, or null when the officer is not eligible. */
+  otOrderPosition: number | null;
+  otOrderSize: number;
+  eligibility: string;
+  outOfOrder: boolean;
+  liveOffers: number;
+}
+
+/** A stored rule result: the outcome and its rule rows, as at the send. */
+export interface ProposalRuleSnapshot {
+  outcome?: RuleOutcome;
+  ruleSetVersion?: number;
+  ruleResults?: RuleResult[];
+}
+
+export interface ProposalDetailItem {
+  id: string;
+  unitId: string;
+  unit: string;
+  unitName: string;
+  shiftTemplate: string;
+  startAt: string;
+  endAt: string;
+  workDate: string;
+  hours: number;
+  decision: ProposalItemDecision;
+  /** On a unit in the caller's scope; otherwise only what and its outcome are sent. */
+  inScope: boolean;
+  canDecide: boolean;
+  outcomeAtSubmit: RuleOutcome | null;
+  ruleAtSubmit: ProposalRuleSnapshot | null;
+  outcomeNow: RuleOutcome | null;
+  ruleNow: RuleCheckOutcome | null;
+  ruleChanged: boolean;
+  wouldBeOvertimeHours: number | null;
+  payPeriod: ProposalPayPeriod | null;
+  openShift: ProposalOpenShiftMatch | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  comment: string | null;
+  acknowledgedCodes: string[] | null;
+  outOfOvertimeOrder: boolean;
+  assignmentId: string | null;
+}
+
+/** GET /proposals/{id}: the note is the officer's plain text. */
+export interface ProposalDetail {
+  id: string;
+  status: 'WAITING' | 'DECIDED' | 'WITHDRAWN' | 'EXPIRED';
+  displayState: ProposalDisplayState;
+  version: number;
+  note: string | null;
+  submittedAt: string;
+  withdrawnAt: string | null;
+  employeeId: string;
+  officerName: string;
+  homeUnit: string | null;
+  own: boolean;
+  canDecide: boolean;
+  items: ProposalDetailItem[];
+}
+
+/** One item of POST /proposals/{id}/decision. */
+export interface ProposalDecisionInput {
+  id: string;
+  accept: boolean;
+  comment?: string;
+  acknowledgeWarnings?: string[];
+  acknowledgeOutOfOrder?: boolean;
+}
+
+/** One accepted item's fresh result in a 422 refusal of a decision. */
+export interface ProposalRefusalItem {
+  id: string;
+  unit: string;
+  shiftTemplate: string;
+  startAt: string;
+  outcome: RuleOutcome;
+  warnCodes: string[];
+  ruleResults: RuleResult[];
+  otOrderPosition?: number | null;
+  otOrderSize?: number;
+  outOfOrder?: boolean;
+}
+
 export interface ShiftCircleApi {
   getSchedule(query: ScheduleQuery): Promise<SchedulePayload>;
   previewRuleCheck(request: RuleCheckRequest): Promise<RuleCheckOutcome>;
@@ -1433,6 +1573,20 @@ export interface ShiftCircleApi {
   getMyProposals(): Promise<MyProposal[]>;
   /** POST /proposals/{id}/withdraw; the version goes in If-Match. */
   withdrawProposal(proposalId: string, version: number): Promise<MyProposal>;
+
+  // Shift proposals, the decider's side (docs/07 §4.4, v1.3 P4).
+  /** GET /proposals: the inbox cards the caller may see (a supervisor's units; the planner all). */
+  getProposalInbox(query: ProposalInboxQuery): Promise<ProposalInboxCard[]>;
+  /** GET /proposals/count?status=WAITING: for the nav. */
+  getProposalCount(): Promise<number>;
+  /** GET /proposals/{id}: rules when sent and now, overtime hours, the open-shift match. */
+  getProposal(proposalId: string): Promise<ProposalDetail>;
+  /** POST /proposals/{id}/decision; the version goes in If-Match. 422 carries `items`. */
+  decideProposal(
+    proposalId: string,
+    version: number,
+    items: ProposalDecisionInput[],
+  ): Promise<ProposalDetail>;
 
   // Reference data.
   getUnits(): Promise<Unit[]>;
