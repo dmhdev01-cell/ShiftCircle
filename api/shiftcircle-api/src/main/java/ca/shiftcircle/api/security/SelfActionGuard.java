@@ -19,10 +19,11 @@ public final class SelfActionGuard {
   /**
    * The supervisors' self-edit refusal (release v1.3, owner answer Q3): a supervisor does not
    * create, move, cancel or override their own shift, record their own actuals or absence, or offer,
-   * give or confirm overtime to themselves. Another supervisor in scope or the planner does it.
+   * give or confirm overtime to themselves. Another supervisor with the post in scope does it; a
+   * planner cannot write the live board, so the message names only a supervisor.
    */
   public static final String OWN_SCHEDULE =
-      "You can't change your own schedule; ask another supervisor or the planner.";
+      "You can't change your own schedule; ask another supervisor.";
 
   /** Refuses with 403 and {@link #OWN_SCHEDULE} when the shift or record is the caller's own. */
   public static void requireNotOwnSchedule(AuthPrincipal principal, UUID employeeId) {

@@ -23,7 +23,7 @@
 |---|---|
 | `200` / `201` | Success; `201` with `Location` for creates (`POST /proposals` sends none: its `GET /proposals/{id}` is the decider's view, not the officer's) |
 | `400` | Malformed request or invalid values (field errors listed) |
-| `401` / `403` | Not signed in / role or unit scope doesn't allow it |
+| `401` / `403` | Not signed in / role or unit scope doesn't allow it; also (release v1.3) a supervisor's write on their own shift, time entry, absence or overtime offer: "You can't change your own schedule; ask another supervisor." (not audited) |
 | `404` | Not found, or outside the caller's scope (we don't reveal what exists) |
 | `409` | State conflict (e.g. pay period locked, offer already answered, lock refused because past shifts lack actuals) |
 | `412` | Stale `If-Match` version |
@@ -168,14 +168,14 @@ Content-Type: application/problem+json
 | GET | `/schedule?unitId=&from=&to=` | **Planning board payload:** days, coverage per block (required / scheduled / actual, each with the lowest hourly count and the short hour ranges, see below), officer rows with assignments, overtime status per officer, warnings, `overridesThisPeriod`, `asOf` and `publishedState` (see below) | SUPERVISOR (own units), AUDITOR, PLANNER (read-only, all units) |
 | GET | `/me/schedule?from=&to=` | My shifts, hours this pay period, overtime this quarter, next shift, my position in words, `asOf` (the server's "today", as on `GET /schedule`) | any account linked to an officer (404 otherwise) |
 | POST | `/rule-checks` | Preview any change (§3) | SUPERVISOR; EMPLOYEE for their own shifts (the *Propose shifts* check) |
-| POST | `/assignments` | Assign a shift (§3 rules apply) | SUPERVISOR |
-| PATCH | `/assignments/{id}` | Move or change a shift (`If-Match`) | SUPERVISOR |
-| DELETE | `/assignments/{id}` | Cancel (sets `CANCELLED`; never hard-deletes) | SUPERVISOR |
+| POST | `/assignments` | Assign a shift (§3 rules apply) | SUPERVISOR; never on the caller's own record (`403`, release v1.3) |
+| PATCH | `/assignments/{id}` | Move or change a shift (`If-Match`) | SUPERVISOR; never on the caller's own record (`403`, release v1.3): neither the shift moved nor the person it moves to |
+| DELETE | `/assignments/{id}` | Cancel (sets `CANCELLED`; never hard-deletes) | SUPERVISOR; never on the caller's own record (`403`, release v1.3) |
 
 A change's `startAt` must be within **five years of the business "today"**; a date outside that
 range is `400` naming `startAt`, not a conflict. A `Locked pay period` refusal stays `409`.
 | POST | `/schedule-periods/{id}/publish` | Publish a period | SUPERVISOR |
-| POST | `/absences` | Record sick, vacation or other (type only) | SUPERVISOR |
+| POST | `/absences` | Record sick, vacation or other (type only) | SUPERVISOR; never on the caller's own record (`403`, release v1.3) |
 
 Publishing is one-way in the prototype: it sets the period to `PUBLISHED`, records `published_at` and
 `published_by`, writes a `publish_schedule_period` audit row and answers `{id, status, publishedAt}`.
@@ -211,7 +211,7 @@ dataset checksums and the publish step of the demo. Future work.
 | Recorded actual or absence | `DELETE` answers `409 .../actual-recorded` when a time entry already references the shift, and `409 .../absence-recorded` when an absence row does, even if the start time alone would not have refused it. Correct the record in Time & attendance instead. |
 | Filled open shift | Cancelling an assignment that filled an open shift (`open_shift.filled_assignment_id`) puts that open shift back to `OPEN` with `filled_assignment_id` cleared, so the gap is visible and can be offered again. **Offer rows are left unchanged** (not set to `WITHDRAWN`): the confirmed offer stays as history, and the cancellation is in the audit trail. **Moving** such an assignment is refused with `409 .../fills-open-shift`: cancel it and assign again. |
 | Offers | A pending offer (`offer: true` chip) is not an assignment, so these endpoints don't apply to it. Withdrawing an offer is **not built** (docs/10 §8). |
-| Order of checks | role (`403`) → unknown or out of scope (`404`) → body (`400`) → `If-Match` (`428`, `412`) → state (`409`: already cancelled, locked, started, fills open shift, target locked, target started; actual or absence recorded for a cancel) → rules (`422`, move only). |
+| Order of checks | role (`403`) → unknown or out of scope (`404`) → body (`400`) → own record (`403`, release v1.3: the shift, or for a move the target person, is the caller's own; for a cancel this comes before the body, so a self-cancel with no reason is a `403`) → `If-Match` (`428`, `412`; a self-move without `If-Match` is a `403`, not a `428`) → state (`409`: already cancelled, locked, started, fills open shift, target locked, target started; actual or absence recorded for a cancel) → rules (`422`, move only). |
 | Roles | SUPERVISOR, own units only. For a move, both the current and the target unit must be in scope. Scope is checked on the **unit of the shift**, not the officer's home unit: a supervisor may assign an officer from any unit into a unit in their own scope (cross-unit cover, ADR-024). The rule preview then shows that officer's rest conflicts. A supervisor can't assign into a unit outside their scope (`404`), and can't read an officer's data outside their scope except through that preview. |
 
 **Coverage per block (ADR-013 revised, ADR-017):** coverage is hourly, so one number per block can hide a short hour. `GET /schedule` returns a flat `coverage` array (one entry per block per day); `GET /display/today` uses the same block shape. Each entry carries:
@@ -265,15 +265,15 @@ draft roster leaves `now` and the four flags out. "Already cancelled" cannot be 
 | GET | `/open-shifts?unitId=&from=&to=&status=` | Open shifts | SUPERVISOR |
 | POST | `/open-shifts` | Create an open shift | SUPERVISOR |
 | GET | `/open-shifts/{id}/candidates` | **Ranked list:** order from the overtime-ranking rule table; each candidate has eligibility (`ELIGIBLE`, `WARN`, `SKIPPED`, `UNAVAILABLE`) and rule results | SUPERVISOR |
-| POST | `/open-shifts/{id}/offers` | `{ "employeeIds": [...], "ordered": false }` → offers recorded in-app | SUPERVISOR |
-| POST | `/open-shifts/{id}/assign` | Assign directly (§3 rules and overrides apply) | SUPERVISOR |
+| POST | `/open-shifts/{id}/offers` | `{ "employeeIds": [...], "ordered": false }` → offers recorded in-app | SUPERVISOR; never to oneself (`403` if any listed employee is the caller; nothing is written) |
+| POST | `/open-shifts/{id}/assign` | Assign directly (§3 rules and overrides apply) | SUPERVISOR; never to oneself (`403`) |
 
 A direct assign and an offer confirm both lock the `open_shift` row before the officer, then fill
 it conditionally: of any number of concurrent attempts, even by different officers, exactly one
 succeeds and the rest answer `409` "This shift is already filled".
 | GET | `/me/offers?status=OFFERED` | My pending offers | EMPLOYEE |
 | POST | `/offers/{id}/accept` · `/offers/{id}/decline` | Respond. Accepting re-checks rules; the supervisor then confirms. | EMPLOYEE (own) |
-| POST | `/offers/{id}/confirm` | Confirm an accepted offer → creates the assignment | SUPERVISOR |
+| POST | `/offers/{id}/confirm` | Confirm an accepted offer → creates the assignment | SUPERVISOR; never one's own offer (`403`, after the offer and shift state checks: a filled shift is still `409`) |
 
 **Who appears in the candidate list.** The list is the fair-distribution order for officers in the
 caller's unit scope; a supervisor outside that scope gets `404` for the shift. The ranking is still
@@ -363,8 +363,8 @@ An item outside the caller's scope is listed with its unit, time and decision on
 |---|---|---|---|
 | GET | `/pay-periods` | Periods with status, the period's overtime threshold and the lock totals | SUPERVISOR, AUDITOR |
 | GET | `/pay-periods/{id}/time-entries?employeeId=` | Scheduled vs actual entries with pay codes, the officer's name and unit, the actual start and end, and the unpaid extension under 30 min (P-04) | SUPERVISOR, AUDITOR; EMPLOYEE (own) |
-| PUT | `/time-entries/{id}` | Record actuals (worked as scheduled / adjusted times / absence type); changing a recorded absence to worked (or back) replaces the previous record | SUPERVISOR |
-| DELETE | `/time-entries/{id}` | Clear the actual or absence and return the shift to `needsActual`; a locked period answers `409`, and the change is audited (`clear_actual`) | SUPERVISOR |
+| PUT | `/time-entries/{id}` | Record actuals (worked as scheduled / adjusted times / absence type); changing a recorded absence to worked (or back) replaces the previous record | SUPERVISOR; never on the caller's own record (`403`, release v1.3) |
+| DELETE | `/time-entries/{id}` | Clear the actual or absence and return the shift to `needsActual`; a locked period answers `409`, and the change is audited (`clear_actual`) | SUPERVISOR; never on the caller's own record (`403`, release v1.3) |
 | POST | `/pay-periods/{id}/lock` | Lock: actuals become read-only. **Refused with `409`** (`type: .../problems/missing-actuals`, body lists `missing: [{ assignmentId, employeeId, start }]` and a count) while any shift in the period that has ended (`end_at ≤ now`) has no actual time entry or absence (ADR-017). **Idempotent:** locking a period that is already `LOCKED` returns `200` with the period view and writes no second audit row. Facility-wide: any supervisor with at least one unit in scope (ADR-022) | SUPERVISOR |
 | POST | `/pay-periods/{id}/unlock` | `{ "reason" }`; audited with actor and reason. Facility-wide (ADR-022). Concurrent unlocks apply once and write one audit row | SUPERVISOR |
 | GET | `/pay-periods/{id}/payroll-export` | `text/csv`; locked periods only; records a `payroll_export` row with the actor and file hash. Facility-wide: every officer in the period, not only the caller's units (ADR-022) | SUPERVISOR |
