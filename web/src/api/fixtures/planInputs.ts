@@ -12,13 +12,17 @@ export const PLAN_INPUTS_120: PlanInputs = {
   },
   "options": {
     "seed": 20261001,
-    "pattern8h": null
+    "pattern8h": null,
+    "staffTypes": ["FULL_TIME", "PART_TIME"],
+    "partTimeFill": "AFTER_FULL_TIME",
+    "crossUnitFill": "OFF"
   },
   "officers": {
     "total": 120,
     "fullTime": 100,
     "partTime": 20,
     "fte": 112.0,
+    "partTimeFte": 12.0,
     "neededFte": 127,
     "neededFrom": "2027-01-04",
     "neededTo": "2027-04-11",
