@@ -325,6 +325,28 @@ class UnitApiTest {
               jdbc.queryForObject(
                   "SELECT count(*) FROM unit_availability WHERE unit_id = ?", Integer.class, post))
           .isZero();
+      // A closure that reached the post another way (a row written before it became a post)
+      // cannot be changed through the API either; it can still be removed.
+      UUID stale = UUID.randomUUID();
+      jdbc.update(
+          "INSERT INTO unit_availability (id, unit_id, disabled_from, reason)"
+              + " VALUES (?, ?, DATE '2027-03-01', 'Written by hand')",
+          stale,
+          post);
+      HttpResponse<String> changed =
+          put("/api/v1/planner/units/" + post + "/closures/" + stale,
+              "{\"closedFrom\":\"2027-03-01\",\"reopensOn\":\"2027-03-08\",\"reason\":\"Reopen it\"}",
+              planner);
+      assertThat(changed.statusCode()).as(changed.body()).isEqualTo(409);
+      assertThat(changed.body())
+          .contains("Supervisor posts can't be closed; change the minimum instead");
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT enabled_from FROM unit_availability WHERE id = ?",
+                  java.sql.Date.class,
+                  stale))
+          .as("the refused change wrote nothing")
+          .isNull();
       // An officer unit still closes as before.
       assertThat(
               post("/api/v1/planner/units/" + unitId("C") + "/closures",

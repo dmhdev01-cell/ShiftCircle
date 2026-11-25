@@ -249,6 +249,57 @@ public class RuleCheckService {
     }
   }
 
+  /**
+   * The same evaluation with extra shifts the caller holds in memory added to the officer's real
+   * ones: the other drafts of a multi-item proposal, so rest, hours and runs between them show up
+   * (v1.3 proposals). The extras are facts only; nothing is read for them and nothing is saved.
+   *
+   * <p><b>Contract:</b> an extra stands for a shift that is NOT in {@code shift_assignment} yet.
+   * A decision that inserts each accepted item before checking the next must not also pass that
+   * item as an extra, or the shift would be counted twice (U-05, U-14 hours). As a guard, an extra
+   * that matches a stored shift (same unit, template, start and end) is dropped, so the mistake
+   * cannot produce a false Block. Either evaluate every item before inserting any, or pass
+   * only what is still unsaved.
+   */
+  public OutcomeView evaluateWithExtras(
+      Change change, List<ShiftFact> extraShifts, PublishedRuleSet.Snapshot live) {
+    List<ShiftFact> shifts = new ArrayList<>(existingShifts(change.employeeId(), change.startAt(), null));
+    for (ShiftFact extra : extraShifts) {
+      boolean alreadyStored =
+          shifts.stream()
+              .anyMatch(
+                  stored ->
+                      stored.unitCode().equals(extra.unitCode())
+                          && stored.templateCode().equals(extra.templateCode())
+                          && stored.start().equals(extra.start())
+                          && stored.end().equals(extra.end()));
+      if (!alreadyStored) {
+        shifts.add(extra);
+      }
+    }
+    ShiftFact proposed = factFor(change);
+    shifts.add(proposed);
+    // Who can work a post (R-01, R-02) applies to a proposal as to any board change.
+    return evaluateFacts(
+        shifts, live, proposed, post(change.employeeId(), change.unitId(), change.startAt()));
+  }
+
+  /** The fact for a change, under a caller-chosen id (a draft shift that is not saved). */
+  public ShiftFact factOf(Change change, String factId) {
+    ShiftFact proposed = factFor(change);
+    return new ShiftFact(
+        factId,
+        proposed.employeeId(),
+        proposed.unitCode(),
+        proposed.templateCode(),
+        proposed.start(),
+        proposed.end(),
+        proposed.kind(),
+        proposed.extensionMinutes(),
+        proposed.unitAllows12h(),
+        proposed.unitAllows16h());
+  }
+
   private ShiftFact factFor(Change change) {
     Map<String, Object> employee =
         jdbc.queryForMap(

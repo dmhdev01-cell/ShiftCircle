@@ -6,8 +6,8 @@
 -- gaps, schedule periods and publishing all work on it unchanged. The supervisors who work the
 -- posts are seeded by the dataset providers (Datasets 100, 120 and 150), not here.
 --
--- The version number follows the merge order: V18 is reserved by the shift-proposals branch, so
--- this file takes V19; nothing else refers to the number.
+-- The version number follows the merge order: V16 is positions, V17 the shift proposals and V18
+-- the posts rule set, so this file takes V19; nothing else refers to the number.
 
 INSERT INTO unit (id, code, name, kind, allows_12h, allows_16h) VALUES
     ('11111111-1111-1111-1111-000000000007', 'SUP-L', 'Supervision · Living units', 'SUPERVISION', true, false),

@@ -196,9 +196,13 @@ class PlannerSupervisorApiTest {
         .containsEntry("posts", seededPosts + 1);
     assertThat(card.get("shifts")).isEqualTo(postShifts);
     Map<String, Object> postCoverage = (Map<String, Object>) card.get("coverage");
-    assertThat(((Number) postCoverage.get("totalBlockDays")).longValue())
-        .isEqualTo(days * 3 * (seededPosts + 1));
+    // SUP-L and SUP-O (V19) need one supervisor on all three blocks; SUP-T has a minimum on days
+    // and evenings only: two block-days a day, not three.
+    long postBlockDays = days * 3 * seededPosts + days * 2;
+    assertThat(((Number) postCoverage.get("totalBlockDays")).longValue()).isEqualTo(postBlockDays);
     assertThat(postCoverage.get("shortBlockDays")).isEqualTo(postGaps);
+    assertThat(((Number) postCoverage.get("coveredBlockDays")).longValue())
+        .isEqualTo(postBlockDays - postGaps);
 
     Map<String, Object> totals = (Map<String, Object>) scorecard.get("totals");
     assertThat(totals)
