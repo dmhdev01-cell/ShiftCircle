@@ -488,7 +488,12 @@ and confirmed by M. Ellis; an acting officer's proposal is 5th of 5 and out of o
 seeded supervisor sick calls offered to supervisors only, and an open one offered to another
 supervisor through the API.
 
-COUNTS_PLACEHOLDER
+**Counts at this gate** (author run, `0f60cad`: S5 on S4 with main merged in, which brings P4 #36;
+own compose project `sc-sc-s5`, port 18495): API **616 = 140 rules + 38 infrastructure + 438 api**
+(`mvn -B verify` in the `maven:3.9-eclipse-temurin-21` image with the Docker socket, BUILD SUCCESS,
+0 failures, errors or skipped); web unit tests **656** in 63 files, lint 0 errors (4 warnings),
+`tsc -b` clean (no web code changes); Playwright against the real API, a fresh stack per viewport:
+desktop-datasets **136 passed**, tablet-datasets **135 passed and 1 skipped**.
 
 ### Shift proposals, P1: the officer API
 
