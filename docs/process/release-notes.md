@@ -394,13 +394,17 @@ both posts) and Q6 (Dataset 100 gets supervisors and is re-pinned once).
   gate showed j.chen recording 14 h on their own 8 h shift (`PUT /time-entries`, 200). Linking the
   two demo supervisors inside their own scope made it reachable. Every supervisor write path on a
   shift, time entry, absence, overtime offer or confirm and override now answers 403 "You can't
-  change your own schedule; ask another supervisor or the planner." on the caller's own record
+  change your own schedule; ask another supervisor." on the caller's own record
   (`SelfActionGuard.requireNotOwnSchedule`): `POST /assignments` (override included), `PATCH` and
   `DELETE /assignments/{id}` (the shift moved and the person it moves to), `PUT` and
   `DELETE /time-entries/{id}`, `POST /absences`, `POST /open-shifts/{id}/offers` (every listed
   employee, before anything is written), `POST /open-shifts/{id}/assign` and
   `POST /offers/{id}/confirm`. Accepting or declining one's own offer on My schedule is unchanged.
   Proposal decisions already used the same guard (P2). S5 is left with the overtime pools.
+  The re-check round dropped "or the planner" from the message (a planner can't write the live
+  board, so only another supervisor can do these), and docs/07 lists the 403 on each endpoint and
+  its place in the order of checks (after the body, before `If-Match`; before the reason for a
+  cancel).
 - **Compare and the commit links name the posts** ("Supervision · Living units coverage gaps", not
   "SUP-L coverage gaps"); the cross-unit "still short" line keeps the posts' full names.
 - **`DemoChecksum.officersOnly` / `officersOnlyWithNames`**: the checksum over the officers' shifts
@@ -414,8 +418,9 @@ plan fingerprints `94aeae1f…`, `5a3763c7…`, `7368ef13…`; rows 7,266 / 5,59
 equal the pre-S4 pins (`4156077d…`, `82b19cf8…`, `2e6cd938…`; `ec337014…`, `e8b29ce6…`,
 `a1e093f7…`; 6,586 / 5,103 / 5,414; 135 / 7 / 39), and the golden's first 1,038 lines are the old
 file byte for byte (`9f2d51b3…04ff`) with only `S-…` rows after them. Dataset 100's planner puts no
-8 h staff on nights, so its supervisor posts' nights are short in the plan quarter (230), as the
-8 h officers' are; giving some supervisors a 12 h preference was measured and left more short (286).
+8 h staff on nights, so all 196 of its supervisor-post night block-days are short in the plan
+quarter (230 short in all, the other ~34 days and evenings where leave is not backfilled), as the
+8 h officers' nights are; giving some supervisors a 12 h preference was measured and left more short (286).
 
 **Visible changes before S6/S7.** M. Ellis and J. Chen get **Employee view** with their own
 supervisor schedule (header "Correctional supervisor"). The unit pickers, the reports and Compare
@@ -495,9 +500,19 @@ own compose project `sc-sc-s5`, port 18495): API **616 = 140 rules + 38 infrastr
 `tsc -b` clean (no web code changes); Playwright against the real API, a fresh stack per viewport:
 desktop-datasets **136 passed**, tablet-datasets **135 passed and 1 skipped**.
 
+**Review round** (gates on #37: review CHANGES, security PASS with 2 lows). `origin/sc-s4` at
+`36fcff7` (S4's re-check) and main merged in, keeping S4's versions. The pool check now runs for
+every name before any offer is written (next to the self-edit check), and **confirm checks the pool
+again**, so an offer accepted before the pools (S4's offer path had no pool check) to a supervisor on
+an officer post is a plain `422 officer-unavailable` and writes nothing. docs/07's candidate-list,
+offer and proposal-order prose name the pools; docs/05's O-02 says seniority inside the rank.
+`OvertimeSupervisorPoolApiTest` +1 (the pre-S5 accepted offer) and a mixed-name list that writes
+nothing; the dataset test is renamed `theOvertimeListKeepsToThePostsPool`. API **617 = 140 rules +
+38 infrastructure + 439 api** (GitHub CI `mvn verify`).
+
 ### S6 — Supervisor posts on the board, the shift dialog and gap fill (web + one API field set)
 
-Stacked on S5 (#37) and S4 (#35). Plan §2.4 and §4 S6.
+Built on S4 (#35) and S5 (#37), both merged. Plan §2.4 and §4 S6.
 
 **What it does.**
 - **Unit picker:** the two posts are grouped under **Supervisor posts**, after the units (the
