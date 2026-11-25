@@ -133,12 +133,22 @@ No api, migration, generator or rules change: dataset checksums, the payroll gol
 
 **Counts at v1.2** (PR-Q's head, 24 Nov 2026): API **503 = 127 rules + 28 infrastructure + 348 api** (unchanged; PR-Q changes no api code; `UnitApiTest` and `PlanInputsApiTest` re-run green); web unit tests **591** in 58 files (+8: the staffing contract sample ×3, the top-bar clock, the sign-in retry ×2, the open-shift order ×2; the T&A subtitle and Overtime confirm assertions extend existing tests), lint 4 warnings and 0 errors, `tsc -b` clean; Playwright against the real API, a fresh stack per viewport (`E2E_WORKERS=1`): `desktop-datasets` **132 passed**, `tablet-datasets` **131 passed and 1 skipped**, 0 failed (+3 each: headline, panel and tile on Datasets 100, 120 and 150). The demo script §1–7 was walked again with the release walk's harness on PR-Q's stack: same results, apart from the harness's known misses (its expected commit hash, the §3 "no refresh" check Playwright cannot perform, and two §7 wording checks).
 
-## Release v1.3: supervisors get their own rostered shifts
+## Release 13 (v1.3): supervisors get their own rostered shifts, and shift proposals — the course submission
 
-The owner approved the plan in `.factory/plans/v1.2-supervisors.md` (the plan file still says v1.2; the
-release was split afterwards, so it is v1.3 here). The work is eight small pull requests, **S1 to S8**;
-this entry covers **S1** to **S7**. The plan is not in the repository, so this section is the record of what
-these pull requests did.
+**This is the submission release.** The owner decided on 25 Nov 2026 to record the demo on `v1.3` and submit it; the earlier submission build, `v1.1.2-submission`, keeps its own installer and its pre-supervisor numbers. Tag: `v1.3`, cut on `main` after S8 merges; `install.sh` (`DEFAULT_REF="v1.3"`) and the README and INSTALL one-liners install it, and `scripts/check-install-pin.sh` passes offline (`--remote` once the tag is pushed).
+
+**What v1.3 adds**, in two owner-approved plans (`.factory/plans/v1.2-supervisors.md` and `v1.2-proposals.md`; the plan files say v1.2, the release was split afterwards):
+- **Supervisors on their own posts (S1–S8, owner item 17, ADR-031):** positions (officer, supervisor) with seniority within the rank; two supervisor posts (SUP-L, SUP-O) as units of kind `SUPERVISION`; rule set **v4** with the **Who can work a post** table (R-01, R-02); a rank-aware planner that never cross-covers; supervisors in every dataset with the single re-pin; overtime pools by position; the self-edit guard; the posts on the board, the shift dialog, gap fill, My schedule, the wall display, the reports and the plan inputs.
+- **Shift proposals (P1–P5, ADR-032):** officers propose extra shifts on My schedule; the unit's supervisor (or the planner) decides each shift in the **Proposals** inbox, with the rules re-run at approval and no override; four planted demo proposals.
+
+**Measured on the final `main`** (`d3d1d28`, S1–S7 and P1–P5, measured on S8's branch at `bd7d377`, whose only changes are docs, `install.sh`'s pin and `BUILD_RECORD.md`), 25 Nov 2026:
+- **API:** `docker compose --profile test run --rm --build api-test` (`mvn -B verify`), `BUILD SUCCESS`: **624 = 140 rules + 38 infrastructure + 446 api**, 0 failures, errors or skipped.
+- **Web:** `pnpm test` **695 passed** in 66 files; `pnpm lint` 0 errors (4 existing warnings); `tsc -b` clean.
+- **Playwright** against the real API, own compose project `sc-sc-s8` on port 18848, a fresh stack per viewport, `E2E_WORKERS=1`: `desktop-datasets` **144 passed**, `tablet-datasets` **143 passed and 1 skipped** (the TV-size check runs on desktop only), 0 failed.
+- **Pins** (unchanged since S4, re-read on the real api): Dataset checksums 100 `beb2e222…b7d1`, 120 `ca73467d…a64a`, 150 `353e2e62…91a5`; payroll golden 1,124 lines, sha256 `b946ef1f…00e6`; plan rows 7,266 / 5,595 / 5,877. The officers alone still give the pre-v1.3 pins (`GeneratorCharacterizationTest`). Live rule set **v4**. `scripts/check-audit-codes.sh`: **55** codes; `check-ignored-sources.sh` OK.
+- **Demo script:** §1–9 re-read on the real api on a fresh stack before any spec ran; no quote drifted (`docs/demo-script.md`, the v1.3 final re-measure note). §1–6 stays the 4:35 video story.
+
+The sections below are each pull request's own record, S1 to S8 and P1 to P5.
 
 ### S1 — Positions and the SUPERVISION kind (API, schema only)
 
@@ -781,3 +791,13 @@ Tests (measured on the branch, own compose project `sc-sc-p5`, port 18850): API 
   - Web: the header, focus and unit-label tests.
   - `proposals-demo.spec.ts` now also asserts the pay-period lines, the "Not on your units" line, the focus and the audit rows; demo-script §8 says exactly what it asserts.
 - **Not done:** the plan's P5 "contract samples" (no proposals sample in `web/src/api/contract-samples/`; the shapes are covered by the types and tests). ADR-031 is reserved for the supervisor posts and is written with the supervisors' docs (S8).
+
+### S8 — Docs, ADR-031, the install pin and the demo walk (docs only)
+
+The last pull request of v1.3, made after S7 (#38) merged, so it documents the final `main` (`d3d1d28`). The owner then made v1.3 the course submission; S8 records that too.
+- **ADR-031** "Supervisor posts as SUPERVISION units; supervisors under the same rules, never on their own records" (the number P5 reserved), with the owner's answers Q1–Q6 and the evidence by test class.
+- **Requirements and proof:** `docs/02` gains FR-35 to FR-38 (positions, posts, who can work a post, same rules / pools / self-edit); `docs/traceability.md` gains rows for ADR-031 and ADR-032 and a §10 for owner item 17 (S1–S6; S7's row is in §9).
+- **One story across the docs:** `docs/04` and `docs/05` no longer say the datasets have no supervisors; `docs/05` says supervisors follow every other rule, pay included, and overtime pools by position; `docs/06` names `V16__positions.sql` and adds the missing `V17__proposals.sql` row; `docs/09` and `docs/06` status lines; the roadmap marks positions and add-only proposals as built and adds a supervisors limits row; HANDOFF names v1.3 as the submission and the ADR range ADR-001 … ADR-032; the README summary names ADR-031/032.
+- **The course submission is `v1.3`** (owner, 25 Nov): the README and INSTALL submission notes, `install.sh` `DEFAULT_REF="v1.3"` and both one-liners; `v1.1.2-submission` is kept as the earlier submission build. `BUILD_RECORD.md` is updated for v1.3 and still fits 2 Letter pages (1 in margins, 11 pt).
+- **Demo script:** every §1–9 quote re-read on the real api on a fresh stack before any spec ran, then both Playwright viewports drove the steps; no quote drifted. A short optional **§9 Supervisors on their own posts** (read-only) is added; §1–6 keeps its flow and its 4:35 budget.
+- **Counts:** measured on `d3d1d28`'s code; see "Measured on the final `main`" at the top of this release.

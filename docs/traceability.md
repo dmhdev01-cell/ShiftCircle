@@ -11,6 +11,7 @@ demo session (S11), CI, and release 11: the board views, filters and export, the
 quarter plan, planned leave and the menu fixes. Two requirements stay **PARTIAL**: **FR-06** (publishing is
 recorded and shown on the board, but My schedule is not filtered by period status) and **FR-07** (a real
 changed-since-publish count, no notice rule). The older paragraphs below keep the counts of their day.
+**At v1.3, the course submission (25 Nov 2026, final `main` `d3d1d28`):** API **624 = 140 + 38 + 446**, web **695** in 66 files, Playwright desktop **144 passed**, tablet **143 passed + 1 skipped**, 0 failed; the supervisor rows are §10 and the ADR-031/032 rows in §5.
 At v1.2 (PR-O, PR-M, PR-N and PR-Q, not the submission tag) the counts are API **503 = 127 + 28 + 348**, web **591** in 58 files, Playwright desktop **132**, tablet **131 + 1 skipped**; see `docs/10-testing.md` ("Current counts"). PR-M's plan inputs are proven by `PlanInputsApiTest` (counts on 120 and 150, roles, snapshot through a hand edit and a staff change, a closure, a forced pattern), `PlanInputsNeededTest` (the floor's stretch and tie-break), `planInputs.test.tsx` and `planner-inputs.spec.ts`.
 
 **First derived from the test sources, not from the prose.** Checked on 2026-11-21 against `main` at

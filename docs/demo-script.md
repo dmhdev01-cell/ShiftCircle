@@ -1,8 +1,11 @@
 # ShiftCircle demo script (≤ 5 minutes)
 
-**Status:** v0.7 · 2026-11-24 · follows `docs/process/HANDOFF.md` §10. §4 now edits **U-02** (the rest target between shifts), not the dormant U-03 (owner decision, PR-H).
+**Status:** v0.8 · 2026-11-25 · for the course submission, release **`v1.3`** · follows `docs/process/HANDOFF.md` §10. §4 edits **U-02** (the rest target between shifts), not the dormant U-03 (owner decision, PR-H).
 
-**The recorded submission video is §1–6 only: 4 min 35 s, within the 5-minute limit.** §7 (the planner) is an **optional, separate walkthrough that is not part of the 5-minute video**; do not record it into the submission video.
+**The recorded submission video is §1–6 only: 4 min 35 s, within the 5-minute limit.** It is recorded on `v1.3`; §1–6 keep the same story (the safeguard, fair overtime, a rule change with no code, payroll and the close). §7 (the planner), §8 (shift proposals) and §9 (supervisors on their own posts) are **optional, separate walkthroughs that are not part of the 5-minute video**; do not record them into the submission video.
+
+- **Release v1.3 final re-measure (S8), 2026-11-25, own compose project `sc-sc-s8`, port 18848, fresh stack at `bd7d377` (main `d3d1d28` with S1–S7 and P1–P5, plus the S8 docs):** every quoted figure in §1–9 was re-read on the real api before any spec ran, then the whole desktop and tablet Playwright suites drove the steps (counts in `docs/process/release-notes.md`, Release 13). **No quote drifted.** §2: Unit B, week of 16 Nov, **3** gaps (Fri 20 Day, Sat 21 Day, Sat 21 Evening), **18** in overtime, **1** approaching, **0** warnings, **0** overrides; Nia's D8 on Sat 21 is Blocked by **U-01, U-08, U-05, U-14**, with Warn U-12, U-02 ×2 and U-16 ×14. §3: **36 candidates, 18 Skipped, 10 Not available, 8 eligible with a warning**, Tara Nakamura 32.0 h, Warn U-12. §5: export **1,124 lines**, sha256 `b946ef1f…00e6`; the overrides row "4 Nov 05:05 · Pia Nguyen · Unit C · Living unit · U-05 · Lockdown, relief unavailable" (actor M. Ellis). §6: the wall display's two post lines. §7 on Dataset 120: checksum `ca73467d…6dcfa64a`, Generate in 1.9 s, **38** of 1,764 block-days short, **7** warnings (4 "Fewer than 2 days off in 7", 3 "Week over 48 hours"), preferences **196 of 214**, "Supervisor posts covered 588 of 588 block-days; 0 short.", commit preview **5,595 shifts (5,103 officer + 492 supervisor), 107 officers, 10 supervisors**. §8: **Proposals (1)** for M. Ellis, **(2)** for J. Chen and the planner; Tara's three proposals as listed. §9's quotes below.
+- **Timing §1–6 (v1.3):** the segment budgets are unchanged and add up to **4:35** (275 s, almost all narration). No step in §1–6 changed its clicks in v1.3: the only additions on those screens are the Unit selector's **Supervisor posts** group, the **Supervisor on duty** line under the board's coverage rows (§2, an optional pointer) and the wall display's two post lines (§6, the optional shot), none of which is a step. It was walked by a script, not timed by a person: **time your own rehearsal** and cut the optional §5 CSV opening or the §6 wall-display shot if it runs past 4:45.
 
 - **Release v1.3 S4 re-measure (supervisors in the datasets), 2026-11-25, own compose project `sc-s4`, port 18484, fresh stack:** every §1–6 figure was re-read on the real api and the desktop Playwright suite drove the steps (counts in `docs/process/release-notes.md`). Unchanged: the §2 Unit B tiles and Nia's four Blocks, the §3 list (36 candidates: 18 Skipped, 10 Not available, 8 eligible with a warning; Tara Nakamura 32.0 h; the supervisors are not in an officer post's list), §4 (E3's dry-run line) and the §5 overrides row. Changed: the §5 export is now **1,124 lines** (the 1,038 officer lines unchanged, 86 supervisor rows appended) and the §7 figures below; the wall display (§6) is unchanged (six unit tiles). M. Ellis and J. Chen now have **Employee view** with their own supervisor schedule.
 - **Release v1.3 S7 re-measure (wording only), 2026-11-25, own compose project `sc-sc-s7`, port 18747, fresh stack at `bada893`:** no figure moves; the quotes that change are re-read on the real api. The supervisors' menu item is **My schedule** (was Employee view). §6's wall display adds "Supervisor on duty · Living units 1 of 1" and "· Operations 1 of 1" inside Facility today (counts only). §7 on Dataset 120: step 2's Plan inputs headline "Planning 120 officers + 10 supervisors in 6 units + 2 supervisor posts · 110 full-time, 20 part-time or casual · 122 FTE against about 137 needed …"; step 3 gains the Supervisor posts card ("Supervisor posts covered 588 of 588 block-days; 0 short."); step 6's dialog "This writes 5,595 shifts (5,103 officer + 492 supervisor) for 107 officers and 10 supervisors". The officer tiles (38 gaps, 7 warnings) are unchanged.
@@ -42,6 +45,7 @@ Rehearse every step anyway before recording.
 | **4:35 total** | **The submission video ends here.** About 25 s of slack to the 5:00 limit is left for transitions. |
 | (not in the video) | 7. Planner walkthrough, about 4 min, recorded separately if at all |
 | (not in the video) | 8. Shift proposals walkthrough, about 2 min (v1.3) |
+| (not in the video) | 9. Supervisors on their own posts, about 1 min (v1.3) |
 
 ---
 
@@ -167,6 +171,21 @@ So a fresh reset shows **Proposals (1)** for M. Ellis (her own proposal is not c
 | 6 | Optional: sign in as **A. Reviewer**, **Audit log**. | Newest first: "Proposed shift decided" and "Shift assigned" for each approval, by J. Chen and M. Ellis; under them the planted rows, each "Planted: true": "Shifts proposed" by T. Nakamura (×3) and M. Ellis, "Proposed shift decided" (the decline) by J. Chen, and "Proposed shift expired" by **System**. | **VERIFIED** ([screenshot](user-guide/img/demo-proposals-audit.png)) |
 
 The walk spends the planted data: reset again before rehearsing it a second time.
+
+---
+
+## 9. OPTIONAL, NOT PART OF THE 5-MINUTE VIDEO. Supervisors on their own posts (about 1 min) · v1.3, ADR-031
+
+> **Not in the submission video.** A short idea for a live demo or a second clip. It only reads, so it can run on the same fresh Dataset 100 stack after §1–6 (or before them; it changes nothing).
+
+**What the audience should take away:** supervisors are staff too. They have a rank, their own rostered posts and their own schedule, and a rule table (not code) says who may work a post.
+
+| # | Do | See / Say | Status |
+|---|---|---|---|
+| 1 | Sign in as **J. Chen**, open **My schedule**. | The header reads "Jamie Chen · Correctional supervisor · Supervision · Operations (ADM, CTL, ESC)". Say: "Supervisors work rostered shifts under the same rest, hours and pay rules." | **VERIFIED** (the api's `employee.position` and `post` at `bd7d377`; e2e `supervisor-my-schedule.spec.ts`) |
+| 2 | Sign in as **M. Ellis**, **Planning board**, **Unit A · Living unit**, week of 16 Nov. | Under the coverage rows, **Supervisor on duty** names who supervises each block from Supervision · Living units; on Thu 19 Nov: D R. Quist · E T. Osei · N Y. Pelletier. Then open the Unit selector: the two posts are grouped under **Supervisor posts**; a post's board counts "Supervisor 1 / 1" per block. | **VERIFIED** (api `supervisorsOnDuty`; e2e `supervisor-posts.spec.ts`) |
+| 3 | Sign in as **L. Fraser**, **Rules → Who can work a post**. | R-01: an officer on a supervisor post is a **Block with no override**, unless they hold **Acting supervisor**, then a warning to acknowledge; R-02: a supervisor on an officer post is a warning. Say: "Who can cover what is a rule an admin edits with a second approver, not code." The api's R-01 message: "A supervisor post needs a supervisor; an officer may work it only with the Acting supervisor qualification, and then it needs an acknowledgement." | **VERIFIED** (an officer on Supervision · Living units checked on the api: R-01 BLOCK, override NONE) |
+| 4 | Optional: the **Unit office TV** wall display. | "Supervisor on duty · Living units 1 of 1" and "Supervisor on duty · Operations 1 of 1" in Facility today: counts, never names. | **VERIFIED** (api `posts`; e2e `supervisor-my-schedule.spec.ts`, which also opens the wall display) |
 
 ---
 
