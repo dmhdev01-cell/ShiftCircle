@@ -561,11 +561,11 @@ rest of the screens say how many officers and how many supervisors they count. B
 **Pins.** None move: no dataset, plan row or payroll line changes (`GeneratorCharacterizationTest`
 fingerprints hash the draft rows only).
 
-**Tests.** API +4: `DisplayApiTest#theSupervisorPostsHaveTheirOwnCountsOnlyStrip` (and the privacy
+**Tests.** API +3: `DisplayApiTest#theSupervisorPostsHaveTheirOwnCountsOnlyStrip` (and the privacy
 test now has a supervisor's name, number and id in the database), `ReportsApiTest` +2 (the position
 column and filter on hours and overtime, the CSV, `400`; the overtime pool's average), and the
 `post` assertions in `SupervisorDatasetsApiTest`, `PlanInputsApiTest` (rows 120 + 10, headline) and
-`PlannerSupervisorApiTest` (post row 0 + 4, the renamed keys). Web +13 (S7_WEB_COUNT): nav and
+`PlannerSupervisorApiTest` (post row 0 + 4, the renamed keys). Web +13: nav and
 roles (My schedule), My schedule header (supervisor and officer), the posts strip (covered, short,
 an older API with no posts, the whitelist), reports by position, the split headline and words, the
 posts table, the supervisor card. Playwright: new `supervisor-my-schedule.spec.ts` (J. Chen's My
@@ -574,7 +574,16 @@ API first, so it holds on a reused stack); `planner-inputs.spec.ts` checks the s
 and 120, Supervisors by post, the supervisor card ("Supervisor posts covered 495 of 588 block-days;
 93 short.") and the commit dialog's split; `session-and-nav` and `reports` follow the new wording.
 
-S7_COUNTS
+**Counts at this gate** (author run; own compose project `sc-sc-s7`, port 18747): API **620 = 140
+rules + 38 infrastructure + 442 api** by `@Test` count (S7_API_RUN); web unit tests **669** in 64
+files, lint 0 errors (4 warnings), `tsc -b` and build clean; `check-ignored-sources.sh` OK,
+`check-audit-codes.sh` agrees (55 codes, none added). Playwright against the real API at `bada893`,
+a fresh stack per viewport, 2 workers: desktop-datasets **139 passed**, tablet-datasets **138 passed
+and 1 skipped** (the TV-size check runs on desktop only). The merges of S5's review round and main
+after that change only the overtime pools and docs. Screenshots at 1440×900 and tablet (768×1024):
+`supervisor/my-schedule/j-chen`, `display/wall-display/supervisor-posts`,
+`auditor/reports/hours-supervisors`, `planner/quarter-plan/supervisor-card-150`; three are in the
+user guide.
 
 ### Shift proposals, P1: the officer API
 
