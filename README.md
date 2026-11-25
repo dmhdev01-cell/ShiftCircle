@@ -8,7 +8,7 @@ A shift-scheduling prototype for a 24/7 provincial correctional centre. Supervis
 
 ## Demo video
 
-**[Watch the 3-minute walkthrough](docs/demo/ShiftCircle-walkthrough.mp4)** (MP4, 16 MB) recorded on release `v1.3`. It follows [docs/demo-script.md](docs/demo-script.md) §1–6: the safeguards and rules story.
+**[Watch the 3-minute walkthrough on YouTube](https://youtu.be/trGzcjv5Yis)**, or [download the MP4](docs/demo/ShiftCircle-walkthrough.mp4) (16 MB), recorded on release `v1.3`. It follows [docs/demo-script.md](docs/demo-script.md) §1–6: the safeguards and rules story.
 
 ## Architecture at a glance
 
