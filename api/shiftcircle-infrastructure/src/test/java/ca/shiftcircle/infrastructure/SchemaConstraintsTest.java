@@ -318,13 +318,32 @@ class SchemaConstraintsTest {
   }
 
   @Test
+  void rejectsAPromotionDateBeforeTheServiceDate() throws Exception {
+    expectSqlState(
+        "23514",
+        () ->
+            exec(
+                "INSERT INTO employee (employee_no, first_name, last_name, classification,"
+                    + " seniority_date, position_since) VALUES (?, 'Test', 'Promoted', 'CS',"
+                    + " DATE '2010-01-01', DATE '2009-01-01')",
+                "T-promoted-" + UUID.randomUUID()));
+
+    // The same day as the service date is the boundary and is allowed.
+    exec(
+        "INSERT INTO employee (employee_no, first_name, last_name, classification,"
+            + " seniority_date, position_since) VALUES (?, 'Test', 'Promoted', 'CS',"
+            + " DATE '2010-01-01', DATE '2010-01-01')",
+        "T-promoted-ok-" + UUID.randomUUID());
+  }
+
+  @Test
   void acceptsASupervisorPostAsAUnit() throws Exception {
     exec(
-        "INSERT INTO unit (id, code, name, kind) VALUES (?, 'SUP-T', 'Supervision test',"
+        "INSERT INTO unit (id, code, name, kind) VALUES (?, 'SUP-T1', 'Supervision test',"
             + " 'SUPERVISION')",
         UUID.fromString("99999999-9999-9999-9999-000000000001"));
 
-    assertThat(queryString("SELECT kind FROM unit WHERE code = 'SUP-T'")).isEqualTo("SUPERVISION");
+    assertThat(queryString("SELECT kind FROM unit WHERE code = 'SUP-T1'")).isEqualTo("SUPERVISION");
   }
 
   @Test
@@ -340,19 +359,72 @@ class SchemaConstraintsTest {
   }
 
   @Test
+  void refusesASupervisorLinkToAnotherSupervisorPost() throws Exception {
+    UUID first = UUID.fromString("99999999-9999-9999-9999-000000000004");
+    UUID second = UUID.fromString("99999999-9999-9999-9999-000000000005");
+    exec(
+        "INSERT INTO unit (id, code, name, kind) VALUES (?, 'SUP-T4', 'Supervision test',"
+            + " 'SUPERVISION')",
+        first);
+    exec(
+        "INSERT INTO unit (id, code, name, kind) VALUES (?, 'SUP-T5', 'Supervision test',"
+            + " 'SUPERVISION')",
+        second);
+
+    expectSqlState(
+        "23514",
+        () ->
+            exec(
+                "INSERT INTO unit_supervision (supervision_unit_id, unit_id) VALUES (?, ?)",
+                first,
+                second));
+  }
+
+  @Test
   void acceptsASupervisorLinkToALineUnit() throws Exception {
     UUID post = UUID.fromString("99999999-9999-9999-9999-000000000002");
+    UUID line = UUID.fromString("11111111-1111-1111-1111-000000000002");
     exec(
-        "INSERT INTO unit (id, code, name, kind) VALUES (?, 'SUP-L', 'Supervision test',"
+        "INSERT INTO unit (id, code, name, kind) VALUES (?, 'SUP-T2', 'Supervision test',"
             + " 'SUPERVISION')",
         post);
 
     exec(
         "INSERT INTO unit_supervision (supervision_unit_id, unit_id) VALUES (?, ?)",
         post,
-        UUID.fromString("11111111-1111-1111-1111-000000000002"));
+        line);
 
-    assertThat(queryInt("SELECT count(*) FROM unit_supervision")).isEqualTo(1);
+    assertThat(
+            queryInt(
+                "SELECT count(*) FROM unit_supervision WHERE supervision_unit_id = ?", post))
+        .isEqualTo(1);
+  }
+
+  @Test
+  void refusesAKindChangeWhileTheUnitHasLinks() throws Exception {
+    UUID post = UUID.fromString("99999999-9999-9999-9999-000000000003");
+    UUID line = UUID.fromString("11111111-1111-1111-1111-000000000002");
+    exec(
+        "INSERT INTO unit (id, code, name, kind) VALUES (?, 'SUP-T3', 'Supervision test',"
+            + " 'SUPERVISION')",
+        post);
+    exec(
+        "INSERT INTO unit_supervision (supervision_unit_id, unit_id) VALUES (?, ?)",
+        post,
+        line);
+
+    // A post may not stop being a post while a link points at it.
+    expectSqlState(
+        "23514", () -> exec("UPDATE unit SET kind = 'LIVING' WHERE id = ?", post));
+    // And a line unit it covers may not become a post.
+    expectSqlState(
+        "23514", () -> exec("UPDATE unit SET kind = 'SUPERVISION' WHERE id = ?", line));
+
+    // A unit with no links may still change kind.
+    exec(
+        "UPDATE unit SET kind = 'OTHER' WHERE id = ?",
+        UUID.fromString("11111111-1111-1111-1111-000000000006"));
+    assertThat(queryString("SELECT kind FROM unit WHERE code = 'ESC'")).isEqualTo("OTHER");
   }
 
   // -------------------------------------------------------------------------------------------

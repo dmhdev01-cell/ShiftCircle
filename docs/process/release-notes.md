@@ -124,34 +124,46 @@ it did.
 merges in, so it takes the next free number when it merges.
 - The `position` table (`code` PK, `name`, `rank_order`, `is_supervisory`) with two rows: `CO`
   Correctional officer (1, not supervisory) and `CS` Correctional supervisor (2, supervisory). A new
-  rank is a row, not a schema change.
+  rank is a **row**, and a code change with it: the api knows two ranks, and a rank it does not
+  know is treated as the lowest, non-supervisory one.
 - `employee.classification` keeps its name and becomes a foreign key to `position(code)`, so an
   unknown code is refused by the database (`23503`). Every existing officer is a `CO`, so no data
   moved.
 - `employee.position_since` (date, null): **seniority within the rank**. It is null for an officer
   who is already in their rank, so seniority inside a rank is `coalesce(position_since,
-  seniority_date)` and every officer ordering is unchanged.
+  seniority_date)` and every officer ordering is unchanged. It cannot be earlier than
+  `seniority_date`; "not in the future" is the writing service's job, because a check constraint
+  cannot read the clock.
 - `unit.kind` accepts `SUPERVISION`: a supervisor post is a unit with its own `unit_requirement`
   rows, so the board, coverage, gaps, publishing and payroll need no new code.
-- `unit_supervision(supervision_unit_id, unit_id)`: which line units a post covers. A trigger refuses
-  a row whose parent is not a `SUPERVISION` unit (`23514`).
+- `unit_supervision(supervision_unit_id, unit_id)`: which line units a post covers. A trigger
+  refuses a row whose parent is not a `SUPERVISION` unit, and a row whose child is one, so a post
+  cannot cover another post (`23514`). A second trigger refuses a change to a unit's `kind` while
+  a link points at it, so a post cannot quietly stop being a post.
 - The `ACTING_SUP` qualification row, on the existing `employee_qualification` table.
 
 **The API.** The `Position` enum (`CO`/`CS`, with `isSupervisory()`) joins `shiftcircle-domain`.
-`PlanGenerator.Employee` gains `position` and `rankSeniority`, `PlanGenerator.Unit` gains `kind`; the
-older constructors are kept, so every existing call site still compiles. `loadEmployees` reads the
-classification and `position_since`, `loadUnits` reads the kind, `MyScheduleQuery` and `GET /me` name
-the position in words (`Correctional officer`, `Correctional supervisor`).
+`PlanGenerator.Employee` gains `position` and `rankSeniority`, `PlanGenerator.Unit` gains `kind` and
+an `isSupervision()` helper; the older constructors are kept, so every existing call site still
+compiles. `loadEmployees` reads the classification and `position_since`, `loadUnits` reads the kind,
+`MyScheduleQuery` and `GET /me` name the position in words (`Correctional officer`, `Correctional
+supervisor`). A rank the api does not know is looked up as nothing and falls back to the lowest,
+non-supervisory rank, so a new rank in the table can never stop the planner or make it treat
+someone as a supervisor by accident.
 
 **No pin moves.** No unit and no employee row changes, so the dataset checksums (100, 120, 150), the
 three plan fingerprints and the payroll golden are unchanged: `GeneratorCharacterizationTest` is
 green with no edits, and the demo reset tests still read the same checksums.
 
-**Counts at this gate:** API **475 = 127 rules + 33 infrastructure + 315 api** (`mvn verify`,
-`BUILD SUCCESS`, 0 failures, errors or skipped; the suite was run in batches because the Docker VM
-was shared and the whole reactor in one JVM was OOM-killed twice on a loaded machine); web unit tests
-**532** in 54 files, lint 0 errors, `tsc -b` clean, build clean; `check-ignored-sources.sh` OK and
+**Counts at this gate:** API **494 = 127 rules + 36 infrastructure + 331 api** (`mvn verify` on the
+pull request, `BUILD SUCCESS`, 0 failures, errors or skipped); web unit tests **567** in 56 files,
+lint 0 errors, `tsc -b` clean, build clean; `check-ignored-sources.sh` OK and
 `check-audit-codes.sh` still 50 codes. Playwright: see the pull request.
+
+**Two things later releases still owe:** the captured contract samples
+(`web/src/api/contract-samples/`) do not carry the new `position` field yet — they are re-captured
+in S7 with the rest of the samples — and this migration must merge **after** the quarter-plan
+options migration (PR #24), which owns the versions before it.
 
 **Not in this release** (the rest of the plan): the `POSTS` rule table and the R-01/R-02 rules (S2),
 the rank-aware planner (S3), the supervisor posts and the demo supervisors in the datasets with the

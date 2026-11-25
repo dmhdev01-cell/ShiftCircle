@@ -1676,7 +1676,8 @@ public class PlannerService {
   // Loading and helpers
   // ---------------------------------------------------------------------------------------------
 
-  private List<PlanGenerator.Unit> loadUnits() {
+  /** The units the generator plans, with the kind a supervisor post carries. */
+  List<PlanGenerator.Unit> loadUnits() {
     Map<UUID, Map<String, Integer>> requirements = new HashMap<>();
     jdbc.query(
         "SELECT unit_id, block, min_staff FROM unit_requirement WHERE effective_to IS NULL",
@@ -1721,7 +1722,9 @@ public class PlannerService {
     return 8;
   }
 
-  private List<PlanGenerator.Employee> loadEmployees(List<PlanGenerator.Unit> units) {    Map<UUID, PlanGenerator.Unit> byId = new HashMap<>();
+  /** The officers the generator plans, with their position and their seniority inside the rank. */
+  List<PlanGenerator.Employee> loadEmployees(List<PlanGenerator.Unit> units) {
+    Map<UUID, PlanGenerator.Unit> byId = new HashMap<>();
     units.forEach(unit -> byId.put(unit.id(), unit));
     Map<UUID, Integer> phases = new HashMap<>();
     return jdbc.query(
@@ -1757,7 +1760,9 @@ public class PlannerService {
               index % 7,
               crew,
               rs.getString("shift_pattern"),
-              Position.fromCode(rs.getString("classification")),
+              // A rank this build does not know is treated as the lowest, non-supervisory one, so
+              // it can never make the planner treat someone as a supervisor by accident.
+              Position.fromCodeOrDefault(rs.getString("classification")),
               promoted == null ? service : promoted.toLocalDate());
         });
   }

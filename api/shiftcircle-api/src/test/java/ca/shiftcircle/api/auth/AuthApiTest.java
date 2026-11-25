@@ -147,7 +147,9 @@ class AuthApiTest {
 
   @Test
   void anAccountWithNoEmployeeRecordHasNoPosition() throws Exception {
-    String token = login("m.ellis");
+    // The rules approver, not a supervisor: the demo supervisors get an employee record in a later
+    // release, and this expectation must not move with them.
+    String token = login("p.singh");
     Map<?, ?> body = mapper.readValue(get("/api/v1/me", token).body(), Map.class);
 
     assertThat(body.get("employeeId")).isEqualTo("");

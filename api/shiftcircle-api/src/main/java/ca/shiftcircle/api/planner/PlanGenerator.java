@@ -125,7 +125,10 @@ public final class PlanGenerator {
    * A unit as the planner sees it.
    *
    * @param kind the unit kind, e.g. {@code LIVING} or {@code SUPERVISION} for a supervisor post.
-   *     The older callers build a line unit, so their kind is {@code LIVING}
+   *     Only {@code SUPERVISION} changes the behaviour, so the older callers, which build line
+   *     units, get {@code LIVING}: their ADMISSIONS, CONTROL and ESCORT units read as living
+   *     units, and a rank-aware check must ask {@link #isSupervision()} rather than the other
+   *     kinds
    */
   public record Unit(
       UUID id,
@@ -145,6 +148,11 @@ public final class PlanGenerator {
         boolean allows16h,
         Map<String, Integer> required) {
       this(id, code, name, allows12h, allows16h, required, "LIVING");
+    }
+
+    /** True for a supervisor post: the kind a supervisor works, not a line unit. */
+    public boolean isSupervision() {
+      return "SUPERVISION".equals(kind);
     }
   }
 

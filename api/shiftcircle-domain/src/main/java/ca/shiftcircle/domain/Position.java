@@ -11,6 +11,12 @@ package ca.shiftcircle.domain;
  * <p>The rank's name is not in this enum: it is editable text in the database, and the API reads it
  * from there. What is here is the code, the rank order and the flag the rules need.
  *
+ * <p>The table is the source of truth and can hold a rank this build has no constant for (a
+ * Lieutenant added by a later release). A lookup for an unknown code therefore finds nothing
+ * instead of throwing, and {@link #fromCodeOrDefault(String)} is what the planner uses: a rank the
+ * api cannot name is treated as the lowest, non-supervisory one, so it can never make the planner
+ * treat someone as a supervisor by accident.
+ *
  * <p>No framework dependencies: this module must stay usable from the rules module and from plain
  * unit tests.
  */
@@ -33,7 +39,7 @@ public enum Position {
     return code;
   }
 
-  /** The rank order, lowest first. Seniority inside a rank is compared with it. */
+  /** Orders the ranks, lowest first. */
   public int rankOrder() {
     return rankOrder;
   }
@@ -44,10 +50,11 @@ public enum Position {
   }
 
   /**
-   * The position with this code.
+   * The position with this code, or {@code null} when this build does not know the code.
    *
-   * @throws IllegalArgumentException for a code that is not a position; the database's foreign key
-   *     makes that impossible, so an unknown code is a bug, not a case to carry through the app
+   * <p>The rank table is the source of truth, so a code it holds that this build has no constant
+   * for is a normal thing to meet, not an error. Use {@link #fromCodeOrDefault(String)} where a
+   * rank is needed.
    */
   public static Position fromCode(String code) {
     for (Position position : values()) {
@@ -55,6 +62,17 @@ public enum Position {
         return position;
       }
     }
-    throw new IllegalArgumentException("Unknown position: " + code);
+    return null;
+  }
+
+  /**
+   * The position for a code from the database. A code this build does not know falls back to
+   * {@link #CO}, the lowest and non-supervisory rank, so an unknown rank never makes the planner
+   * treat someone as a supervisor. The rank's name is read from the database, so nothing shows a
+   * wrong name either.
+   */
+  public static Position fromCodeOrDefault(String code) {
+    Position position = fromCode(code);
+    return position == null ? CO : position;
   }
 }
