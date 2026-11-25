@@ -553,8 +553,12 @@ R-01 (Dataset 100 has no post gap, so one block is marked short and an officer r
 the rule check is the real API's); no sideways page scroll at 390 on a post and on Unit A. Demo §2 gains
 one sentence about the on-duty line; no quoted number changes.
 
-**Counts at this gate** (author run, `2d52743`; own compose project `sc-sc-s6`, port 18646): API
-API_COUNTS; web unit tests **671** in 64 files (656 + 15), lint 0 errors (4 warnings), `tsc -b` clean;
+**Counts at this gate** (author run, `2d52743`, with main (S4 #35, S5 #37) merged in for the API run;
+own compose project `sc-sc-s6`, port 18646): API **618 = 140 rules + 38 infrastructure + 440 api**
+(617 on main + `ScheduleApiTest`'s 1), 0 failures, errors or skipped. The single-JVM `api-test` run
+was killed twice (exit 137, out of memory) while other workers' suites shared the Docker VM, so the
+api module ran in three `mvn verify` batches (planner 88, demo 18, the rest 334; `-Xmx1g`) and the
+rules and infrastructure modules come from those full runs (140 and 38, green both times); web unit tests **671** in 64 files (656 + 15), lint 0 errors (4 warnings), `tsc -b` clean;
 Playwright against the real API, a fresh stack per viewport: desktop-datasets **140 passed**,
 tablet-datasets **139 passed and 1 skipped**; the new spec also passed again on the reused stack after
 the full run (8 of 8).
