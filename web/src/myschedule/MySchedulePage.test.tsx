@@ -103,6 +103,13 @@ describe('the employee My schedule', () => {
     expect(await screen.findByText(/Declined\. Thank you/)).toBeInTheDocument();
   });
 
+  it('lets a keyboard reach the calendar when it scrolls sideways on a phone', async () => {
+    renderMySchedule();
+
+    const calendar = await screen.findByRole('region', { name: /^Calendar, / });
+    expect(calendar).toHaveAttribute('tabindex', '0');
+  });
+
   it('B4: does not claim a rule check the api did not send', async () => {
     renderMySchedule();
 
