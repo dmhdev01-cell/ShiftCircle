@@ -48,7 +48,7 @@ The build process is kept apart from the product docs, in [docs/process/](docs/p
 
 ## Quick install
 
-One command. It needs a bash shell (macOS, Linux, or Git Bash/WSL on Windows), `curl`, `git`, Docker with Compose v2, a running Docker daemon and a free port. It clones into `./ShiftCircle`, creates `.env` with freshly generated random secrets that it never prints, runs `docker compose up -d --build --wait`, checks `/healthz` and `/api/v1/version`, and prints the URL:
+One command. It needs a bash shell (macOS, Linux, or on Windows a **WSL2 Ubuntu terminal**, not PowerShell or cmd: see [INSTALL.md, Windows](INSTALL.md#windows-wsl2)), `curl`, `git`, Docker with Compose v2, a running Docker daemon and a free port. It clones into `./ShiftCircle`, creates `.env` with freshly generated random secrets that it never prints, runs `docker compose up -d --build --wait`, checks `/healthz` and `/api/v1/version`, and prints the URL:
 
 ```sh
 curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.3/install.sh && bash install.sh
@@ -65,6 +65,15 @@ bash install.sh
 **Course submission:** the version submitted for the assessment is the release tag **`v1.3`**, which the one-liner above installs (supervisors on their own posts and shift proposals, on top of v1.2). The earlier submission build was the tag `v1.1.2-submission` (v1.1.1 plus the staffing-shortfall hotfix); its own `install.sh` stays pinned to that tag, so the same one-liner with `v1.1.2-submission` in place of `v1.3` still installs it exactly.
 
 Overrides (environment variables, put them before `bash install.sh`): `SC_WEB_PORT` (host port, 1-65535, default 8080, for example `SC_WEB_PORT=9090 bash install.sh`), `SHIFTCIRCLE_PROJECT` (compose project name, default `shiftcircle`; a `COMPOSE_PROJECT_NAME` already in your shell is ignored on purpose), `SHIFTCIRCLE_REF` (tag or branch to install, default the release tag), `SHIFTCIRCLE_DIR` (default `./ShiftCircle`), and, advanced, `SHIFTCIRCLE_REPO` (clone URL). The port and project name are saved in `.env` (`SC_WEB_PORT`, `COMPOSE_PROJECT_NAME`). It refuses to touch an existing non-empty directory that is not a ShiftCircle checkout; re-running in the same place skips the clone and keeps the `.env` (it only fills a blank secret). It never runs `docker compose down`. The manual steps are below.
+
+**First 5 minutes** (checked on 26 Nov 2026 against `v1.3`, every demo user signed in):
+1. When the installer prints `Open: http://localhost:8080`, open **http://localhost:8080/login** (your port if you set `SC_WEB_PORT`). From `/login` each user lands on their own home page. Opening the bare address first sends every user to the Planning board, where an officer, rules admin, rules approver or the wall display sees "Could not load the schedule"; that is a v1.3 landing-page quirk, not a failed install: use the side menu, or sign out and sign in again.
+2. **M. Ellis** (supervisor): the Planning board, Unit B, week of 16 Nov. Give Nia Thompson the empty Sat 21 Nov cell a D8 day shift: the rest rule blocks it and nothing is saved (demo script §2).
+3. **T. Nakamura** (officer): My schedule, hours and offers.
+4. **L. Fraser** then **P. Singh**: change a rule, then approve and publish it (maker/checker).
+5. **P. Planner**: Quarter plan, then **About & version → Reset the demo data** to return to the seeded state (about 6 s; Dataset 100 checksum `beb2e222…b7d1`).
+
+The full walkthrough is [docs/demo-script.md](docs/demo-script.md); installs that stop with an error are covered in [INSTALL.md §10](INSTALL.md#10-troubleshooting).
 
 ## Setup (clean clone)
 
@@ -97,7 +106,7 @@ docker compose up -d --build --wait
 
 `--wait` returns when all three containers are healthy: the database first, then the API (after it has run the Flyway migrations and generated the synthetic dataset), then the web. Then open **http://localhost:8080** and you see the mock sign-in screen with the demo users.
 
-**How long:** with Docker's build cache warm, `up -d --build --wait` took **31 s** on 2026-11-20 and **50 s** on 2026-11-24, and the demo data took about 6.6 s of that (`Demo data generated in … ms` in `docker compose logs api`). The very first build also downloads the base images and the Maven and pnpm dependencies, which takes several minutes depending on the network (**UNVERIFIED** on a machine with an empty cache). The default dataset: 100 fictional officers and 10 supervisors, 1 Oct – 29 Dec 2026, "today" fixed at 19 Nov 2026, seed 20261001. The About reset card can also load Dataset 120 and Dataset 150 (see "Demo data and the quarter planner").
+**How long:** with Docker's build cache warm, `up -d --build --wait` took **31 s** on 2026-11-20 and **50 s** on 2026-11-24, and the demo data took about 6.6 s of that (`Demo data generated in … ms` in `docker compose logs api`). The very first build also downloads the base images and the Maven and pnpm dependencies: on 26 Nov 2026 the one-liner on a completely empty Docker (Docker-in-Docker, linux/arm64, fast network, 15 CPUs) finished in **68 s**, with about 0.85 GB of container memory at the sampled peak and about 0.47 GB once running. Allow several minutes on a slower network or laptop, and longer under amd64 emulation. The default dataset: 100 fictional officers and 10 supervisors, 1 Oct – 29 Dec 2026, "today" fixed at 19 Nov 2026, seed 20261001. The About reset card can also load Dataset 120 and Dataset 150 (see "Demo data and the quarter planner").
 
 **Ports in use?** Only the web publishes a port, and it is bound to **127.0.0.1** (not the LAN) because the demo has mock sign-in and a destructive reset. Set `SC_WEB_PORT` in `.env`, for example `SC_WEB_PORT=18080`, and open that port instead. For local debugging, `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build` also publishes the API (`SC_API_PORT`, default 8081) and the database (`SC_DB_PORT`, default 5433), both on 127.0.0.1 only.
 
