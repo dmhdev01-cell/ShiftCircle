@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 // The real-api build: a session is required, and the fixtures switch is not.
@@ -33,6 +33,7 @@ vi.mock('../api/client', async () => {
 const { LoginPage } = await import('../pages/LoginPage');
 const { RoleProvider } = await import('./nav');
 const { RequireSession } = await import('./RequireSession');
+const { RootRedirect } = await import('./RootRedirect');
 const { theme } = await import('../theme/theme');
 
 function renderAt(path: string) {
@@ -42,7 +43,7 @@ function renderAt(path: string) {
         <MemoryRouter initialEntries={[path]}>
           <RequireSession>
             <Routes>
-              <Route path="/" element={<Navigate to="/planning" replace />} />
+              <Route path="/" element={<RootRedirect />} />
               <Route path="/planning" element={<h1>Planning board</h1>} />
               <Route path="/planner" element={<h1>Quarter plan</h1>} />
               <Route path="/me/schedule" element={<h1>My schedule</h1>} />
@@ -155,5 +156,19 @@ describe('the session guard', () => {
     } finally {
       listed.users = [];
     }
+  });
+
+  it.each([
+    ['M. Ellis', 'Planning board'],
+    ['T. Nakamura', 'My schedule'],
+    ['L. Fraser', 'Rules'],
+    ['Unit office TV', 'Wall display'],
+  ])('the bare address with a session goes to that role\'s home: %s, %s', async (name, heading) => {
+    const { resetSession, setSession } = await import('../api/session');
+    resetSession();
+    setSession('a-token', DEMO.find((entry) => entry.displayName === name) as never);
+    renderAt('/');
+    expect(await screen.findByRole('heading', { name: heading, level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Sign in' })).not.toBeInTheDocument();
   });
 });

@@ -12,6 +12,7 @@ import { AppShell } from './shell/AppShell';
 import { ErrorBoundary } from './shell/ErrorBoundary';
 import { RoleProvider } from './shell/nav';
 import { RequireSession } from './shell/RequireSession';
+import { RootRedirect } from './shell/RootRedirect';
 import { theme } from './theme/theme';
 
 /** The planning board is the heaviest screen, so it loads on its own. */
@@ -81,7 +82,7 @@ export function AppRoutes() {
   return (
     <Suspense fallback={<RouteFallback />}>
       <Routes>
-        <Route path="/" element={<Navigate to="/planning" replace />} />
+        <Route path="/" element={<RootRedirect />} />
         <Route path="/planning" element={<PlanningPage />} />
         <Route
           path="/planner"
