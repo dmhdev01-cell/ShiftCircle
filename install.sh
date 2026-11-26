@@ -17,7 +17,9 @@
 #
 # Overrides (environment):
 #   SC_WEB_PORT          host port for the web, 1-65535 (default 8080, bound to 127.0.0.1)
-#   SHIFTCIRCLE_PROJECT  compose project name (default shiftcircle). COMPOSE_PROJECT_NAME in
+#   SHIFTCIRCLE_PROJECT  compose project name (default shiftcircle; the installer refuses, exit
+#                        20, if that name is already used by a stack from another directory).
+#                        COMPOSE_PROJECT_NAME in
 #                        your shell is deliberately NOT used: it is often set for another
 #                        project. The name is saved to .env as COMPOSE_PROJECT_NAME so plain
 #                        `docker compose` commands in the checkout target the same project.
@@ -27,7 +29,8 @@
 #
 # Exit codes: 10 git missing, 11 docker missing, 12 compose v2 missing, 13 docker daemon
 # not running, 14 port invalid or in use, 15 target directory or other override not usable,
-# 16 clone failed, 17 .env/secrets failed, 18 start or health check failed, 19 curl missing.
+# 16 clone failed, 17 .env/secrets failed, 18 start or health check failed, 19 curl missing,
+# 20 the compose project name already belongs to a stack started from another directory.
 set -euo pipefail
 
 # RELEASE: this pin must name a tag that exists on the remote when the release is cut.
@@ -138,6 +141,39 @@ main() {
   fi
   cd "$dir"
 
+  # --- 3a. the project name must not belong to another directory's stack ------
+  # Compose identifies a stack only by its project name: `up` with a name another checkout
+  # already uses would recreate that stack's containers and reuse its database volume (whose
+  # password is not the one in our .env). So refuse, before anything is written, unless every
+  # container with this name was started from this directory. Refusing (rather than picking a
+  # free name) keeps the choice with the user and never leaves a stack under a surprise name.
+  # Nothing of the other stack is stopped, removed or recreated.
+  local had_env=0
+  [ ! -f .env ] || had_env=1
+  if [ -z "$project" ] && [ "$had_env" -eq 1 ]; then project="$(env_get COMPOSE_PROJECT_NAME)"; fi
+  project="${project:-shiftcircle}"
+  valid_project "$project" || die 15 "project name '$project' (in $dir/.env) is not valid."
+  local here here_phys wd others=""
+  here="$(pwd)"
+  here_phys="$(pwd -P)"
+  while IFS= read -r wd; do
+    [ -n "$wd" ] || continue
+    if [ "$wd" != "$here" ] && [ "$wd" != "$here_phys" ] &&
+      [ "$(cd "$wd" 2>/dev/null && pwd -P)" != "$here_phys" ]; then
+      others="$wd"
+    fi
+  done < <(docker ps -a --filter "label=com.docker.compose.project=$project" \
+    --format '{{index .Labels "com.docker.compose.project.working_dir"}}' 2>/dev/null </dev/null | sort -u)
+  if [ -n "$others" ]; then
+    die 20 "a Docker Compose project named '$project' already exists, started from $others. Not touching it. Install under another name, for example: SHIFTCIRCLE_PROJECT=shiftcircle-2 bash install.sh"
+  fi
+  # A fresh install (no .env yet) next to a leftover volume of the same name would start the
+  # database on that volume, with a password our new .env does not have.
+  if [ "$had_env" -eq 0 ] &&
+    [ -n "$(docker volume ls -q --filter "label=com.docker.compose.project=$project" 2>/dev/null </dev/null)" ]; then
+    die 20 "Docker volumes of a compose project named '$project' already exist (from an earlier or another install). Not touching them. Install under another name, for example: SHIFTCIRCLE_PROJECT=shiftcircle-2 bash install.sh"
+  fi
+
   # --- 3. .env and secrets ---------------------------------------------------
   if [ -f .env ]; then
     say "Found an existing .env; keeping it (only blank secrets are filled)."
@@ -174,9 +210,6 @@ main() {
   if [ -z "$port" ]; then port="$(env_get SC_WEB_PORT)"; fi
   port="${port:-8080}"
   valid_port "$port" || die 14 "SC_WEB_PORT '$port' (in $dir/.env) is not a port number (1-65535)."
-  if [ -z "$project" ]; then project="$(env_get COMPOSE_PROJECT_NAME)"; fi
-  project="${project:-shiftcircle}"
-  valid_project "$project" || die 15 "project name '$project' (in $dir/.env) is not valid."
 
   local commit
   commit="$(git rev-parse --short HEAD 2>/dev/null || true)"
