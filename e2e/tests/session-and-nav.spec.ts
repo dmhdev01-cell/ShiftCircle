@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 import { isFixtures } from './api';
-import { DISCLAIMER, expectDisclaimer, signIn, signOut } from './support';
+import { DISCLAIMER, expectDisclaimer, signIn, signInAgain, signOut } from './support';
 
 /**
  * Sign-in, where each role lands, the navigation each role gets, sign-out, a
@@ -113,6 +113,30 @@ test.describe('session and navigation', () => {
       await expect(links).toHaveText(landing.nav);
       await expectDisclaimer(page);
       await expectNoGovernmentMark(page);
+    });
+  }
+
+  // Install verification, 26 Nov 2026: the bare address was remembered as the
+  // route asked for, so every user landed on the Planning board, and an
+  // officer, a rules user or the TV saw "This account may not do that".
+  const HOMES: [string, RegExp][] = [
+    ['M. Ellis', /\/planning$/],
+    ['J. Chen', /\/planning$/],
+    ['T. Nakamura', /\/me\/schedule$/],
+    ['L. Fraser', /\/rules\//],
+    ['P. Singh', /\/rules$/],
+    ['A. Reviewer', /\/reports\/coverage/],
+    ['P. Planner', /\/planner/],
+    ['Unit office TV', /\/display/],
+  ];
+  for (const [user, home] of HOMES) {
+    test(`from the bare address, ${user} lands on their own home page`, async ({ page }) => {
+      await page.goto('/');
+      await expect(page.getByRole('heading', { name: 'Sign in', level: 1 })).toBeVisible();
+      await expect(page.getByText('Please sign in to continue.')).toHaveCount(0);
+      await signInAgain(page, user);
+      await expect(page).toHaveURL(home);
+      await expect(page.getByText('This account may not do that')).toHaveCount(0);
     });
   }
 

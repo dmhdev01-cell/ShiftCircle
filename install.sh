@@ -21,13 +21,17 @@
 #                        your shell is deliberately NOT used: it is often set for another
 #                        project. The name is saved to .env as COMPOSE_PROJECT_NAME so plain
 #                        `docker compose` commands in the checkout target the same project.
+#                        A name another install already uses is refused (exit 20).
 #   SHIFTCIRCLE_REF      git tag or branch to install (default: the release tag below)
 #   SHIFTCIRCLE_DIR      target directory (default ./ShiftCircle)
 #   SHIFTCIRCLE_REPO     clone URL (advanced; default the public GitHub repo)
 #
 # Exit codes: 10 git missing, 11 docker missing, 12 compose v2 missing, 13 docker daemon
 # not running, 14 port invalid or in use, 15 target directory or other override not usable,
-# 16 clone failed, 17 .env/secrets failed, 18 start or health check failed, 19 curl missing.
+# 16 clone failed, 17 .env/secrets failed, 18 start or health check failed, 19 curl missing,
+# 20 the compose project name is not free for this checkout: containers of that project were
+# started from another directory, volumes of it exist that this checkout did not create, or
+# docker could not list them to check.
 set -euo pipefail
 
 # RELEASE: this pin must name a tag that exists on the remote when the release is cut.
@@ -80,7 +84,19 @@ set_env() {
 }
 
 env_get() { # env_get KEY: the first KEY= value (the one set_env replaces) in .env (empty if none)
-  { grep -E "^$1=" .env || true; } | head -n 1 | cut -d= -f2-
+  # A CRLF .env (a Windows checkout) would otherwise read "\r" as the value.
+  { grep -E "^$1=" .env || true; } | head -n 1 | cut -d= -f2- | tr -d '\r'
+}
+
+# pgdata_created PROJECT: when that project's database volume was created (empty if none).
+# The installer records it in .env after `up`, so a re-run can tell its own volume from a
+# leftover one of another install (volumes carry no working_dir label).
+pgdata_created() {
+  local vol
+  vol="$(docker volume ls -q --filter "label=com.docker.compose.project=$1" \
+    --filter "label=com.docker.compose.volume=pgdata" </dev/null)" || return 1
+  vol="$(printf '%s\n' "$vol" | head -n 1)"
+  [ -z "$vol" ] || docker volume inspect -f '{{.CreatedAt}}' "$vol" </dev/null
 }
 
 valid_port() {
@@ -133,10 +149,65 @@ main() {
     fi
   else
     say "Cloning $repo at $ref into $dir ..."
-    git clone --quiet --depth 1 --branch "$ref" -- "$repo" "$dir" </dev/null ||
+    git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$ref" -- "$repo" "$dir" </dev/null ||
       die 16 "could not clone '$ref' from $repo. Check the network and that the tag or branch exists (SHIFTCIRCLE_REF)."
   fi
   cd "$dir"
+
+  # --- 3a. the project name must not belong to another directory's stack ------
+  # Compose identifies a stack only by its project name: `up` with a name another checkout
+  # already uses would recreate that stack's containers and reuse its database volume (whose
+  # password is not the one in our .env). So refuse, before .env is written, unless every
+  # container with this name was started from this directory, and any volume of it is this
+  # checkout's own. Refusing (rather than picking a free name) keeps the choice with the user
+  # and never leaves a stack under a surprise name. Nothing of the other stack is stopped,
+  # removed or recreated. (A fresh install has already cloned; the checkout stays, so a re-run
+  # with another SHIFTCIRCLE_PROJECT skips the clone.)
+  local had_env=0
+  [ ! -f .env ] || had_env=1
+  if [ -z "$project" ] && [ "$had_env" -eq 1 ]; then project="$(env_get COMPOSE_PROJECT_NAME)"; fi
+  project="${project:-shiftcircle}"
+  valid_project "$project" || die 15 "project name '$project' (in $dir/.env) is not valid."
+  local here here_phys qhere wd wds vols others="" ours=0
+  here="$(pwd)"
+  here_phys="$(pwd -P)"
+  qhere="$(printf '%q' "$here_phys")"
+  # Fail closed: if docker cannot list them we cannot tell whose they are.
+  wds="$(docker ps -a --filter "label=com.docker.compose.project=$project" \
+    --format 'wd={{.Label "com.docker.compose.project.working_dir"}}' </dev/null)" ||
+    die 20 "could not list the Docker containers of project '$project' to check that it is not another install's."
+  # Only the database volume matters: it holds the password. Other volumes of the project
+  # (the test profile's m2 Maven cache) carry nothing that could lock this checkout out.
+  vols="$(docker volume ls -q --filter "label=com.docker.compose.project=$project" \
+    --filter "label=com.docker.compose.volume=pgdata" </dev/null)" ||
+    die 20 "could not list the Docker volumes of project '$project' to check that it is not another install's."
+  while IFS= read -r wd; do
+    [ -n "$wd" ] || continue
+    wd="${wd#wd=}"
+    if [ -z "$wd" ]; then
+      others="an unknown directory"
+    elif [ "$wd" != "$here" ] && [ "$wd" != "$here_phys" ] &&
+      [ "$(cd "$wd" 2>/dev/null && pwd -P)" != "$here_phys" ]; then
+      others="$wd"
+    else
+      ours=1
+    fi
+  done <<<"$wds"
+  if [ -n "$others" ]; then
+    die 20 "a Docker Compose project named '$project' already exists, started from $others. Not touching it. Install under another name, for example: SHIFTCIRCLE_PROJECT=shiftcircle-2 bash install.sh (or, if that directory is this checkout before you moved or renamed it, remove the old containers with '(cd $qhere && docker compose -p $project down)', which keeps the database volume, and run this again)."
+  fi
+  # A database volume with no container of ours: a fresh install (no .env yet) would start the
+  # database on it with a password our new .env does not have, and so would a re-run whose .env
+  # does not record creating it (another install's leftover under the same name, or this
+  # checkout's own from before the installer recorded it).
+  if [ -n "$vols" ] && [ "$ours" -eq 0 ]; then
+    local stamp created
+    stamp="$(env_get SC_DB_VOLUME_CREATED 2>/dev/null || true)"
+    created="$(pgdata_created "$project")" || created=""
+    if [ "$had_env" -eq 0 ] || [ -z "$stamp" ] || [ "$stamp" != "$created" ]; then
+      die 20 "the database volume of a compose project named '$project' already exists, and this checkout's .env does not record creating it (another install's, or this checkout's own from before the installer recorded it). Not touching it. Install under another name, for example: SHIFTCIRCLE_PROJECT=shiftcircle-2 bash install.sh. Only if you know the volume is this checkout's, start it once with '(cd $qhere && docker compose -p $project up -d)' and run this again: starting with another install's volume makes its containers this checkout's, and the installer can then no longer refuse it."
+    fi
+  fi
 
   # --- 3. .env and secrets ---------------------------------------------------
   if [ -f .env ]; then
@@ -174,16 +245,10 @@ main() {
   if [ -z "$port" ]; then port="$(env_get SC_WEB_PORT)"; fi
   port="${port:-8080}"
   valid_port "$port" || die 14 "SC_WEB_PORT '$port' (in $dir/.env) is not a port number (1-65535)."
-  if [ -z "$project" ]; then project="$(env_get COMPOSE_PROJECT_NAME)"; fi
-  project="${project:-shiftcircle}"
-  valid_project "$project" || die 15 "project name '$project' (in $dir/.env) is not valid."
 
   local commit
   commit="$(git rev-parse --short HEAD 2>/dev/null || true)"
   if [ -z "$(env_get SC_GIT_COMMIT)" ] && [ -n "$commit" ]; then set_env SC_GIT_COMMIT "$commit"; fi
-  # Remember the choices so a re-run, and plain `docker compose` in this checkout, agree.
-  if [ -n "${SC_WEB_PORT:-}" ] && [ "$(env_get SC_WEB_PORT)" != "$SC_WEB_PORT" ]; then set_env SC_WEB_PORT "$SC_WEB_PORT"; fi
-  if [ -n "${SHIFTCIRCLE_PROJECT:-}" ] && [ "$(env_get COMPOSE_PROJECT_NAME)" != "$SHIFTCIRCLE_PROJECT" ]; then set_env COMPOSE_PROJECT_NAME "$SHIFTCIRCLE_PROJECT"; fi
 
   # docker-compose.yml pins `name: shiftcircle`; -p makes the project explicit.
   dc() { docker compose -p "$project" "$@" </dev/null; }
@@ -195,14 +260,25 @@ main() {
     die 14 "port $port on 127.0.0.1 is already in use. Pick another one, for example: SC_WEB_PORT=9090 bash install.sh (or edit SC_WEB_PORT in $dir/.env on a re-run)."
   fi
 
+  # Remember the choices, now that they passed every check, so a re-run and plain
+  # `docker compose` in this checkout agree (a refused attempt leaves .env as it was).
+  if [ -n "${SC_WEB_PORT:-}" ] && [ "$(env_get SC_WEB_PORT)" != "$SC_WEB_PORT" ]; then set_env SC_WEB_PORT "$SC_WEB_PORT"; fi
+  if [ -n "${SHIFTCIRCLE_PROJECT:-}" ] && [ "$(env_get COMPOSE_PROJECT_NAME)" != "$SHIFTCIRCLE_PROJECT" ]; then set_env COMPOSE_PROJECT_NAME "$SHIFTCIRCLE_PROJECT"; fi
+
   # --- 5. start and wait until healthy ---------------------------------------
   local wait_args=(--wait)
   # --wait-timeout is not in the oldest 2.x releases; omit it there (compose's own health
   # checks still bound the wait).
   if dc up --help 2>/dev/null | grep -q -- '--wait-timeout'; then wait_args+=(--wait-timeout 1800); fi
   say "Starting project '$project' on port $port (first build can take several minutes) ..."
-  SC_WEB_PORT="$port" dc up -d --build "${wait_args[@]}" ||
-    die 18 "docker compose did not become healthy. See: (cd $(printf '%q' "$dir") && docker compose -p $project logs --tail 100)"
+  local up_ok=1 created
+  SC_WEB_PORT="$port" dc up -d --build "${wait_args[@]}" || up_ok=0
+  # Record which database volume is this checkout's (see the check in 3a), even after a
+  # failed start: the volume exists by then and a re-run must not be refused for it.
+  created="$(pgdata_created "$project" 2>/dev/null)" || created=""
+  if [ -n "$created" ] && [ "$(env_get SC_DB_VOLUME_CREATED)" != "$created" ]; then set_env SC_DB_VOLUME_CREATED "$created"; fi
+  [ "$up_ok" -eq 1 ] ||
+    die 18 "docker compose did not build or become healthy. The cause is in the output above: look for the first 'ERROR' or 'failed' (a build that could not download is a network problem). If the containers did start, (cd $(printf '%q' "$dir") && docker compose -p $project logs --tail 100) shows them."
 
   local url="http://localhost:$port" health
   health="$(curl -fsS --max-time 10 "$url/healthz" 2>/dev/null || true)"
@@ -220,7 +296,7 @@ main() {
 
 ShiftCircle is running (demo profile, synthetic data only).
 
-  Open:     $url
+  Open:     $url/login
   Sign in:  pick a demo user on the sign-in screen (mock sign-in, no password).
             P. Planner and M. Ellis (supervisor) are good starting points.
             Roles are explained in USER-GUIDE.md.
