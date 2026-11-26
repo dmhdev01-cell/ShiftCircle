@@ -1,26 +1,31 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 
 // The real-api build: a session is required, and the fixtures switch is not.
+const ELLIS = {
+  id: 'user-ellis',
+  displayName: 'M. Ellis',
+  username: 'm.ellis',
+  roles: ['SUPERVISOR'],
+  units: ['unit-a', 'unit-b'],
+  employeeId: null,
+};
+// The picker's list; a test may swap in the eight demo users.
+const listed = vi.hoisted(() => ({ users: [] as Record<string, unknown>[] }));
 vi.mock('../api/client', async () => {
   const { ApiError } = await import('../api/http');
-  const user = {
-    id: 'user-ellis',
-    displayName: 'M. Ellis',
-    username: 'm.ellis',
-    roles: ['SUPERVISOR'],
-    units: ['unit-a', 'unit-b'],
-    employeeId: null,
-  };
   return {
     usingFixtures: false,
     ApiError,
     api: {
-      getDemoUsers: vi.fn(async () => [user]),
-      mockLogin: vi.fn(async () => ({ token: 'a-token', user })),
+      getDemoUsers: vi.fn(async () => (listed.users.length > 0 ? listed.users : [ELLIS])),
+      mockLogin: vi.fn(async (id: string) => ({
+        token: 'a-token',
+        user: [...listed.users, ELLIS].find((entry) => entry.id === id),
+      })),
     },
   };
 });
@@ -37,7 +42,13 @@ function renderAt(path: string) {
         <MemoryRouter initialEntries={[path]}>
           <RequireSession>
             <Routes>
+              <Route path="/" element={<Navigate to="/planning" replace />} />
               <Route path="/planning" element={<h1>Planning board</h1>} />
+              <Route path="/planner" element={<h1>Quarter plan</h1>} />
+              <Route path="/me/schedule" element={<h1>My schedule</h1>} />
+              <Route path="/rules" element={<h1>Rules</h1>} />
+              <Route path="/rules/:version/:table" element={<h1>Rules</h1>} />
+              <Route path="/display" element={<h1>Wall display</h1>} />
               <Route path="/reports/:tab" element={<h1>Reports</h1>} />
               <Route path="/login" element={<LoginPage />} />
             </Routes>
@@ -105,5 +116,44 @@ describe('the session guard', () => {
 
     expect(await screen.findByRole('heading', { name: 'Sign in', level: 1 })).toBeInTheDocument();
     expect(screen.queryByText('Please sign in to continue.')).not.toBeInTheDocument();
+  });
+
+  // Install verification, 26 Nov 2026: the bare address the installer printed
+  // was remembered as the route asked for, so every user landed on the
+  // Planning board and an officer, a rules user or the TV saw an error there.
+  const DEMO = [
+    { ...ELLIS, id: 'm-ellis', displayName: 'M. Ellis', roles: ['SUPERVISOR', 'EMPLOYEE'], employeeId: 'e-ellis' },
+    { ...ELLIS, id: 'j-chen', displayName: 'J. Chen', roles: ['SUPERVISOR', 'EMPLOYEE'], employeeId: 'e-chen' },
+    { ...ELLIS, id: 't-nakamura', displayName: 'T. Nakamura', roles: ['EMPLOYEE'], employeeId: 'e-tara' },
+    { ...ELLIS, id: 'l-fraser', displayName: 'L. Fraser', roles: ['RULES_ADMIN'], employeeId: '' },
+    { ...ELLIS, id: 'p-singh', displayName: 'P. Singh', roles: ['RULES_APPROVER'], employeeId: '' },
+    { ...ELLIS, id: 'a-reviewer', displayName: 'A. Reviewer', roles: ['AUDITOR'], employeeId: '' },
+    { ...ELLIS, id: 'p-planner', displayName: 'P. Planner', roles: ['PLANNER'], employeeId: '' },
+    { ...ELLIS, id: 'unit-office-tv', displayName: 'Unit office TV', roles: ['DISPLAY'], employeeId: '' },
+  ];
+  it.each([
+    ['M. Ellis', 'Planning board'],
+    ['J. Chen', 'Planning board'],
+    ['T. Nakamura', 'My schedule'],
+    ['L. Fraser', 'Rules'],
+    ['P. Singh', 'Rules'],
+    ['A. Reviewer', 'Reports'],
+    ['P. Planner', 'Quarter plan'],
+    ['Unit office TV', 'Wall display'],
+  ])('from the bare address, %s lands on their own home (%s)', async (name, heading) => {
+    // A fresh visit: no session, and not a sign-out (which never remembers a route).
+    const { resetSession } = await import('../api/session');
+    resetSession();
+    listed.users = DEMO;
+    try {
+      renderAt('/');
+      expect(await screen.findByRole('heading', { name: 'Sign in', level: 1 })).toBeInTheDocument();
+      // Nobody asked for a route, so no "Please sign in to continue."
+      expect(screen.queryByText('Please sign in to continue.')).not.toBeInTheDocument();
+      await userEvent.setup().click(await screen.findByRole('button', { name: new RegExp(`^${name.replace('.', '\\.')}`) }));
+      expect(await screen.findByRole('heading', { name: heading, level: 1 })).toBeInTheDocument();
+    } finally {
+      listed.users = [];
+    }
   });
 });

@@ -300,7 +300,9 @@ describe('supervisor posts: review round', () => {
     const items = within(screen.getByRole('list', { name: 'Free supervisors' })).getAllByRole('listitem');
     expect(within(items[0]).getByRole('button', { name: /Check & assign D8: Sam Sup/ })).toBeEnabled();
     expect(within(items[1]).getByRole('button', { name: /Check & assign D8: Morgan Ellis/ })).toBeDisabled();
-    expect(items[1]).toHaveTextContent("This is you: you can't assign your own shift");
+    expect(items[1]).toHaveTextContent("This is you. You can't change your own schedule; ask another supervisor.");
+    // Only why: no board hints for a change they can't make.
+    expect(items[1]).not.toHaveTextContent('no conflict visible');
   });
 
   it('offers no change on the signed-in supervisor\'s own board row and says why', async () => {
@@ -339,11 +341,11 @@ describe('supervisor posts: review round', () => {
     // The reason is on the row, up front, in the api's words.
     expect(mine).toHaveAttribute('data-self', 'true');
     expect(within(mine).getByTestId('self-row-reason')).toHaveTextContent(
-      "This is you: you can't change your own schedule; ask another supervisor.",
+      "This is you. You can't change your own schedule; ask another supervisor.",
     );
     const off = within(mine).getByRole('button', { name: `Off - assign a shift to Morgan Ellis on ${DAYS[0]}` });
     expect(off).toBeDisabled();
-    expect(off).toHaveAttribute('title', "This is you: you can't change your own schedule; ask another supervisor.");
+    expect(off).toHaveAttribute('title', "This is you. You can't change your own schedule; ask another supervisor.");
     // The own shift is shown but is not a button: no move, cancel or Acknowledge and assign.
     expect(within(mine).getAllByRole('button')).toEqual([off]);
     expect(within(mine).getByText('D')).toBeInTheDocument();
@@ -358,9 +360,9 @@ describe('supervisor posts: review round', () => {
     expect(onPickChip).not.toHaveBeenCalled();
   });
 
-  it('says nothing about "you" on a read-only board', () => {
+  it('says nothing about "you" when no own record is passed (a read-only board)', () => {
     const payload = board(POST, [person('Morgan Ellis', 'CS')]);
-    wrap(<RosterGrid payload={payload} today="2026-11-19" selfEmployeeId="morgan-ellis" />);
+    wrap(<RosterGrid payload={payload} today="2026-11-19" />);
     expect(screen.queryByTestId('self-row-reason')).not.toBeInTheDocument();
   });
 });

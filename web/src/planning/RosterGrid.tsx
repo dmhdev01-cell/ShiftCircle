@@ -11,7 +11,7 @@ import type { Block, BlockCoverage, CellItem, OfficerRow, SchedulePayload, Shift
 import { colour, grid } from '../theme/tokens';
 import { CoverageCell } from './CoverageCell';
 import { dayTotals, isWeekend, officerTotals, payPeriodOf, rangeWords } from './rosterView';
-import { isActingOfficer, isSupervisor, isSupervisorPost, onDuty, shortName } from './supervisorPosts';
+import { isActingOfficer, isSupervisor, isSupervisorPost, onDuty, SELF_NOTE, shortName } from './supervisorPosts';
 import type { RosterDensity } from './rosterView';
 
 /** A chip and its words stay together when the key wraps. */
@@ -105,13 +105,12 @@ export interface RosterGridProps {
    * The signed-in supervisor's own officer record (v1.3 S4). The api refuses
    * any change to it, so that row offers none: its days are not buttons, its
    * chips cannot be picked, and the row says why (as the gap panel's "This is
-   * you" does).
+   * you" does). Pass it only on a board where the user can make changes; a
+   * read-only board has nothing to refuse and says nothing.
    */
   selfEmployeeId?: string;
 }
 
-/** Why a supervisor's own row offers no changes; the api's 403 says the same. */
-export const SELF_ROW_REASON = "This is you: you can't change your own schedule; ask another supervisor.";
 
 function CellChips({
   items,
@@ -612,13 +611,13 @@ export function RosterGrid({
                         </Box>
                       ) : null}
                       <QualificationBadges codes={officer.qualifications ?? []} compact={compact} />
-                      {self && onEmptyCell ? (
+                      {self ? (
                         <Box
                           component="span"
                           data-testid="self-row-reason"
                           sx={{ flexBasis: '100%', fontSize: compact ? 11 : 12, color: colour.text.secondary }}
                         >
-                          {SELF_ROW_REASON}
+                          {SELF_NOTE}
                         </Box>
                       ) : null}
                     </Box>
@@ -683,8 +682,8 @@ export function RosterGrid({
                             title={
                               canAssign
                                 ? 'Assign a shift'
-                                : self && onEmptyCell && date >= today
-                                  ? SELF_ROW_REASON
+                                : self && date >= today
+                                  ? SELF_NOTE
                                   : onEmptyCell
                                   ? 'This day has already happened'
                                   : 'Off'

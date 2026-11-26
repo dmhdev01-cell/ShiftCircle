@@ -94,3 +94,11 @@ export function unitGroups(units: Unit[]): { line: Unit[]; posts: Unit[] } {
     posts: units.filter((unit) => isSupervisorPost(unit)),
   };
 }
+
+/**
+ * The self-edit refusal, word for word as the api's 403 says it (release v1.3
+ * S4, SelfActionGuard). The board row and the gap panel both show it, after
+ * "This is you.", so one rule reads one way everywhere.
+ */
+export const SELF_EDIT_REFUSAL = "You can't change your own schedule; ask another supervisor.";
+export const SELF_NOTE = `This is you. ${SELF_EDIT_REFUSAL}`;

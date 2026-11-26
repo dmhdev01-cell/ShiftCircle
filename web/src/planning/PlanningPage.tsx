@@ -221,6 +221,8 @@ export function PlanningPage() {
   // The facility planner reads the board (the commit links land here); every
   // write stays with the supervisors who own the units (docs/ui/planner.md §11 Q1).
   const readOnly = role.id === 'PLANNER';
+  // The signed-in supervisor's own officer record: the api refuses any change to it (v1.3 S4).
+  const selfEmployeeId = getSessionUser()?.employeeId || undefined;
 
   /** Put focus back on the cell or chip that opened the dock. */
   const restoreFocus = () => {
@@ -953,8 +955,13 @@ export function PlanningPage() {
           filtered={filtered}
           {...(readOnly
             ? {}
-            : { onEmptyCell: startChoose, onPickChip: pickChip, onFillGap: openGap, selectedGap: gap })}
-          {...(getSessionUser()?.employeeId ? { selfEmployeeId: getSessionUser()!.employeeId } : {})}
+            : {
+                onEmptyCell: startChoose,
+                onPickChip: pickChip,
+                onFillGap: openGap,
+                selectedGap: gap,
+                ...(selfEmployeeId ? { selfEmployeeId } : {}),
+              })}
         />
       </Box>
 
@@ -1055,7 +1062,7 @@ export function PlanningPage() {
           template={gapTemplate}
           onTemplate={setGapTemplate}
           onCheck={checkFromGap}
-          {...(getSessionUser()?.employeeId ? { selfEmployeeId: getSessionUser()!.employeeId } : {})}
+          {...(selfEmployeeId ? { selfEmployeeId } : {})}
           onClose={closeGap}
           findEligibleHref={`/overtime?unit=${encodeURIComponent(payload.unit.id)}&startAt=${encodeURIComponent(
             `${gapEntry.date}T${shiftTemplates[gapTemplate].start}:00${REGINA_OFFSET}`,

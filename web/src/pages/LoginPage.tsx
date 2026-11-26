@@ -9,7 +9,7 @@ import Typography from '@mui/material/Typography';
 import { api, ApiError } from '../api/client';
 import { getSession, setSession, subscribeSession } from '../api/session';
 import type { DemoUser } from '../api/types';
-import { destinationFor } from '../shell/destinations';
+import { landingFor } from '../shell/destinations';
 import { safeReturnPath } from '../shell/returnPath';
 import { ROLE_WORDS } from '../shell/roles';
 import { colour } from '../theme/tokens';
@@ -107,8 +107,9 @@ export function LoginPage() {
     try {
       const result = await api.mockLogin(user.id);
       setSession(result.token, result.user ?? user);
-      // Back to the route that asked for a sign-in, or to the role's landing.
-      navigate(from ?? destinationFor(user), { replace: true });
+      // Back to the route that asked for a sign-in when it is in this user's
+      // menu, else to the role's landing.
+      navigate(landingFor(result.user ?? user, from), { replace: true });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'The sign-in failed.');
     } finally {

@@ -151,6 +151,6 @@ export async function expectFocused(target: Locator): Promise<void> {
   await expect(target).toBeFocused();
 }
 
-function escapeRegExp(value: string): string {
+export function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

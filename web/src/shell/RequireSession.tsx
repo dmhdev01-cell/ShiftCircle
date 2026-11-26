@@ -17,7 +17,9 @@ import { getSession, subscribeSession } from '../api/session';
  * A visitor who arrived without a session is sent to /login with the route they
  * asked for, so signing in returns them there. Someone who signed out - or
  * whose session expired - is sent without it and gets their own role's landing
- * page, which matters when the next person to sign in is someone else.
+ * page, which matters when the next person to sign in is someone else. The
+ * bare address "/" is not remembered, and a remembered route outside the
+ * signed-in role's menu falls back to that role's landing (landingFor).
  */
 export function RequireSession({ children }: { children: ReactNode }) {
   const session = useSyncExternalStore(subscribeSession, getSession);
@@ -29,7 +31,9 @@ export function RequireSession({ children }: { children: ReactNode }) {
   if (location.pathname === '/login') return <>{children}</>;
   if (session.user !== null) return <>{children}</>;
 
-  const remember = !session.signedOut && !session.ended;
+  // The bare address is not a route anyone asked for: it only redirects to
+  // the Planning board, so remembering it sent every role there.
+  const remember = !session.signedOut && !session.ended && location.pathname !== '/';
   return (
     <Navigate
       to="/login"

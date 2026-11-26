@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 
 import { apiAs, isFixtures } from './api';
 import { shot } from './shots';
-import { expectAccessible, selectUnit, signIn } from './support';
+import { escapeRegExp, expectAccessible, selectUnit, signIn } from './support';
 
 /**
  * Release v1.3 S6: supervisor posts on the planning board (Dataset 100, week
@@ -224,7 +224,7 @@ test.describe('v1.3 S6 supervisor posts on the board', () => {
 
     await board(page);
     await selectUnit(page, SUP_L);
-    const reason = "This is you: you can't change your own schedule; ask another supervisor.";
+    const reason = "This is you. You can't change your own schedule; ask another supervisor.";
     const row = page.locator('tr[data-officer-name="Morgan Ellis"]');
     await expect(row).toHaveAttribute('data-self', 'true');
     await expect(row.getByTestId('self-row-reason')).toHaveText(reason);
@@ -241,7 +241,7 @@ test.describe('v1.3 S6 supervisor posts on the board', () => {
     // Another supervisor's free day still opens the assign dialog.
     await expect(page.locator(`tr[data-officer-name="${other.name}"]`).getByTestId('self-row-reason')).toHaveCount(0);
     await page.getByRole('button', { name: `Off - assign a shift to ${other.name} on ${otherOff}` }).click();
-    const dialog = page.getByRole('dialog', { name: new RegExp(`^Assign a shift to ${other.name}`) });
+    const dialog = page.getByRole('dialog', { name: new RegExp(`^Assign a shift to ${escapeRegExp(other.name)}`) });
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', { name: 'Cancel' }).click();
     await expect(dialog).toBeHidden();

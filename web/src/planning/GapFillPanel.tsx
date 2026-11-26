@@ -9,7 +9,7 @@ import { StatusPill } from '../components/StatusPill';
 import { colour, coverageTones, focusRing } from '../theme/tokens';
 import { BLOCK_TEMPLATES, BLOCK_WORDS, dayWords, gapCandidates } from './gapFill';
 import type { PeriodHours } from './gapFill';
-import { isSupervisorPost } from './supervisorPosts';
+import { isSupervisorPost, SELF_NOTE } from './supervisorPosts';
 
 export const GAP_PANEL_HEADING_ID = 'gap-fill-heading';
 
@@ -290,11 +290,14 @@ export function GapFillPanel({
                     </Button>
                   </Box>
                   <Box component="span" sx={{ fontSize: 12, color: colour.text.secondary }}>
-                    {self ? "This is you: you can't assign your own shift; ask another supervisor or the planner · " : ''}
-                    {acting ? 'Officer who holds Acting supervisor: R-01 needs acknowledgement · ' : ''}
-                    {hints.length === 0
-                      ? '✓ no conflict visible on the board'
-                      : hints.map((hint) => `${hint.tone === 'warn' ? '⚠ ' : ''}${hint.text}`).join(' · ')}
+                    {/* Yourself: only why, not the board hints for a change you can't make. */}
+                    {self ? SELF_NOTE : null}
+                    {!self && acting ? 'Officer who holds Acting supervisor: R-01 needs acknowledgement · ' : ''}
+                    {self
+                      ? null
+                      : hints.length === 0
+                        ? '✓ no conflict visible on the board'
+                        : hints.map((hint) => `${hint.tone === 'warn' ? '⚠ ' : ''}${hint.text}`).join(' · ')}
                   </Box>
                 </Box>
               ))}
