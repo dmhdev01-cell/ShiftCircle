@@ -124,7 +124,7 @@ test.describe('session and navigation', () => {
     ['J. Chen', /\/planning$/],
     ['T. Nakamura', /\/me\/schedule$/],
     ['L. Fraser', /\/rules\//],
-    ['P. Singh', /\/rules/],
+    ['P. Singh', /\/rules$/],
     ['A. Reviewer', /\/reports\/coverage/],
     ['P. Planner', /\/planner/],
     ['Unit office TV', /\/display/],

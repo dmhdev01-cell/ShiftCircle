@@ -103,6 +103,7 @@ new_case() { # new_case NAME: a fresh state and a fake checkout at $DIR (no .env
 }
 container() { printf '%s\t%s\n' "$1" "$2" >>"$STATE/containers"; }
 volume() { printf '%s\t%s_pgdata\tpgdata\t%s\n' "$1" "$1" "$2" >>"$STATE/volumes"; }
+m2_volume() { printf '%s\t%s_m2\tm2\t%s\n' "$1" "$1" "2026-03-03T00:00:00Z" >>"$STATE/volumes"; }
 run() { # run [VAR=value ...]: install.sh from $WORK/case, output in $OUT, exit code in $CODE
   set +e
   OUT="$(cd "$WORK/case" && env -u COMPOSE_PROJECT_NAME PATH="$WORK/bin:$PATH" FAKE_STATE="$STATE" \
@@ -183,7 +184,8 @@ volume sc-a 2026-02-02T00:00:00Z
 run
 check "refuses with 20" exit_is 20
 check "no up" not_upped
-check "says this checkout did not create them" says "this checkout did not create them"
+check "says .env does not record it" says "does not record creating it"
+check "the recovery is anchored to this checkout" says "(cd $DIR && docker compose -p sc-a up -d)"
 
 new_case "re-run with .env that records no volume, leftover volume"
 printf 'COMPOSE_PROJECT_NAME=sc-a\nPOSTGRES_PASSWORD=abcdefgh12\n' >"$DIR/.env"
@@ -191,6 +193,22 @@ volume sc-a 2026-02-02T00:00:00Z
 run
 check "refuses with 20" exit_is 20
 check "no up" not_upped
+
+new_case "re-run after 'down -v', only the test profile's m2 volume left"
+run SHIFTCIRCLE_PROJECT=sc-a
+: >"$STATE/containers"
+: >"$STATE/volumes"
+m2_volume sc-a
+: >"$STATE/calls"
+run
+check "proceeds (m2 holds no password)" exit_is 0
+check "runs up" upped
+
+new_case "fresh, only the test profile's m2 volume of the same name"
+m2_volume sc-a
+run SHIFTCIRCLE_PROJECT=sc-a
+check "proceeds" exit_is 0
+check "runs up" upped
 
 new_case "docker ps fails"
 FAKE_PS_FAIL=1 run SHIFTCIRCLE_PROJECT=sc-a
@@ -235,7 +253,7 @@ new_case "moved checkout: the refusal says how to recover"
 container sc-a /old/place/ShiftCircle
 run SHIFTCIRCLE_PROJECT=sc-a
 check "refuses with 20" exit_is 20
-check "suggests down for a moved checkout" says "docker compose -p sc-a down"
+check "suggests down for a moved checkout, from this checkout" says "(cd $DIR && docker compose -p sc-a down)"
 
 new_case "a CRLF .env (Windows checkout) with blank secrets"
 printf 'POSTGRES_PASSWORD=\r\nSC_JWT_SECRET=\r\n' >"$DIR/.env"

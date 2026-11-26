@@ -168,14 +168,18 @@ main() {
   if [ -z "$project" ] && [ "$had_env" -eq 1 ]; then project="$(env_get COMPOSE_PROJECT_NAME)"; fi
   project="${project:-shiftcircle}"
   valid_project "$project" || die 15 "project name '$project' (in $dir/.env) is not valid."
-  local here here_phys wd wds vols others="" ours=0
+  local here here_phys qhere wd wds vols others="" ours=0
   here="$(pwd)"
   here_phys="$(pwd -P)"
+  qhere="$(printf '%q' "$here_phys")"
   # Fail closed: if docker cannot list them we cannot tell whose they are.
   wds="$(docker ps -a --filter "label=com.docker.compose.project=$project" \
     --format 'wd={{.Label "com.docker.compose.project.working_dir"}}' </dev/null)" ||
     die 20 "could not list the Docker containers of project '$project' to check that it is not another install's."
-  vols="$(docker volume ls -q --filter "label=com.docker.compose.project=$project" </dev/null)" ||
+  # Only the database volume matters: it holds the password. Other volumes of the project
+  # (the test profile's m2 Maven cache) carry nothing that could lock this checkout out.
+  vols="$(docker volume ls -q --filter "label=com.docker.compose.project=$project" \
+    --filter "label=com.docker.compose.volume=pgdata" </dev/null)" ||
     die 20 "could not list the Docker volumes of project '$project' to check that it is not another install's."
   while IFS= read -r wd; do
     [ -n "$wd" ] || continue
@@ -190,17 +194,18 @@ main() {
     fi
   done <<<"$wds"
   if [ -n "$others" ]; then
-    die 20 "a Docker Compose project named '$project' already exists, started from $others. Not touching it. Install under another name, for example: SHIFTCIRCLE_PROJECT=shiftcircle-2 bash install.sh (or, if that directory is this checkout before you moved or renamed it, remove the old containers with 'docker compose -p $project down', which keeps the database volume, and run this again)."
+    die 20 "a Docker Compose project named '$project' already exists, started from $others. Not touching it. Install under another name, for example: SHIFTCIRCLE_PROJECT=shiftcircle-2 bash install.sh (or, if that directory is this checkout before you moved or renamed it, remove the old containers with '(cd $qhere && docker compose -p $project down)', which keeps the database volume, and run this again)."
   fi
-  # Volumes with no container of ours: a fresh install (no .env yet) would start the database
-  # on them with a password our new .env does not have, and so would a re-run whose .env does
-  # not record creating them (another install's leftovers under the same name).
+  # A database volume with no container of ours: a fresh install (no .env yet) would start the
+  # database on it with a password our new .env does not have, and so would a re-run whose .env
+  # does not record creating it (another install's leftover under the same name, or this
+  # checkout's own from before the installer recorded it).
   if [ -n "$vols" ] && [ "$ours" -eq 0 ]; then
     local stamp created
     stamp="$(env_get SC_DB_VOLUME_CREATED 2>/dev/null || true)"
     created="$(pgdata_created "$project")" || created=""
     if [ "$had_env" -eq 0 ] || [ -z "$stamp" ] || [ "$stamp" != "$created" ]; then
-      die 20 "Docker volumes of a compose project named '$project' already exist, and this checkout did not create them (from an earlier or another install). Not touching them. Install under another name, for example: SHIFTCIRCLE_PROJECT=shiftcircle-2 bash install.sh (or, if they are this checkout's own from before the installer recorded them, start it once here with 'docker compose -p $project up -d' and run this again)."
+      die 20 "the database volume of a compose project named '$project' already exists, and this checkout's .env does not record creating it (another install's, or this checkout's own from before the installer recorded it). Not touching it. Install under another name, for example: SHIFTCIRCLE_PROJECT=shiftcircle-2 bash install.sh. Only if you know the volume is this checkout's, start it once with '(cd $qhere && docker compose -p $project up -d)' and run this again: starting with another install's volume makes its containers this checkout's, and the installer can then no longer refuse it."
     fi
   fi
 
