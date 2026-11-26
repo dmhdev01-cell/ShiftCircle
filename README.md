@@ -48,7 +48,7 @@ The build process is kept apart from the product docs, in [docs/process/](docs/p
 
 ## Quick install
 
-One command. It needs a bash shell (macOS, Linux, or on Windows a **WSL2 Ubuntu terminal**, not PowerShell or cmd: see [INSTALL.md, Windows](INSTALL.md#windows-wsl2)), `curl`, `git`, Docker with Compose v2, a running Docker daemon and a free port. It clones into `./ShiftCircle`, creates `.env` with freshly generated random secrets that it never prints, runs `docker compose up -d --build --wait`, checks `/healthz` and `/api/v1/version`, and prints the URL:
+One command. It needs a bash shell (macOS, Linux, or on Windows a **WSL2 Ubuntu terminal**, not PowerShell or cmd: see [INSTALL.md, Windows](INSTALL.md#windows-wsl2); without WSL, see below), `curl`, `git`, Docker with Compose v2, a running Docker daemon and a free port. It clones into `./ShiftCircle`, creates `.env` with freshly generated random secrets that it never prints, runs `docker compose up -d --build --wait`, checks `/healthz` and `/api/v1/version`, and prints the URL:
 
 ```sh
 curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.3/install.sh && bash install.sh
@@ -61,6 +61,14 @@ curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCirc
 less install.sh
 bash install.sh
 ```
+
+**Windows without WSL** (Docker Desktop on the Hyper-V backend, common on managed Windows Pro/Enterprise laptops): in **Git Bash** (installed with Git for Windows; Docker Desktop puts `docker` on its PATH) run this form of the one-liner, which stops Git converting line endings:
+
+```sh
+curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.3/install.sh && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.autocrlf GIT_CONFIG_VALUE_0=false bash install.sh
+```
+
+With no bash at all, [INSTALL.md, Windows without WSL](INSTALL.md#windows-without-wsl-hyper-v) has the PowerShell steps (clone, generate `.env`, `docker compose up`).
 
 **Course submission:** the version submitted for the assessment is the release tag **`v1.3`**, which the one-liner above installs (supervisors on their own posts and shift proposals, on top of v1.2). The earlier submission build was the tag `v1.1.2-submission` (v1.1.1 plus the staffing-shortfall hotfix); its own `install.sh` stays pinned to that tag, so the same one-liner with `v1.1.2-submission` in place of `v1.3` still installs it exactly.
 

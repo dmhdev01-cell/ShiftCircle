@@ -11,7 +11,7 @@ the host.
 
 ## Quick install
 
-One command. It needs a bash shell (macOS, Linux, or on Windows a **WSL2 Ubuntu terminal**, not PowerShell or cmd: see [Windows (WSL2)](#windows-wsl2)), `curl`, `git`, Docker with Compose v2, a running Docker daemon and a free port. It clones into `./ShiftCircle`, creates `.env` with freshly generated random secrets that it never prints, runs `docker compose up -d --build --wait`, checks `/healthz` and `/api/v1/version`, and prints the URL:
+One command. It needs a bash shell (macOS, Linux, or on Windows a **WSL2 Ubuntu terminal**, not PowerShell or cmd: see [Windows (WSL2)](#windows-wsl2); without WSL, see [Windows without WSL](#windows-without-wsl-hyper-v)), `curl`, `git`, Docker with Compose v2, a running Docker daemon and a free port. It clones into `./ShiftCircle`, creates `.env` with freshly generated random secrets that it never prints, runs `docker compose up -d --build --wait`, checks `/healthz` and `/api/v1/version`, and prints the URL:
 
 ```sh
 curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.3/install.sh && bash install.sh
@@ -75,6 +75,62 @@ Docker half the machine's memory by default, which is enough on an 8 GB laptop. 
 **Ports:** the installer's port check runs inside WSL. A Windows program that already owns
 8080 may not be visible there; the start then fails with `Bind for 127.0.0.1:8080 failed:
 port is already allocated` and exit 18. Re-run with `SC_WEB_PORT=9090 bash install.sh`.
+
+## Windows without WSL (Hyper-V)
+
+Docker Desktop on **Windows Home requires WSL2**. The **Hyper-V backend** (no WSL) needs
+Windows 10/11 **Pro, Enterprise or Education** and is common on managed laptops. Docker
+Desktop must be in **Linux containers** mode (tray menu: "Switch to Linux containers…"
+if it offers that); in Windows containers mode the base images do not exist. Its memory
+is set under **Settings → Resources → Advanced**; the default (2 GB) fits this stack
+(about 1 GB building, 0.5 GB running). Not yet run on a real Windows laptop: everything
+below is **UNVERIFIED on Windows**; what was checked elsewhere is said in each step.
+
+**A. Git Bash** (comes with Git for Windows). Docker Desktop puts `docker` on the PATH,
+so the one-liner runs there, but Git for Windows converts line endings by default, which
+stops the installer with exit 17. This form switches that off for the clone only (no
+global Git setting changes; checked with a simulated `core.autocrlf=true` clone):
+
+```sh
+curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.3/install.sh && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.autocrlf GIT_CONFIG_VALUE_0=false bash install.sh
+```
+
+If an earlier run stopped with exit 17, delete the `ShiftCircle` folder first.
+
+**B. PowerShell only (no bash).** In PowerShell (5.1 or 7), from the folder you want:
+
+```powershell
+git -c core.autocrlf=false clone --depth 1 --branch v1.3 https://github.com/dmhdev01-cell/ShiftCircle.git
+cd ShiftCircle
+
+# .env from .env.example with two random secrets and the commit (hex, never printed).
+$rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+function New-Secret([int]$n) { $b = New-Object byte[] $n; $rng.GetBytes($b); -join ($b | ForEach-Object { $_.ToString('x2') }) }
+$commit = git rev-parse --short HEAD
+$lines = Get-Content .env.example | ForEach-Object {
+  if ($_ -eq 'POSTGRES_PASSWORD=') { 'POSTGRES_PASSWORD=' + (New-Secret 24) }
+  elseif ($_ -eq 'SC_JWT_SECRET=') { 'SC_JWT_SECRET=' + (New-Secret 32) }
+  elseif ($_ -eq 'SC_GIT_COMMIT=') { 'SC_GIT_COMMIT=' + $commit }
+  else { $_ }
+}
+# UTF-8 without BOM, LF endings. (Set-Content/Out-File in PowerShell 5.1 add a BOM.)
+[IO.File]::WriteAllText((Join-Path (Get-Location) '.env'), ($lines -join "`n") + "`n", (New-Object Text.UTF8Encoding($false)))
+
+docker compose up -d --build --wait
+```
+
+Then open **http://localhost:8080/login**. If 8080 is taken, run
+`$env:SC_WEB_PORT = 9090` before `docker compose up` and open port 9090. Stop with
+`docker compose down` (add `-v` to delete the demo database). `Join-Path` matters:
+`WriteAllText` with a bare `.env` writes to the process folder, not the PowerShell one.
+
+Checked on macOS with PowerShell 7.7: the script writes a `.env` with no BOM, no CR, a
+48-character `POSTGRES_PASSWORD`, a 64-character `SC_JWT_SECRET` and the commit, and
+every other line unchanged (also from a CRLF `.env.example`); `docker compose up -d
+--build --wait` on that `.env` became healthy and `/api/v1/version` showed the commit.
+Not checked: Windows PowerShell 5.1. Docker Compose 5.6 also accepted a `.env` with CRLF
+endings and a BOM (the api started), but older Compose versions may not, so write it as
+above.
 
 ## 1. Prerequisites
 
