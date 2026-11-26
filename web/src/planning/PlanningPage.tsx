@@ -954,6 +954,7 @@ export function PlanningPage() {
           {...(readOnly
             ? {}
             : { onEmptyCell: startChoose, onPickChip: pickChip, onFillGap: openGap, selectedGap: gap })}
+          {...(getSessionUser()?.employeeId ? { selfEmployeeId: getSessionUser()!.employeeId } : {})}
         />
       </Box>
 

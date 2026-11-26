@@ -206,6 +206,49 @@ test.describe('v1.3 S6 supervisor posts on the board', () => {
     await dock.getByRole('button', { name: 'Close' }).click();
   });
 
+  test('@api M. Ellis\'s own row on SUP-L offers no change and says why up front', async ({ page, request }, testInfo) => {
+    const api = await apiAs(request, 'm.ellis');
+    const me = await api.get<{ employee: { name: string } }>('/me/schedule');
+    expect(me.employee.name).toBe('Morgan Ellis');
+    const expected = await api.get<Board>(`/schedule?unitId=${SUP_L_ID}&from=${WEEK.from}&to=${WEEK.to}`);
+    const mine = expected.officers.find((row) => row.name === 'Morgan Ellis')!;
+    expect(mine).toBeTruthy();
+    // A day still to come with nothing on it: on anyone else's row that is an "Off" button to assign.
+    const offDay = mine.cells.find((cell) => cell.date >= '2026-11-19' && cell.items.length === 0)?.date;
+    expect(offDay, 'Morgan Ellis has a free day from 19 Nov in the week of 16 Nov').toBeTruthy();
+    const other = expected.officers.find(
+      (row) => row.name !== 'Morgan Ellis' && row.cells.some((cell) => cell.date >= '2026-11-19' && cell.items.length === 0),
+    )!;
+    expect(other).toBeTruthy();
+    const otherOff = other.cells.find((cell) => cell.date >= '2026-11-19' && cell.items.length === 0)!.date;
+
+    await board(page);
+    await selectUnit(page, SUP_L);
+    const reason = "This is you: you can't change your own schedule; ask another supervisor.";
+    const row = page.locator('tr[data-officer-name="Morgan Ellis"]');
+    await expect(row).toHaveAttribute('data-self', 'true');
+    await expect(row.getByTestId('self-row-reason')).toHaveText(reason);
+    await expect(page.getByTestId('self-row-reason')).toHaveCount(1);
+    // Nothing on the row can be picked: the free day is a disabled "Off", the shifts are not buttons.
+    const off = row.getByRole('button', { name: `Off - assign a shift to Morgan Ellis on ${offDay}` });
+    await expect(off).toBeDisabled();
+    await expect(off).toHaveAttribute('title', reason);
+    const buttons = row.getByRole('button');
+    for (let index = 0; index < (await buttons.count()); index += 1) {
+      await expect(buttons.nth(index)).toBeDisabled();
+    }
+    await expect(page.getByRole('region', { name: 'Rule check' })).toHaveCount(0);
+    // Another supervisor's free day still opens the assign dialog.
+    await expect(page.locator(`tr[data-officer-name="${other.name}"]`).getByTestId('self-row-reason')).toHaveCount(0);
+    await page.getByRole('button', { name: `Off - assign a shift to ${other.name} on ${otherOff}` }).click();
+    const dialog = page.getByRole('dialog', { name: new RegExp(`^Assign a shift to ${other.name}`) });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dialog).toBeHidden();
+    await expectAccessible(page, testInfo, 'planning-supervisor-own-row');
+    await shot(page, testInfo, 'supervisor', 'planning', 'supervisor-post-own-row');
+  });
+
   test('@api a supervisor post and a line unit board hold at phone width without a sideways page scroll', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await board(page);

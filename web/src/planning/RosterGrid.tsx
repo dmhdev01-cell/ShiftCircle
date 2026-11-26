@@ -101,7 +101,17 @@ export interface RosterGridProps {
   filtered?: boolean;
   /** A rule warning for a chip, shown as a ⚠ beside it (planner draft, A8; PR-C). */
   chipWarning?: (officer: OfficerRow, item: ShiftItem, date: string) => string | null;
+  /**
+   * The signed-in supervisor's own officer record (v1.3 S4). The api refuses
+   * any change to it, so that row offers none: its days are not buttons, its
+   * chips cannot be picked, and the row says why (as the gap panel's "This is
+   * you" does).
+   */
+  selfEmployeeId?: string;
 }
+
+/** Why a supervisor's own row offers no changes; the api's 403 says the same. */
+export const SELF_ROW_REASON = "This is you: you can't change your own schedule; ask another supervisor.";
 
 function CellChips({
   items,
@@ -241,6 +251,7 @@ export function RosterGrid({
   selectedGap = null,
   filtered = false,
   chipWarning,
+  selfEmployeeId,
 }: RosterGridProps) {
   const officers = shownOfficers ?? payload.officers;
   const onPost = isSupervisorPost(payload.unit);
@@ -522,8 +533,9 @@ export function RosterGrid({
                 : isSupervisor(officer)
                   ? { text: 'Sup', title: 'Supervisor working an officer post (R-02)' }
                   : null;
+              const self = Boolean(selfEmployeeId) && officer.employeeId === selfEmployeeId;
               return (
-                <tr key={officer.employeeId} data-officer-name={officer.name}>
+                <tr key={officer.employeeId} data-officer-name={officer.name} data-self={self ? 'true' : undefined}>
                   <td
                     style={{
                       ...stickyName,
@@ -600,6 +612,15 @@ export function RosterGrid({
                         </Box>
                       ) : null}
                       <QualificationBadges codes={officer.qualifications ?? []} compact={compact} />
+                      {self && onEmptyCell ? (
+                        <Box
+                          component="span"
+                          data-testid="self-row-reason"
+                          sx={{ flexBasis: '100%', fontSize: compact ? 11 : 12, color: colour.text.secondary }}
+                        >
+                          {SELF_ROW_REASON}
+                        </Box>
+                      ) : null}
                     </Box>
                   </td>
                   <td
@@ -631,7 +652,7 @@ export function RosterGrid({
                     const cell = officer.cells.find((entry) => entry.date === date);
                     const items = cell?.items ?? [];
                     // A shift cannot be added to a day that has happened.
-                    const canAssign = date >= today && onEmptyCell !== undefined;
+                    const canAssign = date >= today && onEmptyCell !== undefined && !self;
                     return (
                       <td
                         key={date}
@@ -662,7 +683,9 @@ export function RosterGrid({
                             title={
                               canAssign
                                 ? 'Assign a shift'
-                                : onEmptyCell
+                                : self && onEmptyCell && date >= today
+                                  ? SELF_ROW_REASON
+                                  : onEmptyCell
                                   ? 'This day has already happened'
                                   : 'Off'
                             }
@@ -706,7 +729,7 @@ export function RosterGrid({
                               officerName={officer.name}
                               date={date}
                               compact={compact}
-                              onPick={onPickChip ? (item) => onPickChip(officer, item) : undefined}
+                              onPick={onPickChip && !self ? (item) => onPickChip(officer, item) : undefined}
                               warningFor={chipWarning ? (item) => chipWarning(officer, item, date) : undefined}
                             />
                           </Box>
