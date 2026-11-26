@@ -11,7 +11,7 @@ the host.
 
 ## Quick install
 
-One command. It needs a bash shell (macOS, Linux, or Git Bash/WSL on Windows), `curl`, `git`, Docker with Compose v2, a running Docker daemon and a free port. It clones into `./ShiftCircle`, creates `.env` with freshly generated random secrets that it never prints, runs `docker compose up -d --build --wait`, checks `/healthz` and `/api/v1/version`, and prints the URL:
+One command. It needs a bash shell (macOS, Linux, or on Windows a **WSL2 Ubuntu terminal**, not PowerShell or cmd: see [Windows (WSL2)](#windows-wsl2)), `curl`, `git`, Docker with Compose v2, a running Docker daemon and a free port. It clones into `./ShiftCircle`, creates `.env` with freshly generated random secrets that it never prints, runs `docker compose up -d --build --wait`, checks `/healthz` and `/api/v1/version`, and prints the URL:
 
 ```sh
 curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.3/install.sh && bash install.sh
@@ -28,6 +28,49 @@ bash install.sh
 **Course submission:** the version submitted for the assessment is the release tag **`v1.3`**, which the one-liner above installs (supervisors on their own posts and shift proposals, on top of v1.2). The earlier submission build was the tag `v1.1.2-submission` (v1.1.1 plus the staffing-shortfall hotfix); its own `install.sh` stays pinned to that tag, so the same one-liner with `v1.1.2-submission` in place of `v1.3` still installs it exactly.
 
 Overrides (environment variables, put them before `bash install.sh`): `SC_WEB_PORT` (host port, 1-65535, default 8080, for example `SC_WEB_PORT=9090 bash install.sh`), `SHIFTCIRCLE_PROJECT` (compose project name, default `shiftcircle`; a `COMPOSE_PROJECT_NAME` already in your shell is ignored on purpose), `SHIFTCIRCLE_REF` (tag or branch to install, default the release tag), `SHIFTCIRCLE_DIR` (default `./ShiftCircle`), and, advanced, `SHIFTCIRCLE_REPO` (clone URL). The port and project name are saved in `.env` (`SC_WEB_PORT`, `COMPOSE_PROJECT_NAME`). It refuses to touch an existing non-empty directory that is not a ShiftCircle checkout; re-running in the same place skips the clone and keeps the `.env` (it only fills a blank secret). It never runs `docker compose down`. The manual steps are below.
+
+## Windows (WSL2)
+
+Checked on 26 Nov 2026 by inspection and simulation on macOS and Linux containers; not yet
+run on a Windows laptop (**UNVERIFIED** there).
+
+1. Install **Docker Desktop** with the **WSL 2 based engine** (the default), and a WSL2
+   Ubuntu distribution (`wsl --install -d Ubuntu` in an administrator PowerShell, then
+   restart).
+2. In Docker Desktop: **Settings → Resources → WSL integration**, turn on your Ubuntu
+   distribution, **Apply & restart**. Without it, `docker` is not found inside Ubuntu and
+   the installer stops with exit 11 ("docker is not installed").
+3. Open the **Ubuntu** terminal (not PowerShell, not cmd) and run the one-liner from your
+   Linux home folder (`cd ~`), not from `/mnt/c/...`. Ubuntu ships `bash`, `curl` and
+   `git`; if `git` is missing, `sudo apt-get install -y git curl`.
+4. Open the printed address in your Windows browser: Docker Desktop publishes
+   `127.0.0.1:<port>` on Windows too.
+
+Why not PowerShell: in Windows PowerShell `curl` is a different command
+(`Invoke-WebRequest`, which rejects `-fsSLo`), `&&` does not exist in PowerShell 5.1, and
+`bash` may start WSL rather than the shell you expect.
+
+**Git Bash** works only if Git does not convert line endings. Git for Windows defaults to
+`core.autocrlf=true`; the checkout then has CRLF line endings and the installer stops with
+exit 17, `POSTGRES_PASSWORD in ShiftCircle/.env is shorter than 8 characters` (the
+"value" it read is the stray carriage return). The repository has no `.gitattributes`, so
+the release cannot force LF. In Git Bash, delete the half-made `ShiftCircle` folder and run:
+
+```sh
+GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.autocrlf GIT_CONFIG_VALUE_0=false bash install.sh
+```
+
+This changes no global Git setting. Everything else in a CRLF checkout (Dockerfiles,
+`nginx.conf`, sources) builds and runs; only the installer's `.env` parsing is affected
+(checked by a simulated `core.autocrlf=true` clone of `v1.3`).
+
+**Memory:** the stack needs about 0.5 GB running and about 1 GB while building; WSL2 gives
+Docker half the machine's memory by default, which is enough on an 8 GB laptop. If a
+`.wslconfig` caps it, keep `memory=2GB` or more under `[wsl2]` and run `wsl --shutdown`.
+
+**Ports:** the installer's port check runs inside WSL. A Windows program that already owns
+8080 may not be visible there; the start then fails with `Bind for 127.0.0.1:8080 failed:
+port is already allocated` and exit 18. Re-run with `SC_WEB_PORT=9090 bash install.sh`.
 
 ## 1. Prerequisites
 
@@ -92,10 +135,14 @@ docker compose up -d --build --wait
 
 `--wait` returns when all three containers are healthy: the database first, then the api
 after it has run the Flyway migrations and generated the synthetic dataset, then the web.
-The first build takes several minutes on an empty Docker cache; later starts are much
-faster.
+The first build downloads the base images and about 600 Maven artifacts plus the pnpm
+packages: 68 s on an empty Docker with a fast network (measured 26 Nov 2026), several
+minutes on a slower one. Later starts take well under a minute.
 
-Open **http://localhost:8080**. The mock sign-in screen lists the demo users.
+Open **http://localhost:8080/login**. The mock sign-in screen lists the demo users, and each
+user lands on their own home page. (From the bare `http://localhost:8080` every user first
+lands on the Planning board, which an officer, rules admin, rules approver or the wall display
+may not read; use the side menu. See §10.)
 
 If port 8080 is already in use, set `SC_WEB_PORT` in `.env` before starting:
 
@@ -235,6 +282,20 @@ Images stay on the machine after `down`; the next `up --build` reuses the build 
 | The reset card shows `FAILED` | Retry the reset. A reset and a planner generate/commit cannot run at the same time; wait for the other operation to finish. |
 | A second checkout conflicts with the first | `docker-compose.yml` fixes the project name to `shiftcircle`. For a second copy, use a unique project and port: `docker compose -p shiftcircle-test up -d --build --wait` with a different `SC_WEB_PORT`. |
 | Apple Silicon | No `--platform` override is needed; the stack uses multi-arch official images. If Docker warns about amd64 emulation, fix Docker Desktop's architecture setting rather than adding a flag. |
+| Install stops with exit 17, `POSTGRES_PASSWORD in ShiftCircle/.env is shorter than 8 characters`, on a fresh install | The checkout has Windows (CRLF) line endings, usually Git Bash. Delete the `ShiftCircle` folder and follow [Windows (WSL2)](#windows-wsl2). |
+| `warning: refs/tags/v1.3 … is not a commit!` while cloning | Harmless: `v1.3` is an annotated tag and a shallow clone of it prints this. The install continues. |
+| Signed in as T. Nakamura, L. Fraser, P. Singh or Unit office TV and the Planning board says "Could not load the schedule" | You opened the bare `http://localhost:8080`, which goes to the Planning board, and signed in there. Use the side menu, or open `http://localhost:8080/login`. Nothing is broken. |
+| `port 8080 on 127.0.0.1 is already in use` (exit 14) | Re-run with another port: `SC_WEB_PORT=9090 bash install.sh`. It is saved to `.env`, so later re-runs keep it. |
+| `docker is not installed` (exit 11) inside WSL while Docker Desktop is running | Turn on Docker Desktop's WSL integration for your distribution (see [Windows (WSL2)](#windows-wsl2)). |
+| `the docker daemon is not running` (exit 13) | Start Docker Desktop (or `sudo systemctl start docker`) and wait until it says it is running. On Linux, a user outside the `docker` group gets the same message. |
+| `'docker compose' (Compose v2) is not available` (exit 12) | Only the old `docker-compose` v1, or no Compose, is installed. Update Docker Desktop; on Linux install the Compose plugin (`docker-compose-plugin` from Docker's repository, or `docker-compose-v2` on Ubuntu). |
+| `git is not installed` (exit 10) or `curl is not installed` (exit 19) | Install it (`sudo apt-get install -y git curl` on Ubuntu/WSL) and run again. |
+| `could not clone 'v1.3' from https://github.com/…` (exit 16) | GitHub is not reachable (offline, VPN or firewall). Check `curl -I https://github.com`. Nothing was created; run again when it answers. |
+| Exit 18 after `failed to solve: process "/bin/sh -c mvn -B -DskipTests package"` (`Could not transfer artifact … from/to central (https://repo.maven.apache.org/maven2)`) | The api build cannot reach Maven Central (symptom checked with the host blocked). Behind a corporate proxy: Maven inside the build does not read `HTTP_PROXY`, so the simplest fix is to build once on a network without a mandatory proxy; the images are then cached and the stack runs offline. Configuring the proxy instead needs a local `settings.xml` in the api build stage ([Maven proxy guide](https://maven.apache.org/guides/mini/guide-proxies.html)), and a TLS-inspecting proxy also needs its CA certificate there (**UNVERIFIED** behind a real proxy). |
+| Exit 18 after `failed to solve: process "/bin/sh -c pnpm install --frozen-lockfile"` or `Error when performing the request to https://registry.npmjs.org/pnpm/…` | The web build cannot reach the npm registry (symptom checked with the host blocked). Set Docker Desktop's proxy (Settings → Resources → Proxies) so builds get `HTTPS_PROXY` (**UNVERIFIED** behind a real proxy), or build once on another network. |
+| Exit 18 after an error pulling `postgres`, `maven`, `node`, `eclipse-temurin` or `nginx` from `docker.io` | Docker Hub is not reachable. Check Docker Desktop's proxy settings, then run again. |
+| Exit 18 says to run `docker compose … logs` but the logs are empty | The build failed before any container started; the real error is a few lines above in the installer's output. |
+| Re-running the installer | Safe in the same directory: it skips the clone, keeps `.env` and only starts or rebuilds what changed. Use the same `SHIFTCIRCLE_PROJECT` each time (a different one is saved to `.env` even if the run then stops). |
 | Running the Playwright suite from Linux | The install itself needs no extra flag. A browser container cannot reach the stack at `localhost:8080`; use `BASE_URL=http://host.docker.internal:8080` (or your `SC_WEB_PORT`) and add `--add-host=host.docker.internal:host-gateway` (macOS/Windows do not need it). See [`e2e/README.md`](e2e/README.md); Linux is unverified in this repository. |
 
 ## 11. Settings reference
