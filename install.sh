@@ -153,24 +153,31 @@ main() {
   if [ -z "$project" ] && [ "$had_env" -eq 1 ]; then project="$(env_get COMPOSE_PROJECT_NAME)"; fi
   project="${project:-shiftcircle}"
   valid_project "$project" || die 15 "project name '$project' (in $dir/.env) is not valid."
-  local here here_phys wd others=""
+  local here here_phys wd wds vols others=""
   here="$(pwd)"
   here_phys="$(pwd -P)"
+  # Fail closed: if docker cannot list them we cannot tell whose they are.
+  wds="$(docker ps -a --filter "label=com.docker.compose.project=$project" \
+    --format 'wd={{.Label "com.docker.compose.project.working_dir"}}' </dev/null)" ||
+    die 20 "could not list the Docker containers of project '$project' to check that it is not another install's."
+  vols="$(docker volume ls -q --filter "label=com.docker.compose.project=$project" </dev/null)" ||
+    die 20 "could not list the Docker volumes of project '$project' to check that it is not another install's."
   while IFS= read -r wd; do
     [ -n "$wd" ] || continue
-    if [ "$wd" != "$here" ] && [ "$wd" != "$here_phys" ] &&
+    wd="${wd#wd=}"
+    if [ -z "$wd" ]; then
+      others="an unknown directory"
+    elif [ "$wd" != "$here" ] && [ "$wd" != "$here_phys" ] &&
       [ "$(cd "$wd" 2>/dev/null && pwd -P)" != "$here_phys" ]; then
       others="$wd"
     fi
-  done < <(docker ps -a --filter "label=com.docker.compose.project=$project" \
-    --format '{{index .Labels "com.docker.compose.project.working_dir"}}' 2>/dev/null </dev/null | sort -u)
+  done <<<"$wds"
   if [ -n "$others" ]; then
     die 20 "a Docker Compose project named '$project' already exists, started from $others. Not touching it. Install under another name, for example: SHIFTCIRCLE_PROJECT=shiftcircle-2 bash install.sh"
   fi
   # A fresh install (no .env yet) next to a leftover volume of the same name would start the
   # database on that volume, with a password our new .env does not have.
-  if [ "$had_env" -eq 0 ] &&
-    [ -n "$(docker volume ls -q --filter "label=com.docker.compose.project=$project" 2>/dev/null </dev/null)" ]; then
+  if [ "$had_env" -eq 0 ] && [ -n "$vols" ]; then
     die 20 "Docker volumes of a compose project named '$project' already exist (from an earlier or another install). Not touching them. Install under another name, for example: SHIFTCIRCLE_PROJECT=shiftcircle-2 bash install.sh"
   fi
 
