@@ -22,7 +22,8 @@
 #                        project. The name is saved to .env as COMPOSE_PROJECT_NAME so plain
 #                        `docker compose` commands in the checkout target the same project.
 #                        A name another install already uses is refused (exit 20).
-#   SHIFTCIRCLE_REF      git tag or branch to install (default: the release tag below)
+#   SHIFTCIRCLE_REF      git tag or branch to install, not a commit SHA (default: the release
+#                        tag below)
 #   SHIFTCIRCLE_DIR      target directory (default ./ShiftCircle)
 #   SHIFTCIRCLE_REPO     clone URL (advanced; default the public GitHub repo)
 #
@@ -103,6 +104,14 @@ valid_port() {
   case "$1" in '' | *[!0-9]*) return 1 ;; esac
   [ "${#1}" -le 5 ] && [ "$1" -ge 1 ] && [ "$1" -le 65535 ]
 }
+# add_dir LIST TEXT: append TEXT to the named list (live, unknown or gone), once; entries are
+# joined with " and from " (a project's containers usually share one directory).
+add_dir() { # (control characters in a label are shown as '?', never sent to the terminal)
+  local cur="${!1}" text="${2//[![:print:]]/?}"
+  case " and from $cur and from " in *" and from $text and from "*) return 0 ;; esac
+  printf -v "$1" '%s' "$cur${cur:+ and from }$text"
+}
+
 valid_project() { [[ "$1" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; }
 
 main() {
@@ -149,8 +158,11 @@ main() {
     fi
   else
     say "Cloning $repo at $ref into $dir ..."
-    git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$ref" -- "$repo" "$dir" </dev/null ||
-      die 16 "could not clone '$ref' from $repo. Check the network and that the tag or branch exists (SHIFTCIRCLE_REF)."
+    if ! git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$ref" -- "$repo" "$dir" </dev/null; then
+      local sha_hint=""
+      [[ ! "$ref" =~ ^[0-9a-f]{7,40}$ ]] || sha_hint=" If '$ref' is a commit SHA: SHIFTCIRCLE_REF takes a tag or branch name, not a SHA."
+      die 16 "could not clone '$ref' from $repo. Check the network and that the tag or branch exists (SHIFTCIRCLE_REF).$sha_hint"
+    fi
   fi
   cd "$dir"
 
@@ -168,7 +180,7 @@ main() {
   if [ -z "$project" ] && [ "$had_env" -eq 1 ]; then project="$(env_get COMPOSE_PROJECT_NAME)"; fi
   project="${project:-shiftcircle}"
   valid_project "$project" || die 15 "project name '$project' (in $dir/.env) is not valid."
-  local here here_phys qhere wd wds vols others="" ours=0
+  local here here_phys qhere wd wds vols parent live="" unknown="" gone="" ours=0 docker_local=""
   here="$(pwd)"
   here_phys="$(pwd -P)"
   qhere="$(printf '%q' "$here_phys")"
@@ -181,20 +193,51 @@ main() {
   vols="$(docker volume ls -q --filter "label=com.docker.compose.project=$project" \
     --filter "label=com.docker.compose.volume=pgdata" </dev/null)" ||
     die 20 "could not list the Docker volumes of project '$project' to check that it is not another install's."
+  # Sort the other directories: live (it exists: another install), gone (provably absent: an
+  # absolute path whose parent exists and can be searched, on the local daemon) or unknown
+  # (anything else: an empty label, a relative or Windows path such as C:\..., an unsearchable
+  # parent, a remote DOCKER_HOST or a non-default docker context). Only when every other
+  # directory is gone (a moved or renamed checkout) is `down` offered: otherwise it could stop
+  # another install's live stack.
   while IFS= read -r wd; do
     [ -n "$wd" ] || continue
     wd="${wd#wd=}"
-    if [ -z "$wd" ]; then
-      others="an unknown directory"
-    elif [ "$wd" != "$here" ] && [ "$wd" != "$here_phys" ] &&
-      [ "$(cd "$wd" 2>/dev/null && pwd -P)" != "$here_phys" ]; then
-      others="$wd"
-    else
+    case "$wd" in
+      /*) ;;
+      '') add_dir unknown "an unknown directory (a container with no working directory label), which this installer cannot check"; continue ;;
+      *) add_dir unknown "$wd, which this installer cannot check"; continue ;;
+    esac
+    if [ "$wd" = "$here" ] || [ "$wd" = "$here_phys" ] ||
+      [ "$(cd "$wd" 2>/dev/null && pwd -P)" = "$here_phys" ]; then
       ours=1
+      continue
+    fi
+    if [ -d "$wd" ]; then
+      add_dir live "$wd, which is another install"
+      continue
+    fi
+    parent="${wd%/*}"
+    parent="${parent:-/}"
+    if [ -z "$docker_local" ]; then
+      docker_local=no
+      if [ -z "${DOCKER_HOST:-}" ]; then
+        case "$(docker context show 2>/dev/null </dev/null || true)" in
+          default | desktop-linux) docker_local=yes ;;
+        esac
+      fi
+    fi
+    if [ "$docker_local" = yes ] && [ ! -e "$wd" ] && [ ! -L "$wd" ] && [ -d "$parent" ] && [ -x "$parent" ]; then
+      add_dir gone "$wd, which no longer exists"
+    else
+      add_dir unknown "$wd, which this installer cannot check"
     fi
   done <<<"$wds"
-  if [ -n "$others" ]; then
-    die 20 "a Docker Compose project named '$project' already exists, started from $others. Not touching it. Install under another name, for example: SHIFTCIRCLE_PROJECT=shiftcircle-2 bash install.sh (or, if that directory is this checkout before you moved or renamed it, remove the old containers with '(cd $qhere && docker compose -p $project down)', which keeps the database volume, and run this again)."
+  local from="$live${live:+${unknown:+ and from }}$unknown"
+  from="$from${from:+${gone:+ and from }}$gone"
+  if [ -n "$gone" ] && [ -z "$live" ] && [ -z "$unknown" ]; then
+    die 20 "a Docker Compose project named '$project' already exists, started from $from. Not touching it. If that directory is this checkout before you moved or renamed it, remove the old containers with '(cd $qhere && docker compose -p $project down)', which keeps the database volume, and run this again. Otherwise install under another name and port, for example: SHIFTCIRCLE_PROJECT=shiftcircle-2 SC_WEB_PORT=9090 bash install.sh"
+  elif [ -n "$from" ]; then
+    die 20 "a Docker Compose project named '$project' already exists, started from $from. Not touching it. Install under another name and port, for example: SHIFTCIRCLE_PROJECT=shiftcircle-2 SC_WEB_PORT=9090 bash install.sh"
   fi
   # A database volume with no container of ours: a fresh install (no .env yet) would start the
   # database on it with a password our new .env does not have, and so would a re-run whose .env

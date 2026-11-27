@@ -826,3 +826,7 @@ The last pull request of v1.3, made after S7 (#38) merged, so it documents the f
 - **Installer:** `scripts/test-install-guard.sh` 50 passed, 0 failed; `scripts/check-install-pin.sh` OK (`v1.3.1`).
 
 **Release step:** after merge, tag the merge commit `v1.3.1` and push the tag, then run `scripts/check-install-pin.sh --remote` and the README one-liner once from an empty directory (free port, own `SHIFTCIRCLE_PROJECT`). Do not move `v1.3`.
+
+### On `main` after `v1.3.1` (next release, not tagged yet)
+
+- **Exit-20 `down` hint only for a moved checkout** (#50): in `v1.3.1` every exit-20 clash suggests `(cd <checkout> && docker compose -p <name> down)`, which would stop another install's stack in a plain clash. Now each recorded directory (control characters shown as `?`) is named as another install (it exists), as no longer existing (an absolute path whose parent exists and can be searched, on the local Docker daemon), or as one the installer cannot check (an empty label, a relative or Windows path, an unsearchable parent, `DOCKER_HOST` set or a non-default docker context). `down` is offered only when every named directory no longer exists; otherwise only another `SHIFTCIRCLE_PROJECT` and port. A clone failure with a SHA-shaped `SHIFTCIRCLE_REF` says it takes a tag or branch name. `scripts/test-install-guard.sh`: **98 checks** (50 at `v1.3.1`). `install.sh` still pins `v1.3.1`, so the one-liner installs the `v1.3.1` installer until the next release is tagged.

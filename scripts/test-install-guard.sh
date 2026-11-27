@@ -20,6 +20,7 @@ PORT=59137 # nothing listens here; the installer's port check must pass
 #                   $STATE/volumes     "project<TAB>volume<TAB>compose key<TAB>created"
 #                   $STATE/calls       every docker call, one per line
 #                   FAKE_PS_FAIL / FAKE_VOL_FAIL / FAKE_UP_FAIL = 1 to make that call fail
+#                   FAKE_CONTEXT       what `docker context show` prints (default "default")
 mkdir -p "$WORK/bin"
 cat >"$WORK/bin/docker" <<'FAKE'
 #!/usr/bin/env bash
@@ -36,6 +37,7 @@ label_of() { # the value of --filter label=KEY=VALUE for KEY
 }
 case "$1 ${2:-}" in
   "info "*) exit 0 ;;
+  "context show") echo "${FAKE_CONTEXT:-default}"; exit 0 ;;
   "compose version")
     [ "${3:-}" = "--short" ] && echo "2.30.0" || echo "Docker Compose version v2.30.0"; exit 0 ;;
   "ps -a")
@@ -86,6 +88,7 @@ fail=0
 CASE=""
 STATE=""
 DIR=""
+GONE=""
 OUT=""
 CODE=0
 
@@ -98,6 +101,9 @@ new_case() { # new_case NAME: a fresh state and a fake checkout at $DIR (no .env
   : >"$STATE/volumes"
   : >"$STATE/calls"
   DIR="$(cd "$WORK/case/ShiftCircle" && pwd -P)"
+  # A moved checkout's old path: its parent exists, the path itself does not.
+  mkdir -p "$WORK/case/moved-from"
+  GONE="$(cd "$WORK/case/moved-from" && pwd -P)/ShiftCircle"
   : >"$DIR/docker-compose.yml"
   printf 'POSTGRES_PASSWORD=\nSC_JWT_SECRET=\n' >"$DIR/.env.example"
 }
@@ -106,7 +112,7 @@ volume() { printf '%s\t%s_pgdata\tpgdata\t%s\n' "$1" "$1" "$2" >>"$STATE/volumes
 m2_volume() { printf '%s\t%s_m2\tm2\t%s\n' "$1" "$1" "2026-03-03T00:00:00Z" >>"$STATE/volumes"; }
 run() { # run [VAR=value ...]: install.sh from $WORK/case, output in $OUT, exit code in $CODE
   set +e
-  OUT="$(cd "$WORK/case" && env -u COMPOSE_PROJECT_NAME PATH="$WORK/bin:$PATH" FAKE_STATE="$STATE" \
+  OUT="$(cd "$WORK/case" && env -u COMPOSE_PROJECT_NAME -u DOCKER_HOST -u DOCKER_CONTEXT PATH="$WORK/bin:$PATH" FAKE_STATE="$STATE" \
     SC_WEB_PORT="$PORT" "$@" bash "$INSTALL" 2>&1)"
   CODE=$?
   set -e
@@ -123,6 +129,7 @@ not_upped() { ! upped; }
 no_env() { [ ! -e "$DIR/.env" ]; }
 env_has() { grep -qx "$1" "$DIR/.env"; }
 says() { grep -qF -- "$1" <<<"$OUT"; }
+not_says() { ! says "$1"; }
 
 # --- cases --------------------------------------------------------------------
 new_case "fresh install, nothing there"
@@ -250,10 +257,123 @@ check "proceeds" exit_is 0
 check ".env records the new name" env_has "COMPOSE_PROJECT_NAME=sc-b"
 
 new_case "moved checkout: the refusal says how to recover"
-container sc-a /old/place/ShiftCircle
+container sc-a "$GONE"
 run SHIFTCIRCLE_PROJECT=sc-a
 check "refuses with 20" exit_is 20
+check "says the directory is gone" says "which no longer exists"
 check "suggests down for a moved checkout, from this checkout" says "(cd $DIR && docker compose -p sc-a down)"
+check "also suggests another name and port" says "SHIFTCIRCLE_PROJECT=shiftcircle-2 SC_WEB_PORT=9090"
+
+new_case "plain clash: another checkout that still exists owns the name"
+mkdir -p "$WORK/case/other/ShiftCircle"
+container sc-a "$WORK/case/other/ShiftCircle"
+run SHIFTCIRCLE_PROJECT=sc-a
+check "refuses with 20" exit_is 20
+check "no up" not_upped
+check "says it is another install" says "started from $WORK/case/other/ShiftCircle, which is another install."
+check "suggests another name and port" says "SHIFTCIRCLE_PROJECT=shiftcircle-2 SC_WEB_PORT=9090"
+check "offers no down (it would stop the other stack)" not_says "docker compose -p sc-a down"
+
+for order in live-first gone-first; do
+  new_case "moved checkout plus a live one under the same name ($order)"
+  mkdir -p "$WORK/case/other/ShiftCircle"
+  if [ "$order" = live-first ]; then
+    container sc-a "$WORK/case/other/ShiftCircle"
+    container sc-a "$GONE"
+  else
+    container sc-a "$GONE"
+    container sc-a "$WORK/case/other/ShiftCircle"
+  fi
+  run SHIFTCIRCLE_PROJECT=sc-a
+  check "refuses with 20" exit_is 20
+  check "offers no down while any other checkout exists" not_says "docker compose -p sc-a down"
+  check "names the live one as another install" says "$WORK/case/other/ShiftCircle, which is another install"
+  check "names the gone one as gone" says "$GONE, which no longer exists"
+  check "does not call the gone one another install" not_says "$GONE, which is another install"
+done
+
+new_case "this checkout's containers plus another live install's"
+mkdir -p "$WORK/case/other/ShiftCircle"
+container sc-a "$DIR"
+container sc-a "$WORK/case/other/ShiftCircle"
+run SHIFTCIRCLE_PROJECT=sc-a
+check "refuses with 20" exit_is 20
+check "no up" not_upped
+check "offers no down" not_says "docker compose -p sc-a down"
+
+new_case "several containers of one moved checkout: named once"
+container sc-a "$GONE"
+container sc-a "$GONE"
+run SHIFTCIRCLE_PROJECT=sc-a
+check "names the directory once" not_says "$GONE, which no longer exists and from"
+check "still offers down" says "(cd $DIR && docker compose -p sc-a down)"
+
+new_case "Windows path label (a PowerShell install seen from WSL)"
+container sc-a 'C:\Users\someone\ShiftCircle'
+run SHIFTCIRCLE_PROJECT=sc-a
+check "refuses with 20" exit_is 20
+check "says it cannot check it" says "which this installer cannot check"
+check "offers no down" not_says "docker compose -p sc-a down"
+check "does not say it no longer exists" not_says "no longer exists"
+
+new_case "a label with a terminal escape is not printed raw"
+container sc-a "$(printf '/x\033[2Jy')"
+run SHIFTCIRCLE_PROJECT=sc-a
+check "refuses with 20" exit_is 20
+check "no escape character in the output" not_says "$(printf '\033')"
+
+new_case "relative path label"
+container sc-a nothere
+run SHIFTCIRCLE_PROJECT=sc-a
+check "refuses with 20" exit_is 20
+check "offers no down" not_says "docker compose -p sc-a down"
+
+new_case "relative label that resolves to this checkout is not ours"
+container sc-a .
+run SHIFTCIRCLE_PROJECT=sc-a
+check "refuses with 20" exit_is 20
+check "offers no down" not_says "docker compose -p sc-a down"
+
+new_case "parent directory missing (the parent was renamed too)"
+container sc-a /no/such/parent/ShiftCircle
+run SHIFTCIRCLE_PROJECT=sc-a
+check "refuses with 20" exit_is 20
+check "offers no down" not_says "docker compose -p sc-a down"
+
+if [ "$(id -u)" -ne 0 ]; then
+  new_case "parent directory not searchable (another user's)"
+  mkdir -p "$WORK/case/locked"
+  chmod 000 "$WORK/case/locked"
+  container sc-a "$WORK/case/locked/ShiftCircle"
+  run SHIFTCIRCLE_PROJECT=sc-a
+  chmod 700 "$WORK/case/locked"
+  check "refuses with 20" exit_is 20
+  check "offers no down" not_says "docker compose -p sc-a down"
+  check "does not say it no longer exists" not_says "no longer exists"
+fi
+
+new_case "gone directory, but DOCKER_HOST is set"
+container sc-a "$GONE"
+run SHIFTCIRCLE_PROJECT=sc-a DOCKER_HOST=tcp://build-box:2376
+check "refuses with 20" exit_is 20
+check "offers no down" not_says "docker compose -p sc-a down"
+
+new_case "gone directory, but a non-default docker context"
+container sc-a "$GONE"
+FAKE_CONTEXT=remote-box run SHIFTCIRCLE_PROJECT=sc-a
+check "refuses with 20" exit_is 20
+check "offers no down" not_says "docker compose -p sc-a down"
+
+new_case "gone directory, Docker Desktop's desktop-linux context"
+container sc-a "$GONE"
+FAKE_CONTEXT=desktop-linux run SHIFTCIRCLE_PROJECT=sc-a
+check "offers down (a local daemon)" says "(cd $DIR && docker compose -p sc-a down)"
+
+new_case "container without a working_dir label offers no down"
+container sc-a -
+run SHIFTCIRCLE_PROJECT=sc-a
+check "refuses with 20" exit_is 20
+check "offers no down" not_says "docker compose -p sc-a down"
 
 new_case "a CRLF .env (Windows checkout) with blank secrets"
 printf 'POSTGRES_PASSWORD=\r\nSC_JWT_SECRET=\r\n' >"$DIR/.env"
@@ -268,6 +388,14 @@ check "points at the output above" says "The cause is in the output above"
 check "records its database volume" env_has "SC_DB_VOLUME_CREATED=2026-11-26T10:00:00Z"
 run
 check "the re-run is not refused for its own volume" exit_is 0
+
+new_case "clone fails: the SHA hint only for a SHA-shaped ref"
+run SHIFTCIRCLE_DIR=fresh SHIFTCIRCLE_REPO=./no-such-repo SHIFTCIRCLE_REF=0123abcd
+check "exit 16" exit_is 16
+check "says a SHA is not accepted" says "takes a tag or branch name, not a SHA"
+run SHIFTCIRCLE_DIR=fresh SHIFTCIRCLE_REPO=./no-such-repo SHIFTCIRCLE_REF=v9.9.9
+check "exit 16" exit_is 16
+check "no SHA hint for a tag" not_says "not a SHA"
 
 if command -v python3 >/dev/null 2>&1; then
   new_case "port in use: the new project name is not saved"
