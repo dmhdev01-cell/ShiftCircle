@@ -123,6 +123,7 @@ not_upped() { ! upped; }
 no_env() { [ ! -e "$DIR/.env" ]; }
 env_has() { grep -qx "$1" "$DIR/.env"; }
 says() { grep -qF -- "$1" <<<"$OUT"; }
+not_says() { ! says "$1"; }
 
 # --- cases --------------------------------------------------------------------
 new_case "fresh install, nothing there"
@@ -253,7 +254,34 @@ new_case "moved checkout: the refusal says how to recover"
 container sc-a /old/place/ShiftCircle
 run SHIFTCIRCLE_PROJECT=sc-a
 check "refuses with 20" exit_is 20
+check "says the directory is gone" says "which no longer exists"
 check "suggests down for a moved checkout, from this checkout" says "(cd $DIR && docker compose -p sc-a down)"
+check "also suggests another name and port" says "SHIFTCIRCLE_PROJECT=shiftcircle-2 SC_WEB_PORT=9090"
+
+new_case "plain clash: another checkout that still exists owns the name"
+mkdir -p "$WORK/case/other/ShiftCircle"
+container sc-a "$WORK/case/other/ShiftCircle"
+run SHIFTCIRCLE_PROJECT=sc-a
+check "refuses with 20" exit_is 20
+check "no up" not_upped
+check "says it is another install" says "which is another install"
+check "suggests another name and port" says "SHIFTCIRCLE_PROJECT=shiftcircle-2 SC_WEB_PORT=9090"
+check "offers no down (it would stop the other stack)" not_says "docker compose -p sc-a down"
+check "offers no up -d" not_says "up -d"
+
+new_case "moved checkout plus a live one under the same name"
+mkdir -p "$WORK/case/other/ShiftCircle"
+container sc-a /old/place/ShiftCircle
+container sc-a "$WORK/case/other/ShiftCircle"
+run SHIFTCIRCLE_PROJECT=sc-a
+check "refuses with 20" exit_is 20
+check "offers no down while any other checkout exists" not_says "docker compose -p sc-a down"
+
+new_case "container without a working_dir label offers no down"
+container sc-a -
+run SHIFTCIRCLE_PROJECT=sc-a
+check "refuses with 20" exit_is 20
+check "offers no down" not_says "docker compose -p sc-a down"
 
 new_case "a CRLF .env (Windows checkout) with blank secrets"
 printf 'POSTGRES_PASSWORD=\r\nSC_JWT_SECRET=\r\n' >"$DIR/.env"

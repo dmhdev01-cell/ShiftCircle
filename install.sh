@@ -22,7 +22,8 @@
 #                        project. The name is saved to .env as COMPOSE_PROJECT_NAME so plain
 #                        `docker compose` commands in the checkout target the same project.
 #                        A name another install already uses is refused (exit 20).
-#   SHIFTCIRCLE_REF      git tag or branch to install (default: the release tag below)
+#   SHIFTCIRCLE_REF      git tag or branch to install, not a commit SHA (default: the release
+#                        tag below)
 #   SHIFTCIRCLE_DIR      target directory (default ./ShiftCircle)
 #   SHIFTCIRCLE_REPO     clone URL (advanced; default the public GitHub repo)
 #
@@ -114,7 +115,7 @@ main() {
   local repo="${SHIFTCIRCLE_REPO:-https://github.com/dmhdev01-cell/ShiftCircle.git}"
   local project="${SHIFTCIRCLE_PROJECT:-}"
   local port="${SC_WEB_PORT:-}"
-  [[ "$ref" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] || die 15 "SHIFTCIRCLE_REF '$ref' is not a plain tag or branch name."
+  [[ "$ref" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] || die 15 "SHIFTCIRCLE_REF '$ref' is not a plain tag or branch name (a commit SHA is not accepted)."
   case "$dir" in
     '' | -* | *[![:print:]]*) die 15 "SHIFTCIRCLE_DIR '$dir' must be a plain path (not empty, not starting with '-')." ;;
   esac
@@ -150,7 +151,7 @@ main() {
   else
     say "Cloning $repo at $ref into $dir ..."
     git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$ref" -- "$repo" "$dir" </dev/null ||
-      die 16 "could not clone '$ref' from $repo. Check the network and that the tag or branch exists (SHIFTCIRCLE_REF)."
+      die 16 "could not clone '$ref' from $repo. Check the network and that the tag or branch exists (SHIFTCIRCLE_REF must be a tag or branch name, not a commit SHA)."
   fi
   cd "$dir"
 
@@ -168,7 +169,7 @@ main() {
   if [ -z "$project" ] && [ "$had_env" -eq 1 ]; then project="$(env_get COMPOSE_PROJECT_NAME)"; fi
   project="${project:-shiftcircle}"
   valid_project "$project" || die 15 "project name '$project' (in $dir/.env) is not valid."
-  local here here_phys qhere wd wds vols others="" ours=0
+  local here here_phys qhere wd wds vols others="" others_live=0 ours=0
   here="$(pwd)"
   here_phys="$(pwd -P)"
   qhere="$(printf '%q' "$here_phys")"
@@ -186,15 +187,22 @@ main() {
     wd="${wd#wd=}"
     if [ -z "$wd" ]; then
       others="an unknown directory"
+      others_live=1
     elif [ "$wd" != "$here" ] && [ "$wd" != "$here_phys" ] &&
       [ "$(cd "$wd" 2>/dev/null && pwd -P)" != "$here_phys" ]; then
       others="$wd"
+      # A directory that still exists is another checkout: its stack is not ours to stop.
+      [ ! -d "$wd" ] || others_live=1
     else
       ours=1
     fi
   done <<<"$wds"
-  if [ -n "$others" ]; then
-    die 20 "a Docker Compose project named '$project' already exists, started from $others. Not touching it. Install under another name, for example: SHIFTCIRCLE_PROJECT=shiftcircle-2 bash install.sh (or, if that directory is this checkout before you moved or renamed it, remove the old containers with '(cd $qhere && docker compose -p $project down)', which keeps the database volume, and run this again)."
+  # Offer `down` only when every other directory is gone (a moved or renamed checkout): in a
+  # plain clash it would stop the other, still-present install's stack.
+  if [ -n "$others" ] && [ "$others_live" -eq 1 ]; then
+    die 20 "a Docker Compose project named '$project' already exists, started from $others, which is another install. Not touching it. Install under another name and port, for example: SHIFTCIRCLE_PROJECT=shiftcircle-2 SC_WEB_PORT=9090 bash install.sh"
+  elif [ -n "$others" ]; then
+    die 20 "a Docker Compose project named '$project' already exists, started from $others, which no longer exists. Not touching it. If that directory is this checkout before you moved or renamed it, remove the old containers with '(cd $qhere && docker compose -p $project down)', which keeps the database volume, and run this again. Otherwise install under another name and port, for example: SHIFTCIRCLE_PROJECT=shiftcircle-2 SC_WEB_PORT=9090 bash install.sh"
   fi
   # A database volume with no container of ours: a fresh install (no .env yet) would start the
   # database on it with a password our new .env does not have, and so would a re-run whose .env
