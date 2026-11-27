@@ -14,22 +14,22 @@ the host.
 One command. It needs a bash shell (macOS, Linux, or on Windows a **WSL2 Ubuntu terminal**, not PowerShell or cmd: see [Windows (WSL2)](#windows-wsl2); without WSL, see [Windows without WSL](#windows-without-wsl-hyper-v)), `curl`, `git`, Docker with Compose v2, a running Docker daemon and a free port. It clones into `./ShiftCircle`, creates `.env` with freshly generated random secrets that it never prints, runs `docker compose up -d --build --wait`, checks `/healthz` and `/api/v1/version`, and prints the URL:
 
 ```sh
-curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.3/install.sh && bash install.sh
+curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.3.1/install.sh && bash install.sh
 ```
 
 A failed download stops at the `curl` step with a non-zero exit. (`curl -fsSL <url> | bash` also works, because the script does nothing until it has all been read, but the pipe reports bash's exit status, so a failed download looks like success.) The safest way is to read it first:
 
 ```sh
-curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.3/install.sh
+curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.3.1/install.sh
 less install.sh
 bash install.sh
 ```
 
-**Course submission:** the version submitted for the assessment is the release tag **`v1.3`**, which the one-liner above installs (supervisors on their own posts and shift proposals, on top of v1.2). The earlier submission build was the tag `v1.1.2-submission` (v1.1.1 plus the staffing-shortfall hotfix); its own `install.sh` stays pinned to that tag, so the same one-liner with `v1.1.2-submission` in place of `v1.3` still installs it exactly.
+**Course submission:** the version submitted for the assessment is the release tag **`v1.3`** (supervisors on their own posts and shift proposals, on top of v1.2). The one-liner above installs **`v1.3.1`**, the current release: v1.3 plus the fixes and docs made after it (the installer's takeover guard, the bare address opening the sign-in screen, a supervisor's own row locked on the planning board, LF checkouts on Windows, the demo video and the architecture diagram; see [release 13.1](docs/process/release-notes.md#release-131-v131-post-submission-fixes-and-install-docs)). The `v1.3` tag is unchanged and its own `install.sh` stays pinned to `v1.3`, so the same one-liner with `v1.3` in place of `v1.3.1` still installs the submitted version exactly; its [release page](https://github.com/dmhdev01-cell/ShiftCircle/releases/tag/v1.3) has the v1.3 install notes. The earlier submission build was the tag `v1.1.2-submission` (v1.1.1 plus the staffing-shortfall hotfix); its own `install.sh` stays pinned to that tag, so the same one-liner with `v1.1.2-submission` in place of `v1.3` still installs it exactly.
 
 Overrides (environment variables, put them before `bash install.sh`): `SC_WEB_PORT` (host port, 1-65535, default 8080, for example `SC_WEB_PORT=9090 bash install.sh`), `SHIFTCIRCLE_PROJECT` (compose project name, default `shiftcircle`; a `COMPOSE_PROJECT_NAME` already in your shell is ignored on purpose), `SHIFTCIRCLE_REF` (tag or branch to install, default the release tag), `SHIFTCIRCLE_DIR` (default `./ShiftCircle`), and, advanced, `SHIFTCIRCLE_REPO` (clone URL). The port and project name are saved in `.env` (`SC_WEB_PORT`, `COMPOSE_PROJECT_NAME`). It refuses to touch an existing non-empty directory that is not a ShiftCircle checkout; re-running in the same place skips the clone and keeps the `.env` (it only fills a blank secret). It never runs `docker compose down`. The manual steps are below.
 
-**Already running ShiftCircle (or anything else) under the compose project name `shiftcircle`?** Compose knows a stack only by its project name, so a second install under the same name would take over the first one (recreate its containers, reuse its database volume, and then fail with `password authentication failed`). So give a second copy its own name, for example `SHIFTCIRCLE_PROJECT=shiftcircle-2 SC_WEB_PORT=9090 bash install.sh`; you can check which names are taken with `docker compose ls -a`. The `install.sh` on `main` (after the `v1.3` tag; the `v1.3` one-liner above does not have it yet) checks this for you: if containers of that project were started from another directory, or its database volume exists and this checkout's `.env` does not record creating it (a fresh install, or a re-run), it stops with exit code 20 without touching the other stack. A fresh install has already cloned `./ShiftCircle` by then; run it again with another `SHIFTCIRCLE_PROJECT` and the clone is skipped. Re-running in the same directory works, with one exception: a checkout installed before the installer recorded its volume (`SC_DB_VOLUME_CREATED` in `.env`) whose stack is stopped is refused once; if you know the volume is its own, start it once from the checkout (`cd ShiftCircle && docker compose -p <name> up -d`) and run the installer again. If you moved or renamed a checkout, its old containers still name the old path: `cd ShiftCircle && docker compose -p <name> down` (keeps the database volume) and run the installer again.
+**Already running ShiftCircle (or anything else) under the compose project name `shiftcircle`?** Compose knows a stack only by its project name, so a second install under the same name would take over the first one (recreate its containers, reuse its database volume, and then fail with `password authentication failed`). So give a second copy its own name, for example `SHIFTCIRCLE_PROJECT=shiftcircle-2 SC_WEB_PORT=9090 bash install.sh`; you can check which names are taken with `docker compose ls -a`. The installer since `v1.3.1` (the one-liner above; the `v1.3` installer does not have it) checks this for you: if containers of that project were started from another directory, or its database volume exists and this checkout's `.env` does not record creating it (a fresh install, or a re-run), it stops with exit code 20 without touching the other stack. A fresh install has already cloned `./ShiftCircle` by then; run it again with another `SHIFTCIRCLE_PROJECT` and the clone is skipped. Re-running in the same directory works, with one exception: a checkout installed before the installer recorded its volume (`SC_DB_VOLUME_CREATED` in `.env`) whose stack is stopped is refused once; if you know the volume is its own, start it once from the checkout (`cd ShiftCircle && docker compose -p <name> up -d`) and run the installer again. If you moved or renamed a checkout, its old containers still name the old path: `cd ShiftCircle && docker compose -p <name> down` (keeps the database volume) and run the installer again.
 
 ## Windows (WSL2)
 
@@ -52,13 +52,13 @@ Why not PowerShell: in Windows PowerShell `curl` is a different command
 (`Invoke-WebRequest`, which rejects `-fsSLo`), `&&` does not exist in PowerShell 5.1, and
 `bash` may start WSL rather than the shell you expect.
 
-**Git Bash** works only if Git does not convert line endings. Git for Windows defaults to
-`core.autocrlf=true`; the checkout then has CRLF line endings and the installer stops with
-exit 17, `POSTGRES_PASSWORD in ShiftCircle/.env is shorter than 8 characters` (the
-"value" it read is the stray carriage return). The `v1.3` tag has no `.gitattributes`, so
-it cannot force LF. (`main`, after `v1.3`, has one that checks every file out with LF, and its
-`install.sh` also ignores a stray carriage return in `.env`.) In Git Bash with `v1.3`, delete
-the half-made `ShiftCircle` folder and run:
+**Git Bash:** `v1.3.1` has a `.gitattributes` that checks every file out with LF, and its
+`install.sh` also ignores a stray carriage return in `.env`. The `v1.3` tag has neither, so
+with `v1.3` Git Bash works only if Git does not convert line endings. Git for Windows defaults
+to `core.autocrlf=true`; the checkout then has CRLF line endings and the `v1.3` installer stops
+with exit 17, `POSTGRES_PASSWORD in ShiftCircle/.env is shorter than 8 characters` (the
+"value" it read is the stray carriage return). In Git Bash with `v1.3`, delete the half-made
+`ShiftCircle` folder and run:
 
 ```sh
 GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.autocrlf GIT_CONFIG_VALUE_0=false bash install.sh
@@ -88,11 +88,12 @@ below is **UNVERIFIED on Windows**; what was checked elsewhere is said in each s
 
 **A. Git Bash** (comes with Git for Windows). Docker Desktop puts `docker` on the PATH,
 so the one-liner runs there, but Git for Windows converts line endings by default, which
-stops the installer with exit 17. This form switches that off for the clone only (no
-global Git setting changes; checked with a simulated `core.autocrlf=true` clone):
+stops the `v1.3` installer with exit 17 (`v1.3.1` checks out LF anyway). This form switches
+conversion off for the clone only, so it works with both (no global Git setting changes;
+checked with a simulated `core.autocrlf=true` clone):
 
 ```sh
-curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.3/install.sh && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.autocrlf GIT_CONFIG_VALUE_0=false bash install.sh
+curl -fsSLo install.sh https://raw.githubusercontent.com/dmhdev01-cell/ShiftCircle/v1.3.1/install.sh && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.autocrlf GIT_CONFIG_VALUE_0=false bash install.sh
 ```
 
 If an earlier run stopped with exit 17, delete the `ShiftCircle` folder first.
@@ -100,7 +101,7 @@ If an earlier run stopped with exit 17, delete the `ShiftCircle` folder first.
 **B. PowerShell only (no bash).** In PowerShell (5.1 or 7), from the folder you want:
 
 ```powershell
-git -c core.autocrlf=false clone --depth 1 --branch v1.3 https://github.com/dmhdev01-cell/ShiftCircle.git
+git -c core.autocrlf=false clone --depth 1 --branch v1.3.1 https://github.com/dmhdev01-cell/ShiftCircle.git
 cd ShiftCircle
 
 # .env from .env.example with two random secrets and the commit (hex, never printed).
@@ -343,20 +344,20 @@ Images stay on the machine after `down`; the next `up --build` reuses the build 
 | A second checkout conflicts with the first | `docker-compose.yml` fixes the project name to `shiftcircle`. For a second copy, use a unique project and port: `docker compose -p shiftcircle-test up -d --build --wait` with a different `SC_WEB_PORT`. |
 | Apple Silicon | No `--platform` override is needed; the stack uses multi-arch official images. If Docker warns about amd64 emulation, fix Docker Desktop's architecture setting rather than adding a flag. |
 | Install stops with exit 17, `POSTGRES_PASSWORD in ShiftCircle/.env is shorter than 8 characters`, on a fresh install | The checkout has Windows (CRLF) line endings, usually Git Bash. Delete the `ShiftCircle` folder and follow [Windows (WSL2)](#windows-wsl2). |
-| `warning: refs/tags/v1.3 … is not a commit!` while cloning | Harmless: `v1.3` is an annotated tag and a shallow clone of it prints this. The install continues. (Git's detached-HEAD advice is turned off by the `install.sh` on `main`.) |
-| Signed in as T. Nakamura, L. Fraser, P. Singh or Unit office TV and the Planning board says "Could not load the schedule" | `v1.3` only: you opened the bare `http://localhost:8080`, which goes to the Planning board, and signed in there. Use the side menu, or open `http://localhost:8080/login`. Nothing is broken. On `main` (after `v1.3`) the bare address opens the sign-in screen, and each user lands on their own home page. |
+| `warning: refs/tags/v1.3.1 … is not a commit!` (or `v1.3`) while cloning | Harmless: the release tags are annotated and a shallow clone of one prints this. The install continues. (Git's detached-HEAD advice is turned off by the `install.sh` since `v1.3.1`.) |
+| Signed in as T. Nakamura, L. Fraser, P. Singh or Unit office TV and the Planning board says "Could not load the schedule" | `v1.3` only: you opened the bare `http://localhost:8080`, which goes to the Planning board, and signed in there. Use the side menu, or open `http://localhost:8080/login`. Nothing is broken. Since `v1.3.1` the bare address opens the sign-in screen, and each user lands on their own home page. |
 | `port 8080 on 127.0.0.1 is already in use` (exit 14) | Re-run with another port: `SC_WEB_PORT=9090 bash install.sh`. It is saved to `.env`, so later re-runs keep it. |
-| `a Docker Compose project named '…' already exists` or `the database volume of a compose project named '…' already exists` (exit 20, `install.sh` on `main`) | Usually that project name belongs to another install: run again with your own name, for example `SHIFTCIRCLE_PROJECT=shiftcircle-2 SC_WEB_PORT=9090 bash install.sh`; the other stack was not touched. Or, for a checkout installed before the installer recorded its volume, with its stack stopped: the volume is its own, so start it once from the checkout (`cd ShiftCircle && docker compose -p <name> up -d`) and run again. Only do that if you know the volume is this checkout's. |
+| `a Docker Compose project named '…' already exists` or `the database volume of a compose project named '…' already exists` (exit 20, `install.sh` since `v1.3.1`) | Usually that project name belongs to another install: run again with your own name, for example `SHIFTCIRCLE_PROJECT=shiftcircle-2 SC_WEB_PORT=9090 bash install.sh`; the other stack was not touched. Or, for a checkout installed before the installer recorded its volume, with its stack stopped: the volume is its own, so start it once from the checkout (`cd ShiftCircle && docker compose -p <name> up -d`) and run again. Only do that if you know the volume is this checkout's. |
 | `docker is not installed` (exit 11) inside WSL while Docker Desktop is running | Turn on Docker Desktop's WSL integration for your distribution (see [Windows (WSL2)](#windows-wsl2)). |
 | `the docker daemon is not running` (exit 13) | Start Docker Desktop (or `sudo systemctl start docker`) and wait until it says it is running. On Linux, a user outside the `docker` group gets the same message. |
 | `'docker compose' (Compose v2) is not available` (exit 12) | Only the old `docker-compose` v1, or no Compose, is installed. Update Docker Desktop; on Linux install the Compose plugin (`docker-compose-plugin` from Docker's repository, or `docker-compose-v2` on Ubuntu). |
 | `git is not installed` (exit 10) or `curl is not installed` (exit 19) | Install it (`sudo apt-get install -y git curl` on Ubuntu/WSL) and run again. |
-| `could not clone 'v1.3' from https://github.com/…` (exit 16) | GitHub is not reachable (offline, VPN or firewall). Check `curl -I https://github.com`. Nothing was created; run again when it answers. |
+| `could not clone 'v1.3.1' from https://github.com/…` (exit 16) | GitHub is not reachable (offline, VPN or firewall). Check `curl -I https://github.com`. Nothing was created; run again when it answers. |
 | Exit 18 after `failed to solve: process "/bin/sh -c mvn -B -DskipTests package"` (`Could not transfer artifact … from/to central (https://repo.maven.apache.org/maven2)`) | The api build cannot reach Maven Central (symptom checked with the host blocked). Behind a corporate proxy: Maven inside the build does not read `HTTP_PROXY`, so the simplest fix is to build once on a network without a mandatory proxy; the images are then cached and the stack runs offline. Configuring the proxy instead needs a local `settings.xml` in the api build stage ([Maven proxy guide](https://maven.apache.org/guides/mini/guide-proxies.html)), and a TLS-inspecting proxy also needs its CA certificate there (**UNVERIFIED** behind a real proxy). |
 | Exit 18 after `failed to solve: process "/bin/sh -c pnpm install --frozen-lockfile"` or `Error when performing the request to https://registry.npmjs.org/pnpm/…` | The web build cannot reach the npm registry (symptom checked with the host blocked). Set Docker Desktop's proxy (Settings → Resources → Proxies) so builds get `HTTPS_PROXY` (**UNVERIFIED** behind a real proxy), or build once on another network. |
 | Exit 18 after an error pulling `postgres`, `maven`, `node`, `eclipse-temurin` or `nginx` from `docker.io` | Docker Hub is not reachable. Check Docker Desktop's proxy settings, then run again. |
-| Exit 18 says to run `docker compose … logs` but the logs are empty | The build failed before any container started; the real error is a few lines above in the installer's output. (The `install.sh` on `main` says so in its exit-18 message.) |
-| Re-running the installer | Safe in the same directory: it skips the clone, keeps `.env` and only starts or rebuilds what changed. Use the same `SHIFTCIRCLE_PROJECT` each time (with `v1.3`, a different one is saved to `.env` even if the run then stops; the `install.sh` on `main` saves the port and project only after its checks pass). |
+| Exit 18 says to run `docker compose … logs` but the logs are empty | The build failed before any container started; the real error is a few lines above in the installer's output. (The `install.sh` since `v1.3.1` says so in its exit-18 message.) |
+| Re-running the installer | Safe in the same directory: it skips the clone, keeps `.env` and only starts or rebuilds what changed. Use the same `SHIFTCIRCLE_PROJECT` each time (with `v1.3`, a different one is saved to `.env` even if the run then stops; the `install.sh` since `v1.3.1` saves the port and project only after its checks pass). |
 | Running the Playwright suite from Linux | The install itself needs no extra flag. A browser container cannot reach the stack at `localhost:8080`; use `BASE_URL=http://host.docker.internal:8080` (or your `SC_WEB_PORT`) and add `--add-host=host.docker.internal:host-gateway` (macOS/Windows do not need it). See [`e2e/README.md`](e2e/README.md); Linux is unverified in this repository. |
 
 ## 11. Settings reference
@@ -373,7 +374,7 @@ Set these in `.env` (Compose reads it automatically). Only the first two have no
 | `SC_DEMO_SEED` | `20261001` | Seed for the demo data generator. |
 | `SC_GIT_COMMIT` | `unknown` | Build information only: the commit shown at `/api/v1/version`. Baked in at build time (§3). |
 | `SC_WEB_PORT` | `8080` | Host port of the web, bound to `127.0.0.1` (§4). |
-| `SC_DB_VOLUME_CREATED` | (written by `install.sh` on `main`) | When this checkout's database volume was created. A re-run compares it with the volume that exists, so it never starts on another install's leftover volume (exit 20). Leave it alone. |
+| `SC_DB_VOLUME_CREATED` | (written by `install.sh` since `v1.3.1`) | When this checkout's database volume was created. A re-run compares it with the volume that exists, so it never starts on another install's leftover volume (exit 20). Leave it alone. |
 | `VITE_PERSIST_DEMO_SESSION` | unset (persistence on) | Demo session kill switch, build time. On the `demo` profile the web keeps the sign-in in `sessionStorage` so a refresh does not sign you out (ADR-025 amendment). Set it to exactly `false` in `.env` and rebuild (`docker compose up -d --build --wait`) to build a web that never stores the session; a refresh then asks for sign-in again. It is ignored on `prod-like`, which never persists. |
 | `SC_API_PORT`, `SC_DB_PORT` | `8081`, `5433` | Only with the debugging override `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build`, which publishes the api and the database on `127.0.0.1` only. Not needed for a normal install. |
 

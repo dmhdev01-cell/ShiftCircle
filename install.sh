@@ -37,7 +37,7 @@ set -euo pipefail
 # RELEASE: this pin must name a tag that exists on the remote when the release is cut.
 # scripts/check-install-pin.sh keeps it in step with the README and INSTALL URLs (CI, offline);
 # run `scripts/check-install-pin.sh --remote` after tagging to confirm the tag resolves.
-DEFAULT_REF="v1.3"
+DEFAULT_REF="v1.3.1"
 
 say() { printf '%s\n' "$*"; }
 die() {
