@@ -801,3 +801,28 @@ The last pull request of v1.3, made after S7 (#38) merged, so it documents the f
 - **The course submission is `v1.3`** (owner, 25 Nov): the README and INSTALL submission notes, `install.sh` `DEFAULT_REF="v1.3"` and both one-liners; `v1.1.2-submission` is kept as the earlier submission build. `BUILD_RECORD.md` is updated for v1.3 and still fits 2 Letter pages (1 in margins, 11 pt).
 - **Demo script:** every §1–9 quote re-read on the real api on a fresh stack before any spec ran, then both Playwright viewports drove the steps; no quote drifted. A short optional **§9 Supervisors on their own posts** (read-only) is added; §1–6 keeps its flow and its 4:35 budget.
 - **Counts:** measured on `d3d1d28`'s code; see "Measured on the final `main`" at the top of this release.
+
+## Release 13.1 (v1.3.1): post-submission fixes and install docs
+
+**Not the submission.** The course submission stays the tag `v1.3`, which is unchanged, and its own `install.sh` stays pinned to `v1.3` (its release page has the v1.3 install notes). `v1.3.1` is the current release: `v1.3` plus pull requests #42 to #48, merged on 25 and 26 Nov 2026. Tag: `v1.3.1`, cut on `main` after this release-prep PR merges; `install.sh` (`DEFAULT_REF="v1.3.1"`) and the README and INSTALL one-liners install it, and `scripts/check-install-pin.sh` passes offline (`--remote` once the tag is pushed).
+
+**What changed since `v1.3`:**
+- **Demo video** (#42, #44): the 3-minute walkthrough, recorded on `v1.3` (demo script §1–6), in `docs/demo/ShiftCircle-walkthrough.mp4` and on YouTube, linked from the top of the README.
+- **Build record** (#43, #45): an architecture diagram (`docs/img/architecture.svg` and `.png`: browser and roles, the web/api/db containers, the rules engine, the flows, and the simulated sign-in and payroll services with their pilot replacements), and who owns and supports the service in a pilot. Still two pages.
+- **Install docs for Windows** (#46, #48): WSL2 Ubuntu as the recommended path; Git Bash with the `core.autocrlf` one-liner; PowerShell-only steps (clone, generate `.env`, `docker compose up`) for Docker Desktop on Hyper-V; why plain PowerShell or cmd cannot run the one-liner; a "First 5 minutes" list in the README, and a troubleshooting row for every installer exit code.
+- **Installer takeover guard** (#47): `install.sh` refuses, with exit 20 and without touching the other stack, a compose project name whose containers were started from another directory, or whose database volume exists and this checkout's `.env` does not record creating it (`SC_DB_VOLUME_CREATED`). It fails closed if docker cannot list them, and checks only the database volume, so the test profile's Maven cache does not trip it. `scripts/test-install-guard.sh` runs `install.sh` against a fake docker and curl (50 checks, offline) in CI.
+- **Installer output** (#47): it prints the `/login` address, saves the port and project name to `.env` only after its checks pass, ignores a stray carriage return in `.env`, points exit 18 at the build output above, and turns off Git's detached-HEAD advice on clone.
+- **`/` goes to sign-in** (#47): the bare address opens `/login` when signed out, or the role's own home when signed in; a remembered page outside the role's menu falls back to that home. In `v1.3` it sent every user to the Planning board, where an officer, a rules user or the wall display saw "Could not load the schedule". Unit tests and a Playwright check per demo user.
+- **Own-row lock** (#47): on the planning board a supervisor's own row offers no change (free days are disabled "Off" buttons, shifts are not buttons) and reads "This is you. You can't change your own schedule; ask another supervisor."; the gap panel uses the same wording and shows no board hints for yourself. The api already refused these changes with 403 in `v1.3`.
+- **`.gitattributes`** (#47): every file is checked out with LF (CRLF only for `.cmd`, `.bat`, `.ps1`), so a Git Bash clone with `core.autocrlf=true` no longer breaks the installer's `.env` parsing (exit 17).
+- **This release-prep PR:** `DEFAULT_REF="v1.3.1"`, the README and INSTALL one-liners and notes, and this entry. No application code.
+
+**No api, migration, generator or rules change:** the dataset checksums (100 `beb2e222…b7d1`, 120 `ca73467d…a64a`, 150 `353e2e62…91a5`), the payroll golden (1,124 lines, `b946ef1f…00e6`), the plan fingerprints and rule set v4 are as at `v1.3`.
+
+**Measured on `main` at `2570e18`** (this PR adds only docs and the pin), 27 Nov 2026:
+- **API:** `docker compose --profile test run --rm --build api-test` (`mvn -B verify`), `BUILD SUCCESS`: **624 = 140 rules + 38 infrastructure + 446 api**, 0 failures, errors or skipped (unchanged since `v1.3`).
+- **Web:** `pnpm test` **718 passed** in 67 files (695 in 66 at `v1.3`); `pnpm lint` 0 errors (4 existing warnings); `tsc -b` clean.
+- **Playwright** against the real API, own compose project, a fresh stack per viewport, `E2E_WORKERS=1`: `desktop-datasets` **153 passed**, `tablet-datasets` **152 passed and 1 skipped** (the TV-size check runs on desktop only), 0 failed (144 and 143 + 1 at `v1.3`; the new specs check each demo user's landing and the own-row lock).
+- **Installer:** `scripts/test-install-guard.sh` 50 passed, 0 failed; `scripts/check-install-pin.sh` OK (`v1.3.1`).
+
+**Release step:** after merge, tag the merge commit `v1.3.1` and push the tag, then run `scripts/check-install-pin.sh --remote` and the README one-liner once from an empty directory (free port, own `SHIFTCIRCLE_PROJECT`). Do not move `v1.3`.
